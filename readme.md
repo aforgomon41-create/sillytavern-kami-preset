@@ -1,6 +1,6 @@
 # 卡密预设（Kami Preset）
 
-一套运行在 [SillyTavern](https://github.com/SillyTavern/SillyTavern) 1.18 以上版本与[酒馆助手](https://github.com/N0VI-MERSON/JS-Slash-Runner)（Tavern Helper / JS-Slash-Runner）4.9.5 以上版本上的 AI 角色扮演预设。
+一套运行在 [SillyTavern](https://github.com/SillyTavern/SillyTavern) 1.18 以上版本与[酒馆助手](https://n0vi028.github.io/JS-Slash-Runner-Doc)（Tavern Helper / JS-Slash-Runner）4.9.5 以上版本上的 AI 角色扮演预设。
 
 作者：kamisama ｜ 当前版本：v0.9（开发中）
 
