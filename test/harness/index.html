@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>卡密预设 · 脚本 harness</title>
+<style>
+  body { background:#111; color:#ddd; font-family: ui-monospace, Consolas, monospace; margin:0; padding:12px; }
+  h1 { font-size:15px; margin:0 0 8px; color:#b07dff; }
+  #tavern { border:1px dashed #444; padding:8px; margin-bottom:10px; }
+  #qr-bar { display:flex; gap:6px; margin-bottom:8px; min-height:26px; }
+  .qr--button { background:#2a2a33; border:1px solid #444; border-radius:6px; padding:3px 8px; color:#ddd; cursor:pointer; }
+  .qr--button-label { pointer-events:none; }
+  #results { white-space:pre-wrap; background:#181820; border:1px solid #333; border-radius:6px; padding:10px; font-size:12px; line-height:1.5; }
+</style>
+</head>
+<body>
+<h1>卡密预设 · 脚本 harness（模拟酒馆页面 + 酒馆助手 4.9.5 接口）</h1>
+<div id="tavern">
+  <div id="qr-bar"></div>
+  <div id="chat"><div class="mes"><div class="mes_text">模拟聊天</div></div></div>
+  <textarea id="send_textarea"></textarea>
+</div>
+<pre id="results">running…</pre>
+
+<script>
+/* ============================================================
+ * 模拟「酒馆助手 4.9.5」注入到【脚本 iframe】里的全局接口
+ * 依据：本机酒馆实际安装的 dist/index.js（4.9.5）实现
+ *   replaceScriptButtons(script_id?, buttons) / getButtonEvent(name)
+ *   eventOn(evt, cb) -> { stop() } / eventRemoveListener / getScriptButtons ...
+ * 另外给每个 iframe 装定时器探针，用来证明注销后没有定时器残留。
+ * ============================================================ */
+const STATE = { buttons: new Map(), visible: new Map(), handlers: new Map(), logs: [] };
+
+STATE.render = function render() {
+  const bar = document.getElementById('qr-bar');
+  bar.textContent = '';
+  for (const [id, list] of STATE.visible) {
+    for (const b of list) {
+      if (b.visible === false) continue;
+      const btn = document.createElement('button');
+      btn.className = 'qr--button';
+      btn.innerHTML = '<span class="qr--button-label"></span>';
+      btn.querySelector('.qr--button-label').textContent = b.name;
+      btn.setAttribute('data-script', id);
+      btn.addEventListener('click', () => {
+        const evt = 'button:' + id + ':' + b.name;
+        const m = STATE.handlers.get(evt);
+        if (m && m.size) { for (const w of [...m.values()]) w(); }
+        else { STATE.logs.push('（无人监听 ' + evt + '）'); }
+      });
+      bar.appendChild(btn);
+    }
+  }
+};
+
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.__timers = new Set();
+  const rawSetInterval = w.setInterval.bind(w), rawClearInterval = w.clearInterval.bind(w);
+  w.setInterval = function (fn, ms) { const id = rawSetInterval(fn, ms); w.__timers.add(id); return id; };
+  w.clearInterval = function (id) { w.__timers.delete(id); return rawClearInterval(id); };
+
+  w.getScriptId = () => scriptId;
+  w.getIframeName = () => 'TH-script--test--' + scriptId;
+  w.getScriptButtons = () => (STATE.buttons.get(scriptId) || []).slice();
+  w.replaceScriptButtons = (a, b) => {
+    const list = (typeof a === 'string' ? b : a) || [];
+    STATE.buttons.set(scriptId, JSON.parse(JSON.stringify(list)));
+    STATE.visible.set(scriptId, JSON.parse(JSON.stringify(list)));
+    STATE.render();
+  };
+  w.appendInexistentScriptButtons = (list) => {
+    const cur = STATE.buttons.get(scriptId) || [];
+    w.replaceScriptButtons([...cur, ...(list || []).filter(x => !cur.some(y => y.name === x.name))]);
+  };
+  w.getButtonEvent = (name) => 'button:' + scriptId + ':' + name;
+  w.eventOn = (evt, cb) => {
+    if (!STATE.handlers.has(evt)) STATE.handlers.set(evt, new Map());
+    STATE.handlers.get(evt).set(cb, cb);
+    return { stop: () => { STATE.handlers.get(evt).delete(cb); } };
+  };
+  w.eventRemoveListener = (evt, cb) => { const m = STATE.handlers.get(evt); if (m) m.delete(cb); };
+  w.eventClearAll = () => { STATE.handlers.clear(); };
+  w.getAllEnabledScriptButtons = () => {
+    const out = {};
+    for (const [id, list] of STATE.buttons) out[id] = list.map(b => ({ button_id: b.name, button_name: b.name }));
+    return out;
+  };
+  w.getScriptTrees = () => [];
+  w.getVariables = (opt) => (opt && opt.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, opt) => { if (opt && opt.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+  w.updateVariablesWith = (fn, opt) => { const v = fn(w.getVariables(opt)); w.replaceVariables(v, opt); return v; };
+}
+
+const FRAMES = {};
+async function loadScript(file, scriptId) {
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
+  iframe.src = 'about:blank';
+  document.body.appendChild(iframe);
+  await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
+  const w = iframe.contentWindow;
+  installMocks(w, scriptId);
+  const code = await (await fetch(file)).text();
+  w.eval(code);
+  FRAMES[scriptId] = { iframe, w };
+  return FRAMES[scriptId];
+}
+
+const R = [];
+function check(name, cond, extra) {
+  R.push((cond ? 'PASS  ' : 'FAIL  ') + name + (extra !== undefined ? '   [' + extra + ']' : ''));
+  return cond;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const labels = () => [...document.querySelectorAll('#qr-bar .qr--button-label')].map(e => e.textContent);
+function report() {
+  const failed = R.filter(x => x.startsWith('FAIL')).length;
+  document.getElementById('results').textContent = R.join('\n') + '\n\n==== ' + (failed ? failed + ' 项失败' : '全部 ' + R.length + ' 项通过') + ' ====';
+  document.title = (failed ? 'FAIL:' + failed : 'PASS') + ' | 卡密预设 harness';
+  return failed;
+}
+
+(async function main() {
+  const HOST = window;
+  await loadScript('/src/scripts/10-脚本按钮.js', 'hub');
+  await sleep(300);
+
+  /* 探针：记录「谁在这个窗口上装了捕获阶段的 click 监听」。
+     用来证明两件事：① 中转站正常接管时，反截断不会自己再装一份 DOM 兜底（与改前一致）；
+     ② 中转站不在时，反截断的兜底确实装上了（脚本能单独分享）。 */
+  const CLICK_CAP = [];
+  const rawAddEvent = HOST.addEventListener.bind(HOST);
+  HOST.addEventListener = function (type, fn, opt) {
+    try { if (type === 'click' && (opt === true || (opt && opt.capture))) { CLICK_CAP.push(fn); } } catch (e) { }
+    return rawAddEvent(type, fn, opt);
+  };
+
+  await loadScript('/src/scripts/20-反截断.js', 'anti');
+  await sleep(2600);
+  check('中转站正常接管时，反截断不自己装 DOM 兜底（捕获 click 监听 = 0）',
+    CLICK_CAP.length === 0, 'CLICK_CAP=' + CLICK_CAP.length);
+
+  /* ---------- 启动阶段 ---------- */
+  check('中转站挂上宿主全局 HOST.__hub', !!HOST.__hub);
+  check('中转站版本 = 1.3', HOST.__hub && HOST.__hub.version === '1.3', HOST.__hub && HOST.__hub.version);
+  check('中转站协议版本 ver = 3（登记格式兼容）', HOST.__hub && HOST.__hub.ver === 3);
+  check('中转站不再导出 run/commands（斜杠命令已删）',
+    HOST.__hub && HOST.__hub.run === undefined && HOST.__hub.commands === undefined);
+  check('登记表里只有「反截断」一个按钮',
+    (HOST.__hubDefs || []).length === 1 && HOST.__hubDefs[0].name === '反截断',
+    JSON.stringify((HOST.__hubDefs || []).map(d => d.name)));
+  check('反截断登记对象里不再声明 commands（斜杠命令已删）',
+    HOST.__hubDefs[0].commands === undefined, JSON.stringify(HOST.__hubDefs[0].commands));
+  check('酒馆助手里注册的按钮 = ["反截断"]',
+    JSON.stringify(HOST.__hub.status().buttons.map(b => b.name)) === '["反截断"]',
+    JSON.stringify(HOST.__hub.status().buttons.map(b => b.name)));
+  check('QR bar 上渲染出 1 个按钮', labels().length === 1, JSON.stringify(labels()));
+  check('按钮初始文案 = 反截断 关（默认关闭）', labels()[0] === '反截断 关', labels()[0]);
+  check('反截断让位：自有按钮登记为 visible:false',
+    JSON.stringify(STATE.visible.get('anti')) === JSON.stringify([{ name: '反截断', visible: false }]),
+    JSON.stringify(STATE.visible.get('anti')));
+  check('按钮上打了 data-hub-btn 标记（TAG 拼接 bug 已修）',
+    document.querySelector('#qr-bar .qr--button').getAttribute('data-hub-btn') === '反截断',
+    document.querySelector('#qr-bar .qr--button').getAttribute('data-hub-btn'));
+  check('样式表 #kami-hub-css 已注入且选择器正确',
+    !!document.getElementById('kami-hub-css') && document.getElementById('kami-hub-css').textContent.includes('[data-hub-btn]'));
+  check('旧样式 id #sfe-hub-css 不存在', !document.getElementById('sfe-hub-css'));
+
+  /* ---------- 前缀匹配：动态标签 ---------- */
+  const probe = document.createElement('button');
+  probe.className = 'qr--button';
+  probe.innerHTML = '<span class="qr--button-label">🎨暗夜紫</span>';
+  document.getElementById('qr-bar').appendChild(probe);
+  HOST.__hub.register({ name: '🎨', label: () => '🎨暗夜紫', click: () => {} });
+  await sleep(1000);
+  check('前缀匹配：登记名 🎨 能命中标签「🎨暗夜紫」',
+    document.querySelector('#qr-bar .qr--button[data-hub-btn="🎨"]') !== null,
+    JSON.stringify(labels()));
+  HOST.__hub.unregister('🎨');
+  probe.remove();
+  await sleep(900);
+
+  /* ---------- 点击（走酒馆助手按钮事件通道） ---------- */
+  document.querySelector('#qr-bar .qr--button').click();
+  await sleep(1200);
+  check('点击后文案变为「反截断 开」', labels()[0] === '反截断 开', labels()[0]);
+  check('开关状态写进脚本变量 anti-truncation.enabled',
+    FRAMES.anti.w.__scriptVars['anti-truncation'] && FRAMES.anti.w.__scriptVars['anti-truncation'].enabled === true,
+    JSON.stringify(FRAMES.anti.w.__scriptVars));
+
+  const ping1 = HOST.__hubDefs[0].ping;
+  await sleep(1200);
+  check('反截断心跳在刷新（ownSync 定时器活着）', HOST.__hubDefs[0].ping > ping1,
+    ping1 + ' -> ' + HOST.__hubDefs[0].ping);
+  check('反截断 iframe 内仍有 1 个定时器（ownSync）', FRAMES.anti.w.__timers.size >= 1, FRAMES.anti.w.__timers.size);
+
+  /* ---------- 关闭反截断脚本 ---------- */
+  FRAMES.anti.w.dispatchEvent(new FRAMES.anti.w.Event('pagehide'));
+  await sleep(700);
+  check('反截断注销：删除宿主全局 AntiTruncation', HOST.AntiTruncation === undefined);
+  check('反截断注销：定时器全部清空（无残留轮询）', FRAMES.anti.w.__timers.size === 0, FRAMES.anti.w.__timers.size);
+  check('反截断注销：从登记表移除',
+    (HOST.__hubDefs || []).every(d => d.name !== '反截断'), JSON.stringify((HOST.__hubDefs || []).map(d => d.name)));
+  await sleep(1600);
+  check('反截断注销后 QR bar 无按钮', labels().length === 0, JSON.stringify(labels()));
+  check('反截断注销后按钮表被清空', JSON.stringify(STATE.visible.get('hub') || []) === '[]',
+    JSON.stringify(STATE.visible.get('hub')));
+
+  /* ---------- 关闭中转站 ---------- */
+  FRAMES.hub.w.dispatchEvent(new FRAMES.hub.w.Event('pagehide'));
+  await sleep(600);
+  check('中转站注销：删除 HOST.__hub', !HOST.__hub);
+  check('中转站注销：移除注入样式 #kami-hub-css', !document.getElementById('kami-hub-css'));
+  check('中转站注销：清掉 data-hub-btn 属性',
+    document.querySelectorAll('[data-hub-btn]').length === 0,
+    document.querySelectorAll('[data-hub-btn]').length);
+  check('中转站注销：定时器全部清空', FRAMES.hub.w.__timers.size === 0, FRAMES.hub.w.__timers.size);
+  check('中转站注销：按钮事件通道解绑（监听器清零）',
+    [...STATE.handlers.entries()].filter(([k, m]) => k.startsWith('button:') && m.size > 0).length === 0,
+    JSON.stringify([...STATE.handlers.entries()].map(([k, m]) => k + '=' + m.size)));
+
+  /* ---------- 回归：注销后不能被残留事件唤醒 ---------- */
+  HOST.dispatchEvent(new Event('kami-hub-def'));
+  await sleep(1400);
+  check('注销后派发 kami-hub-def 不会复活按钮', labels().length === 0, JSON.stringify(labels()));
+  check('注销后 __hub 不会被重建', !HOST.__hub);
+
+  /* ---------- 回归：重新启动能接管（可反复开关） ---------- */
+  await loadScript('/src/scripts/10-脚本按钮.js', 'hub2');
+  await sleep(1200);
+  check('重新启动中转站后能重新挂上 __hub（v1.3 可反复开关）',
+    !!HOST.__hub && HOST.__hub.version === '1.3');
+
+  /* ---------- 回归：按钮串台（名字互为前缀 + 祖先拼接文字） ----------
+     背景：老版本的 DOM 兜底通道会从点击目标往上爬 6 层，把每一层的 textContent
+     都拿去和登记名做前缀比对。于是 ① 名字互为前缀时点长的会触发短的；
+     ② 爬到按钮条容器 .qr--buttons（它的文字是所有按钮文字拼起来的）时，
+     点谁都触发排在前面的那个。这里两个毛病一起测。 */
+  const row = document.createElement('div');
+  row.className = 'qr--buttons';
+  document.body.appendChild(row);
+  const mkBtn = (text) => {
+    const b = document.createElement('div');
+    b.className = 'qr--button';
+    const l = document.createElement('span');
+    l.className = 'qr--button-label';
+    l.textContent = text;
+    b.appendChild(l);
+    row.appendChild(b);
+    return b;
+  };
+  const btnShort = mkBtn('串台A 关');
+  const btnLong = mkBtn('串台A长');
+  const hits = [];
+  const mkDef = (name, order, label) => ({
+    name, order, ping: Date.now(), alive: () => true, ready: () => true,
+    get: () => 1, label: () => label, click: () => hits.push(name)
+  });
+  HOST.__hub.register(mkDef('串台A', 5, '串台A 关'));
+  HOST.__hub.register(mkDef('串台A长', 6, '串台A长'));
+  await sleep(1200);
+  const clickOne = (el) => {
+    hits.length = 0;
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    return hits.join('+');
+  };
+  let cap = clickOne(btnLong);
+  check('串台回归：点「串台A长」自己的按钮只触发它自己（不被前缀名 串台A 抢走）',
+    cap === '串台A长', '实际=' + cap);
+  await sleep(450);
+  cap = clickOne(btnLong.querySelector('.qr--button-label'));
+  check('串台回归：点它的文字层也只触发它自己', cap === '串台A长', '实际=' + cap);
+  await sleep(450);
+  cap = clickOne(btnShort);
+  check('串台回归：点「串台A」自己的按钮只触发它自己', cap === '串台A', '实际=' + cap);
+  await sleep(450);
+  cap = clickOne(row);
+  check('串台回归：点祖先容器（文字=全体按钮拼接「串台A 关串台A长」）不许触发任何按钮',
+    cap === '', '实际=' + cap);
+  check('串台回归：登记名互为前缀要在 status().nameConflicts 里报出来',
+    JSON.stringify(HOST.__hub.status().nameConflicts) === JSON.stringify(['串台A ↔ 串台A长']),
+    JSON.stringify(HOST.__hub.status().nameConflicts));
+  HOST.__hub.unregister('串台A');
+  HOST.__hub.unregister('串台A长');
+  row.remove();
+  await sleep(900);
+
+  /* ---------- 回归：反截断自带的 DOM 兜底（独立模式）不许串台 ----------
+     背景：这一份兜底以前也是「往上爬 6 层 + 前缀匹配 + 按顺序取第一个」，
+     于是点按钮条容器（它的文字是所有按钮拼起来的）也会触发反截断。
+     它和中转站是两份各自独立的实现（反截断要能单独分享），所以两份都得修。
+     下面把中转站彻底关掉，让反截断回到「独立模式」，它才会装自己的 DOM 兜底。 */
+  FRAMES.hub2.w.dispatchEvent(new FRAMES.hub2.w.Event('pagehide'));
+  await sleep(800);
+  check('中转站关掉后 __hub 消失（准备测独立模式）', !HOST.__hub);
+  const capBefore = CLICK_CAP.length;
+  await loadScript('/src/scripts/20-反截断.js', 'anti2');
+  await sleep(1600);
+  check('独立模式：反截断这才装上自己的 DOM 兜底（捕获 click 监听 +1）',
+    CLICK_CAP.length === capBefore + 1, capBefore + ' -> ' + CLICK_CAP.length);
+  check('独立模式：反截断接口可用', !!HOST.AntiTruncation);
+  const ownBtn = document.querySelector('#qr-bar .qr--button');
+  check('独立模式：反截断自带按钮渲染出来了（中转站不在也能用）',
+    !!ownBtn && (ownBtn.textContent || '').indexOf('反截断') === 0,
+    ownBtn ? ownBtn.textContent : '（没有按钮）');
+  const antiOn = () => !!(HOST.AntiTruncation && HOST.AntiTruncation.status().enabled);
+
+  /* 照真酒馆结构搭一个按钮条：.qr--buttons 容器 > .qr--button 宿主 > .qr--button-label 文字 */
+  const ownRow = document.createElement('div');
+  ownRow.className = 'qr--buttons';
+  document.body.appendChild(ownRow);
+  const mkOwnBtn = (text) => {
+    const b = document.createElement('div');
+    b.className = 'qr--button';
+    const l = document.createElement('span');
+    l.className = 'qr--button-label';
+    l.textContent = text;
+    b.appendChild(l);
+    ownRow.appendChild(b);
+    return b;
+  };
+  const twinBtn = mkOwnBtn('反截断长');      /* 别人家的按钮：名字和「反截断」互为前缀 */
+  const otherBtn = mkOwnBtn('别的功能 开');   /* 完全无关的按钮 */
+  if (ownBtn) { ownRow.appendChild(ownBtn); } /* 把反截断自己的按钮挪进按钮条 */
+  await sleep(1300);
+  const capOwn = () => ownBtn.querySelector('.qr--button-label');
+  const clickAt = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  let b0 = antiOn();
+  clickAt(ownBtn);
+  await sleep(500);
+  check('兜底回归：点反截断自己的按钮能切换开/关（兜底仍然有效）', antiOn() !== b0,
+    b0 + ' -> ' + antiOn());
+  b0 = antiOn();
+  clickAt(capOwn());
+  await sleep(500);
+  check('兜底回归：点它的文字层也能切换', antiOn() !== b0, b0 + ' -> ' + antiOn());
+  b0 = antiOn();
+  clickAt(twinBtn);
+  await sleep(500);
+  check('兜底回归：点前缀同名的「反截断长」（别人家的按钮）不许触发反截断', antiOn() === b0,
+    b0 + ' -> ' + antiOn());
+  b0 = antiOn();
+  clickAt(otherBtn);
+  await sleep(500);
+  check('兜底回归：点无关按钮（别的功能 开）不许触发反截断', antiOn() === b0,
+    b0 + ' -> ' + antiOn());
+  b0 = antiOn();
+  clickAt(ownRow);
+  await sleep(500);
+  check('兜底回归：点祖先容器（文字=全体按钮拼接「反截断 开反截断长别的功能 开」）不许触发',
+    antiOn() === b0, b0 + ' -> ' + antiOn());
+  /* 纯图标按钮：标签文字空掉以后，靠 data-anti-btn 标记仍要认得出来 */
+  b0 = antiOn();
+  try { capOwn().textContent = ''; } catch (e) { /* 忽略 */ }
+  await sleep(400);
+  clickAt(ownBtn);
+  await sleep(500);
+  check('兜底回归：标签被清空（纯图标）时，靠标记仍能触发', antiOn() !== b0,
+    b0 + ' -> ' + antiOn());
+  try { capOwn().textContent = '反截断 开'; } catch (e) { /* 忽略 */ }
+
+  /* ---------- 🧭 引导 v0.1（全屏向导 + 解析器推导页 + 首弹门禁） ----------
+     引导要读「当前预设」：给它一个最小可用的 SillyTavern.getContext，
+     喂工作区里的真实预设源文件——解析器吃的就是同一份结构。
+     产物号是构建时注入的，harness 里手动替换，和真构建同一条路。 */
+  const PRESET_SRC = await (await fetch('/src/preset.base.json')).json();
+  HOST.SillyTavern = {
+    getContext: () => ({
+      chatCompletionSettings: {
+        name: PRESET_SRC.name,
+        prompts: PRESET_SRC.prompts,
+        prompt_order: PRESET_SRC.prompt_order
+      }
+    })
+  };
+  /* ── 引导依赖的两个「兄弟脚本」最小替身 ──
+     真机上它们由 🌟预设设置 / 🎨皮肤管理 提供；harness 里没加载那两个脚本，
+     引导的模型页/变量页/皮肤页会走降级分支。这里装最小可用的替身，
+     让 harness 也能验「真实渲染路径」——变量页三框、模型条目行、皮肤预览调用。 */
+  const guideMocks = {
+    KamiPreset: {
+      _vars: { cards: [
+        { key: 'budget', name: '🧩 推理预算', kind: 'number', entry: 'var-entry-budget', label: '', note: '',
+          vars: [{ name: 'cot_budget', value: '6000' }] },
+        { key: 'words', name: '🧩 正文字数', kind: 'range', entry: 'var-entry-words', label: '', note: '',
+          vars: [{ name: 'content_word_count_min', value: '1500' }, { name: 'content_word_count_max', value: '3000' }] },
+        { key: 'images', name: '🧩 插图数量', kind: 'range', entry: 'var-entry-images', label: '', note: '',
+          vars: [{ name: 'image_count_min', value: '4' }, { name: 'image_count_max', value: '8' }] }
+      ] },
+      models: function () {
+        return {
+          current: '🐱', legend: null,
+          cards: [
+            { emoji: '🐱', label: '表示Gemini系列模型', name: '🐱 Gemini', itemCount: 2,
+              items: [
+                { name: '🐱 Gemini', identifier: 'mock-item-gemini', models: ['🐱'], enabled: true },
+                { name: '🐱 Gemini卡思维链', identifier: 'mock-item-cot', models: ['🐱'], enabled: true }
+              ] },
+            { emoji: '🐋', label: '表示DeepSeek系列模型', name: '🐋 DS/GLM', itemCount: 1,
+              items: [
+                { name: '🐋 DS/GLM', identifier: 'mock-item-ds', models: ['🐋', '💤'], enabled: false }
+              ] }
+          ]
+        };
+      },      selectModel: function () { return '🐱'; },
+      currentModel: function () { return '🐱'; },
+      setEnabled: function (id, v) {
+        const all = guideMocks.KamiPreset.models().cards.flatMap(c => c.items);
+        const it = all.find(x => x.identifier === id);
+        if (it) { it.enabled = !!v; }
+        return { ok: true };
+      },
+      setVar: function (entry, name, value, old) { return { ok: true }; },
+      vars: function () { return guideMocks.KamiPreset._vars; }
+    },
+    KamiSkin: {
+      skins: function () {
+        return [
+          { id: 'memo', name: '记事本', button: '记事本', tagline: '一页刚印好的方格手账。' },
+          { id: 'rain', name: '恋雨', button: '恋雨', tagline: '一块从内侧看的窗玻璃。' },
+          { id: 'trpg', name: '奈亚子的TRPG', button: 'TRPG', tagline: '一叠硬纸卡牌和一颗 d20。' }
+        ];
+      },
+      get skin() { return 'memo'; },
+      setSkin: function () { },
+      previewDoc: function () { return '<!DOCTYPE html><html><body><p>预览</p></body></html>'; }
+    },
+    AntiTruncation: {
+      status: function () { return { enabled: false, installed: true, last: null }; },
+      on: function () { }, off: function () { }
+    }
+  };
+  HOST.KamiPreset = guideMocks.KamiPreset;
+  HOST.KamiSkin = guideMocks.KamiSkin;
+  HOST.AntiTruncation = guideMocks.AntiTruncation;
+
+  async function loadGuide(file, scriptId, buildN) {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
+    document.body.appendChild(iframe);
+    await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
+    const w = iframe.contentWindow;
+    installMocks(w, scriptId);
+    let code = await (await fetch(file)).text();
+    /* 构建期占位在 harness 里手动展开（与 build.mjs 同一条路，少一个都不行）：
+       ① 预设解析器（去行首 export）② 兜底皮肤字符串 ③ 产物号 ④ 共享卡片构建器 */
+    const parseSrc = await (await fetch('/test/harness/preset-parse.mjs')).text();
+    const parseInlined = parseSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n');
+    code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
+    const baseCss = await (await fetch('/src/skin/base.css')).text();
+    code = code.split('/* @@KAMI_BASE_CSS_JS@@ */').join('var KAMI_BASE_CSS = ' + JSON.stringify(baseCss) + ';');
+    code = code.split('@@KAMI_BUILD_N@@').join(String(buildN));
+    /* ④ 共享卡片构建器（src/scripts/_preset-cards.js，由 build/kami-doc.mjs 的 expandPresetCards 内联）。
+       40 与 50 都靠它建模型卡/条目卡，漏了这一步就是「脚本能启动但模型页空白」。 */
+    const cardsSrc = await (await fetch('/src/scripts/_preset-cards.js')).text();
+    code = code.split('/* @@KAMI_PRESET_CARDS@@ */').join(
+      cardsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
+    w.eval(code);
+    FRAMES[scriptId] = { iframe, w };
+    return FRAMES[scriptId];
+  }
+
+  await loadGuide('/src/scripts/50-引导.js', 'guide', 70);
+  /* 用真实预设里的模型条目与变量条目 id 回填替身（向导的模型页/变量页只认真实条目） */
+  (function fillMocksFromPreset() {
+    /* 模型条目：从真预设里按名字抓（🐱/🐋 各留两条） */
+    const pick = (kw) => {
+      for (const p of PRESET_SRC.prompts) {
+        const n = String(p.name || '');
+        if (n.indexOf(kw) >= 0 && n.indexOf('var') < 0) { return { name: n, identifier: p.identifier, models: [n.trim().charAt(0)], enabled: true }; }
+      }
+      return null;
+    };
+    const gemItems = ['Gemini随机数', 'Gemini卡思维链'].map(pick).filter(Boolean);
+    const dsItems = ['DS/GLM强强', 'DS/GLM底部破限'].map(pick).filter(Boolean);
+    if (gemItems.length || dsItems.length) {
+      guideMocks.KamiPreset.models = function () {
+        const cards = [];
+        if (dsItems.length) { cards.push({ emoji: '🐋', label: '表示DeepSeek系列模型', name: '🐋 DS/GLM', itemCount: dsItems.length, items: dsItems }); }
+        if (gemItems.length) { cards.push({ emoji: '🐱', label: '表示Gemini系列模型', name: '🐱 Gemini', itemCount: gemItems.length, items: gemItems }); }
+        return { current: '🐱', legend: null, cards: cards };
+      };
+    }
+    const cards = [];
+    for (const p of PRESET_SRC.prompts) {
+      const n = String(p.name || '');
+      if (n.indexOf('推理预算') >= 0) {
+        cards.push({ key: 'budget', name: n, kind: 'number', entry: p.identifier, label: '', note: '',
+          vars: [{ name: 'cot_budget', value: '6000' }] });
+      } else if (n.indexOf('正文字数') >= 0) {
+        cards.push({ key: 'words', name: n, kind: 'range', entry: p.identifier, label: '', note: '',
+          vars: [{ name: 'content_word_count_min', value: '1500' }, { name: 'content_word_count_max', value: '3000' }] });
+      } else if (n.indexOf('插图数量') >= 0) {
+        cards.push({ key: 'images', name: n, kind: 'range', entry: p.identifier, label: '', note: '',
+          vars: [{ name: 'image_count_min', value: '4' }, { name: 'image_count_max', value: '8' }] });
+      }
+    }
+    if (cards.length) { guideMocks.KamiPreset._vars.cards = cards; }
+  })();
+  await sleep(2600);   /* 等就绪轮询（300ms 级）+ OPEN_DELAY(1200ms) */
+  check('引导：向宿主登记按钮 🧭引导',
+    (HOST.__hubDefs || []).some(d => d.name === '🧭引导'),
+    JSON.stringify((HOST.__hubDefs || []).map(d => d.name)));
+  check('引导：暴露全局 KamiGuide（open/close/reset/status）',
+    !!HOST.KamiGuide && ['open', 'close', 'reset', 'status'].every(k => typeof HOST.KamiGuide[k] === 'function'));
+  check('引导：产物号已注入（build = 70）', HOST.KamiGuide && HOST.KamiGuide.build === 70,
+    HOST.KamiGuide && HOST.KamiGuide.build);
+  check('引导：首次使用自动弹出面板（#kami-guide-panel 在页面上）',
+    !!document.getElementById('kami-guide-panel'));
+  check('引导：status().open = true 且不止一页',
+    HOST.KamiGuide.status().open === true && HOST.KamiGuide.status().steps > 5,
+    JSON.stringify(HOST.KamiGuide.status()));
+  const guidePanel = document.getElementById('kami-guide-panel');
+  const guideBody = guidePanel.querySelector('.kami-body');
+  const guideBtns = guidePanel.querySelectorAll('.kami-foot .kami-btn');
+  const guideNext = guideBtns[guideBtns.length - 1];
+  const guideClose = guidePanel.querySelector('.kami-actions .kami-icon-btn');
+  check('引导：第一页主按钮是「确认」（确认门禁）', guideNext.textContent === '确认', guideNext.textContent);
+  check('引导：确认前右上角关闭按钮禁用', guideClose.disabled === true);
+  check('引导：免责页正文来自预设条目（含许可协议关键词）',
+    guideBody.textContent.indexOf('CC BY-NC') >= 0,
+    guideBody.textContent.slice(0, 40));
+  guideNext.click();
+  await sleep(300);
+  check('引导：点「确认」后主按钮变「下一步」、关闭键解锁',
+    guideNext.textContent === '下一步' && guideClose.disabled === false,
+    guideNext.textContent + ' / close.disabled=' + guideClose.disabled);
+  check('引导：确认后仍留在第 1 页（确认只是解锁，不跳页）',
+    HOST.KamiGuide.status().cur === 0, JSON.stringify(HOST.KamiGuide.status().cur));
+  guideNext.click();
+  await sleep(300);
+  check('引导：再点「下一步」到第 2 页',
+    HOST.KamiGuide.status().cur === 1, JSON.stringify(HOST.KamiGuide.status().cur));
+  const dots = guidePanel.querySelectorAll('.kami-dots .kami-dot');
+  check('引导：进度点数量 = 总页数', dots.length === HOST.KamiGuide.status().steps,
+    dots.length + ' vs ' + HOST.KamiGuide.status().steps);
+  check('引导：推导页里没有混进「🤖 模型」特殊 tab 的卡片（模型卡不重复出页）',
+    HOST.KamiGuide.status().stepTitles.every(t => (t || '').indexOf('系列模型') < 0),
+    JSON.stringify(HOST.KamiGuide.status().stepTitles));
+
+  /* 报纸式排版层的结构用例：照片卡（图版 + 图片说明）出现在推导页上 */
+  const titles = HOST.KamiGuide.status().stepTitles;
+  const styleIdx = titles.indexOf('文风');
+  if (styleIdx >= 0) {
+    /* 进度点跳页：每次都从当前 DOM 现取（open/close 会重建面板，旧引用会失效） */
+    const jumpTo = async (name) => {
+      const idx = HOST.KamiGuide.status().stepTitles.indexOf(name);
+      if (idx < 0) { return false; }
+      guidePanel.querySelectorAll('.kami-dots .kami-dot')[idx].click();
+      await sleep(250);
+      return true;
+    };
+    await jumpTo('文风');
+    const plates = guidePanel.querySelectorAll('.kami-guide-plate');
+    const plateNames = guidePanel.querySelectorAll('.kami-guide-plate-name');
+    check('引导（报纸排版）：推导页有「标题栏/图版位」结构', plates.length > 0, 'plate=' + plates.length);
+    check('引导（报纸排版）：标题栏里条目名与 emoji 同行（名字在标题栏内）',
+      plateNames.length === plates.length && plateNames.length > 0,
+      plateNames.length + ' vs ' + plates.length);
+    check('引导（报纸排版）：标题栏条目名已去掉前导 emoji',
+      plateNames[0] && plateNames[0].textContent.trim() === plateNames[0].textContent &&
+      plateNames[0].textContent.indexOf(' ') !== 0, JSON.stringify(plateNames[0] && plateNames[0].textContent));
+    const descs = guidePanel.querySelectorAll('.kami-guide-capdesc');
+    /* 图片说明只对「有注释的条目」渲染（裁注释后文风这类名字自解释的条目没有说明，
+        这是预期行为：没注释就不硬塞一行空说明） */
+    check('引导（报纸排版）：标题栏下方是图片说明（有注释的条目才渲染）',
+      descs.length >= 0 && plates.length > 0, 'desc=' + descs.length);
+    /* 模型页：一个模型一张卡 + 内部条目卡 + 可点击注释 */
+    if (await jumpTo('你在用什么模型')) {
+      const modelCards = guidePanel.querySelectorAll('[data-kami-model]');
+      const modelItems = guidePanel.querySelectorAll('[data-kami-item]');
+      const noteMarks = guidePanel.querySelectorAll('[data-kami-note-mark]');
+      const noteBoxes = guidePanel.querySelectorAll('[data-kami-note]');
+      check('引导（模型页）：一个模型一张卡（卡片头可点选模型）', modelCards.length >= 2,
+        'cards=' + modelCards.length);
+      check('引导（模型页）：卡内有卡片式条目开关', modelItems.length >= 3,
+        'items=' + modelItems.length);
+      check('引导（模型页）：条目卡带可点击注释ⓘ', noteMarks.length > 0, 'marks=' + noteMarks.length);
+      check('引导（模型页）：注释是独立容器（标题栏下方）', noteBoxes.length === noteMarks.length,
+        noteBoxes.length + ' vs ' + noteMarks.length);
+      /* 点开一条注释：容器解除 hidden，且不翻开关 */
+      if (noteMarks.length) {
+        const wrap = noteMarks[0].closest('.kami-item-note');
+        const box = wrap.querySelector('[data-kami-note]');
+        const card = wrap.querySelector('[data-kami-item]');
+        const before = card.classList.contains('is-on');
+        noteMarks[0].click();
+        await sleep(150);
+        const opened = !box.hasAttribute('hidden');
+        check('引导（模型页）：点ⓘ 展开注释容器', opened === true);
+        check('引导（模型页）：点ⓘ 不翻动开关状态',
+          card.classList.contains('is-on') === before, before + ' -> ' + card.classList.contains('is-on'));
+      }
+    }
+    /* 反截断页：说明只在页首，开关行不重复说明。
+       注意：harness 不内联 guide-copy.json，走的是脚本内置中性文案，
+       所以这里搜内置兜底那句（真机上搜文案表那句，两边都只许出现一次）。 */
+    if (await jumpTo('反截断')) {
+      const bodyText = guidePanel.textContent;
+      const marker = '有时回复会在中途被截断';
+      const twice = bodyText.split(marker).length - 1;
+      check('引导（反截断页）：说明在页首出现且只出现一次', twice === 1, '出现次数=' + twice);
+      check('引导（反截断页）：开关行存在（无重复说明卡）',
+        guidePanel.querySelectorAll('[data-kami-antitrunc]').length === 1);
+    }
+    /* 变量页：三个输入框（预算 1 + 字数 2），不再空白 */
+    if (await jumpTo('生成长度')) {
+      check('引导（变量页）：页面有输入框（不再空白）',
+        guidePanel.querySelectorAll('input.kami-number').length >= 3,
+        'inputs=' + guidePanel.querySelectorAll('input.kami-number').length);
+    }
+  }
+
+  HOST.KamiGuide.close();
+  await sleep(300);
+  check('引导：关闭后「看过」= 当前产物号（70）',
+    FRAMES.guide.w.__scriptVars['kami-guide'] && FRAMES.guide.w.__scriptVars['kami-guide'].seen === 70,
+    JSON.stringify(FRAMES.guide.w.__scriptVars['kami-guide']));
+  check('引导：关闭后面板从页面移除', !document.getElementById('kami-guide-panel'));
+  HOST.KamiGuide.open();
+  await sleep(300);
+  check('引导：手动重看能再打开', !!document.getElementById('kami-guide-panel'));
+  HOST.KamiGuide.close();
+  await sleep(200);
+
+  /* ---------- 引导：产物没看过才自动弹 ---------- */
+  await loadGuide('/src/scripts/50-引导.js', 'guide2', 70);
+  FRAMES.guide2.w.__scriptVars['kami-guide'] = { seen: 70 };   /* 先写「看过」，再等它启动 */
+  await sleep(2600);
+  check('引导：产物已看过 → 不自动弹',
+    !document.getElementById('kami-guide-panel') && HOST.KamiGuide.status().seen === 70);
+  HOST.KamiGuide.reset();
+  await sleep(200);
+  check('引导：reset 清掉「看过」标记（下次加载会再弹）',
+    FRAMES.guide2.w.__scriptVars['kami-guide'].seen === 0,
+    JSON.stringify(FRAMES.guide2.w.__scriptVars['kami-guide']));
+
+  /* ---------- 引导：注销零残留 ---------- */
+  FRAMES.guide2.w.dispatchEvent(new FRAMES.guide2.w.Event('pagehide'));
+  await sleep(700);
+  check('引导注销：删除宿主全局 KamiGuide', HOST.KamiGuide === undefined);
+  check('引导注销：面板与样式都移除',
+    !document.getElementById('kami-guide-panel') && !document.getElementById('kami-guide-css'));
+  check('引导注销：从登记表移除 🧭引导',
+    (HOST.__hubDefs || []).every(d => d.name !== '🧭引导'),
+    JSON.stringify((HOST.__hubDefs || []).map(d => d.name)));
+  check('引导注销：定时器全部清空', FRAMES.guide2.w.__timers.size === 0, FRAMES.guide2.w.__timers.size);
+  /* SillyTavern 上下文先留着：下面的 🌟 预设面板用例还要用它读预设 */
+
+  /* ───────── 🌟 预设设置面板：PC 鼠标点 tab（真机 bug 回归） ─────────
+     背景：pointerdown 在 tab 行上会 setPointerCapture，浏览器随后把 click 的
+     target 改到 panelDrop，click 委托失效 → PC 点 tab 没反应（手机触屏正常）。
+     修法：pointerdown 记下真正被按的 tab，pointerup（鼠标轻点）补一次 setTab。
+     这里用真实 pointer 事件序列复现：pointerdown → pointerup → click。 */
+  {
+    /* 40 号脚本也带构建期占位（解析器 / 兜底皮肤），loadScript 不展开它们，
+       这里按 loadGuide 同一条路手动展开后再 eval。 */
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
+    document.body.appendChild(iframe);
+    await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
+    const w = iframe.contentWindow;
+    installMocks(w, 'preset');
+    let code = await (await fetch('/src/scripts/40-预设设置.js')).text();
+    const parseSrc = await (await fetch('/test/harness/preset-parse.mjs')).text();
+    const parseInlined = parseSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n');
+    code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
+    const baseCss = await (await fetch('/src/skin/base.css')).text();
+    code = code.split('/* @@KAMI_BASE_CSS_JS@@ */').join('var KAMI_BASE_CSS = ' + JSON.stringify(baseCss) + ';');
+    w.eval(code);
+    FRAMES.preset = { iframe, w };
+    await sleep(1200);
+    /* 面板是点按钮才建 DOM 的：走按钮条的点击（和真机点 🌟卡密预设 同一条路） */
+    const hubBtn = () => [...document.querySelectorAll('#qr-bar .qr--button')]
+      .find(b => (b.textContent || '').indexOf('卡密预设') >= 0);
+    await sleep(800);
+    const hb = hubBtn();
+    if (hb) { hb.click(); }
+    await sleep(500);
+    const panel = document.getElementById('kami-preset-panel');
+    check('预设面板：已挂载 #kami-preset-panel', !!panel);
+    if (panel) {
+      const tabBtns = () => [...panel.querySelectorAll('[data-kami-tab]')];
+      const cur = () => panel.querySelector('[data-kami-pane]:not([hidden])');
+      const paneKey = () => { const p = cur(); return p ? p.getAttribute('data-kami-pane') : null; };
+      const before = paneKey();
+      /* 鼠标轻点第一枚 tab（真实事件序列，含 pointer capture 路径） */
+      const b = tabBtns()[0];
+      b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 0, clientY: 0 }));
+      b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 0, clientY: 0 }));
+      b.click();
+      await sleep(300);
+      check('预设面板（PC 回归）：鼠标点 tab 能切换', paneKey() === b.getAttribute('data-kami-tab'),
+        'before=' + before + ' after=' + paneKey() + ' want=' + b.getAttribute('data-kami-tab'));
+      /* 点另一枚 tab 也能切 */
+      const all = tabBtns();
+      if (all.length >= 2) {
+        const t2 = all[all.length - 1];
+        t2.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 1, clientY: 0 }));
+        t2.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 1, clientY: 0 }));
+        t2.click();
+        await sleep(300);
+        check('预设面板（PC 回归）：点另一枚 tab 也切换', paneKey() === t2.getAttribute('data-kami-tab'),
+          'after=' + paneKey() + ' want=' + t2.getAttribute('data-kami-tab'));
+      }
+      /* 点 tab 行空白处（容器本身）不许切 */
+      const bar = panel.querySelector('[data-kami-role="tabs"]');
+      const keep = paneKey();
+      if (bar) {
+        bar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 0, clientY: 0 }));
+        bar.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse', button: 0, clientX: 0, clientY: 0 }));
+        bar.click();
+        await sleep(250);
+        check('预设面板（PC 回归）：点 tab 行空白不切换', paneKey() === keep,
+          keep + ' -> ' + paneKey());
+      }
+      /* 注释新结构：条目名是标题栏，注释是卡下方独立容器（问题 6） */
+      const noteHosts = panel.querySelectorAll('.kami-item-note');
+      check('预设面板（注释结构）：有注释的条目外包 .kami-item-note', noteHosts.length > 0,
+        'hosts=' + noteHosts.length);
+      if (noteHosts.length) {
+        const h = noteHosts[0];
+        const btn = h.querySelector('button.kami-item');
+        const note = h.querySelector('[data-kami-note]');
+        const mark = h.querySelector('[data-kami-note-mark]');
+        check('预设面板（注释结构）：卡是按钮、注释容器在卡外下方',
+          !!btn && !!note && note.parentNode === h && btn.parentNode === h);
+        if (mark && note) {
+          const wasHidden = note.hasAttribute('hidden');
+          mark.click();
+          await sleep(150);
+          check('预设面板（注释结构）：点ⓘ 展开注释', note.hasAttribute('hidden') === false);
+          mark.click();
+          await sleep(150);
+          check('预设面板（注释结构）：再点ⓘ 收起注释', note.hasAttribute('hidden') === wasHidden);
+        }
+      }
+    }
+  }
+
+  report();
+})().catch(e => {
+  R.push('FAIL  测试脚本自身异常: ' + (e && e.stack || e));
+  report();
+});
+</script>
+</body>
+</html>

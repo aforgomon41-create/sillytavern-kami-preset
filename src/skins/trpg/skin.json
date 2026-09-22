@@ -1,0 +1,88 @@
+{
+  "id": "trpg",
+  "name": "奈亚子的TRPG",
+  "button": "TRPG",
+  "scheme": "light",
+  "decor": [
+    "d20"
+  ],
+  "tagline": "一张从草稿本上撕下来的纸、一叠硬纸卡牌，和桌角那颗一直在转的 d20。",
+  "effects": [
+    {
+      "id": "dice",
+      "label": "骰子晃动",
+      "desc": "标题栏左侧的 d20 骰子持续轻微晃动；关闭动画后停驻静止，点击依然可正常掷骰。",
+      "default": true
+    },
+    {
+      "id": "grid",
+      "label": "草稿格线",
+      "desc": "撕边草稿纸底层透出暗绿方格网点，卡片正文区域覆于格线上方。",
+      "default": true
+    },
+    {
+      "id": "doodle",
+      "label": "跑团涂鸦",
+      "desc": "纸张边缘散布手绘骰子、箭头圈注、咖啡圆渍与简笔小人印迹。",
+      "default": true
+    },
+    {
+      "id": "tape",
+      "label": "胶带贴角",
+      "desc": "纸张斜对角贴有半透明哑光胶带，模拟固定在桌面上的质感。",
+      "default": true
+    },
+    {
+      "id": "wear",
+      "label": "卡牌磨损",
+      "desc": "行动卡牌四角带有磨白切角与折痕压印，呈现频繁使用的手感。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "die",
+      "label": "骰子缩放",
+      "group": "桌面",
+      "token": "--kami-trpg-die",
+      "unit": "",
+      "min": 0.7,
+      "max": 1.6,
+      "step": 0.05,
+      "value": 1
+    },
+    {
+      "id": "jag",
+      "label": "撕边深度",
+      "group": "纸面",
+      "token": "--kami-trpg-jag",
+      "unit": "px",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "value": 3
+    },
+    {
+      "id": "board",
+      "label": "纸板厚度",
+      "group": "纸面",
+      "token": "--kami-trpg-board",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "value": 3
+    },
+    {
+      "id": "grid",
+      "label": "格线间距",
+      "group": "纸面",
+      "token": "--kami-trpg-grid-size",
+      "unit": "px",
+      "min": 8,
+      "max": 40,
+      "step": 1,
+      "value": 22
+    }
+  ]
+}

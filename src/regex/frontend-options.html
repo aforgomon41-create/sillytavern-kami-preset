@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行动选项</title>
+<style>
+/* ===== 兜底皮肤（皮肤管理未运行时生效；有皮肤时整体失效） ===== */
+/* @@KAMI_BASE_CSS@@ */
+
+/* ===== 结构层：只声明“必须存在才能工作”的最小行为，不含任何外观 ===== */
+html, body { margin: 0; padding: 0; background: transparent; border: 0; }
+body { font-family: inherit; color: inherit; }
+.kami-root[data-kami-comp="options"] { position: relative; }
+.kami-root[data-kami-comp="options"] .kami-item { appearance: none; -webkit-appearance: none; font: inherit; }
+</style>
+</head>
+<body>
+
+<!-- 载荷：模型输出的行动选项 JSON（构建期会把载荷占位换成正则捕获组） -->
+<script type="text/plain" data-kami-payload>@@PAYLOAD@@</script>
+
+<div class="kami-root" data-kami-comp="options" data-kami-mode="fill">
+  <div class="kami-shell kami-surface">
+    <div class="kami-head">
+      <span class="kami-dot"></span>
+      <span class="kami-deco" data-kami-deco="d20" aria-hidden="true"></span>
+      <span class="kami-title" data-kami-slot="options-title" data-kami-label="options-title">行动选项</span>
+      <span class="kami-sub" data-kami-role="count"></span>
+      <span class="kami-actions">
+        <span class="kami-seg">
+          <button type="button" class="kami-seg-item is-on" data-kami-mode="fill" data-kami-slot="fill">填入</button>
+          <button type="button" class="kami-seg-item" data-kami-mode="send" data-kami-slot="send">发送</button>
+        </span>
+      </span>
+    </div>
+    <div class="kami-grid kami-list" data-kami-role="list"></div>
+    <div class="kami-foot">
+      <span class="kami-sub" data-kami-role="hint" data-kami-slot="options-hint">轻点卡片即可生效</span>
+    </div>
+    <div class="kami-toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var NL = String.fromCharCode(10);
+  var SP = '[\\s\\u3000]';
+  var RE_TRIM = new RegExp('^' + SP + '+|' + SP + '+$', 'g');
+  var RE_BLANK = new RegExp(NL + '{2,}');
+  var RE_BR = new RegExp(NL, 'g');
+  var RE_SP = new RegExp(SP, 'g');
+  var RE_BOLD = new RegExp('\\*\\*([^*]+)\\*\\*', 'g');
+  var RE_CODE = new RegExp('\\u0060([^\\u0060]+)\\u0060', 'g');
+  var RE_HEAD = new RegExp('^\\u0023{1,6}');
+  var RE_LI = new RegExp('^' + SP + '*[-*]' + SP);
+  var LS_MODE = 'kami.options.mode';
+  var ACT_MS = 1200;
+
+  /* 中文类型 → 契约里的语义色键 */
+  var KIND = {
+    '行动': 'action', '性格': 'persona', '推进': 'plot', '信息': 'info',
+    '搞笑': 'fun', 'nsfw': 'nsfw', 'NSFW': 'nsfw', '其他': 'other'
+  };
+
+  function q(sel, root) { return (root || document).querySelector(sel); }
+  function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function store(key, val) {
+    try {
+      if (val === undefined) { return localStorage.getItem(key); }
+      localStorage.setItem(key, val);
+    } catch (e) { }
+    return null;
+  }
+  function labelVar(root, name) {
+    var v = '';
+    try { v = getComputedStyle(root).getPropertyValue('--kami-label-' + name); } catch (e) { return ''; }
+    v = String(v || '').replace(RE_TRIM, '');
+    if (v.length > 1) {
+      var a = v.charAt(0), b = v.charAt(v.length - 1);
+      if ((a === '"' && b === '"') || (a === "'" && b === "'")) { v = v.slice(1, -1).replace(RE_TRIM, ''); }
+    }
+    return v;
+  }
+  /* 风格性文案：带 data-kami-label 的元素可被皮肤用 --kami-label-<slot> 覆盖（机制见契约 §3.7）。
+     新增槽位只需在 HTML 上加属性，这里不用改。 */
+  function applyLabels(root) {
+    var els = root.querySelectorAll('[data-kami-label]');
+    for (var i = 0; i < els.length; i++) {
+      (function (el) {
+        if (!el.getAttribute('data-kami-default')) { el.setAttribute('data-kami-default', el.textContent || ''); }
+        var token = el.getAttribute('data-kami-label');
+        var v = labelVar(root, token) || el.getAttribute('data-kami-default') || '';
+        if (el.textContent !== v) { el.textContent = v; }
+      })(els[i]);
+    }
+    /* 下面是功能性文案：写死，皮肤不得覆盖 */
+    var hint = q('[data-kami-role="hint"]', root);
+    if (hint && !mount.demo) {
+      hint.textContent = (root.getAttribute('data-kami-mode') === 'send') ? '轻点卡片直接发送' : '轻点卡片即可生效';
+    }
+  }
+  /* ---------- 载荷与解析 ---------- */
+  function payload() {
+    var el = q('script[data-kami-payload]');
+    var raw = el ? (el.textContent || '') : '';
+    return raw.replace(RE_TRIM, '');
+  }
+  function pick(obj, keys) {
+    for (var i = 0; i < keys.length; i++) {
+      var v = obj[keys[i]];
+      if (typeof v === 'string' && v.replace(RE_TRIM, '')) { return v; }
+    }
+    return '';
+  }
+  function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+  function parseList(raw) {
+    var data = null;
+    try { data = JSON.parse(raw); } catch (e) { data = null; }
+    if (!data) {
+      var a = raw.indexOf('['), b = raw.lastIndexOf(']');
+      if (a >= 0 && b > a) { try { data = JSON.parse(raw.slice(a, b + 1)); } catch (e2) { data = null; } }
+    }
+    if (!data) { return null; }
+    if (!Array.isArray(data) && data && Array.isArray(data.options)) { data = data.options; }
+    if (!Array.isArray(data)) { return null; }
+    var out = [];
+    for (var i = 0; i < data.length; i++) {
+      var it = data[i];
+      if (typeof it === 'string' && it.replace(RE_TRIM, '')) {
+        out.push({ title: clip(it.replace(RE_TRIM, ''), 12), type: '其他', content: it.replace(RE_TRIM, '') });
+        continue;
+      }
+      if (!it || typeof it !== 'object') { continue; }
+      var title = pick(it, ['title', '标题', 'name', '名称']);
+      var type = pick(it, ['type', '类型', 'kind', 'category']);
+      var content = pick(it, ['content', '内容', 'text', '文本', 'desc', '描述', 'description']);
+      if (!title && !content) { continue; }
+      out.push({ title: title || clip(content, 12), type: type || '其他', content: content || title });
+    }
+    return out.length ? out : null;
+  }
+
+  /* ---------- 高度自保（只保留启动期的一次性兜底）----------
+   * 平台机制是主路径：酒馆助手用 ResizeObserver(body) -> frameElement.style.height = body.scrollHeight
+   * 驱动消息 iframe 的高度，实测可靠（docs/真机验证备忘.md 第三节）。**这里不再自己挂观察者** ——
+   * 每个聊天楼层再挂一个 ResizeObserver 只是把平台那套逐字重做一遍，白付一份开销。
+   * 保留的只有启动期兜底：首帧那几次重测还没跑到时，内容已经比 iframe 高（iframe 内是 overflow:hidden，
+   * 表现成「点了没反应」），所以在 0/80/260/600ms 各量一次；之后一律交给平台。
+   * 量法只有一种：body.scrollHeight（documentElement.scrollHeight 至少等于视口高度，会让 iframe 只增不减）。 */
+  function syncHeight() {
+    try {
+      var fe = window.frameElement;
+      if (!fe) { return; }
+      var h = Math.max(document.body.scrollHeight, 40);
+      fe.style.height = h + 'px';
+    } catch (e) { }
+  }
+  function scheduleHeightSync() {
+    /* 渲染有过渡，过早测量会偏小，所以补几个时间点 */
+    [0, 80, 260, 600].forEach(function (t) { setTimeout(syncHeight, t); });
+  }
+
+  /* ---------- 与酒馆交互 ---------- */
+  function parentDoc() {
+    try { return (window.parent && window.parent !== window && window.parent.document) ? window.parent.document : null; }
+    catch (e) { return null; }
+  }
+  function inputEl() {
+    var d = parentDoc() || document;
+    return d.getElementById('send_textarea');
+  }
+  function fireInput(el) {
+    try {
+      var doc = el.ownerDocument;
+      var ev = doc.createEvent('Event');
+      ev.initEvent('input', true, true);
+      el.dispatchEvent(ev);
+    } catch (e) { }
+  }
+  function fillText(text) {
+    var el = inputEl();
+    if (!el) { return false; }
+    var cur = String(el.value || '').replace(new RegExp(SP + '+$', 'g'), '');
+    el.value = cur ? (cur + NL + text) : text;
+    fireInput(el);
+    try {
+      el.focus();
+      if (typeof el.selectionStart === 'number') { el.selectionStart = el.value.length; el.selectionEnd = el.value.length; }
+      el.scrollTop = el.scrollHeight;
+    } catch (e) { }
+    return true;
+  }
+  function sendText(text, done) {
+    /* 优先走酒馆助手：新建用户楼层 → 触发生成 */
+    try {
+      if (typeof createChatMessages === 'function' && typeof generate === 'function') {
+        Promise.resolve(createChatMessages([{ role: 'user', message: text }]))
+          .then(function () { return generate({ should_stream: true }); })
+          .then(function () { done(true); }, function () { done(false); });
+        return;
+      }
+    } catch (e) { }
+    /* 兜底：填进输入框并点酒馆的发送键 */
+    try {
+      if (fillText(text)) {
+        var d = parentDoc();
+        var btn = d && (d.getElementById('send_but') || d.querySelector('#send_but'));
+        if (btn) { btn.click(); done(true); return; }
+      }
+    } catch (e) { }
+    done(false);
+  }
+
+  /* ---------- 渲染 ---------- */
+  var mount = { list: null, root: null, toastEl: null, toastTimer: null, demo: false };
+  function toast(msg, bad) {
+    var box = mount.toastEl;
+    if (!box) { return; }
+    box.hidden = false;
+    box.textContent = msg;
+    box.classList.toggle('is-bad', !!bad);
+    if (mount.toastTimer) { clearTimeout(mount.toastTimer); }
+    mount.toastTimer = setTimeout(function () { box.hidden = true; }, 1700);
+  }
+  function markDone(btn) {
+    if (!btn) { return; }
+    btn.classList.add('is-done');
+    setTimeout(function () { btn.classList.remove('is-done'); }, ACT_MS);
+  }
+  function makeCard(root, item, demo, idx) {
+    var kind = KIND[item.type] || 'other';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'kami-item kami-card' + (demo ? ' is-demo' : '');
+    btn.setAttribute('data-kami-kind', kind);
+    if (demo) { btn.setAttribute('aria-disabled', 'true'); }
+
+    var head = document.createElement('span');
+    head.className = 'kami-card-head';
+    var badge = document.createElement('span');
+    badge.className = 'kami-badge';
+    badge.setAttribute('data-kami-kind', kind);
+    badge.textContent = item.type === 'nsfw' ? 'NSFW' : item.type;
+    var title = document.createElement('span');
+    title.className = 'kami-card-title';
+    title.textContent = item.title || ('选项 ' + (idx + 1));
+    var side = document.createElement('span');
+    side.className = 'kami-item-side';
+    side.setAttribute('aria-hidden', 'true');
+    side.textContent = root.getAttribute('data-kami-mode') === 'send' ? '→' : '↵';
+    head.appendChild(badge); head.appendChild(title); head.appendChild(side);
+
+    var bodyEl = document.createElement('span');
+    bodyEl.className = 'kami-card-body';
+    bodyEl.textContent = item.content;
+
+    btn.appendChild(head);
+    btn.appendChild(bodyEl);
+    btn.addEventListener('click', function () { onPick(root, btn, item.content, demo); });
+    return btn;
+  }
+  function onPick(root, btn, text, demo) {
+    if (demo) { toast(labelVar(root, 'demo') || '示例数据不可发送', true); return; }
+    var mode = root.getAttribute('data-kami-mode') === 'send' ? 'send' : 'fill';
+    if (mode !== 'send') {
+      if (fillText(text)) { markDone(btn); toast(labelVar(root, 'filled') || '已填入输入框'); }
+      else { toast(labelVar(root, 'noinput') || '未找到酒馆输入框', true); }
+      return;
+    }
+    if (btn.getAttribute('data-kami-busy') === '1') { return; }
+    btn.setAttribute('data-kami-busy', '1');
+    sendText(text, function (ok) {
+      btn.removeAttribute('data-kami-busy');
+      if (ok) { markDone(btn); toast(labelVar(root, 'sent') || '已发送'); }
+      else { toast(labelVar(root, 'sendfail') || '发送失败，请手动发送', true); }
+    });
+  }
+  function renderList(root, list, demo) {
+    var host = q('[data-kami-role="list"]', root);
+    if (!host) { return; }
+    host.textContent = '';
+    for (var i = 0; i < list.length; i++) { host.appendChild(makeCard(root, list[i], demo, i)); }
+    var count = q('[data-kami-role="count"]', root);
+    if (count) { count.textContent = demo ? (labelVar(root, 'demo') || '示例') : (list.length + ' ' + (labelVar(root, 'unit') || '项')); }
+    var hint = q('[data-kami-role="hint"]', root);
+    if (hint) {
+      hint.textContent = demo
+        ? '未检测到选项 JSON，以下为示例内容'
+        : (root.getAttribute('data-kami-mode') === 'send' ? '轻点卡片直接发送' : '轻点卡片即可生效');
+    }
+  }
+  var SAMPLE = [
+    { title: '示例选项', type: '行动', content: '这里会显示模型给出的行动选项。' },
+    { title: '示例选项', type: '推进', content: '把这段 JSON 交给正则替换即可渲染成可点击卡片。' }
+  ];
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    var root = q('.kami-root[data-kami-comp="options"]');
+    if (!root || root.getAttribute('data-kami-ready') === '1') { return; }
+    root.setAttribute('data-kami-ready', '1');
+    mount.root = root;
+    mount.toastEl = q('.kami-toast', root);
+
+    var raw = payload();
+    var list = raw ? parseList(raw) : null;
+    mount.demo = !list;
+    renderList(root, list || SAMPLE, mount.demo);
+
+    var mode = store(LS_MODE) === 'send' ? 'send' : 'fill';
+    function setMode(m, silent) {
+      mode = m === 'send' ? 'send' : 'fill';
+      root.setAttribute('data-kami-mode', mode);
+      qa('.kami-seg-item', root).forEach(function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-kami-mode') === mode);
+      });
+      qa('.kami-item-side', root).forEach(function (s) { s.textContent = mode === 'send' ? '→' : '↵'; });
+      applyLabels(root);
+      if (!silent) { store(LS_MODE, mode); }
+    }
+    qa('.kami-seg-item', root).forEach(function (b) {
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); setMode(b.getAttribute('data-kami-mode')); });
+    });
+    setMode(mode, true);
+
+    try {
+      var mo = new MutationObserver(function () { applyLabels(root); });
+      mo.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-kami-skin', 'data-kami-scheme', 'data-kami-density', 'data-kami-motion']
+      });
+    } catch (e) { }
+    applyLabels(root);
+    scheduleHeightSync();
+  }
+
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
+  window.addEventListener('load', function () { try { boot(); } catch (e) { } });
+})();
+</script>
+</body>
+</html>

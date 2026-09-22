@@ -1,0 +1,11 @@
+# 构建产物：通过 Releases 分发，不进 git 历史
+dist/
+
+# 远程传文件工具收到的临时文件
+收到的文件/
+
+# 系统与编辑器垃圾文件
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log

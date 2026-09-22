@@ -1,0 +1,1973 @@
+/* ============================================================================
+ * 卡密预设 · 皮肤：色块（grokbot）
+ * ----------------------------------------------------------------------------
+ * 概念取自 xAI Grok Bot 图标：一块哑光白的有机 blob，坐在深炭色的圆角方板上。
+ * （2026-09-21 用户裁定：参考图那两只胶囊眼**一处不留**，这套皮肤不再画眼睛，
+ * 身份只靠「大圆角色块 × 炭白两级明度」立住。）
+ *
+ * 参考图是**纯平面图形**：三块纯色、零渐变、零阴影、零描边、零纹理。
+ * 所以这套皮肤的四条律是：
+ *   · 平面律：一律纯色填充。层次只靠「两块色的明度差」和「干净的边」，
+ *     不用渐变模拟体积，不用软阴影发糊。--kami-shadow 收到极短、硬边的一档。
+ *   · 分界律：需要分隔就画 1–2px 实线（--kami-line / --kami-line-strong），
+ *     不靠投影晕开。
+ *   · 形状律：大圆角留着（图标就是圆角方板 + 圆 blob），但只有按钮 / 徽章 /
+ *     开关 / 滑杆做成胶囊，容器一律 --kami-r-lg，不把一切胶囊化。
+ *   · 记号律（2026-09-21 起取代原来的「身份律＝六处眼睛」）：状态点、类型记号、
+ *     开关、空态、预览缩略一律用**方块 / 圆角块**，一个眼球都不画。
+ *
+ * 对比度（对各自**实际所在的那块底色**逐控件实算，两个上下文各量一遍，全部达标：
+ *   正文与次要文字 ≥ 4.5:1，控件描边/图标/圆点 ≥ 3:1）：
+ *   炭底 #202024 上的 #ecebe8 = 11.44:1 ｜ 次要 #c6c5c1 = 8.05:1 ｜ 最弱 #a5a4a0 = 6.51:1
+ *   黏土白 #f2f1ee 上的 #16161a = 15.79:1 ｜ 次要 #3f3f45 = 9.48:1 ｜ 最弱 #56565c = 6.32:1
+ *   反相墨块（选中卡片）：#f2f1ee 压 #16161a = 15.79:1
+ *   控件描边 #6e6e78 对底板 = 3.68:1，对控件底 #202024 = 3.22:1
+ *   选中态另有「字重加粗 + 面反相」两样非颜色差别，不靠颜色单独表意。
+ *
+ * ⚠️ 两个上下文必须分开量：同一份 HTML 的 data-kami-scheme 下，
+ *   面板（炭底）与消息楼层（黏土白）底色是**反的**，只看 scheme 会量错底。
+ *   这条纪律是被一次真事故换来的：消息 iframe 里外壳是黏土白，
+ *   .kami-title 却显式吃 --kami-fg＝#ecebe8，标题成了白字压白底（1.0:1）——
+ *   面板里一切正常，所以只量面板的审计完全没看见。
+ *
+ * —— 用色（这是本皮肤唯一的彩色，面积远低于 5%，主调仍是炭黑 × 纯白）——
+ *   · 七个 data-kami-kind 各一个色相，只落在「徽章文字 + 一枚 4×10 实心小方块」上；
+ *   · 另用青玉一枚做焦点环与「使用中 / 当前」胶囊（不另开第八个色相）；
+ *   · 底色、正文、面板一律不上色；不用渐变（平面材料）。
+ *   · 每个色相给两套取值，**按背景深浅**切，不按 scheme 切：
+ *       深底（炭）＝亮级 ｜ 浅底（黏土白）＝暗级
+ *     亮级七个色相对炭底实测 5.89–5.93；暗级七个对白底实测 4.97–5.03 ——
+ *     故意压在同一条窄带里，七个放一起不打架（做法见 §1 语义色那段注释）。
+ *
+ * 纯 CSS：无 JS、无外部资源、无 url()、无 @import、无 vh、无 position:fixed 铺满。
+ * 这套皮肤不用 filter / backdrop-filter：平面材料不需要模糊。
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 1 · 令牌
+ * --------------------------------------------------------------------------
+ * 默认（暗色方案）：底板 = 炭黑，压在上面的面 = 黏土白，强调 = 反相墨块。
+ * 与参考图同一套：纯黑底、纯白面。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-root {
+  /* —— 风格性文案令牌（契约 §3.7：只此三处） —— */
+  --kami-label-think-title: 思绪;
+  --kami-label-think-title-open: 思绪展开;
+  --kami-label-options-title: 抉择;
+
+  /* —— 色彩：纯无彩色，只有明度差。全部实心 hex，不用半透明 —— */
+  --kami-fg: #ecebe8;            /* 炭底上的主文字 */
+  --kami-fg-dim: #c6c5c1;
+  --kami-fg-mute: #a5a4a0;       /* 对 #202024 是 6.2:1 */
+  --kami-accent: #f2f1ee;        /* 强调 = 黏土白（炭底上） */
+  --kami-accent-fg: #16161a;     /* 黏土白 / 反相墨块上的字 */
+  --kami-accent-soft: #2b2b30;
+  --kami-accent-line: #6e6e78;   /* 强调描边：对底板 3.1:1，控件边够用 */
+
+  --kami-bg: #131316;            /* 面板底板：纯炭黑 */
+  --kami-bg-soft: #202024;       /* 控件常态底（按钮 / 输入框 / 未选中卡） */
+  --kami-card: #1e1e22;          /* 面板里的卡片面 */
+  --kami-card-2: #17171b;        /* 卡片内部正文块 */
+  --kami-card-hover: #2a2a2e;    /* 悬停底必须不透明 */
+  --kami-line: #37373d;          /* 1px 实线：对底板 1.6:1，只做分隔 */
+  --kami-line-strong: #6e6e78;   /* 需要被看见的边（控件描边）：3.1:1 */
+  --kami-t1: rgba(236, 235, 232, .04);
+  --kami-t2: rgba(236, 235, 232, .08);
+  --kami-t3: rgba(236, 235, 232, .17);
+  --kami-warn: #ff9a94;          /* 唯一有色相的值，只做警示 */
+  --kami-shadow: 0 2px 0 #08080a;   /* 极短、硬边的一档，不做发糊的软阴影 */
+  --kami-shadow-sm: 0 1px 0 #08080a;
+  --kami-blur: 0px;              /* 平面皮肤不用玻璃 */
+
+  /* —— 黏土白那一片（压在炭底上的亮面） —— */
+  --kami-clay-surface: #ecebe8;
+  --kami-clay-surface-flat: #e6e5e1;
+  --kami-clay-plate: #f2f1ee;
+  --kami-clay-plate-flat: #f2f1ee;
+  --kami-clay-sink: #d9d8d4;     /* 黏土白里的凹槽 */
+  --kami-clay-hover: #f7f6f3;
+  --kami-clay-ink: #16161a;      /* 黏土白上的主文字：15.1:1 */
+  --kami-clay-ink-dim: #3f3f45;  /* 9.1:1 —— 次要文字也过 4.5 */
+  --kami-clay-ink-mute: #56565c; /* 6.1:1 —— 最弱文字也过 4.5 */
+  --kami-clay-line: #c3c2be;     /* 黏土白上的 1px 实线 */
+  --kami-clay-line-strong: #62626a;
+  --kami-clay-t1: rgba(22, 22, 26, .04);
+  --kami-clay-t2: rgba(22, 22, 26, .08);
+  --kami-clay-t3: rgba(22, 22, 26, .17);
+  --kami-clay-accent: #16161a;   /* 亮面上的强调 = 反相墨块 */
+  --kami-clay-accent-soft: rgba(22, 22, 26, .08);
+  --kami-clay-accent-line: #8b8a87;
+  --kami-clay-choice: #16161a;   /* 选中卡片 = 反相墨块 */
+
+  /* —— 语义色：契约 §3.8 的七个 data-kami-kind，各给一个色相。
+     用色纪律：这是这套皮肤**唯一**的彩色，只落在小徽章 / 小圆点这类「记号」上；
+     底色、正文、面板一律保持黑白，彩色面积远低于 5%，主调仍是炭黑 × 纯白。
+
+     和谐做法：固定饱和度 48%，但**不**套同一个 HSL 明度 —— 而是让七个色相去命中
+     同一个目标相对亮度（同一 HSL L 的不同色相，人眼看着深浅差很多，黄和蓝能差 20 个 L*，
+     只有锁定亮度才是真正的「同一档」）。实测：这七个对炭底的比值全落在 5.18–5.22，
+     反相那一套对白底的全落在 4.97–5.03 —— 彼此不打架，也不会一个新一个旧。 */
+  --kami-kind-action: #cb8e6b;   /* 行动 · 陶橙 */
+  --kami-kind-fun: #b29b3f;      /* 搞笑 · 暗金 */
+  --kami-kind-plot: #3daf85;     /* 推进 · 青玉 */
+  --kami-kind-info: #5fa4c7;     /* 信息 · 钢蓝 */
+  --kami-kind-persona: #be87d5;  /* 性格 · 兰紫 */
+  --kami-kind-nsfw: #d484a2;     /* nsfw · 玫红 */
+  --kami-kind-other: var(--kami-fg-dim);
+  /* 焦点环 / 「使用中 · 当前」标记：复用青玉那一枚，不另开第八个色相 */
+  --kami-kind-focus: #3daf85;
+
+  /* —— 布局与尺寸：大圆角（不胶囊化一切）＋ 一条 4px 步进的间距梯 —— */
+  --kami-r-xs: 8px;
+  --kami-r-sm: 12px;
+  --kami-r-md: 16px;
+  --kami-r-lg: 22px;
+  --kami-r-pill: 999px;
+  --kami-panel-r: 24px;          /* 面板 = 参考图那块圆角方板；抽屉按它上圆下方 */
+
+  --kami-border-w: 1px;          /* 「要看得见的边」一律 1px 实线，不用投影 */
+  /* —— 内边距阶梯：一律 4px 步进，且「圆角越大、内边距越大」——
+     实测口径：把**文字墨水盒**（不是 padding 盒）离圆角内缘的距离量出来，
+     减掉 0.293×半径（半径 r 的圆角在 45° 处离外角 0.293r），正值＝肉眼看得见的余量。
+     上一版 12/8 与 16/12 两档太小：-.kami-card（r=16）文字离圆角只剩 11.3px、
+     .kami-shell（r=30 的歪 blob）只剩 5.2px、引导选项卡（r=16）7.3px ——
+     用户看到的就是「字和圆角贴到一起」。现在抬到 14/10 与 20/16：
+     r=16 的容器 ≥14px 余量，r=30 的 blob ≥11px，控件（按钮 / 徽章）≥14px 水平余量。 */
+  --kami-pad-x: 14px;            /* 控件内边距（按钮 / 徽章 / 分段片），手机 ≥ 10，见 §19 */
+  --kami-pad-y: 10px;
+  --kami-pad-lg-x: 20px;         /* 容器内边距（卡片 / 头部 / tab 行 / 正文 / 页脚共用它） */
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 8px;               /* 同行同列相邻控件：一律 8px，不混用 */
+  --kami-gap-lg: 12px;           /* 卡片与卡片之间：一律 12px */
+  --kami-row-h: 42px;            /* 可点区域 ≥ 40px（手机 44，见 §19） */
+  --kami-icon: 15px;
+  --kami-maxw: none;
+  --kami-items-min: 15rem;
+  --kami-panel-w: 428px;
+  --kami-panel-h: 560px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+
+  /* —— 文本与排版：系统无衬线，标题不加衬线不加等宽，字距略开，不做全大写 —— */
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .8);
+  --kami-fs-sm: calc(var(--kami-fs) * .9);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.12);
+  --kami-lh: 1.62;
+  --kami-ls: .012em;
+  --kami-ls-title: .03em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-title: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Roboto Mono", "DejaVu Sans Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 700;          /* 选中 / 标题靠字重就能认出来，不只靠颜色 */
+  --kami-title-transform: none;
+
+  /* —— 装饰与特效：平面皮肤没有纹理，也没有形体偏差 —— */
+  --kami-gb-grain: 4;
+  --kami-gb-sheen: 40;
+  --kami-texture:
+    radial-gradient(circle at 22% 14%, rgba(255, 255, 255, calc(.14 * var(--kami-gb-grain) / 100)) 0 .7px, rgba(0, 0, 0, 0) 1.6px),
+    radial-gradient(circle at 71% 43%, rgba(0, 0, 0, calc(.16 * var(--kami-gb-grain) / 100)) 0 .8px, rgba(0, 0, 0, 0) 1.7px),
+    radial-gradient(circle at 38% 76%, rgba(255, 255, 255, calc(.12 * var(--kami-gb-grain) / 100)) 0 .6px, rgba(0, 0, 0, 0) 1.5px),
+    radial-gradient(circle at 88% 88%, rgba(0, 0, 0, calc(.14 * var(--kami-gb-grain) / 100)) 0 .7px, rgba(0, 0, 0, 0) 1.6px);
+  --kami-glow: #ffffff;
+  --kami-glow-size: 0px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;       /* 装饰性标记宽度（本皮肤当前未使用；引导向导的选中底线吃它） */
+
+  /* —— 动画与过渡：干净利落，短 —— */
+  --kami-dur-fast: .1s;
+  --kami-dur: .16s;
+  --kami-dur-slow: .3s;
+  --kami-ease: cubic-bezier(.2, .7, .24, 1);
+  --kami-ease-out: cubic-bezier(.16, 1, .3, 1);
+  --kami-enter-y: 2px;
+  --kami-enter-scale: .97;
+  --kami-stagger: 26ms;
+
+  box-sizing: border-box;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  font-weight: var(--kami-fw);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  text-rendering: optimizeLegibility;
+  word-break: break-word;
+  -webkit-tap-highlight-color: transparent;
+}
+/* —— 语义色按「背景是深还是浅」分两套（不是按 data-kami-scheme）——
+   因为同一个 html 的 scheme 下，面板（炭底）与消息楼层（黏土白）底色是**反的**，
+   只看 scheme 会量错底。所以这里按 data-kami-comp 挂：
+     暗色方案：面板＝炭底 ⇒ 用亮级；消息楼层＝黏土白 ⇒ 用暗级（= :root 上面那套的反相）
+     亮色方案：面板也翻成黏土白 ⇒ 面板也要用暗级（见 §17）
+   七个色相各改一次，全部实测 ≥ 4.97:1。 */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) {
+  --kami-kind-action: #7f4b2d;
+  --kami-kind-fun: #645723;
+  --kami-kind-plot: #23634c;
+  --kami-kind-info: #2a5d77;
+  --kami-kind-persona: #7f379e;
+  --kami-kind-nsfw: #963558;
+  --kami-kind-other: var(--kami-fg-dim);
+  --kami-kind-focus: #23634c;
+  margin: 10px 0 8px;
+  max-width: var(--kami-maxw);
+}
+html[data-kami-skin="grokbot"] .kami-root *,
+html[data-kami-skin="grokbot"] .kami-root *::before,
+html[data-kami-skin="grokbot"] .kami-root *::after { box-sizing: border-box; }
+html[data-kami-skin="grokbot"] .kami-root button,
+html[data-kami-skin="grokbot"] .kami-root input,
+html[data-kami-skin="grokbot"] .kami-root select,
+html[data-kami-skin="grokbot"] .kami-root textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+}
+html[data-kami-skin="grokbot"] .kami-root button { -webkit-appearance: none; appearance: none; }
+html[data-kami-skin="grokbot"] .kami-root [hidden] { display: none !important; }
+html[data-kami-skin="grokbot"] .kami-root img { max-width: 100%; }
+html[data-kami-skin="grokbot"] .kami-root .kami-deco { display: none; }
+/* 这套皮肤不声明 decor：就算槽位被别的皮肤升级过，也不再画任何东西 */
+html[data-kami-skin="grokbot"] .kami-root .kami-d20::before,
+html[data-kami-skin="grokbot"] .kami-root .kami-d20::after { content: none; }
+
+/* 焦点：2px 实线 + 2px 偏移。用青玉那一枚色相（--kami-kind-focus），
+   它在炭底与黏土白底上都 ≥ 5:1，一眼能找到焦点在哪 —— 这是这套皮肤里
+   少数几个「颜色在做功能」的地方之一，不是装饰。 */
+html[data-kami-skin="grokbot"] .kami-root :focus-visible {
+  outline: 2px solid var(--kami-kind-focus);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-xs);
+}
+
+/* ==========================================================================
+ * 2 · 表面：底板 = 纯炭黑方块，本体 = 纯黏土白 blob
+ * --------------------------------------------------------------------------
+ * 零渐变、零软阴影。本体与底板之间用 1px 实线 + 一档 2px 硬边投影分开，
+ * 不是为了「体积」，是为了在深色酒馆里把块切干净。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-surface {
+  position: relative;
+  isolation: isolate;
+  clip-path: var(--kami-surface-clip);
+}
+
+/* 面板：纯炭黑 + 1px 实线边（参考图那块圆角方板） */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-drop {
+  background-color: var(--kami-bg);
+  background-image: none;
+  color: var(--kami-fg);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-panel-r);
+  box-shadow: var(--kami-shadow);
+}
+/* 消息楼层里的组件外壳：纯黏土白 blob —— 四角不等值就是「歪」的那个形 */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-shell {
+  background-color: var(--kami-clay-surface);
+  background-image: none;
+  color: var(--kami-clay-ink);
+  /* 「歪 blob」＝ 四角不等值的圆角。参考图那团土上缘偏平、右下兜得更满，
+     所以右下半径给到最大、左下收小。形状一律用 CSS 造，不搬参考 SVG 的路径数据。 */
+  border: var(--kami-border-w) solid rgba(0, 0, 0, .16);
+  border-radius: 30px 24px 34px 20px / 26px 22px 30px 20px;
+  box-shadow: var(--kami-shadow);
+}
+/* 面板里的卡片式容器：规整圆角，不走 blob 的歪 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-shell {
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  color: var(--kami-fg);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-shell { display: block; }
+
+/* —— 炭字覆盖：凡是有黏土白底的地方，文字 / 线条 / 叠加层一并换成深色一套 ——
+   这样上面那套「按深底定的令牌」在黏土白本体上依然读得清（契约 §2 第 7 条）。
+
+   ⚠️ 这条规则必须点名 .kami-shell / .kami-surface：组件里到处都有**显式**的
+   `color: var(--kami-fg)`（.kami-title / .kami-sub / .kami-field-label / .kami-chev …），
+   显式值压过继承，所以只给外壳写 `color` 是没用的 ——
+   真事故：消息 iframe 里外壳是黏土白，.kami-title 却显式吃 --kami-fg＝#ecebe8，
+   于是「思绪」「抉择」两个标题成了白字压白底，肉眼完全看不见。
+   教训：凡是背景是黏土白的那一层，就必须把**整套令牌**换掉，不能只靠 color 继承。
+
+   ⚠️ 但 .kami-shell / .kami-surface 必须带 `:not([data-kami-comp="panel"])`：
+   面板本体 `.kami-drop` 也挂着 kami-surface，不加这个限定就会把面板一起拖进
+   「浅底那套」，选中标签页会变成浅字压浅底。（这是加这套色时真踩到的第二次。）
+
+   ⚠️ 第三次：`--kami-accent-fg` 漏在翻转清单外。
+   `--kami-accent` 在亮面上翻成 clay-accent＝#16161a（墨），而 `--kami-accent-fg`
+   还是炭底那套的 #16161a（也是墨）—— 于是**强调底上的字和强调底同色**。
+   实测（浏览器读计算样式）：皮肤管理面板「参数」页那枚分段开关，
+   选中项「跟随皮肤」= 字 #16161a 压底 #16161a ＝ **1.00:1**，肉眼就是一整块黑；
+   用户报的「暗色下开关背景是黑的、字体也是黑的」就是这里。
+   同理受害的还有 .kami-btn.is-on / .kami-seg-item.is-on / .kami-tab[aria-selected]
+   / .kami-switch 选中态 / 注释标记 hover —— 它们全都吃这一对令牌。
+   修法：亮面把这一对**成对**翻过来（墨底 + 黏土白的字），不再只翻一半。 */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-shell,
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-surface,
+html[data-kami-skin="grokbot"] .kami-root .kami-card,
+html[data-kami-skin="grokbot"] .kami-root .kami-item,
+html[data-kami-skin="grokbot"] .kami-root .kami-card-note {
+  --kami-fg: var(--kami-clay-ink);
+  --kami-fg-dim: var(--kami-clay-ink-dim);
+  --kami-fg-mute: var(--kami-clay-ink-mute);
+  --kami-bg: var(--kami-clay-surface);
+  --kami-bg-soft: var(--kami-clay-sink);
+  --kami-card: var(--kami-clay-plate);
+  --kami-card-2: var(--kami-clay-sink);
+  --kami-card-hover: var(--kami-clay-hover);
+  --kami-line: var(--kami-clay-line);
+  --kami-line-strong: var(--kami-clay-line-strong);
+  --kami-t1: var(--kami-clay-t1);
+  --kami-t2: var(--kami-clay-t2);
+  --kami-t3: var(--kami-clay-t3);
+  --kami-accent: var(--kami-clay-accent);
+  --kami-accent-fg: var(--kami-clay-plate);
+  --kami-accent-soft: var(--kami-clay-accent-soft);
+  --kami-accent-line: var(--kami-clay-accent-line);
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-md,
+html[data-kami-skin="grokbot"] .kami-root .kami-raw {
+  --kami-fg: var(--kami-clay-ink);
+  --kami-fg-dim: var(--kami-clay-ink-dim);
+  --kami-fg-mute: var(--kami-clay-ink-mute);
+  --kami-bg: var(--kami-clay-surface);
+  --kami-bg-soft: var(--kami-clay-sink);
+  --kami-card-2: var(--kami-clay-sink);
+  --kami-line: var(--kami-clay-line);
+  --kami-line-strong: var(--kami-clay-line-strong);
+  --kami-t1: var(--kami-clay-t1);
+  --kami-t2: var(--kami-clay-t2);
+  --kami-t3: var(--kami-clay-t3);
+  --kami-accent: var(--kami-clay-accent);
+  --kami-accent-fg: var(--kami-clay-plate);
+  --kami-accent-soft: var(--kami-clay-accent-soft);
+  --kami-accent-line: var(--kami-clay-accent-line);
+}
+
+/* ==========================================================================
+ * 3 · 头部 / 标题 / 状态点
+ * --------------------------------------------------------------------------
+ * 四段（头部 / tab 行 / 正文 / 页脚）左右内边距全部 = --kami-pad-lg-x，
+ * 于是它们在面板里对齐成同一条竖线。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+html[data-kami-skin="grokbot"] .kami-head:not(.kami-collapse-head) {
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+}
+html[data-kami-skin="grokbot"] .kami-collapse-head { cursor: pointer; user-select: none; }
+html[data-kami-skin="grokbot"] .kami-head[data-kami-drag] { cursor: grab; }
+html[data-kami-skin="grokbot"] .kami-head[data-kami-drag] .kami-icon-btn { cursor: pointer; }
+
+/* —— 状态点：一枚圆角方块 ——
+   2026-09-21 用户裁定「删掉所有眼睛，一处不留」：原来这里是「关着＝一只瞳孔、
+   开着＝并排两只斜胶囊」，现在两态只靠**形状与明度**区分（方块 / 压亮），
+   一个眼球都不画。面板里那一枚换成黏土白（底板更暗，抬一档才看得见）。 */
+html[data-kami-skin="grokbot"] .kami-dot {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--kami-accent);
+  background-image: none;
+  box-shadow: none;
+  transition: background-color var(--kami-dur) var(--kami-ease), transform var(--kami-dur) var(--kami-ease);
+}
+/* 面板里那一枚：底板更暗，点本身提亮一档 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-dot { background-color: var(--kami-clay-plate); }
+/* 进度点容器里的点（引导向导）：一排小方块 */
+html[data-kami-skin="grokbot"] .kami-root .kami-dots .kami-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background-color: var(--kami-line-strong);
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-dots .kami-dot[data-kami-on="1"] {
+  background-color: var(--kami-accent);
+  transform: scale(1.25);
+}
+
+/* 标题：系统无衬线、字距略开、不大写、不加投影（平面材料不发光） */
+html[data-kami-skin="grokbot"] .kami-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="grokbot"] .kami-head .kami-sub {
+  flex: none;
+  min-width: 0;
+  padding: 2px 8px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.5;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+html[data-kami-skin="grokbot"] .kami-foot .kami-sub,
+html[data-kami-skin="grokbot"] .kami-card-note {
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: .02em;
+}
+html[data-kami-skin="grokbot"] .kami-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-left: auto;
+  flex: none;
+}
+
+/* ==========================================================================
+ * 4 · 按钮：一块实色，不叠高光不叠投影
+ * --------------------------------------------------------------------------
+ * 常态 = --kami-bg-soft（#202024，对底板 1.5:1，靠 1px 实线边把它切出来）
+ * 悬停 = --kami-card-hover（#2a2a2e，明显跳一档）
+ * 按下 / 选中 = 反相墨块（黏土白底 + 炭字，15:1）
+ * 禁用 = 面压住、字降到 --kami-fg-mute（对 #202024 是 6.2:1，仍然看得清）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-btn,
+html[data-kami-skin="grokbot"] .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls);
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    color var(--kami-dur-fast) var(--kami-ease),
+    background-color var(--kami-dur-fast) var(--kami-ease),
+    border-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-icon-btn {
+  min-width: max(var(--kami-row-h), 40px);
+  min-height: max(var(--kami-row-h), 40px);
+  padding: 0;
+  font-size: var(--kami-icon);
+  line-height: 1;
+  color: var(--kami-fg-dim);
+}
+/* 黏土白本体里的按钮：白面上的炭字 + 炭线边 */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn,
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-icon-btn {
+  background-color: var(--kami-clay-plate);
+  background-image: none;
+  border-color: var(--kami-clay-line-strong);
+  color: var(--kami-clay-ink);
+}
+html[data-kami-skin="grokbot"] .kami-btn--ghost { background-color: transparent; border-color: var(--kami-line); }
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--ghost { background-color: transparent; border-color: var(--kami-clay-line); }
+/* 主按钮 = 一块反相墨块（炭底上给白、白底上给炭），和参考图的黑白关系一致 */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--primary {
+  background-color: var(--kami-clay-choice);
+  border-color: var(--kami-clay-ink);
+  color: var(--kami-clay-plate);
+  font-weight: var(--kami-fw-title);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-btn--primary {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  font-weight: var(--kami-fw-title);
+}
+@media (hover: hover) {
+  html[data-kami-skin="grokbot"] .kami-btn:hover,
+  html[data-kami-skin="grokbot"] .kami-icon-btn:hover {
+    background-color: var(--kami-card-hover);
+    color: var(--kami-fg);
+    border-color: var(--kami-line-strong);
+  }
+  html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn:hover,
+  html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-icon-btn:hover {
+    background-color: var(--kami-clay-hover);
+    color: var(--kami-clay-ink);
+    border-color: var(--kami-clay-ink);
+  }
+  html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--primary:hover {
+    background-color: var(--kami-clay-ink);
+    color: var(--kami-clay-plate);
+  }
+  html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-btn--primary:hover {
+    background-color: #ffffff;
+    color: var(--kami-accent-fg);
+  }
+  html[data-kami-skin="grokbot"] .kami-icon-btn[data-kami-act="close"]:hover {
+    background-color: var(--kami-warn);
+    border-color: var(--kami-warn);
+    color: #2b1113;
+  }
+}
+html[data-kami-skin="grokbot"] .kami-btn:active,
+html[data-kami-skin="grokbot"] .kami-icon-btn:active { transform: translateY(1px); }
+html[data-kami-skin="grokbot"] .kami-btn[disabled],
+html[data-kami-skin="grokbot"] .kami-icon-btn[disabled] {
+  /* 禁用的字仍然要看得见：面压住、字用 --kami-fg-mute（对 #202024 是 6.2:1），不整块降透明度 */
+  opacity: 1;
+  background-color: var(--kami-bg-soft);
+  border-color: var(--kami-line);
+  color: var(--kami-fg-mute);
+  cursor: default;
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn[disabled] {
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line);
+  color: var(--kami-clay-ink-mute);
+}
+/* 选中 = 反相墨块；形状上也变（边框换色 + 字加粗），不只靠颜色 */
+html[data-kami-skin="grokbot"] .kami-btn.is-on,
+html[data-kami-skin="grokbot"] .kami-icon-btn[aria-pressed="true"] {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  font-weight: var(--kami-fw-title);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn.is-on,
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-icon-btn[aria-pressed="true"] {
+  background-color: var(--kami-clay-choice);
+  border-color: var(--kami-clay-ink);
+  color: var(--kami-clay-plate);
+}
+/* 成功反馈：一次性实线加粗 + 轻微位移（不循环） */
+html[data-kami-skin="grokbot"] .kami-btn.is-done {
+  border-color: var(--kami-accent);
+  box-shadow: inset 0 0 0 2px var(--kami-accent);
+  animation: kami-grokbot-pop var(--kami-dur-slow) var(--kami-ease-out) both;
+}
+/* —— ⚠️ 选中按钮内的文字令牌必须**成对翻**（2026-09-21 用户报障）——
+   选中态的底是 `--kami-accent`，在「卡 / 条目」作用域里它被重映射成
+   `--kami-clay-accent` ＝ #16161a（墨）；而卡里的文字令牌也被重映射成
+   `--kami-fg` ＝ --kami-clay-ink ＝ #16161a —— **同色**，实测 1.00:1。
+   受害的就是引导「模型页」那张选中卡的标题栏：黑底黑字，用户完全看不到
+   （`.kami-card-head` 是 `button.kami-btn.kami-btn--ghost`，选中加 `.is-on`，
+   里面的 `.kami-card-title` 显式吃 `--kami-fg`，靠继承救不回来）。
+   同族历史事故见文件头 §2 那三段警告（都是「底翻了、字没翻」）。
+   翻法与 `.kami-item.is-on` 同款：底是墨，字与线一并换成 `--kami-accent-fg`
+   （＝强调底上的那个色，浅块 / 墨块两种情形都成立）。 */
+html[data-kami-skin="grokbot"] .kami-btn.is-on,
+html[data-kami-skin="grokbot"] .kami-btn[aria-pressed="true"],
+html[data-kami-skin="grokbot"] .kami-icon-btn[aria-pressed="true"] {
+  --kami-fg: var(--kami-accent-fg);
+  --kami-fg-dim: var(--kami-accent-fg);
+  --kami-fg-mute: var(--kami-accent-fg);
+  --kami-line: var(--kami-accent-fg);
+  --kami-line-strong: var(--kami-accent-fg);
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-btn.is-on .kami-card-title,
+html[data-kami-skin="grokbot"] .kami-root .kami-btn[aria-pressed="true"] .kami-card-title {
+  color: var(--kami-accent-fg);
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-btn.is-on .kami-chip,
+html[data-kami-skin="grokbot"] .kami-root .kami-btn[aria-pressed="true"] .kami-chip {
+  background-color: transparent;
+  border-color: currentColor;
+  color: var(--kami-accent-fg);
+}
+
+/* ==========================================================================
+ * 5 · 分段切换：一枚实色凹槽 + 一块反相滑块
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-seg {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-seg {
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line);
+}
+html[data-kami-skin="grokbot"] .kami-seg-item {
+  border: 0;
+  border-radius: var(--kami-r-pill);
+  min-height: 32px;
+  /* 胶囊片：内边距抬到控件那一档（14/10 的 10 给上下，左右 14），
+     圆角＝半径 16，文字离圆弧留 9.3px 余量（上一版 13px 只剩 8.3）。 */
+  padding: 6px var(--kami-pad-x);
+  background-color: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: var(--kami-ls);
+  cursor: pointer;
+  transition: color var(--kami-dur-fast) var(--kami-ease), background-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-seg-item { color: var(--kami-clay-ink-dim); }
+html[data-kami-skin="grokbot"] .kami-seg-item.is-on {
+  background-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  font-weight: var(--kami-fw-title);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-seg-item.is-on {
+  background-color: var(--kami-clay-choice);
+  color: var(--kami-clay-plate);
+}
+@media (hover: hover) {
+  html[data-kami-skin="grokbot"] .kami-seg-item:hover:not(.is-on) { color: var(--kami-fg); }
+  html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-seg-item:hover:not(.is-on) { color: var(--kami-clay-ink); }
+}
+
+/* ==========================================================================
+ * 6 · 卡片 / 列表 / 网格：一块块实色面 + 1px 实线边
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-clay-line-strong);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-clay-plate-flat);
+  background-image: none;
+  color: var(--kami-clay-ink);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card {
+  background-color: var(--kami-card);
+  background-image: none;
+  border-color: var(--kami-line);
+  color: var(--kami-fg);
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] button.kami-card { cursor: pointer; }
+html[data-kami-skin="grokbot"] .kami-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  width: 100%;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  min-width: 0;
+}
+html[data-kami-skin="grokbot"] .kami-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: .02em;
+  color: var(--kami-fg);
+}
+html[data-kami-skin="grokbot"] .kami-card-body {
+  display: block;
+  font-size: var(--kami-fs-sm);
+  line-height: 1.6;
+  color: var(--kami-fg-dim);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+html[data-kami-skin="grokbot"] .kami-card-note { display: block; }
+html[data-kami-skin="grokbot"] .kami-item-main { flex: 1 1 auto; min-width: 0; color: var(--kami-fg); }
+html[data-kami-skin="grokbot"] .kami-item-side {
+  flex: none;
+  margin-left: auto;
+  padding-left: 6px;
+  font-size: var(--kami-fs-sm);
+  line-height: 1;
+  color: var(--kami-fg-mute);
+  transition: color var(--kami-dur-fast) var(--kami-ease);
+}
+/* 示例数据 = 还没被选中的一块：压暗一档、框线降到最淡，光标也不给「可点」的样子 */
+html[data-kami-skin="grokbot"] .kami-item.is-demo {
+  cursor: default;
+  background-color: var(--kami-bg-soft);
+  border-color: var(--kami-line);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-item.is-demo {
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line);
+  color: var(--kami-clay-ink-mute);
+}
+html[data-kami-skin="grokbot"] .kami-item.is-demo .kami-item-side { color: transparent; }
+@media (hover: hover) {
+  html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-item:hover {
+    background-color: var(--kami-clay-hover);
+    border-color: var(--kami-clay-ink);
+  }
+  html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:hover {
+    background-color: var(--kami-card-hover);
+    border-color: var(--kami-line-strong);
+  }
+  html[data-kami-skin="grokbot"] .kami-item:hover .kami-item-side { color: var(--kami-fg); }
+}
+html[data-kami-skin="grokbot"] .kami-item:active { transform: translateY(1px); }
+html[data-kami-skin="grokbot"] .kami-item:focus-visible,
+html[data-kami-skin="grokbot"] .kami-card:focus-visible { z-index: 2; }
+
+html[data-kami-skin="grokbot"] .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap-lg);
+  align-items: stretch;
+}
+html[data-kami-skin="grokbot"] .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap-lg);
+}
+html[data-kami-skin="grokbot"] .kami-grid.kami-list { display: grid; grid-auto-flow: row; }
+
+/* ==========================================================================
+ * 7 · 徽章 / 小标签：中性底色 + 该类型的一个色相
+ * --------------------------------------------------------------------------
+ * 用色只落在两处记号上：① 文字用该 kind 的色相；② 前面一枚实心小方块（＝记号语言）
+ * 也用同一色相。底色仍是中性的 --kami-bg-soft / --kami-clay-sink，
+ * 这样「文字 vs 它实际所在的那块底」的比值是可控的、可复算的（见文件头）。
+ * 角标位置的 emoji 徽章不画这枚小胶囊（那里本来就只有 emoji）。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-badge,
+html[data-kami-skin="grokbot"] .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 9px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.5;
+  letter-spacing: .02em;
+  color: var(--kami-kind-other);
+  white-space: nowrap;
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-badge,
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-chip {
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line);
+}
+html[data-kami-skin="grokbot"] .kami-chip { color: var(--kami-fg-dim); }
+/* 类型记号：一枚 4×10 的实心圆角方块，和状态点是同一种元件（不再是斜胶囊眼） */
+html[data-kami-skin="grokbot"] .kami-root .kami-badge[data-kami-kind]::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 10px;
+  margin-right: 1px;
+  border-radius: 1.5px;
+  background-color: currentColor;
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-badge[data-kami-corner]::before { content: none; }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="action"] { color: var(--kami-kind-action); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="persona"] { color: var(--kami-kind-persona); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="plot"] { color: var(--kami-kind-plot); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="info"] { color: var(--kami-kind-info); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="fun"] { color: var(--kami-kind-fun); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="nsfw"] { color: var(--kami-kind-nsfw); }
+html[data-kami-skin="grokbot"] .kami-root :is(.kami-badge, .kami-chip)[data-kami-kind="other"] { color: var(--kami-kind-other); }
+
+/* ==========================================================================
+ * 8 · 折叠区 / 选中态
+ * --------------------------------------------------------------------------
+ * 选中 = 面反相（面板里 白 / 消息层里 墨块）+ 字重 600 + 边换墨色。
+ * （原来这里还有「左缘两只实心胶囊眼」当作选中标记，2026-09-21 用户裁定删除，
+ *  且**没有替代画法** —— 见下面那条规则上方的说明。）
+ * 选中态另有「字重加粗 + 面反相」两样非颜色差别。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-collapse[data-kami-open="0"] > .kami-collapse-body { display: none; }
+html[data-kami-skin="grokbot"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
+  display: block;
+  animation: kami-grokbot-unseal var(--kami-dur-slow) var(--kami-ease) both;
+}
+html[data-kami-skin="grokbot"] .kami-chev {
+  flex: none;
+  font-size: calc(var(--kami-icon) * .82);
+  line-height: 1;
+  color: var(--kami-fg-dim);
+  transition: transform var(--kami-dur) var(--kami-ease), color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev {
+  transform: rotate(90deg);
+  color: var(--kami-fg);
+}
+
+/* 默认选中（黏土白本体）：一块炭，白字 —— 对比 15:1 */
+html[data-kami-skin="grokbot"] .kami-item.is-on,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] {
+  background-color: var(--kami-clay-choice);
+  background-image: none;
+  border-color: var(--kami-clay-ink);
+  color: var(--kami-clay-plate);
+}
+html[data-kami-skin="grokbot"] .kami-item.is-on .kami-item-main,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] .kami-item-main {
+  color: var(--kami-clay-plate);
+  font-weight: 600;
+}
+html[data-kami-skin="grokbot"] .kami-item.is-on .kami-card-title,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] .kami-card-title { color: var(--kami-clay-plate); }
+html[data-kami-skin="grokbot"] .kami-item.is-on .kami-card-body,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] .kami-card-body { color: var(--kami-clay-sink); }
+/* 选中卡是「反相墨块」（炭面），所以里面徽章的色相要换回**亮级那一套**，
+   否则暗级色压在炭面上会掉到 2:1 左右。 */
+html[data-kami-skin="grokbot"] .kami-item.is-on,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] {
+  --kami-kind-action: #cb8e6b;
+  --kami-kind-fun: #b29b3f;
+  --kami-kind-plot: #3daf85;
+  --kami-kind-info: #5fa4c7;
+  --kami-kind-persona: #be87d5;
+  --kami-kind-nsfw: #d484a2;
+  --kami-kind-other: #c6c5c1;
+}
+html[data-kami-skin="grokbot"] .kami-item.is-on .kami-chip,
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="true"] .kami-chip {
+  background-color: transparent;
+  border-color: var(--kami-clay-line-strong);
+  color: var(--kami-clay-sink);
+}
+/* 面板（炭底）里的选中条目卡：反过来 —— 一块黏土白，炭字。
+   底色是浅的，所以徽章的七个色相要换回**暗级那一套**。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.is-on,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] {
+  background-color: var(--kami-clay-plate-flat);
+  border-color: var(--kami-clay-plate-flat);
+  color: var(--kami-clay-ink);
+  --kami-kind-action: #7f4b2d;
+  --kami-kind-fun: #645723;
+  --kami-kind-plot: #23634c;
+  --kami-kind-info: #2a5d77;
+  --kami-kind-persona: #7f379e;
+  --kami-kind-nsfw: #963558;
+  --kami-kind-other: #3f3f45;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.is-on .kami-item-main,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] .kami-item-main,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.is-on .kami-card-title,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] .kami-card-title {
+  color: var(--kami-clay-ink);
+  font-weight: 600;
+}
+
+/* ⚠️ 2026-09-21：原来这里挂着「选中条目卡左缘那两只眼」（一条 10×13 的 ::before +
+   给文字让位的 15px 左内边距）。用户裁定删掉，已整段移除，**没有替代画法** ——
+   开 / 关两态现在靠三样区分：① 面反相（面板里 白 ⇄ 凹槽灰，实测对白卡 1.30:1 的填充差）；
+   ② 边换成墨色（对白卡 15.79:1）；③ 字重 600。前两样是颜色与明度，第三样不是，
+   所以「不只靠颜色」这条纪律仍然成立。 */
+/* 没选中的条目：字降到「次要」而不是「看不清」，仍然 ≥ 4.5:1 */
+html[data-kami-skin="grokbot"] .kami-item[aria-pressed="false"] .kami-item-main { color: var(--kami-fg-dim); }
+
+/* —— 面板里的条目卡：103 张卡看的就是「开着的这张一眼认出来」 —— */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="false"] {
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  border-color: var(--kami-line);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="false"] .kami-item-main {
+  color: var(--kami-fg-dim);
+}
+/* 非当前模型的条目：锁死。面压住、字仍看得清（对 #202024 是 6.2:1），
+   光标与悬停反馈全部收掉，但不整块降透明度（那会把字一起弄糊） */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  border-color: var(--kami-line);
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[disabled] .kami-item-main { color: var(--kami-fg-mute); }
+
+/* —— 未选中 / 选中的卡片：边界必须看得见（第三处报障）——
+   ⚠️ 面板里的卡是**套着**的：`.kami-card > .kami-card-body > .kami-grid > .kami-item.kami-card`，
+   而上面那套令牌翻转对**两层都生效** —— 内外两层都吃 --kami-card，翻出来都是 #f2f1ee，
+   于是内层卡的填充和外层容器**一模一样**（实测 1.00:1），边又只有 --kami-line 那一档
+   （对白卡 1.6:1）—— 整张卡就这么「融」进容器里，用户报的就是这一处。
+   （同一份实测里另有一条对照：面板里的皮肤卡单独贴在炭底上时是 16.42:1，看得见；
+   问题只出在「卡里的卡」。）
+
+   定调：**一档明度的填充 + 一条看得见的边**，两样都写死成 clay 令牌，不跟着翻转走 ——
+     · 未选中：填充 --kami-clay-sink（凹槽那一档）＝对白卡 1.30:1、对炭底 13.00:1；
+       边 --kami-clay-line-strong ＝对白卡 5.90:1、对炭底 3.20:1；两种底上都过 3:1。
+     · 选中：填充仍是黏土白／墨块，但边改用墨色 --kami-clay-ink（对白卡 15.79:1），
+       免得「白卡里的选中卡」也只靠填充差说话。
+   开/关两态的差别**不只靠颜色**：选中态另有「字重 600」这一样（2026-09-21 起，
+   原来的「左缘两只眼 + 文字左让 15px」已按用户裁定删除）。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="false"],
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.is-on):not([aria-pressed="true"]) {
+  background-color: var(--kami-clay-sink);
+  background-image: none;
+  border-color: var(--kami-clay-line-strong);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.is-on,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] {
+  border-color: var(--kami-clay-ink);
+}
+/* 引导面板里的「行式开关」也走同一条规矩：关态原来只有 --kami-line（对炭底 1.57:1），
+   整行边界等于没有，和背景连成一片。关/开两态的**非颜色**差别另有状态文案
+   （已开启 / 已关闭），所以这里只补边界，不动它的高亮。
+
+   ⚠️ 这一条必须带 !important：引导的排版层是 `50-引导.js` 用 `#kami-guide-panel …`
+   （带 id）注入的，id 特异性压过任何纯类名选择器，而契约 §4.4 又不许皮肤规则挂面板 id ——
+   没有别的杠杆。取值与引导自己给开态描边用的 --kami-accent-line 在暗色下同值（#6e6e78），
+   亮色下也同为 #62626a，所以开态外观一点没变，只有关态从 1.57:1 抬到 3.68:1。 */
+html[data-kami-skin="grokbot"] .kami-root .kami-guide-switchrow {
+  border-color: var(--kami-line-strong) !important;
+}
+
+/* 注释入口与注释正文（两块面板共用 —— 不写 #kami-preset-panel，
+   否则引导面板里的 ⓘ 吃不到样式，用户已经报过这个不一致） */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-left: 6px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-xs);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  display: block;
+  margin: var(--kami-gap) 0 0;
+  /* 注释正文块：圆角 r=8，内边距跟控件那一档走（10/14），
+     文字离圆弧 9.7px（上一版写死 8/12，只剩 7.7px）。 */
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-left: 3px solid var(--kami-accent);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.56;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+
+html[data-kami-skin="grokbot"] .kami-body { padding: var(--kami-gap-lg) var(--kami-pad-lg-x) var(--kami-pad-lg-y); }
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-body {
+  /* 消息楼层里也一样要留出左右内边距（原来这里只改 padding-top，
+     左右跟着 .kami-body 的简写走不到，控件直接贴到 blob 的圆角边上）。 */
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x) calc(var(--kami-pad-lg-y) + 2px);
+}
+html[data-kami-skin="grokbot"] .kami-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--kami-gap);
+  margin-bottom: var(--kami-gap-lg);
+}
+html[data-kami-skin="grokbot"] .kami-bar > :last-child { margin-left: auto; }
+html[data-kami-skin="grokbot"] .kami-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-top: var(--kami-border-w) solid var(--kami-line);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+html[data-kami-skin="grokbot"] .kami-foot > .kami-chip { margin-left: auto; }
+
+/* ==========================================================================
+ * 9 · 正文：markdown 白块 / 原文凹槽（全是实色面）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-md {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border: var(--kami-border-w) solid var(--kami-clay-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-clay-plate-flat);
+  background-image: none;
+  color: var(--kami-clay-ink);
+  font-size: var(--kami-fs-sm);
+  box-shadow: none;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md {
+  background-color: var(--kami-card-2);
+  border-color: var(--kami-line);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="grokbot"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="grokbot"] .kami-md > :last-child { margin-bottom: 0; }
+html[data-kami-skin="grokbot"] .kami-md p { margin: .6em 0; }
+html[data-kami-skin="grokbot"] .kami-md h1,
+html[data-kami-skin="grokbot"] .kami-md h2,
+html[data-kami-skin="grokbot"] .kami-md h3,
+html[data-kami-skin="grokbot"] .kami-md h4,
+html[data-kami-skin="grokbot"] .kami-md h5,
+html[data-kami-skin="grokbot"] .kami-md h6 {
+  margin: 1em 0 .42em;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  letter-spacing: .02em;
+  color: inherit;
+}
+html[data-kami-skin="grokbot"] .kami-md h1,
+html[data-kami-skin="grokbot"] .kami-md h2 {
+  padding-bottom: .3em;
+  border-bottom: 2px solid currentColor;
+}
+html[data-kami-skin="grokbot"] .kami-md strong { font-weight: 700; color: inherit; }
+html[data-kami-skin="grokbot"] .kami-md em { font-style: italic; }
+html[data-kami-skin="grokbot"] .kami-md del { opacity: .7; text-decoration-thickness: 1px; }
+html[data-kami-skin="grokbot"] .kami-md a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+html[data-kami-skin="grokbot"] .kami-md ul,
+html[data-kami-skin="grokbot"] .kami-md ol { margin: .55em 0; padding-left: 1.3em; }
+html[data-kami-skin="grokbot"] .kami-md li { margin: .2em 0; }
+html[data-kami-skin="grokbot"] .kami-md ul { list-style: none; padding-left: 1.15em; }
+html[data-kami-skin="grokbot"] .kami-md ul > li { position: relative; }
+/* 列表点也用实心圆角方块，和整套形状语言一致（纯色实心，不斜、不是胶囊） */
+html[data-kami-skin="grokbot"] .kami-md ul > li::before {
+  content: "";
+  position: absolute;
+  left: -1em;
+  top: calc(var(--kami-lh) * .5em - 3px);
+  width: 4px;
+  height: 7px;
+  border-radius: 1px;
+  background-color: currentColor;
+}
+html[data-kami-skin="grokbot"] .kami-md ul ul > li::before { opacity: .55; }
+html[data-kami-skin="grokbot"] .kami-md ol { list-style: decimal; }
+html[data-kami-skin="grokbot"] .kami-md ol > li::marker { color: inherit; }
+html[data-kami-skin="grokbot"] .kami-md blockquote {
+  margin: .7em 0;
+  padding: .2em 0 .2em 1em;
+  border-left: 3px solid currentColor;
+  border-radius: var(--kami-r-xs);
+}
+html[data-kami-skin="grokbot"] .kami-md code {
+  padding: 1px 6px 2px;
+  border: var(--kami-border-w) solid var(--kami-clay-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-clay-sink);
+  font-family: var(--kami-font-mono);
+  font-size: .86em;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md code {
+  background-color: var(--kami-bg-soft);
+  border-color: var(--kami-line);
+}
+html[data-kami-skin="grokbot"] .kami-md pre {
+  margin: .7em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-clay-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-clay-sink);
+  overflow-x: auto;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md pre {
+  background-color: var(--kami-bg-soft);
+  border-color: var(--kami-line);
+}
+html[data-kami-skin="grokbot"] .kami-md pre code { padding: 0; background: none; border: 0; border-radius: 0; }
+html[data-kami-skin="grokbot"] .kami-md hr {
+  height: 2px;
+  margin: 1em 0;
+  border: 0;
+  border-radius: var(--kami-r-pill);
+  background-color: currentColor;
+  opacity: .3;
+}
+html[data-kami-skin="grokbot"] .kami-md table { width: 100%; border-collapse: collapse; font-size: var(--kami-fs-xs); font-variant-numeric: tabular-nums; }
+html[data-kami-skin="grokbot"] .kami-md th,
+html[data-kami-skin="grokbot"] .kami-md td {
+  padding: 6px 10px;
+  border: var(--kami-border-w) solid var(--kami-clay-line);
+  text-align: left;
+}
+html[data-kami-skin="grokbot"] .kami-md th { font-weight: var(--kami-fw-title); background-color: var(--kami-clay-sink); }
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md th,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md td { border-color: var(--kami-line); }
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-md th { background-color: var(--kami-bg-soft); }
+html[data-kami-skin="grokbot"] .kami-md img { max-width: 100%; border-radius: var(--kami-r-sm); }
+
+html[data-kami-skin="grokbot"] .kami-raw {
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border: var(--kami-border-w) solid var(--kami-clay-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-clay-sink);
+  background-image: none;
+  color: var(--kami-clay-ink-dim);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-raw {
+  background-color: var(--kami-card-2);
+  border-color: var(--kami-line);
+  color: var(--kami-fg-dim);
+}
+
+/* ==========================================================================
+ * 10 · 表单：滑杆 / 数字框 / 开关（全是实色块）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-field {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+}
+html[data-kami-skin="grokbot"] .kami-field + .kami-field { border-top: var(--kami-border-w) solid var(--kami-line); }
+html[data-kami-skin="grokbot"] .kami-field-label { flex: 1 1 auto; min-width: 0; font-size: var(--kami-fs-sm); color: var(--kami-fg); }
+html[data-kami-skin="grokbot"] .kami-field:has(.kami-sub) { align-items: flex-start; }
+html[data-kami-skin="grokbot"] .kami-field:has(.kami-sub) > .kami-field-label { flex: 1 1 55%; }
+html[data-kami-skin="grokbot"] .kami-field:has(.kami-sub) > .kami-field-value { margin-left: auto; padding-top: 2px; }
+html[data-kami-skin="grokbot"] .kami-field-label > .kami-sub { display: block; margin-top: 3px; line-height: 1.5; }
+html[data-kami-skin="grokbot"] .kami-field-value { flex: none; display: flex; align-items: center; gap: var(--kami-gap); }
+/* 滑杆：一条实色轨道 + 一块实色方块滑块（方块是为了不跟「胶囊化一切」）。
+   两套底是反的，所以轨道/已填段也反过来画：
+   · 默认（黏土白底，消息楼层）：深色已填段（#212126）+ 浅灰轨道（#73737d）
+   · 面板作用域（炭底）：反过来 —— 浅色已填段 + 深一点儿的轨道（见下面那条） */
+html[data-kami-skin="grokbot"] .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 1 108px;
+  width: 108px;
+  min-width: 66px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--kami-r-pill);
+  background-color: transparent;
+  background-image:
+    linear-gradient(90deg, rgba(33, 33, 38, 1) 0 100%),
+    linear-gradient(180deg, rgba(115, 115, 125, 1) 0 100%);
+  background-repeat: no-repeat;
+  background-position: 9px 50%, 0 50%;
+  background-size: calc(var(--kami-value, 0) * (100% - 18px)) 8px, 100% 10px;
+  cursor: pointer;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-range {
+  background-image:
+    linear-gradient(90deg, rgba(242, 241, 238, 1) 0 100%),
+    linear-gradient(180deg, rgba(110, 110, 120, 1) 0 100%);
+}
+html[data-kami-skin="grokbot"] .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 22px;
+  border: 2px solid var(--kami-bg);
+  border-radius: 5px;
+  background-color: #f2f1ee;
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-range::-moz-range-track { height: 10px; border-radius: 999px; background-color: #6e6e78; border: 0; }
+html[data-kami-skin="grokbot"] .kami-range::-moz-range-progress { height: 8px; border-radius: 999px; background-color: #f2f1ee; }
+html[data-kami-skin="grokbot"] .kami-range::-moz-range-thumb {
+  width: 18px;
+  height: 22px;
+  border: 2px solid #131316;
+  border-radius: 5px;
+  background-color: #f2f1ee;
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-range:focus-visible { outline-offset: 4px; }
+/* 数字输入框：实色实心字，绝不与底同色。
+   ⚠️ text-align 只作用于**数字框**（2026-09-21 修）：这条规则原来挂在裸类名
+   `.kami-number` 上，而压缩面板把同一个类名复用到 select / textarea / 文本框上，
+   于是「摘要提示词」的正文与角色下拉全变成右对齐（用户真机报的）。
+   现在 `.kami-number` 只给 input[type=number] 用，文本 / 多行 / 下拉各有自己的类。 */
+html[data-kami-skin="grokbot"] .kami-number {
+  width: 66px;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] input.kami-number[type="number"] { text-align: right; }
+html[data-kami-skin="grokbot"] .kami-number:focus-visible { border-color: var(--kami-accent); }
+
+/* —— 单行文本框 / 多行文本框 / 下拉选单（契约 §4.2：.kami-text / .kami-textarea / .kami-select）——
+   2026-09-21 新增登记。此前全项目只有压缩面板在造 <textarea> 与 <select>，而六份样式表里
+   **一条下拉框规则都没有** —— 真机上就是浏览器默认样式（用户报「所有皮肤都没有下拉选单组件」）。
+   下拉必须 `appearance:none` 才有自己的高度与描边，箭头只能自绘（两层线性渐变拼一个 V）。
+   宽度不写死：面板的布局层（LAYOUT_CSS）会把它撑满字段行。 */
+html[data-kami-skin="grokbot"] .kami-text,
+html[data-kami-skin="grokbot"] .kami-textarea,
+html[data-kami-skin="grokbot"] .kami-select {
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls);
+  box-shadow: none;
+}
+html[data-kami-skin="grokbot"] .kami-textarea { resize: vertical; line-height: 1.6; }
+html[data-kami-skin="grokbot"] .kami-text:focus-visible,
+html[data-kami-skin="grokbot"] .kami-textarea:focus-visible,
+html[data-kami-skin="grokbot"] .kami-select:focus-visible { border-color: var(--kami-accent); }
+html[data-kami-skin="grokbot"] .kami-select {
+  -webkit-appearance: none;
+  appearance: none;
+  /* 右侧多留 16px 给自绘箭头，免得长选项压到它身上 */
+  padding-right: calc(var(--kami-pad-x) + 16px);
+  text-overflow: ellipsis;
+  background-image:
+    linear-gradient(45deg, rgba(0, 0, 0, 0) 50%, var(--kami-fg-mute) 50%),
+    linear-gradient(135deg, var(--kami-fg-mute) 50%, rgba(0, 0, 0, 0) 50%);
+  background-repeat: no-repeat;
+  background-position: calc(100% - 14px) calc(50% + 1px), calc(100% - 10px) calc(50% + 1px);
+  background-size: 4px 4px, 4px 4px;
+  cursor: pointer;
+}
+/* 面板里的数字输入框：契约 §4.4 —— 必须显式写 background-color + color + color-scheme，
+   三项都带 !important。酒馆「用户设置 → 自定义 CSS」里
+   input[type="number"] { background-color: var(--ui-color-sec) !important } 会盖掉这里的底；
+   而皮肤头部 .kami-root input { color: inherit } 会把字压成次要色。
+   多块面板共用同一个 <input class="kami-number">，一条 panel 作用域规则同时命中。
+   实测：字 #ecebe8 压底 #202024 = 11.4:1（这是一度「底与字相近」的那一处）。
+   ⚠️ 2026-09-21：选择器扩到 `.kami-text` / `.kami-textarea` / `.kami-select` ——
+   用户自定义 CSS 对 select 与 textarea 各有一条 !important 深漆，漏一类就是黑底黑字。
+   这里用的是 `background-color` 而不是 `background` 简写：简写会把上面 `.kami-select`
+   自绘箭头的 background-image 一起重置掉。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] input.kami-number,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] input.kami-text,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] select.kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-bg-soft) !important;
+  border-color: var(--kami-line-strong) !important;
+  color-scheme: dark;
+}
+/* 开关：轨道 + 旋钮。关着＝钮在左、轨道是凹槽；开着＝钮移到右端、轨道变黏土白。
+   2026-09-21 起轨道里那枚「小斜胶囊 / 两只黑眼睛」整段删除（用户裁定一处不留），
+   开 / 关只靠**钮的位置**这一样非颜色差别，加上轨道明度与描边。 */
+html[data-kami-skin="grokbot"] .kami-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+html[data-kami-skin="grokbot"] .kami-switch-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-kami-skin="grokbot"] .kami-switch-track {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 30px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  box-shadow: none;
+  transition: background-color var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-switch-knob {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  /* 旋钮给一条 --kami-line-strong 的实线边（亮面上的白钮压在浅轨上时，
+     只靠填充差只有 1.29:1，等于没画；这条边让「钮在哪」在任何一档底上都看得见：
+     对深轨 3.2:1、对浅轨 4.5:1）。平面皮肤的分界只靠实线，这里也一样。
+     形状是**圆角方块**，不是胶囊：滑块（range）用的也是方块，两处一致。 */
+  border: 2px solid var(--kami-line-strong);
+  border-radius: 6px;
+  background-color: #f2f1ee;
+  background-image: none;
+  box-shadow: none;
+  transition: transform var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="grokbot"] .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="grokbot"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+  background-color: var(--kami-accent-fg);
+  transform: translateX(22px);
+}
+html[data-kami-skin="grokbot"] .kami-switch-input:focus-visible + .kami-switch-track {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-switch-track {
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line-strong);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-clay-choice);
+  border-color: var(--kami-clay-choice);
+}
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+  background-color: var(--kami-clay-plate);
+}
+
+/* ==========================================================================
+ * 11 · 标签页：实色胶囊片，选中＝反相墨块
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 48px;
+  gap: var(--kami-gap);
+  padding: 0 var(--kami-pad-lg-x);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  background-color: transparent;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-kami-skin="grokbot"] .kami-tabs::-webkit-scrollbar { display: none; }
+html[data-kami-skin="grokbot"] .kami-tab {
+  flex: none;
+  position: relative;
+  margin: 8px 0;
+  padding: 0 14px;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--kami-r-pill);
+  background-color: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls);
+  cursor: pointer;
+  transition: color var(--kami-dur-fast) var(--kami-ease), background-color var(--kami-dur-fast) var(--kami-ease);
+}
+@media (hover: hover) {
+  html[data-kami-skin="grokbot"] .kami-tab:hover { background-color: var(--kami-bg-soft); color: var(--kami-fg); }
+}
+/* 选中＝反相墨块 + 字加粗（形状与字重都变，不只靠颜色） */
+html[data-kami-skin="grokbot"] .kami-tab[aria-selected="true"] {
+  background-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  font-weight: var(--kami-fw-title);
+}
+
+/* ==========================================================================
+ * 12 · 面板与抽屉：炭黑底板 + 1px 实线
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-drop {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+}
+html[data-kami-skin="grokbot"] .kami-drop > .kami-body { flex: 1 1 auto; min-height: 0; }
+html[data-kami-skin="grokbot"] .kami-drop > .kami-head,
+html[data-kami-skin="grokbot"] .kami-drop > .kami-tabs,
+html[data-kami-skin="grokbot"] .kami-drop > .kami-foot { flex: 0 0 auto; }
+/* 四段的左右内边距都等于 --kami-pad-lg-x，于是对齐成一条竖线 */
+html[data-kami-skin="grokbot"] .kami-drop > .kami-head { padding-left: var(--kami-pad-lg-x); padding-right: var(--kami-pad-lg-x); }
+html[data-kami-skin="grokbot"] .kami-drop > .kami-tabs { padding-left: var(--kami-pad-lg-x); padding-right: var(--kami-pad-lg-x); }
+html[data-kami-skin="grokbot"] .kami-drop > .kami-body { padding-left: var(--kami-pad-lg-x); padding-right: var(--kami-pad-lg-x); }
+html[data-kami-skin="grokbot"] .kami-drop > .kami-foot { padding-left: var(--kami-pad-lg-x); padding-right: var(--kami-pad-lg-x); }
+html[data-kami-skin="grokbot"] .kami-drop > .kami-foot .kami-sub { margin-left: 0; }
+html[data-kami-skin="grokbot"] .kami-drop .kami-card { margin-bottom: var(--kami-gap-lg); }
+html[data-kami-skin="grokbot"] .kami-drop .kami-card:last-child { margin-bottom: 0; }
+html[data-kami-skin="grokbot"] .kami-drop .kami-collapse-head { gap: var(--kami-gap); margin-bottom: 2px; }
+html[data-kami-skin="grokbot"] .kami-drop .kami-card-note + .kami-card-note { margin-top: 2px; }
+
+/* —— 面板里卡片的**内边距**（2026-09-21 用户报障后重做）——
+   ⚠️ 用户原话：「皮肤管理面板内显示下面的条状容器内的内容边距太小，这个问题也存在于
+   预设设置面板与压缩面板里，几乎所有的卡片内边距都很小」。量出来的账：
+     · 行动选项前端（消息楼层）的卡片 = 16 / 20，文字墨水盒离圆角内缘 **15.3px**（用户说舒服的就是它）；
+     · 面板里的 `.kami-card` 被一条 `padding: 0` 的覆盖规则压平 → 余量 **-4.7px**（文字贴在圆角上）；
+     · 「显示」那张条状容器更惨：卡没有内边距，行只剩 `.kami-field` 自己那 **左右各 2px**，
+       标签离卡左缘实测 2.6px。
+   → 清零那条**删掉**，卡片吃回 `.kami-card` 基线的 16 / 20；字段行不再自己补内边距；
+     卡头 / 卡标题 / 注释正文也不再各补一层（那是给「没有内边距的卡」打的补丁，现在多余）。
+
+   ⚠️ **例外**：卡里直接装着**条目网格**的（🌟 的卡片组与模型卡、引导模型页的模型卡）。
+   2026-09-21 用户二次报障：「预设面板和引导面板模型页的卡片内部卡片就和父容器卡片没有内边距」
+   —— 原因是这条例外当初写成了 `padding-left/right: 0`，卡里的条目卡直接贴到卡边
+   （引导模型页实测：卡 442px、卡内条目卡离卡左缘 **1px**）。
+   现在**不归零，只收一档到 12px**（4px 阶梯里的 12，和条目卡自己的内边距同值，节奏一致）：
+   这样卡边有肉、条目网格又不会因为再收一层而被挤成竖排名字。 */
+html[data-kami-skin="grokbot"] .kami-drop .kami-card:has(> .kami-card-body > .kami-grid) {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* 这类卡的卡头 / 卡标题 / 注释正文不再自己补**左右**内边距（卡已经给了 12px）；
+   上下仍由卡自己的 padding 与各段自己的 margin 管。 */
+html[data-kami-skin="grokbot"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-head,
+html[data-kami-skin="grokbot"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-title {
+  padding-left: 0;
+  padding-right: 0;
+}
+html[data-kami-skin="grokbot"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-note {
+  padding-left: 0;
+  padding-right: 0;
+}
+html[data-kami-skin="grokbot"] .kami-drop .kami-card > .kami-card-body:has(> .kami-grid) {
+  padding-top: var(--kami-gap-lg);
+  padding-bottom: 0;
+}
+
+/* —— 卡内卡的「标题栏」（2026-09-21 用户报「卡片有标题栏 / 卡内卡时特别丑」）——
+   病根：模型卡的卡头是 `button.kami-card-head.kami-btn.kami-btn--ghost`，而 `.kami-btn`
+   是一条**胶囊**（r=999px）＋ 居中对齐 ＋ 宽度按内容收缩 —— 于是它变成一枚悬在方形白卡
+   里的小药丸：实测卡宽 369px、卡头只有 267px 宽、右边空掉 100px，跟整张卡的矩形语言
+   完全不搭；卡里再套一层同样圆角、同样颜色的条目卡，就成了「三层圆角套娃」。
+   定调：面板里的卡头一律做成**与卡同宽的矩形标题条** —— 小圆角、左对齐、满宽、
+   铺一层凹槽底色（未选中）/ 墨块（选中），字由上面那对令牌翻过来。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn {
+  width: 100%;
+  min-height: 0;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-clay-sink);
+  border-color: var(--kami-clay-line);
+  color: var(--kami-clay-ink);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn.is-on,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn[aria-pressed="true"] {
+  background-color: var(--kami-clay-ink);
+  border-color: var(--kami-clay-ink);
+  color: var(--kami-clay-plate);
+}
+/* 标题条里的计数 chip：底色跟标题条一样会「融」进去，改成透明底 + 随字色的边 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn .kami-chip {
+  background-color: transparent;
+  border-color: currentColor;
+  color: inherit;
+}
+/* 卡内卡的层级：外层卡 r=16，卡里的条目卡收到 r=12，两层不再同形同色 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.kami-card-head) {
+  border-radius: var(--kami-r-sm);
+}
+/* 贴底抽屉：几何由脚本下发（data-kami-layout="sheet"），皮肤补一个抓手与上圆下方 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-drop[data-kami-layout="sheet"] {
+  border-radius: var(--kami-panel-r) var(--kami-panel-r) 0 0;
+  border-bottom: 0;
+}
+html[data-kami-skin="grokbot"] .kami-drop[data-kami-layout="sheet"] > .kami-head { padding-top: calc(var(--kami-pad-lg-y) + 10px); }
+html[data-kami-skin="grokbot"] .kami-drop[data-kami-layout="sheet"] > .kami-head::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 44px;
+  height: 4px;
+  margin-left: -22px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-line-strong);
+}
+html[data-kami-skin="grokbot"] .kami-drop[data-kami-layout="sheet"] .kami-resize { display: none; }
+html[data-kami-skin="grokbot"] .kami-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  cursor: nwse-resize;
+  background-image: repeating-linear-gradient(135deg, var(--kami-line-strong) 0 2px, rgba(0, 0, 0, 0) 2px 6px);
+  background-repeat: no-repeat;
+  background-position: 100% 100%;
+  background-size: 16px 16px;
+}
+html[data-kami-skin="grokbot"] .kami-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kami-line-strong) transparent;
+}
+html[data-kami-skin="grokbot"] .kami-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-kami-skin="grokbot"] .kami-scroll::-webkit-scrollbar-track { background-color: transparent; }
+html[data-kami-skin="grokbot"] .kami-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid rgba(0, 0, 0, 0);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-line-strong);
+  background-clip: content-box;
+}
+/* 条目密集的面板（一屏上百张卡）：列宽收到 100px，图标 + 名字刚好两行。
+   条件写成**结构条件**「网格里直接装着条目卡」，不是面板 id ——
+   皮肤管理面板的网格里装的是 .kami-card，所以不会跟着被压窄。
+   ⚠️ 2026-09-21 修：条件原来只认 `> .kami-item`，而**带注释的条目卡外面多包了一层
+   `.kami-item-note`**（src/scripts/_preset-cards.js 的 buildItemCard），直接子元素
+   就不是 .kami-item 了 —— 于是「一组里每张卡都带注释」的网格判据落空，退回
+   `--kami-items-min: 15rem`，367px 的宽度只排得下**一列**。用户报的
+   「带注释说明的卡片都是单列」就是这一处：预览台探针实测那一格是
+   「367px → 1 列 卡367x53 间距12」，同一页另外八个网格都是「3 列 卡117」。
+   修法是把两种直接子元素都算进来（结构判据不变，仍然不挂面板 id）。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  --kami-items-min: 100px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap);
+}
+/* 注释外包层（契约 §4.2）：网格里占满一格，条目卡在上、注释正文在下。
+   .kami-item-note 自己没有内边距，但**是网格项**，所以要显式声明列宽行为
+   （min-width:0 免得长注释把格子撑破）。 */
+html[data-kami-skin="grokbot"] .kami-root .kami-item-note {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* 注释正文与它上面那张卡之间只留 4px：原来是「卡片底 0 + 注释 margin-top 8」，
+   用户报「注释和卡片本体距离太远」。 */
+html[data-kami-skin="grokbot"] .kami-root .kami-item-note > .kami-card-note[data-kami-note] {
+  margin-top: 4px;
+}
+/* 条目卡的内部间距：四周 12px（4px 阶梯：10 → 12，圆角 r=16 时文字离圆弧 7.3px），
+   卡与卡之间 8px。2026-09-21 试过抬到 14，但条目卡在面板里只有 117px 宽，
+   再收 4px 会把「DS/GLM底部破限」这类名字多折一行 —— 保持 12，靠外面那层
+   卡片内边距（16/20）来给整块网格留呼吸。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item {
+  padding: 12px;
+  min-height: 44px;
+}
+/* 条目名角标（emoji）：从名字里摘出来钉在卡角，只占高度不占宽度。
+   条件同样是结构条件：只有带 data-kami-corner 的徽章才进角标模式，
+   否则普通 kind 徽章会被一并绝对定位到卡角上。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.kami-card { position: relative; }
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-image: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--kami-fg-dim);
+  pointer-events: none;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 6px;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 6px;
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+  padding-top: calc(12px + .5em);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(12px + .5em);
+}
+
+/* ==========================================================================
+ * 13 · 空态 / 内联提示 / 皮肤预览缩略
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-empty {
+  position: relative;
+  margin: var(--kami-gap) 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x) var(--kami-pad-lg-y) calc(var(--kami-pad-lg-x) + 18px);
+  border: var(--kami-border-w) dashed var(--kami-line-strong);
+  border-radius: var(--kami-r-md);
+  background-color: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-sm);
+  box-shadow: none;
+}
+/* 空态那一枚：一小块实心圆角方块（原来是「还没睁开的单眼」，2026-09-21 删） */
+html[data-kami-skin="grokbot"] .kami-empty::before {
+  content: "";
+  position: absolute;
+  left: var(--kami-pad-lg-x);
+  top: 50%;
+  width: 5px;
+  height: 11px;
+  margin-top: -5.5px;
+  border-radius: 1.5px;
+  background-color: var(--kami-fg-mute);
+}
+html[data-kami-skin="grokbot"] .kami-toast {
+  position: relative;
+  margin: 0 var(--kami-pad-lg-x) var(--kami-pad-lg-y);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: .02em;
+  box-shadow: none;
+  animation: kami-grokbot-unseal var(--kami-dur) var(--kami-ease-out) both;
+}
+html[data-kami-skin="grokbot"] .kami-toast.is-bad {
+  color: var(--kami-warn);
+  border-color: var(--kami-warn);
+  background-color: var(--kami-card);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-toast { margin: 0 0 var(--kami-gap-lg); }
+html[data-kami-skin="grokbot"] .kami-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  aspect-ratio: 16 / 7;
+  margin-top: var(--kami-gap-lg);
+  padding: 10px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-bg-soft);
+  background-image: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+html[data-kami-skin="grokbot"] .kami-preview i {
+  display: block;
+  height: 5px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-line-strong);
+}
+/* 缩略图：一块白 blob 压在凹槽上。原来右下角还画了参考图那张脸的两只黑眼睛，
+   2026-09-21 按用户裁定整段删除（一处不留）。 */
+html[data-kami-skin="grokbot"] .kami-preview i:first-child {
+  width: 58%;
+  height: 10px;
+  border-radius: 8px 6px 9px 5px / 7px 5px 8px 6px;
+  background-color: var(--kami-clay-plate);
+}
+html[data-kami-skin="grokbot"] .kami-preview i:nth-child(2) { width: 80%; }
+html[data-kami-skin="grokbot"] .kami-preview i:nth-child(3) { width: 66%; }
+html[data-kami-skin="grokbot"] .kami-preview i:nth-child(4) { width: 40%; }
+html[data-kami-skin="grokbot"] .kami-card.is-on,
+html[data-kami-skin="grokbot"] .kami-card[aria-pressed="true"] {
+  border-color: var(--kami-accent);
+  box-shadow: inset 0 0 0 1px var(--kami-accent);
+}
+/* 「使用中 / 当前」那一枚小胶囊：这是整套皮肤唯一一处把颜色当状态用的地方
+   （焦点环是另一处）。青玉对卡面 #1e1e22 = 5.6:1，够 4.5。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card.is-on .kami-chip,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card[aria-pressed="true"] .kami-chip {
+  color: var(--kami-kind-focus);
+  border-color: var(--kami-kind-focus);
+}
+
+/* ==========================================================================
+ * 14 · 高级特效（平面皮肤：三条都是「多画一块实色 / 一条实线」，不是光影）
+ * ======================================================================== */
+
+/* —— grain · 色块颗粒：四个实心点状 radial-gradient 拼出的哑光噪点 ——
+   不用 url()、不用 SVG 滤镜；静态、零运行时；只作用在 .kami-surface。 */
+html[data-kami-skin="grokbot"][data-kami-effects~="grain"] .kami-root .kami-surface {
+  background-image: var(--kami-texture);
+  background-repeat: repeat;
+  background-size: 27px 27px, 31px 31px, 23px 23px, 37px 37px;
+  background-position: 0 0, 9px 13px, 17px 5px, 5px 21px;
+}
+html[data-kami-skin="grokbot"][data-kami-effects~="grain"] .kami-root .kami-shell.kami-surface {
+  background-image: var(--kami-texture);
+  background-repeat: repeat;
+  background-size: 27px 27px, 31px 31px, 23px 23px, 37px 37px;
+  background-position: 0 0, 9px 13px, 17px 5px, 5px 21px;
+}
+html[data-kami-skin="grokbot"][data-kami-effects~="grain"] .kami-root[data-kami-comp="panel"] .kami-drop.kami-surface {
+  background-image: var(--kami-texture);
+}
+
+/* —— sheen · 顶部描边：参考图那圈「上方亮一线」的边缘，用一条 1px 硬边做出来 ——
+   滑杆 --kami-gb-sheen 调它的不透明度（0 = 关掉）。 */
+html[data-kami-skin="grokbot"][data-kami-effects~="sheen"] .kami-root .kami-surface {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, calc(var(--kami-gb-sheen) / 100));
+}
+html[data-kami-skin="grokbot"][data-kami-effects~="sheen"] .kami-root[data-kami-comp="panel"] .kami-drop.kami-surface {
+  box-shadow:
+    var(--kami-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--kami-gb-sheen) / 100));
+}
+html[data-kami-skin="grokbot"][data-kami-effects~="sheen"] .kami-root:not([data-kami-comp="panel"]) .kami-shell.kami-surface {
+  box-shadow:
+    var(--kami-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--kami-gb-sheen) / 100));
+}
+
+/* —— breathe · 团子喘气：承载面整体极慢地涨缩一点点（只动 transform） —— */
+html[data-kami-skin="grokbot"][data-kami-effects~="breathe"] .kami-root .kami-surface {
+  transform-origin: 50% 62%;
+  animation: kami-grokbot-breathe 7.4s var(--kami-ease) infinite;
+}
+
+/* ==========================================================================
+ * 15 · 关键帧
+ * ======================================================================== */
+@keyframes kami-grokbot-breathe {
+  0%, 100% { transform: scale(1); }
+  46% { transform: scale(1.006); }
+}
+@keyframes kami-grokbot-unseal {
+  from { opacity: 0; transform: translateY(calc(var(--kami-enter-y) * -1)) scale(var(--kami-enter-scale)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kami-grokbot-pop {
+  0% { transform: scale(1); }
+  44% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+/* ==========================================================================
+ * 16 · 密度档位
+ * --------------------------------------------------------------------------
+ * 三档同样走 4px 阶梯，只是起点不同：宽松 18/12 与 24/20 ＞ 舒适 14/10 与 20/16
+ * ＞ 紧凑 12/8 与 16/12。**每一档的容器内边距都不低于 12px**，
+ * 也就是「文字离圆角」在紧凑档也仍然成立（圆角 r=16 时余量 ≥11px）。
+ * ======================================================================== */
+html[data-kami-skin="grokbot"][data-kami-density="compact"] .kami-root {
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 10px;
+  --kami-row-h: 40px;
+  --kami-items-min: 13.5rem;
+}
+html[data-kami-skin="grokbot"][data-kami-density="roomy"] .kami-root {
+  --kami-pad-x: 18px;
+  --kami-pad-y: 12px;
+  --kami-pad-lg-x: 24px;
+  --kami-pad-lg-y: 20px;
+  --kami-gap: 10px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 46px;
+  --kami-items-min: 17.5rem;
+}
+
+/* ==========================================================================
+ * 17 · 亮色方案：底板也翻成黏土白（同一套黑白关系，反过来）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root {
+  --kami-fg: #16161a;
+  --kami-fg-dim: #3f3f45;
+  --kami-fg-mute: #56565c;
+  --kami-accent: #16161a;
+  --kami-accent-fg: #f2f1ee;
+  --kami-accent-soft: #e3e2de;
+  --kami-accent-line: #62626a;
+  --kami-bg: #e6e5e1;
+  --kami-bg-soft: #d9d8d4;
+  --kami-card: #f2f1ee;
+  --kami-card-2: #e6e5e1;
+  --kami-card-hover: #fbfaf7;
+  --kami-line: #c3c2be;
+  --kami-line-strong: #62626a;
+  --kami-t1: rgba(22, 22, 26, .04);
+  --kami-t2: rgba(22, 22, 26, .08);
+  --kami-t3: rgba(22, 22, 26, .17);
+  --kami-warn: #8f2f27;
+  --kami-shadow: 0 2px 0 rgba(22, 22, 26, .18);
+  --kami-shadow-sm: 0 1px 0 rgba(22, 22, 26, .14);
+  --kami-glow: #ffffff;
+  /* 亮色方案下**两块面板都是浅底**（面板翻成黏土白、消息楼层本来就是黏土白），
+     所以七个色相一律用暗级那一套。 */
+  --kami-kind-action: #7f4b2d;
+  --kami-kind-fun: #645723;
+  --kami-kind-plot: #23634c;
+  --kami-kind-info: #2a5d77;
+  --kami-kind-persona: #7f379e;
+  --kami-kind-nsfw: #963558;
+  --kami-kind-other: #3f3f45;
+  --kami-kind-focus: #23634c;
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-drop {
+  background-color: var(--kami-bg);
+  background-image: none;
+  border-color: var(--kami-line);
+  color: var(--kami-fg);
+  box-shadow: var(--kami-shadow);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-card {
+  background-color: var(--kami-card);
+  background-image: none;
+  color: var(--kami-fg);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] input.kami-number,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] input.kami-text,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] select.kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-bg-soft) !important;
+  border-color: var(--kami-line-strong) !important;
+  color-scheme: light;
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-tab[aria-selected="true"],
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-seg-item.is-on,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-btn.is-on {
+  background-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-dot { background-color: var(--kami-card); }
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-dot::before { background-color: var(--kami-clay-ink); }
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-dot::after {
+  background-image:
+    linear-gradient(var(--kami-clay-ink), var(--kami-clay-ink)),
+    linear-gradient(var(--kami-clay-ink), var(--kami-clay-ink));
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-preview i:first-child { background-color: var(--kami-accent); }
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-preview::after {
+  background-image:
+    linear-gradient(var(--kami-accent-fg), var(--kami-accent-fg)),
+    linear-gradient(var(--kami-accent-fg), var(--kami-accent-fg));
+}
+
+/* ==========================================================================
+ * 18 · 动效档位与降级（契约 §3.6：off 必须 1ms 且无位移）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"][data-kami-motion="calm"] .kami-root {
+  --kami-dur-fast: .14s;
+  --kami-dur: .24s;
+  --kami-dur-slow: .4s;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* 循环动画在 calm 档整条取消（不是压到 1ms —— 那会闪一下） */
+html[data-kami-skin="grokbot"][data-kami-motion="calm"] .kami-root .kami-surface,
+html[data-kami-skin="grokbot"][data-kami-motion="calm"] .kami-root .kami-dot::after {
+  animation: none;
+}
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root .kami-surface,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] .kami-surface,
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root .kami-dot::after,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] .kami-dot::after {
+  animation: none;
+  transform: none;
+}
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root *,
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root *::before,
+html[data-kami-skin="grokbot"][data-kami-motion="off"] .kami-root *::after,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] *,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] *::before,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-motion="off"] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="grokbot"] .kami-root *,
+  html[data-kami-skin="grokbot"] .kami-root *::before,
+  html[data-kami-skin="grokbot"] .kami-root *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* ==========================================================================
+ * 19 · 窄屏：320px 必须成立（点按区域 44px、内边距 10px）
+ * ======================================================================== */
+html[data-kami-skin="grokbot"] .kami-shell { container-type: inline-size; container-name: kami-shell; }
+@media (max-width: 480px) {
+  html[data-kami-skin="grokbot"] .kami-root {
+    --kami-row-h: 44px;
+    --kami-pad-x: 10px;
+    --kami-pad-lg-x: 14px;
+  }
+  html[data-kami-skin="grokbot"] .kami-root .kami-icon-btn { min-width: 44px; min-height: 44px; }
+  html[data-kami-skin="grokbot"] .kami-root .kami-range { flex: 1 1 100%; width: auto; }
+  html[data-kami-skin="grokbot"] .kami-root .kami-field-value { flex-wrap: wrap; justify-content: flex-end; }
+}
+@container kami-shell (max-width: 21rem) {
+  html[data-kami-skin="grokbot"] .kami-root .kami-head { gap: 6px; }
+  html[data-kami-skin="grokbot"] .kami-root .kami-item { padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x); }
+}
+@container kami-shell (max-width: 19rem) {
+  html[data-kami-skin="grokbot"] .kami-root .kami-seg-item { padding: 4px 10px; }
+}
+@container kami-shell (max-width: 15rem) {
+  html[data-kami-skin="grokbot"] .kami-root .kami-head { flex-wrap: wrap; }
+  html[data-kami-skin="grokbot"] .kami-root .kami-actions { flex-wrap: wrap; justify-content: flex-end; }
+}

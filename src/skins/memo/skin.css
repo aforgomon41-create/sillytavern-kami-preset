@@ -1,0 +1,1870 @@
+/* ============================================================
+ * 卡密预设 · 皮肤「记事本」  id = memo
+ * ------------------------------------------------------------
+ * 概念：装不下 —— 一页刚出打印机、被印得太满的模组纸。
+ *   机器的笔触：格线 / 双规线 / 裁切角 / 套准标记 / 流水编号（直、准、等距）
+ *   她的笔触：荧光笔 / 橡皮章 / 便利贴 / 手抖的下划线（歪 1~1.2° / 出界 1px）
+ *   恐怖不在光里 —— --kami-glow 的取值就是透明的零。
+ *
+ * 作用域：html[data-kami-skin="memo"] .kami-root
+ * 明暗不是反色，是灯：dark 只是同一张纸在关灯后的房间里。
+ * 聊天楼层 iframe 内 filter / backdrop-filter 用量 = 0（按楼层线性付费）；
+ *   唯一的 backdrop-filter 在 .kami-drop（酒馆页面上的面板，全场景 <= 3 个实例）。
+ * ============================================================ */
+
+/* ============================================================
+ * 0. 令牌
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-root {
+  /* ---- 3.1 色彩与背景（默认 = 台灯下的桌子） ---- */
+  --kami-fg: #241f1a;
+  --kami-fg-dim: #5a5046;
+  --kami-fg-mute: #625848;
+  --kami-accent: #c03a2b;
+  --kami-accent-fg: #fdf8ee;
+  --kami-accent-soft: rgba(233, 178, 65, var(--kami-marker));
+  --kami-accent-line: rgba(192, 58, 43, .55);
+
+  --kami-bg: #f5f0e4;
+  --kami-bg-soft: #ece5d5;
+  --kami-card: #fbf8f0;
+  --kami-card-2: #fffdf7;
+  --kami-card-hover: #fff9e6;
+  --kami-line: rgba(36, 31, 26, .22);
+  --kami-line-strong: rgba(36, 31, 26, .54);
+  --kami-t1: rgba(36, 31, 26, .045);
+  --kami-t2: rgba(36, 31, 26, .085);
+  --kami-t3: rgba(36, 31, 26, .16);
+  --kami-warn: #a04a12;
+  --kami-shadow: 0 2px 0 rgba(36, 31, 26, .10), 0 8px 20px rgba(64, 44, 24, .10);
+  --kami-shadow-sm: 0 1px 0 rgba(36, 31, 26, .12);
+  --kami-blur: 6px;
+
+  /* ---- 本皮肤的内部令牌（不属于契约，但由参数面板驱动） ---- */
+  --kami-marker: 30%;           /* 荧光笔浓度 */
+  --kami-stamp-tilt: -1.2deg;   /* 印章歪斜 */
+  --kami-corner: 9px;           /* 右下裁角 */
+  --kami-grid-step: 20px;       /* 格线间距 */
+  --kami-fiber: rgba(36, 31, 26, .022);
+  --kami-seal: rgba(36, 31, 26, .05);
+  --kami-crop: rgba(36, 31, 26, .38);
+  --kami-grid-c: rgba(36, 31, 26, .075);
+  --kami-ink-cy: rgba(31, 122, 134, .34);
+  --kami-ink-mg: rgba(192, 58, 43, .26);
+  --kami-wobble: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 60 6' preserveAspectRatio='none'%3E%3Cpath d='M0 4.3C9 1.7 17 5.2 26 3.1 35 1 45 5.1 60 2.4' fill='none' stroke='%23c03a2b' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  --kami-hl-ease: cubic-bezier(.6, 0, .3, 1);   /* 笔迹：有笔压着纸 */
+  --kami-kind: var(--kami-accent);
+
+  /* ---- 3.2 布局与尺寸 ---- */
+  --kami-r-xs: 1px;
+  --kami-r-sm: 2px;
+  --kami-r-md: 3px;
+  --kami-r-lg: 4px;
+  --kami-r-pill: 2px;           /* 刻意的：本皮肤没有药丸形 */
+  --kami-border-w: 1px;
+  --kami-pad-x: 9px;
+  --kami-pad-y: 6px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 14px;
+  --kami-row-h: 44px;
+  --kami-icon: 15px;
+  --kami-maxw: none;
+  --kami-items-min: 230px;
+  --kami-panel-w: 380px;
+  --kami-panel-h: 560px;
+  --kami-list-dir: column;
+  --kami-justify: flex-start;
+
+  /* ---- 3.3 文本与排版 ---- */
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .74);
+  --kami-fs-sm: calc(var(--kami-fs) * .86);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.16);
+  --kami-lh: 1.78;
+  --kami-ls: .012em;
+  --kami-ls-title: .08em;
+  --kami-font: "Songti SC", "Source Han Serif SC", "Noto Serif CJK SC", "SimSun", ui-serif, Georgia, serif;
+  --kami-font-title: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 600;
+  --kami-title-transform: uppercase;
+
+  /* ---- 3.4 装饰与特效 ---- */
+  --kami-texture:
+    repeating-linear-gradient(58deg, var(--kami-fiber) 0 1px, transparent 1px 11px),
+    repeating-linear-gradient(-32deg, var(--kami-fiber) 0 1px, transparent 1px 17px);
+  --kami-glow: rgba(192, 58, 43, 0);   /* 零辉光：本皮肤没有一个像素是发光的 */
+  --kami-glow-size: 0px;
+  --kami-surface-clip: polygon(0 0, 100% 0, 100% calc(100% - var(--kami-corner)), calc(100% - var(--kami-corner)) 100%, 0 100%);
+  --kami-accent-mark: 3px;
+
+  /* ---- 3.5 动画与过渡 ---- */
+  --kami-dur-fast: 130ms;
+  --kami-dur: 200ms;
+  --kami-dur-slow: 320ms;
+  --kami-ease: cubic-bezier(.22, .68, .24, 1);        /* 重物：被手推到位，绝不弹跳 */
+  --kami-ease-out: cubic-bezier(.28, 1.16, .42, 1);   /* 轻物：允许一次 <= 6% 过冲 */
+  --kami-enter-y: -7px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 42ms;
+
+  /* ---- 3.8 语义色 ---- */
+  --kami-kind-action: #2f5fa8;
+  --kami-kind-persona: #8a4a86;
+  --kami-kind-plot: #2f7d5c;
+  --kami-kind-info: #1f7a86;
+  --kami-kind-fun: #b5780f;
+  --kami-kind-nsfw: #ab3a63;
+  --kami-kind-other: #6d6357;
+
+  /* ---- 3.7 文案令牌：只剩三个风格性标题（其余界面文字由前端写死，皮肤不得覆盖） ---- */
+  --kami-label-think-title: 速记;
+  --kami-label-think-title-open: 速记正文;
+  --kami-label-options-title: 待办;
+}
+
+/* ---- 明暗：不是反色，是灯 ---- */
+html[data-kami-skin="memo"][data-kami-scheme="dark"] .kami-root {
+  color-scheme: dark;
+  --kami-fg: #ece3d4;
+  --kami-fg-dim: #b3a795;
+  --kami-fg-mute: #9a8f7c;
+  --kami-accent: #e8705c;
+  --kami-accent-fg: #1a1310;
+  --kami-accent-line: rgba(232, 112, 92, .50);
+
+  --kami-bg: #211d19;
+  --kami-bg-soft: #1a1714;
+  --kami-card: #2a2521;
+  --kami-card-2: #322c26;
+  --kami-card-hover: #3c352d;
+  --kami-line: rgba(236, 227, 212, .16);
+  --kami-line-strong: rgba(236, 227, 212, .42);
+  --kami-t1: rgba(236, 227, 212, .06);
+  --kami-t2: rgba(236, 227, 212, .11);
+  --kami-t3: rgba(236, 227, 212, .19);
+  --kami-warn: #e09040;
+  --kami-shadow: 0 2px 0 rgba(0, 0, 0, .35), 0 8px 20px rgba(0, 0, 0, .45);
+  --kami-shadow-sm: 0 1px 0 rgba(0, 0, 0, .40);
+
+  --kami-marker: 22%;
+  --kami-fiber: rgba(236, 227, 212, .020);
+  --kami-seal: rgba(236, 227, 212, .045);
+  --kami-crop: rgba(236, 227, 212, .32);
+  --kami-grid-c: rgba(236, 227, 212, .065);
+  --kami-ink-cy: rgba(99, 192, 204, .30);
+  --kami-ink-mg: rgba(232, 112, 92, .24);
+  --kami-wobble: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 60 6' preserveAspectRatio='none'%3E%3Cpath d='M0 4.3C9 1.7 17 5.2 26 3.1 35 1 45 5.1 60 2.4' fill='none' stroke='%23e8705c' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+
+  --kami-kind-action: #7ea6e8;
+  --kami-kind-persona: #c98ac4;
+  --kami-kind-plot: #6fc39a;
+  --kami-kind-info: #63c0cc;
+  --kami-kind-fun: #e0b45c;
+  --kami-kind-nsfw: #e888ac;
+  --kami-kind-other: #a89b8c;
+}
+
+/* ---- 3.9 密度档位 ---- */
+html[data-kami-skin="memo"][data-kami-density="compact"] .kami-root {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 4px;
+  --kami-pad-lg-x: 11px;
+  --kami-pad-lg-y: 9px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 10px;
+  --kami-row-h: 38px;
+  --kami-lh: 1.68;
+  --kami-items-min: 200px;
+}
+html[data-kami-skin="memo"][data-kami-density="roomy"] .kami-root {
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 18px;
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 11px;
+  --kami-gap-lg: 20px;
+  --kami-row-h: 48px;
+  --kami-lh: 1.86;
+  --kami-items-min: 280px;
+}
+
+/* ============================================================
+ * 1. 根、基础、焦点
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-root {
+  position: relative;
+  box-sizing: border-box;
+  margin: 10px 0 6px;
+  text-align: left;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+  color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="memo"] .kami-root *,
+html[data-kami-skin="memo"] .kami-root *::before,
+html[data-kami-skin="memo"] .kami-root *::after { box-sizing: border-box; }
+html[data-kami-skin="memo"] .kami-root button,
+html[data-kami-skin="memo"] .kami-root input { font: inherit; color: inherit; }
+html[data-kami-skin="memo"] .kami-root [hidden] { display: none !important; }
+html[data-kami-skin="memo"] .kami-root ::selection { background: var(--kami-accent-soft); color: var(--kami-fg); }
+
+/* 焦点环是笔直的（机器），与手抖的下划线形成对照。焦点环不做动画。 */
+html[data-kami-skin="memo"] .kami-root :focus-visible {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+}
+html[data-kami-skin="memo"] .kami-item:focus-visible,
+html[data-kami-skin="memo"] .kami-btn:focus-visible,
+html[data-kami-skin="memo"] .kami-icon-btn:focus-visible,
+html[data-kami-skin="memo"] .kami-seg-item:focus-visible,
+html[data-kami-skin="memo"] .kami-tab:focus-visible,
+html[data-kami-skin="memo"] .kami-collapse-head:focus-visible,
+html[data-kami-skin="memo"] .kami-card:focus-visible {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--kami-accent-soft);
+}
+html[data-kami-skin="memo"] .kami-item:focus-visible {
+  box-shadow: 0 0 0 5px var(--kami-accent-soft), var(--kami-shadow-sm);
+}
+
+/* 纸的厚度：偏移 2px 的"下层纸"。因为 --kami-surface-clip 会裁掉 box-shadow，
+   外壳一律不用外投影，厚度由这一层伪造（同时省掉一层阴影绘制）。 */
+html[data-kami-skin="memo"] .kami-root:not([data-kami-comp="panel"]) {
+  padding-right: 2px;
+  padding-bottom: 2px;
+  z-index: 0;
+}
+html[data-kami-skin="memo"] .kami-root:not([data-kami-comp="panel"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--kami-line);
+  z-index: -1;
+}
+
+/* ============================================================
+ * 2. 外壳与表面
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-surface {
+  --kami-grid-img: none;
+  --kami-grain-img: none;
+  background-color: var(--kami-bg);
+  background-image: var(--kami-grain-img), var(--kami-grid-img), var(--kami-texture);
+  background-repeat: repeat, repeat, repeat;
+}
+html[data-kami-skin="memo"] .kami-shell.kami-surface { position: relative; z-index: 0; }
+html[data-kami-skin="memo"] .kami-drop.kami-surface { z-index: 0; }
+
+html[data-kami-skin="memo"] .kami-shell {
+  /* 块级流：头部行是普通流里的兄弟节点，任何正文动画都碰不到它 */
+  display: block;
+  container-type: inline-size;
+  max-width: var(--kami-maxw);
+  border: var(--kami-border-w) solid var(--kami-line);
+  background-color: var(--kami-bg);
+  box-shadow: inset 0 1px 0 var(--kami-t2);
+  overflow: hidden;
+  clip-path: var(--kami-surface-clip);
+}
+
+/* ============================================================
+ * 3. 头部 / 标题 / 副信息 / 动作区
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-head {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--kami-gap);
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  background-color: var(--kami-bg-soft);
+  /* 双规线：底边 1px 实线 + 上方 2px 处一条 60% 的细线 */
+  background-image:
+    linear-gradient(to bottom,
+      transparent calc(100% - 3px),
+      var(--kami-line) calc(100% - 3px),
+      var(--kami-line) calc(100% - 2px),
+      transparent calc(100% - 2px)),
+    repeating-linear-gradient(45deg, var(--kami-seal) 0 1px, transparent 1px 9px);
+  background-repeat: repeat, repeat;
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+}
+
+/* 套准标记：空心圆环 + 实心点 + 十字。它不动、不呼吸、不闪烁。 */
+html[data-kami-skin="memo"] .kami-dot {
+  flex: none;
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--kami-line-strong);
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-kami-skin="memo"] .kami-dot::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-dot::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - .5px);
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-dot[data-kami-on="1"] { border-color: var(--kami-accent); }
+html[data-kami-skin="memo"] .kami-dot[data-kami-on="1"]::before { background: var(--kami-accent); }
+html[data-kami-skin="memo"] .kami-dot[data-kami-on="1"]::after { background: var(--kami-accent); }
+
+html[data-kami-skin="memo"] .kami-title {
+  flex: 0 1 auto;
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: calc(var(--kami-fs) * .92);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] .kami-title::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-right: 5px;
+  background: var(--kami-accent);
+  vertical-align: .12em;
+}
+
+html[data-kami-skin="memo"] .kami-sub {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: 0;
+  color: var(--kami-fg-mute);
+}
+/* 页眉里的计数被六角括号括起来 —— 模组的页脚标注（正文提示不加，否则像坏了） */
+html[data-kami-skin="memo"] .kami-head .kami-sub::before { content: "〔"; }
+html[data-kami-skin="memo"] .kami-head .kami-sub::after { content: "〕"; }
+html[data-kami-skin="memo"] .kami-head .kami-title + .kami-sub { margin-left: 2px; }
+
+html[data-kami-skin="memo"] .kami-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-left: auto;
+  flex: none;
+}
+
+/* ---- 窄屏收缩：容器宽度 = .kami-shell 自己的宽度（消息 iframe 里就是聊天宽度） ----
+   标题栏**始终一行**：只收字号/字距/装饰与内边距，超长标题走省略号，绝不换行。 */
+@container (max-width: 420px) {
+  html[data-kami-skin="memo"] .kami-title {
+    font-size: calc(var(--kami-fs) * .86);
+    letter-spacing: .05em;
+  }
+  html[data-kami-skin="memo"] .kami-title::before { width: 3px; height: 3px; margin-right: 4px; }
+  html[data-kami-skin="memo"] .kami-head { gap: calc(var(--kami-gap) * .75); }
+}
+@container (max-width: 380px) {
+  html[data-kami-skin="memo"] .kami-head {
+    flex-wrap: nowrap;
+    gap: calc(var(--kami-gap) * .6);
+    padding-left: calc(var(--kami-pad-lg-x) * .78);
+    padding-right: calc(var(--kami-pad-lg-x) * .78);
+  }
+  html[data-kami-skin="memo"] .kami-title {
+    font-size: calc(var(--kami-fs) * .82);
+    letter-spacing: .03em;
+  }
+  html[data-kami-skin="memo"] .kami-title::before { width: 3px; height: 3px; margin-right: 3px; }
+  html[data-kami-skin="memo"] .kami-head .kami-sub { font-size: var(--kami-fs-xs); }
+  html[data-kami-skin="memo"] .kami-head .kami-seg-item { padding-left: 7px; padding-right: 7px; }
+}
+
+html[data-kami-skin="memo"] .kami-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-lg-x);
+  border-top: var(--kami-border-w) solid var(--kami-line);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+html[data-kami-skin="memo"] .kami-foot .kami-sub { color: var(--kami-fg-mute); font-size: var(--kami-fs-xs); }
+
+/* ============================================================
+ * 4. 按钮
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-btn,
+html[data-kami-skin="memo"] .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-t1);
+  background-image: none;
+  color: var(--kami-fg);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-sm);
+  font-weight: 500;
+  letter-spacing: .08em;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-size var(--kami-dur) var(--kami-hl-ease),
+              background-color var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease),
+              transform var(--kami-dur-fast) var(--kami-ease),
+              box-shadow var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-icon-btn {
+  min-width: var(--kami-row-h);
+  padding: 0 var(--kami-pad-y);
+  font-size: var(--kami-icon);
+  font-family: var(--kami-font);
+}
+
+/* ghost：荧光笔从左向右划过去（不是淡入） */
+html[data-kami-skin="memo"] .kami-btn--ghost {
+  background-color: transparent;
+  background-image: linear-gradient(var(--kami-accent-soft), var(--kami-accent-soft));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 0% 100%;
+}
+html[data-kami-skin="memo"] .kami-btn--ghost:hover {
+  background-size: 100% 100%;
+  border-color: var(--kami-accent-line);
+}
+
+html[data-kami-skin="memo"] .kami-root .kami-btn--primary {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+}
+html[data-kami-skin="memo"] .kami-btn--primary:hover {
+  box-shadow: 2px 2px 0 var(--kami-ink-cy);
+}
+html[data-kami-skin="memo"] .kami-btn.is-on {
+  background-color: var(--kami-accent-soft);
+  border-color: var(--kami-accent-line);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] .kami-btn:active,
+html[data-kami-skin="memo"] .kami-icon-btn:active,
+html[data-kami-skin="memo"] .kami-btn--ghost:active {
+  transform: translateY(1px);
+  box-shadow: none;
+  background-size: 100% 100%;
+  transition-duration: 30ms;
+}
+html[data-kami-skin="memo"] .kami-btn[disabled],
+html[data-kami-skin="memo"] .kami-icon-btn[disabled] { opacity: .5; cursor: default; }
+
+/* 成功反馈：一枚朱砂 ✓ 章从 1.8 倍落到 1 倍，带 8 度的歪 */
+html[data-kami-skin="memo"] .kami-btn.is-done,
+html[data-kami-skin="memo"] .kami-icon-btn.is-done {
+  background-color: var(--kami-accent-soft);
+  background-size: 100% 100%;
+  border-color: var(--kami-accent);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] .kami-btn.is-done::after,
+html[data-kami-skin="memo"] .kami-icon-btn.is-done::after {
+  content: "✓";
+  margin-left: 5px;
+  color: var(--kami-accent);
+  font-weight: 700;
+  animation: kami-memo-stamp var(--kami-dur-fast) var(--kami-ease-out) backwards;
+}
+
+/* ============================================================
+ * 5. 分段切换（打孔选票，不是胶囊）
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-seg {
+  display: inline-flex;
+  gap: 1px;
+  padding: 1px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-t1);
+}
+html[data-kami-skin="memo"] .kami-seg-item {
+  border: 0;
+  border-radius: var(--kami-r-xs);
+  min-height: calc(var(--kami-row-h) - 12px);
+  padding: 4px calc(var(--kami-pad-x) * .95);
+  background-color: transparent;
+  background-image: linear-gradient(var(--kami-accent-soft), var(--kami-accent-soft));
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 0% 100%;
+  color: var(--kami-fg-dim);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: .06em;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background-size var(--kami-dur-fast) var(--kami-hl-ease),
+              color var(--kami-dur-fast) var(--kami-ease),
+              box-shadow var(--kami-dur-fast) var(--kami-ease),
+              transform var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-seg-item:hover { color: var(--kami-fg); }
+/* 选中 = 一张被手贴上去的标签：歪 0.5 度 + 荧光笔从中心展开 + 印章式压下 */
+html[data-kami-skin="memo"] .kami-seg-item.is-on {
+  background-size: 100% 100%;
+  color: var(--kami-fg);
+  box-shadow: inset 0 0 0 1px var(--kami-accent-line);
+  transform: rotate(-.5deg);
+  animation: kami-memo-press 110ms var(--kami-ease-out) backwards;
+}
+html[data-kami-skin="memo"] .kami-seg-item:active { transform: rotate(-.5deg) translateY(1px); }
+
+/* ============================================================
+ * 6. 卡片 / 列表 / 网格 / 徽章
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap);
+}
+html[data-kami-skin="memo"] .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap);
+}
+
+html[data-kami-skin="memo"] .kami-root .kami-item,
+html[data-kami-skin="memo"] .kami-root .kami-card {
+  position: relative;
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  align-items: stretch;
+  gap: 5px;
+  width: 100%;
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card);
+  background-image: linear-gradient(var(--kami-card), var(--kami-card));
+  color: var(--kami-fg);
+  box-shadow: var(--kami-shadow-sm);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background-color var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease),
+              transform var(--kami-dur) var(--kami-ease),
+              box-shadow var(--kami-dur-fast) var(--kami-ease);
+}
+/* 悬停时左侧浮出一条语义色带（scaleY 生长），位移 2px，不缩放 */
+html[data-kami-skin="memo"] .kami-item::before,
+html[data-kami-skin="memo"] .kami-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--kami-accent-mark);
+  background: var(--kami-kind);
+  transform: scaleY(0);
+  transform-origin: top center;
+  transition: transform var(--kami-dur) var(--kami-hl-ease);
+}
+html[data-kami-skin="memo"] .kami-item:hover,
+html[data-kami-skin="memo"] .kami-card:hover {
+  background-color: var(--kami-card-hover);
+  border-color: var(--kami-line-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 0 rgba(36, 31, 26, .10), 0 6px 14px rgba(64, 44, 24, .10);
+}
+html[data-kami-skin="memo"] .kami-item:hover::before,
+html[data-kami-skin="memo"] .kami-card:hover::before { transform: scaleY(1); }
+html[data-kami-skin="memo"] .kami-item:active,
+html[data-kami-skin="memo"] .kami-card:active {
+  transform: translateY(1px);
+  box-shadow: none;
+  transition-duration: 30ms;
+}
+html[data-kami-skin="memo"] .kami-card.is-on {
+  border-color: var(--kami-accent);
+  box-shadow: inset 0 0 0 1px var(--kami-accent-line), var(--kami-shadow-sm);
+}
+html[data-kami-skin="memo"] .kami-card.is-on::before { transform: scaleY(1); background: var(--kami-accent); }
+
+/* 示例数据 = 一张复印件（不是"变灰"） */
+html[data-kami-skin="memo"] .kami-item.is-demo {
+  opacity: .74;
+  cursor: default;
+  background-image: repeating-linear-gradient(45deg, var(--kami-seal) 0 1px, transparent 1px 6px);
+}
+html[data-kami-skin="memo"] .kami-item.is-demo:hover { transform: none; background-color: var(--kami-card); }
+html[data-kami-skin="memo"] .kami-item.is-demo::before { display: none; }
+
+/* ---- 头部：流水编号 + 徽章 + 标题 + 印章式侧标 ---- */
+html[data-kami-skin="memo"] .kami-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  min-width: 0;
+}
+html[data-kami-skin="memo"] .kami-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: .04em;
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] .kami-card-note {
+  display: block;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+html[data-kami-skin="memo"] .kami-card-body {
+  display: block;
+  font-size: var(--kami-fs-sm);
+  line-height: 1.7;
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="memo"] .kami-item-main { min-width: 0; }
+html[data-kami-skin="memo"] .kami-item-side {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--kami-line-strong);
+  border-radius: 50%;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-xs);
+  line-height: 1;
+  transform: rotate(-6deg);
+  transition: transform var(--kami-dur) var(--kami-ease-out),
+              border-color var(--kami-dur) var(--kami-ease),
+              color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-item:hover .kami-item-side,
+html[data-kami-skin="memo"] .kami-card:hover .kami-item-side {
+  border-color: var(--kami-kind);
+  color: var(--kami-kind);
+  transform: rotate(0deg) translateX(2px);
+}
+
+/* ---- 流水编号（纯 CSS 计数器，只在行动选项里） ---- */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-grid { counter-reset: kami-memo-opt; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item { counter-increment: kami-memo-opt; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-card-head::before {
+  content: counter(kami-memo-opt, decimal-leading-zero);
+  flex: none;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: .04em;
+  color: var(--kami-fg-mute);
+  transform-origin: bottom center;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(1) { --kami-i: 0; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(2) { --kami-i: 1; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(3) { --kami-i: 2; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(4) { --kami-i: 3; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(5) { --kami-i: 4; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(6) { --kami-i: 5; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(7) { --kami-i: 6; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="options"] .kami-item:nth-child(8) { --kami-i: 7; }
+
+/* ---- 徽章 = 橡皮章（歪 1.2 度、出界 1px、墨色叠印） ---- */
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="action"] { --kami-kind: var(--kami-kind-action); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="persona"] { --kami-kind: var(--kami-kind-persona); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="plot"] { --kami-kind: var(--kami-kind-plot); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="info"] { --kami-kind: var(--kami-kind-info); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="fun"] { --kami-kind: var(--kami-kind-fun); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="nsfw"] { --kami-kind: var(--kami-kind-nsfw); }
+html[data-kami-skin="memo"] .kami-root [data-kami-kind="other"] { --kami-kind: var(--kami-kind-other); }
+
+html[data-kami-skin="memo"] .kami-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 1px 6px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-t1);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.45;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  color: var(--kami-kind);
+  background-color: var(--kami-accent-soft);
+  mix-blend-mode: multiply;
+  transform: translate(1px, -1px) rotate(var(--kami-stamp-tilt));
+  transition: transform var(--kami-dur) var(--kami-ease-out);
+}
+html[data-kami-skin="memo"] .kami-badge[data-kami-kind] { background-color: var(--kami-accent-soft); }
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  html[data-kami-skin="memo"] .kami-badge[data-kami-kind] {
+    background-color: color-mix(in srgb, var(--kami-kind) 12%, transparent);
+  }
+}
+/* 暗底上 multiply 会把印章压没，暗色退回普通叠色 */
+html[data-kami-skin="memo"][data-kami-scheme="dark"] .kami-badge { mix-blend-mode: normal; }
+/* 有人用手把它按平了 */
+html[data-kami-skin="memo"] .kami-item:hover .kami-badge,
+html[data-kami-skin="memo"] .kami-card:hover .kami-badge { transform: translate(0, 0) rotate(0deg); }
+
+html[data-kami-skin="memo"] .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-t2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.5;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: var(--kami-fg-dim);
+}
+
+/* ============================================================
+ * 7. 折叠：屏风立着 = 一条竖线；翻开 = 一页纸
+ * ============================================================ */
+
+/* 头部行在普通流里、高度只由自己的内容决定，**任何**展开动画都碰不到它。
+   展开的只有正文行自己：height 0 <-> auto（interpolate-size 让 auto 可插值）。
+   不支持 interpolate-size 的浏览器退化为直接开合，仍保留"翻纸"与操作行入场。 */
+html[data-kami-skin="memo"] .kami-shell.kami-collapse {
+  transition: box-shadow var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-collapse > .kami-collapse-body {
+  display: block;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  /* 收起时对辅助技术同样不可见、也不进 Tab 焦点链（height:0 本身挡不住 Tab） */
+  visibility: hidden;
+  transform: rotateX(-9deg);
+  transform-origin: top center;
+  transition: transform var(--kami-dur-slow) var(--kami-ease),
+              visibility 0s linear var(--kami-dur-slow);
+}
+html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
+  height: auto;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+@supports (interpolate-size: allow-keywords) {
+  html[data-kami-skin="memo"] .kami-root { interpolate-size: allow-keywords; }
+  html[data-kami-skin="memo"] .kami-collapse > .kami-collapse-body {
+    transition: height var(--kami-dur-slow) var(--kami-ease),
+                transform var(--kami-dur-slow) var(--kami-ease),
+                visibility 0s linear var(--kami-dur-slow);
+  }
+  html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
+    transition: height var(--kami-dur-slow) var(--kami-ease),
+                transform var(--kami-dur-slow) var(--kami-ease),
+                visibility 0s linear 0s;
+  }
+}
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-collapse > .kami-collapse-body { transition-delay: 0s; }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-collapse > .kami-collapse-body { transition-delay: 0s; }
+@supports not (interpolate-size: allow-keywords) {
+  html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body > .kami-bar {
+    animation: kami-memo-rise var(--kami-dur) var(--kami-ease) backwards;
+  }
+}
+@keyframes kami-memo-rise {
+  from { opacity: .001; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+html[data-kami-skin="memo"] .kami-collapse[data-kami-open="0"] {
+  box-shadow: inset var(--kami-accent-mark) 0 0 var(--kami-accent);
+}
+html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] {
+  box-shadow: inset calc(var(--kami-accent-mark) * .5) 0 0 var(--kami-accent-line);
+}
+html[data-kami-skin="memo"] .kami-collapse-head { cursor: pointer; user-select: none; }
+html[data-kami-skin="memo"] .kami-collapse-head:active { transform: translateY(1px); }
+html[data-kami-skin="memo"] .kami-chev {
+  flex: none;
+  font-size: calc(var(--kami-icon) * .8);
+  line-height: 1;
+  color: var(--kami-fg-mute);
+  transition: transform var(--kami-dur) var(--kami-ease),
+              color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev {
+  transform: rotate(90deg);
+  color: var(--kami-accent);
+}
+
+/* ============================================================
+ * 8. 正文 / 原文 / 空态 / 提示
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-md {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  background-image: linear-gradient(var(--kami-accent-line), var(--kami-accent-line));
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: var(--kami-accent-mark) 100%;
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="memo"] .kami-collapse-body > .kami-md,
+html[data-kami-skin="memo"] .kami-collapse-body > .kami-raw { margin: var(--kami-gap) var(--kami-pad-lg-x) 0; }
+/* .kami-bar = 正文头部的操作行（左 seg、右复制）；.kami-actions 是标题栏专用的右对齐动作区 */
+html[data-kami-skin="memo"] .kami-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin: var(--kami-pad-lg-y) var(--kami-pad-lg-x) 0;
+}
+html[data-kami-skin="memo"] .kami-bar > .kami-btn {
+  margin-left: auto;
+  min-height: calc(var(--kami-row-h) - 6px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+html[data-kami-skin="memo"] .kami-bar > .kami-icon-btn { margin-left: auto; }
+html[data-kami-skin="memo"] .kami-bar .kami-seg-item { min-height: calc(var(--kami-row-h) - 12px); }
+html[data-kami-skin="memo"] .kami-collapse-body > .kami-actions { padding: 0 var(--kami-pad-lg-x) var(--kami-pad-lg-y); }
+/* 展开时：装订边从上往下被画了一道（长文本只有这一处动画） */
+html[data-kami-skin="memo"] .kami-collapse[data-kami-open="1"] .kami-collapse-body > .kami-md {
+  animation: kami-memo-rule 260ms var(--kami-hl-ease) 120ms backwards;
+}
+html[data-kami-skin="memo"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="memo"] .kami-md > :last-child { margin-bottom: 0; }
+html[data-kami-skin="memo"] .kami-md p { margin: .6em 0; }
+html[data-kami-skin="memo"] .kami-md h1,
+html[data-kami-skin="memo"] .kami-md h2,
+html[data-kami-skin="memo"] .kami-md h3,
+html[data-kami-skin="memo"] .kami-md h4 {
+  margin: .9em 0 .4em;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  letter-spacing: .06em;
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] .kami-md h1 { font-size: var(--kami-fs-lg); }
+html[data-kami-skin="memo"] .kami-md code {
+  font-family: var(--kami-font-mono);
+  font-size: .88em;
+  padding: 1px 5px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-accent-soft);
+}
+html[data-kami-skin="memo"] .kami-md pre {
+  margin: .7em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-left: var(--kami-accent-mark) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card);
+  overflow-x: auto;
+}
+html[data-kami-skin="memo"] .kami-md pre code { background: none; border: 0; padding: 0; }
+html[data-kami-skin="memo"] .kami-md blockquote {
+  margin: .8em 0;
+  padding: 6px 10px;
+  border-top: var(--kami-border-w) solid var(--kami-line);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="memo"] .kami-md ul,
+html[data-kami-skin="memo"] .kami-md ol { margin: .6em 0; padding-left: 1.35em; }
+html[data-kami-skin="memo"] .kami-md ul { list-style: none; padding-left: 1.2em; }
+html[data-kami-skin="memo"] .kami-md ul > li { position: relative; }
+html[data-kami-skin="memo"] .kami-md ul > li::before {
+  content: "";
+  position: absolute;
+  left: -1em;
+  top: calc(var(--kami-lh) * .5em - .25em);
+  width: 5px;
+  height: 5px;
+  background: var(--kami-accent);
+}
+html[data-kami-skin="memo"] .kami-md ul ul > li::before { width: 4px; height: 4px; background: var(--kami-line-strong); }
+html[data-kami-skin="memo"] .kami-md ol { list-style: decimal; }
+html[data-kami-skin="memo"] .kami-md ol > li::marker {
+  color: var(--kami-accent);
+  font-family: var(--kami-font-mono);
+  font-size: .9em;
+}
+html[data-kami-skin="memo"] .kami-md li { margin: .22em 0; }
+/* <strong> = 荧光笔，只划文字下缘 38%，不构成文字背景（对比度不受影响） */
+html[data-kami-skin="memo"] .kami-md strong {
+  font-weight: 700;
+  color: var(--kami-fg);
+  background-image: linear-gradient(transparent 62%, var(--kami-accent-soft) 62%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+html[data-kami-skin="memo"] .kami-md em { font-style: normal; border-bottom: 1px dotted var(--kami-line-strong); }
+html[data-kami-skin="memo"] .kami-md del { color: var(--kami-fg-mute); }
+html[data-kami-skin="memo"] .kami-md a {
+  color: var(--kami-accent);
+  text-decoration: none;
+  padding-bottom: 2px;
+  background-image: var(--kami-wobble);
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 60px 5px;
+}
+html[data-kami-skin="memo"] .kami-md hr {
+  border: 0;
+  height: 5px;
+  margin: 1em 0;
+  background-image:
+    linear-gradient(var(--kami-line-strong), var(--kami-line-strong)),
+    linear-gradient(var(--kami-accent), var(--kami-accent));
+  background-repeat: no-repeat, no-repeat;
+  background-position: left center, center center;
+  background-size: 100% 1px, 5px 5px;
+}
+html[data-kami-skin="memo"] .kami-md img { max-width: 100%; border: var(--kami-border-w) solid var(--kami-line); }
+html[data-kami-skin="memo"] .kami-md table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--kami-fs-xs);
+  font-family: var(--kami-font-mono);
+}
+html[data-kami-skin="memo"] .kami-md th,
+html[data-kami-skin="memo"] .kami-md td {
+  border: var(--kami-border-w) solid var(--kami-line);
+  padding: 4px 7px;
+}
+html[data-kami-skin="memo"] .kami-md th { background-color: var(--kami-bg-soft); color: var(--kami-fg); }
+
+html[data-kami-skin="memo"] .kami-raw {
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-left: 1px dashed var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.62;
+  color: var(--kami-fg-dim);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+html[data-kami-skin="memo"] .kami-empty {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-top: 1px dashed var(--kami-line);
+  border-bottom: 1px dashed var(--kami-line);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-mute);
+  text-align: center;
+}
+html[data-kami-skin="memo"] .kami-empty::before {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 40px;
+  margin: 0 auto 9px;
+  border: 1px dashed var(--kami-line-strong);
+  background-image:
+    repeating-linear-gradient(to right, var(--kami-seal) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(to bottom, var(--kami-seal) 0 1px, transparent 1px 12px);
+}
+
+/* 便利贴：被拍在纸上，允许一次过冲（它是轻物；面板是重物，绝不弹跳） */
+html[data-kami-skin="memo"] .kami-shell > .kami-toast {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--kami-row-h) + var(--kami-pad-lg-y) * 2);
+  z-index: 6;
+  max-width: calc(100% - 24px);
+  padding: 5px 13px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card);
+  background-image: linear-gradient(var(--kami-accent-soft), var(--kami-accent-soft));
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: .04em;
+  color: var(--kami-fg);
+  box-shadow: 0 2px 0 rgba(36, 31, 26, .12), 0 6px 12px rgba(64, 44, 24, .12);
+  transform: translate(-50%, 0) rotate(-1deg);
+  animation: kami-memo-stick 220ms var(--kami-ease-out) backwards;
+}
+html[data-kami-skin="memo"] .kami-shell > .kami-toast::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 34px;
+  height: 9px;
+  margin-left: -17px;
+  background: rgba(255, 255, 255, .42);
+  border-left: 1px solid rgba(255, 255, 255, .30);
+  border-right: 1px solid rgba(255, 255, 255, .30);
+  transform: rotate(-2deg);
+}
+html[data-kami-skin="memo"] .kami-shell > .kami-toast.is-bad {
+  color: var(--kami-warn);
+  border-color: var(--kami-warn);
+  background-image: none;
+  animation-name: kami-memo-stick-bad;
+}
+html[data-kami-skin="memo"] .kami-shell > .kami-toast.is-bad::before {
+  content: "✕";
+  width: auto;
+  height: auto;
+  top: -8px;
+  padding: 0 3px;
+  background: var(--kami-card);
+  border: 1px solid var(--kami-warn);
+  border-radius: var(--kami-r-xs);
+  color: var(--kami-warn);
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* ============================================================
+ * 9. 表单控件
+ * ============================================================ */
+
+/* 设置项一行：目录页的引导点线 */
+html[data-kami-skin="memo"] .kami-field {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+  min-height: var(--kami-row-h);
+}
+html[data-kami-skin="memo"] .kami-field + .kami-field { border-top: 1px dotted var(--kami-line); }
+html[data-kami-skin="memo"] .kami-field-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="memo"] .kami-field-label:not(:has(> div)) {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+html[data-kami-skin="memo"] .kami-field-label:not(:has(> div))::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 0;
+  margin: 0 8px;
+  border-bottom: 1px dotted var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-field-value {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 滑杆：轨道是一条印刷基线，滑块是一枚可以推着走的铅字块 */
+html[data-kami-skin="memo"] .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 104px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  --kami-fill: calc(var(--kami-value, 0) * 100%);
+}
+html[data-kami-skin="memo"] .kami-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border: 0;
+  background-color: transparent;
+  background-image:
+    linear-gradient(to right, var(--kami-accent-line) 0 var(--kami-fill), transparent var(--kami-fill)),
+    linear-gradient(var(--kami-line-strong), var(--kami-line-strong));
+  background-repeat: no-repeat, no-repeat;
+  background-position: left center, left center;
+  background-size: 100% 3px, 100% 1px;
+}
+html[data-kami-skin="memo"] .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 18px;
+  margin-top: -7px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card);
+  box-shadow: inset 0 -4px 0 var(--kami-t3);
+  transition: transform var(--kami-dur-fast) var(--kami-ease),
+              background-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-range:hover::-webkit-slider-thumb { border-color: var(--kami-accent); }
+html[data-kami-skin="memo"] .kami-range:active::-webkit-slider-thumb {
+  transform: rotate(6deg);
+  background-color: var(--kami-accent);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .18);
+}
+html[data-kami-skin="memo"] .kami-range::-moz-range-track {
+  height: 1px;
+  border: 0;
+  background-color: var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-range::-moz-range-progress { height: 3px; background-color: var(--kami-accent-line); }
+html[data-kami-skin="memo"] .kami-range::-moz-range-thumb {
+  width: 12px;
+  height: 18px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card);
+  box-shadow: inset 0 -4px 0 var(--kami-t3);
+}
+html[data-kami-skin="memo"] .kami-range:active::-moz-range-thumb { transform: rotate(6deg); background-color: var(--kami-accent); }
+
+html[data-kami-skin="memo"] .kami-number {
+  width: 62px;
+  min-height: 30px;
+  padding: 2px 6px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  box-shadow: inset 0 1px 0 var(--kami-t2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg);
+}
+/* 右对齐是数字框的专属：以前这条写在裸 .kami-number 上，把摘要提示词的正文与角色下拉一起带偏了 */
+html[data-kami-skin="memo"] input.kami-number[type="number"] { text-align: right; }
+html[data-kami-skin="memo"] .kami-number:focus-visible { border-color: var(--kami-accent); }
+
+/* 面板里的数字输入框：正文色 + 纸底 + 一道压得住纸面的描边
+   （.kami-root input 的 color:inherit 特异性高于 .kami-number，会把输入文字压成
+    --kami-fg-dim，所以这里必须点名到 input.kami-number；两块面板共用，panel 限定即可，
+    .kami-pv 里的皮肤预览大卡不是输入框，天然不受影响）
+   底必须显式写、并且带 !important：酒馆「用户设置 → 自定义 CSS」里那条
+    input[type="number"] { background-color: var(--ui-color-sec) !important } 会盖掉
+    .kami-number 上的纸底，深色主题下就变成深底压深字（真机实测，见本轮报告）。
+    底只能写 background-color：写成 background 简写会把 .kami-select 那枚自绘箭头
+    的 background-image 一起重置掉。 */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] input.kami-number,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] input.kami-text,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] select.kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card-2) !important;
+  border-color: var(--kami-line-strong) !important;
+  color-scheme: light;
+}
+html[data-kami-skin="memo"] .kami-number::-webkit-inner-spin-button,
+html[data-kami-skin="memo"] .kami-number::-webkit-outer-spin-button { opacity: .45; }
+
+/* 文本 / 多行 / 下拉（契约 §4.2 新登记的三类）：照数字框的纸面语言写，一律左对齐。
+   选择器点名到元素：.kami-root input { color: inherit } 与它同为 (0,2,2)，
+   只有源码顺序在后才压得住，否则字会被 .kami-field 的 --kami-fg-dim 接管。 */
+html[data-kami-skin="memo"] input.kami-text,
+html[data-kami-skin="memo"] textarea.kami-textarea,
+html[data-kami-skin="memo"] select.kami-select {
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  box-shadow: inset 0 1px 0 var(--kami-t2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="memo"] textarea.kami-textarea { resize: vertical; }
+/* 下拉框：抹掉浏览器默认外观，用两层渐变拼一枚 V 形箭头；右内边距给箭头留位 */
+html[data-kami-skin="memo"] select.kami-select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: calc(var(--kami-pad-x) + 16px);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--kami-fg-mute) 50%),
+    linear-gradient(135deg, var(--kami-fg-mute) 50%, transparent 50%);
+  background-size: 4px 4px, 4px 4px;
+  background-position: calc(100% - 13px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+/* 开关：老式滑动开关 / 打孔卡片（本皮肤没有药丸形） */
+html[data-kami-skin="memo"] .kami-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+/* 输入框铺满整条轨道：点轨道任意处即可切换，键盘焦点环仍然落在 input 上 */
+html[data-kami-skin="memo"] .kami-switch-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+html[data-kami-skin="memo"] .kami-switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-t1);
+  transition: background-color var(--kami-dur) var(--kami-ease),
+              border-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
+  background-color: var(--kami-line-strong);
+  /* 到位时 6% 的过冲 —— 这就是"啪"的那一下 */
+  transition: transform 130ms cubic-bezier(.5, 0, .25, 1.3),
+              background-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-accent-soft);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="memo"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+  transform: translateX(16px);
+  background-color: var(--kami-accent);
+}
+html[data-kami-skin="memo"] .kami-switch-input:focus-visible + .kami-switch-track {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+}
+
+/* 标签页：索引卡凸耳 */
+html[data-kami-skin="memo"] .kami-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px var(--kami-pad-lg-x) 0;
+  border-bottom: var(--kami-border-w) solid var(--kami-line-strong);
+  background-color: var(--kami-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-kami-skin="memo"] .kami-tabs::-webkit-scrollbar { display: none; }
+/* tab 行放不下时（7 个 tab / 420px 面板、或手机抽屉）要**看得出来还能往右滑**：
+   给滚动容器右缘一道 20px 的渐隐遮罩。遮罩挂在滚动容器自己的边框盒上，内容在它下面滚，
+   被裁掉的那半个 tab 会淡出成「还有」的暗示；tab 行排得下时渐隐落在右侧内边距与底线上。 */
+html[data-kami-skin="memo"] .kami-tabs {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+}
+html[data-kami-skin="memo"] .kami-tab {
+  flex: none;
+  margin-bottom: -1px;
+  padding: 7px calc(var(--kami-pad-x) + 2px) 8px;
+  border: var(--kami-border-w) solid transparent;
+  border-top: 3px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--kami-r-sm) var(--kami-r-sm) 0 0;
+  background-color: transparent;
+  color: var(--kami-fg-mute);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: .06em;
+  cursor: pointer;
+  transition: color var(--kami-dur-fast) var(--kami-ease),
+              background-color var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="memo"] .kami-tab:hover { color: var(--kami-fg); background-color: var(--kami-t1); }
+html[data-kami-skin="memo"] .kami-tab[aria-selected="true"] {
+  color: var(--kami-fg);
+  background-color: var(--kami-card);
+  border-color: var(--kami-line-strong);
+  border-top-color: var(--kami-accent);
+  border-bottom-color: var(--kami-card);
+}
+
+/* ============================================================
+ * 10. 面板（钉在屏幕上的模组文件夹）
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+html[data-kami-skin="memo"] .kami-drop {
+  position: absolute;
+  left: var(--kami-panel-x, 50%);
+  top: var(--kami-panel-y, 72px);
+  width: var(--kami-panel-w, min(380px, calc(100% - 24px)));
+  height: var(--kami-panel-h, 560px);
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-lg);
+  background-color: var(--kami-bg);
+  box-shadow: 0 3px 0 rgba(36, 31, 26, .16), 0 18px 44px rgba(30, 20, 10, .30);
+  clip-path: none;
+}
+@supports (backdrop-filter: blur(2px)) {
+  html[data-kami-skin="memo"] .kami-drop {
+    backdrop-filter: blur(var(--kami-blur));
+  }
+}
+html[data-kami-skin="memo"] .kami-drop::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: var(--kami-accent);
+  z-index: 4;
+}
+html[data-kami-skin="memo"] .kami-drop[data-kami-open="1"] {
+  animation: kami-memo-drop-in var(--kami-dur) var(--kami-ease) backwards;
+}
+html[data-kami-skin="memo"] .kami-drop > .kami-head { cursor: move; }
+html[data-kami-skin="memo"] .kami-drop > .kami-head[data-kami-drag]:active { transform: translateY(1px); }
+html[data-kami-skin="memo"] .kami-drop > .kami-body { flex: 1 1 auto; min-height: 0; }
+html[data-kami-skin="memo"] .kami-drop > .kami-body[data-kami-pane] {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+html[data-kami-skin="memo"] .kami-drop > .kami-foot { flex: none; }
+html[data-kami-skin="memo"] .kami-drop .kami-field:first-child { padding-top: 0; }
+
+/* 贴底抽屉：模式由脚本按**酒馆自己的单栏状态**下发（data-kami-layout="sheet"）。
+   以前这里是一段 @media (max-width:768px)，但酒馆自己是在 1000px 就切成单栏的，
+   于是 769–1000 那段宽度里酒馆已经是单栏、面板却还是悬浮窗（并连带一个几何塌成细线的 bug）。 */
+html[data-kami-skin="memo"] .kami-drop[data-kami-layout="sheet"] {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: 80%;
+  max-height: 80%;
+  border-radius: var(--kami-r-lg) var(--kami-r-lg) 0 0;
+  border-bottom: 0;
+}
+html[data-kami-skin="memo"] .kami-drop[data-kami-layout="sheet"] > .kami-head {
+  padding-top: calc(var(--kami-pad-lg-y) + 8px);
+}
+html[data-kami-skin="memo"] .kami-drop[data-kami-layout="sheet"] > .kami-head::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 40px;
+  height: 3px;
+  margin-left: -20px;
+  background: var(--kami-line-strong);
+  border-radius: 0;
+}
+
+html[data-kami-skin="memo"] .kami-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background-image: repeating-linear-gradient(135deg, var(--kami-line-strong) 0 1px, transparent 1px 5px);
+  opacity: .85;
+}
+html[data-kami-skin="memo"] .kami-resize:hover {
+  opacity: 1;
+  background-image: repeating-linear-gradient(135deg, var(--kami-accent) 0 1px, transparent 1px 5px);
+}
+
+/* 滚动条：装订边 + 方角实条 */
+html[data-kami-skin="memo"] .kami-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kami-line-strong) transparent;
+}
+html[data-kami-skin="memo"] .kami-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
+html[data-kami-skin="memo"] .kami-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 1px dashed var(--kami-line);
+}
+html[data-kami-skin="memo"] .kami-scroll::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 0;
+  background-color: var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-scroll::-webkit-scrollbar-thumb:hover { background-color: var(--kami-accent); }
+
+/* ============================================================
+ * 11. 皮肤预览缩略（面板里的纸样）
+ * ============================================================ */
+
+html[data-kami-skin="memo"] .kami-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 5px;
+  height: 54px;
+  padding: 8px 9px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-bg);
+  background-image:
+    repeating-linear-gradient(to right, var(--kami-grid-c) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(to bottom, var(--kami-grid-c) 0 1px, transparent 1px 12px);
+  overflow: hidden;
+}
+html[data-kami-skin="memo"] .kami-preview i {
+  display: block;
+  height: 5px;
+  border-radius: 0;
+  background: var(--kami-line-strong);
+}
+html[data-kami-skin="memo"] .kami-preview i:first-child { width: 62%; height: 6px; background: var(--kami-accent); }
+html[data-kami-skin="memo"] .kami-preview i:nth-child(2) { width: 88%; }
+html[data-kami-skin="memo"] .kami-preview i:nth-child(3) { width: 74%; }
+html[data-kami-skin="memo"] .kami-preview i:nth-child(4) { width: 46%; }
+html[data-kami-skin="memo"] .kami-preview::after {
+  content: "";
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--kami-accent);
+  border-radius: 50%;
+  transform: rotate(-8deg);
+  opacity: .8;
+}
+
+/* ============================================================
+ * 12. 高级特效
+ * ============================================================ */
+
+/* grid · 模组格线：这里本应是有秩序的 —— 它存在的意义就是被内容盖住 */
+html[data-kami-skin="memo"][data-kami-effects~="grid"] .kami-surface {
+  --kami-grid-img:
+    repeating-linear-gradient(to right, var(--kami-grid-c) 0 1px, transparent 1px var(--kami-grid-step)),
+    repeating-linear-gradient(to bottom, var(--kami-grid-c) 0 1px, transparent 1px var(--kami-grid-step));
+}
+
+/* crop · 裁切线：这张纸是从一张更大的纸上切下来的 */
+html[data-kami-skin="memo"][data-kami-effects~="crop"] .kami-surface {
+  --kami-crop-a: 8px;
+}
+html[data-kami-skin="memo"][data-kami-effects~="crop"] .kami-surface::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: 3;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop)),
+    linear-gradient(var(--kami-crop), var(--kami-crop));
+  background-repeat: no-repeat;
+  background-size:
+    var(--kami-crop-a) 1px, 1px var(--kami-crop-a),
+    var(--kami-crop-a) 1px, 1px var(--kami-crop-a),
+    var(--kami-crop-a) 1px, 1px var(--kami-crop-a),
+    var(--kami-crop-a) 1px, 1px var(--kami-crop-a);
+  background-position:
+    left top, left top,
+    right top, right top,
+    left bottom, left bottom,
+    right bottom, right bottom;
+}
+
+/* ink · 套印不准：你正在读的东西，在印的时候抖了一下 */
+html[data-kami-skin="memo"][data-kami-effects~="ink"] .kami-title {
+  text-shadow: .6px 0 var(--kami-ink-cy), -.5px .4px var(--kami-ink-mg);
+}
+html[data-kami-skin="memo"][data-kami-effects~="ink"] .kami-shell.kami-surface {
+  box-shadow: inset 0 1px 0 var(--kami-t2), 1px 1px 0 var(--kami-ink-cy);
+}
+html[data-kami-skin="memo"][data-kami-effects~="ink"] .kami-collapse[data-kami-open="1"] .kami-collapse-body > .kami-md {
+  animation: kami-memo-rule 260ms var(--kami-hl-ease) 120ms backwards,
+             kami-memo-misprint 240ms steps(2, end) 120ms 1;
+}
+
+/* dice · 掷骰落定：编号一颗颗翻牌落位，间隔就是骰子落桌的声音 */
+html[data-kami-skin="memo"][data-kami-effects~="dice"] .kami-root[data-kami-comp="options"] .kami-card-head::before {
+  animation: kami-memo-roll 260ms var(--kami-ease) backwards;
+  animation-delay: calc(var(--kami-i, 0) * var(--kami-stagger));
+}
+html[data-kami-skin="memo"][data-kami-effects~="dice"] .kami-item:hover .kami-item-side {
+  animation: kami-memo-settle 200ms var(--kami-ease-out) 1;
+}
+
+/* bleed · 洇墨（默认关）：纸被什么液体浸过 */
+html[data-kami-skin="memo"][data-kami-effects~="bleed"] .kami-shell.kami-surface {
+  border-radius: 9px 3px 11px 4px;
+  box-shadow: inset 0 0 12px var(--kami-t3), inset 0 0 3px var(--kami-line);
+  transition: border-radius var(--kami-dur-slow) var(--kami-ease);
+}
+html[data-kami-skin="memo"][data-kami-effects~="bleed"] .kami-shell.kami-surface:hover {
+  border-radius: 4px 12px 5px 10px;
+}
+
+/* grain · 影印颗粒（默认关）：这张纸上的东西正在被复制 */
+html[data-kami-skin="memo"][data-kami-effects~="grain"] .kami-surface {
+  --kami-grain-img: url("data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  background-repeat: repeat, repeat, repeat;
+}
+
+/* ============================================================
+ * 13. 关键帧
+ * ============================================================ */
+
+@keyframes kami-memo-drop-in {
+  from { opacity: .001; transform: translateY(calc(var(--kami-enter-y) * 1.4)) rotate(-.3deg) scale(var(--kami-enter-scale)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kami-memo-rule {
+  from { background-size: var(--kami-accent-mark) 0%; }
+  to { background-size: var(--kami-accent-mark) 100%; }
+}
+@keyframes kami-memo-misprint {
+  0% { text-shadow: 2.5px 0 var(--kami-ink-cy), -2.5px 0 var(--kami-ink-mg); }
+  50% { text-shadow: -1.6px 0 var(--kami-ink-cy), 1.6px 0 var(--kami-ink-mg); }
+  100% { text-shadow: 0 0 transparent; }
+}
+@keyframes kami-memo-roll {
+  0% { opacity: .15; transform: rotateX(-92deg); }
+  70% { opacity: 1; transform: rotateX(10deg); }
+  100% { opacity: 1; transform: rotateX(0deg); }
+}
+@keyframes kami-memo-settle {
+  0% { transform: rotate(0deg) translateX(2px); }
+  45% { transform: rotate(3deg) translateX(3px); }
+  100% { transform: rotate(0deg) translateX(2px); }
+}
+@keyframes kami-memo-press {
+  from { transform: rotate(-.5deg) scale(1.07); }
+  to { transform: rotate(-.5deg) scale(1); }
+}
+@keyframes kami-memo-stamp {
+  from { opacity: .2; transform: scale(1.8) rotate(-14deg); }
+  to { opacity: 1; transform: scale(1) rotate(-8deg); }
+}
+@keyframes kami-memo-stick {
+  from { opacity: .001; transform: translate(-50%, -110%) rotate(-1deg); }
+  to { opacity: 1; transform: translate(-50%, 0) rotate(-1deg); }
+}
+@keyframes kami-memo-stick-bad {
+  from { opacity: .001; transform: translate(calc(-50% - 22px), 0) rotate(-2.5deg); }
+  to { opacity: 1; transform: translate(-50%, 0) rotate(-1deg); }
+}
+
+/* ============================================================
+ * 14. 动效档位与可达性降级
+ * ============================================================ */
+
+/* calm：保留状态反馈，移除入场编舞与所有过冲 */
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-root {
+  --kami-stagger: 0ms;
+  --kami-enter-y: -3px;
+  --kami-dur-slow: 180ms;
+  --kami-dur: 150ms;
+  --kami-ease-out: cubic-bezier(.2, .8, .3, 1);
+}
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-shell.kami-collapse { transition-duration: var(--kami-dur); }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-collapse > .kami-collapse-body { transform: none; }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-root .kami-toast { animation: none; }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-root .kami-seg-item.is-on { animation: none; }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-root .kami-btn.is-done::after { animation: none; }
+html[data-kami-skin="memo"][data-kami-motion="calm"] .kami-root .kami-drop[data-kami-open="1"] { animation: none; }
+
+/* off：全部压到 1ms、无位移、无动画（关掉的是"运动"，不是"反馈"） */
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-root {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-root *,
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-root *::before,
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-root *::after {
+  animation: none !important;
+  transition-duration: 1ms !important;
+}
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-collapse > .kami-collapse-body { transform: none; }
+html[data-kami-skin="memo"][data-kami-motion="off"] .kami-badge { transform: translate(1px, -1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="memo"] .kami-root {
+    --kami-dur-fast: 1ms;
+    --kami-dur: 1ms;
+    --kami-dur-slow: 1ms;
+    --kami-enter-y: 0px;
+    --kami-enter-scale: 1;
+    --kami-stagger: 0ms;
+  }
+  html[data-kami-skin="memo"] .kami-root *,
+  html[data-kami-skin="memo"] .kami-root *::before,
+  html[data-kami-skin="memo"] .kami-root *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+  html[data-kami-skin="memo"] .kami-collapse > .kami-collapse-body { transform: none; }
+}
+
+/* ============================================================
+ * 11. 设置面板里的条目网格：紧凑多列（手机底部抽屉排 3 列）
+ * ------------------------------------------------------------
+ * 皮肤默认的 --kami-items-min（230px，按 820px 宽的消息区调的）在设置面板里
+ * 永远只排得下 1 列 —— 面板里的网格只有 349~355px 宽。这里把面板作用域内的
+ * 令牌压到 96px：390px 宽的底部抽屉正好 3 列，桌面 420px 面板 3~4 列。
+ *
+ * 三重限定，缺一不可：
+ *   · html[data-kami-skin="memo"] —— 皮肤契约要求的皮肤前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options 两种组件，
+ *                                    没有 panel。带上它，紧凑化就绝不会渗进聊天前端；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * ============================================================ */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+  --kami-items-min: 96px;
+}
+
+/* 窄屏（手机底部抽屉）下的列宽：96px 会让 375px 的抽屉排出 3 列、卡只有 ~110px，
+   「DS/GLM底部破限」这种名字被拦腰断成 DS/GLM 断行。窄屏把列宽调大，宁可两列：
+   375px 抽屉 → 2 列（卡 ~166px），320px → 2 列（卡 ~110px）。
+   只改令牌，不动脚本结构；桌面 420px 面板不受影响（视口 > 560px 时照旧 3~4 列）。 */
+@media (max-width: 560px) {
+  html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 152px;
+  }
+}
+@media (max-width: 380px) {
+  html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 108px;
+  }
+}
+
+
+/* ============================================================
+ * 22 · 条目名角标：emoji 摘下来，像一枚贴在卡片角上的小印章
+ * ------------------------------------------------------------
+ * 条目名绝大多数是四个汉字，前面那枚 emoji + 空格会把 110px 的紧凑小卡顶成两行。
+ * 把 emoji 绝对定位到卡片角上，文字那一行**整行**腾出来，卡片高度不因此变高。
+ * 脚本只摘显示，预设里条目名一个字没动。
+ *
+ * 三重限定，缺一不可（理由同上节）：
+ *   · html[data-kami-skin="memo"] —— 皮肤前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * 只用本皮肤已有令牌，没有新颜色，气质照旧是「纸质手账上贴的一枚小印记」。
+ * ============================================================ */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item.kami-card {
+  position: relative;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  position: absolute;
+  top: 1px;
+  right: 4px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  mix-blend-mode: normal;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--kami-fg-mute);
+  transform: rotate(var(--kami-stamp-tilt));
+  pointer-events: none;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 4px;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 1px;
+}
+/* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
+   有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片略高一点点，
+   文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item:hover > .kami-badge {
+  transform: rotate(0deg);
+}
+
+/* ============================================================
+ * 24 · 非当前模型的模型专属条目：锁死
+ * ------------------------------------------------------------
+ * 面板「🤖 模型」tab 里，不属于「当前模型」的模型专属条目一律禁用（脚本写 HTML 原生的
+ * disabled，条目卡本来就是 button）。外观也要给出「锁死」的样子：变暗 + 去掉悬停反馈
+ * + 鼠标禁止符号。颜色只用本文件已有的「最弱文字色」令牌 --kami-fg-mute，不引入新颜色。
+ *
+ * 三重限定，缺一不可（理由同上面 22 节）：
+ *   · html[data-kami-skin="memo"] —— memo 的作用域前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * ============================================================ */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  background-color: var(--kami-card);
+  background-image: none;
+  border-color: var(--kami-line);
+  box-shadow: none;
+  transform: none;
+  opacity: .42;
+  color: var(--kami-fg-mute);
+  cursor: not-allowed;
+}
+/* 悬停才会冒出来的装饰（角标转正 / 左缘竖条 / 湿痕横线）在锁死时一律不许动 */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+  transform: scale(0);
+  opacity: 0;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge { transform: none; }
+
+/* 注释标记 + 展开出来的注释正文：**不得用面板 id 限定**（契约 §4.4 硬规则），
+   否则后加的面板（如引导 ）一条都匹配不上。
+   标记元素 = span.kami-card-note[data-kami-note-mark]，与 🌟 预设面板同构。 */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  margin-left: 5px;
+  border: var(--kami-border-w) solid var(--kami-accent);
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-xs);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+  background: var(--kami-accent);
+  color: var(--kami-bg);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  display: block;
+  margin: 5px 0 0;
+  padding: 5px 7px;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+  border-radius: var(--kami-r-xs);
+  background: var(--kami-t2);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+}
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+
+/* ============================================================
+ * · 面板里的控件边界：描边抬到「看得见」那一档
+ * ------------------------------------------------------------
+ * 面板里的条目卡底与外面那层卡片底是同一个色，唯一的边界就是那 1px 描边；
+ * 原来的 --kami-line 实测只有 1.3~1.6:1，卡片会连成一片、看不出是一张一张的按钮。
+ * 面板内的控件描边统一提到 --kami-line-strong（同一个色，只是更实），卡片边界实测 >= 3:1。
+ * 只用本皮肤已有令牌，没有新颜色；不开 --kami-line 本身：聊天前端的细线该细还是细。
+ * 不带面板 id（契约 §4.4）：三块面板与以后的新面板共用这一条。
+ * ============================================================ */
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+  border-color: var(--kami-line-strong);
+}

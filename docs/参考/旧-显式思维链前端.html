@@ -1,0 +1,653 @@
+
+```
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思考空间</title>
+<style>
+.tc-wrap{
+  /* ── SFE 本地兜底层：没装主题脚本、也读不到酒馆主题变量时生效 ── */
+  --d-fg:#d8d8d8; --d-dim:#9d9d9d;
+  --d-t1:rgba(158,158,158,.10); --d-t2:rgba(158,158,158,.18); --d-t3:rgba(158,158,158,.30);
+  --d-bg:rgba(28,28,28,.90); --d-glow:rgba(176,125,255,.70); --d-hl:rgba(176,125,255,.26);
+  /* ── 组件别名：SFE 令牌 → 酒馆主题 → 本地兜底 ── */
+  --tc-fg:var(--sfe-fg,var(--SmartThemeBodyColor,var(--d-fg)));
+  --tc-dim:var(--sfe-fg-dim,var(--d-dim));
+  --tc-mute:var(--sfe-fg-mute,var(--d-dim));
+  --tc-accent:var(--sfe-accent,var(--SmartThemeEmColor,#b07dff));
+  --tc-accent-fg:var(--sfe-accent-fg,#ffffff);
+  --tc-accent-soft:var(--sfe-accent-soft,rgba(176,125,255,.20));
+  --tc-accent-line:var(--sfe-accent-line,rgba(176,125,255,.44));
+  --tc-hl:var(--sfe-hl,var(--d-hl));
+  --tc-t1:var(--sfe-s1,var(--d-t1));
+  --tc-t2:var(--sfe-s2,var(--d-t2));
+  --tc-t3:var(--sfe-s3,var(--d-t2));
+  --tc-line:var(--sfe-line,var(--d-t3));
+  --tc-line-strong:var(--sfe-line-strong,var(--d-t3));
+  --tc-bg:var(--sfe-bg-soft,var(--SmartThemeBlurTintColor,var(--d-bg)));
+  --tc-card:var(--sfe-card,var(--d-bg));
+  --tc-glow:var(--sfe-glow,var(--d-glow));
+  --tc-glow-size:var(--sfe-glow-size,6px);
+  --tc-r-xs:var(--sfe-r-xs,6px);
+  --tc-r-sm:var(--sfe-r-sm,8px);
+  --tc-r-md:var(--sfe-r-md,10px);
+  --tc-r-lg:var(--sfe-r-lg,14px);
+  --tc-r-pill:var(--sfe-r-pill,999px);
+  --tc-pad-y:var(--sfe-pad-y,8px);
+  --tc-pad-x:var(--sfe-pad-x,11px);
+  --tc-pad-lg-y:var(--sfe-pad-lg-y,11px);
+  --tc-pad-lg-x:var(--sfe-pad-lg-x,13px);
+  --tc-gap:var(--sfe-gap,7px);
+  --tc-shadow:var(--sfe-shadow-sm,0 3px 12px rgba(0,0,0,.28));
+  --tc-blur:var(--sfe-blur,8px);
+  --tc-dur-fast:var(--sfe-dur-fast,.14s);
+  --tc-dur:var(--sfe-dur,.18s);
+  --tc-dur-slow:var(--sfe-dur-slow,.25s);
+  --tc-ease:var(--sfe-ease,cubic-bezier(.22,.61,.36,1));
+  --tc-fs:calc(var(--sfe-fs,15px) * var(--sfe-fs-scale,1));
+  --tc-lh:var(--sfe-lh,1.65);
+  --tc-ls:var(--sfe-ls,.02em);
+  --tc-ls-title:var(--sfe-ls-title,.06em);
+  --tc-font:var(--sfe-font,inherit);
+  --tc-mono:var(--sfe-font-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
+  /* ── 容器背景兜底：没装主题脚本时也保证文字对比度 ──
+     背景/圆角/阴影/特效层（扫描线、颗粒、回扫…）由主题脚本下发的 .sfe-surface 提供，
+     这里不再重复实现：加新特效只改主题脚本一处，所有前端立即生效。 */
+  /* 容器本身【不上底色】（只承载特效层与排版）；底色交给下面各“卡片”，
+     这样每块文字都落在实色上，不会透出酒馆聊天背景导致看不清 */
+  --tc-card-2:var(--sfe-card-2,#1d1d22);
+  --tc-warn-bg:var(--sfe-warn-bg,#3a2f1a);
+  position:relative;margin:10px 0 6px;text-align:left;color:var(--tc-fg);font-family:var(--tc-font);font-size:var(--tc-fs);line-height:var(--tc-lh);
+  word-break:break-word;-webkit-tap-highlight-color:transparent;
+}
+:root[data-sfe-scheme="light"] .tc-wrap{
+  --d-fg:#2f2f2f; --d-dim:#6b6b6b;
+  --d-t1:rgba(0,0,0,.05); --d-t2:rgba(0,0,0,.10); --d-t3:rgba(0,0,0,.20);
+  --d-bg:rgba(250,250,250,.92); --d-glow:rgba(176,125,255,.35); --d-hl:rgba(176,125,255,.18);
+}
+html,body{margin:0;padding:0;background:transparent;border:0;}
+body{font-family:inherit;color:inherit;}
+.tc-wrap,.tc-wrap *{box-sizing:border-box;}
+.tc-wrap button{font-family:inherit;}
+.tc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:var(--tc-pad-y,8px) var(--tc-pad-x,11px);border:1px solid var(--tc-line);border-radius:var(--tc-r-md,10px);background:var(--tc-card,#232329);cursor:pointer;user-select:none;transition:background var(--tc-dur,.18s) var(--tc-ease,ease),border-color var(--tc-dur,.18s) var(--tc-ease,ease);}
+@media (hover:hover){.tc-head:hover{background:var(--tc-card-hover,#2b2b33);}}   /* 不透明悬停色 + 只在能悬停的设备生效，避免手机上底色被“粘”没 */
+.tc-hl{display:flex;align-items:center;gap:8px;min-width:0;}
+.tc-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--tc-accent);box-shadow:0 0 var(--tc-glow-size,6px) var(--tc-glow,rgba(176,125,255,.7));}
+.tc-hl-t{font-weight:600;font-size:.95em;letter-spacing:var(--tc-ls-title,.06em);white-space:nowrap;}
+.tc-hl-n{font-size:.72em;letter-spacing:var(--tc-ls,.04em);opacity:.5;white-space:nowrap;}
+.tc-hr{display:flex;align-items:center;gap:8px;flex:none;}
+.tc-modes{display:inline-flex;gap:2px;padding:2px;border-radius:var(--tc-r-md,10px);border:1px solid var(--tc-line);background:var(--tc-t1);}
+.tc-mode{font:inherit;font-size:.72em;line-height:1;letter-spacing:var(--tc-ls,.04em);padding:calc(var(--tc-pad-y,8px) * .5) calc(var(--tc-pad-x,11px) * .72);border:0;border-radius:var(--tc-r-sm,8px);background:transparent;color:inherit;opacity:.55;cursor:pointer;transition:opacity var(--tc-dur-fast,.14s) var(--tc-ease,ease),background var(--tc-dur-fast,.14s) var(--tc-ease,ease),box-shadow var(--tc-dur-fast,.14s) var(--tc-ease,ease);}
+.tc-mode:hover{opacity:.85;}
+.tc-mode.is-on{opacity:1;background:var(--tc-accent-soft,rgba(176,125,255,.20));box-shadow:inset 0 0 0 1px var(--tc-accent-line,rgba(176,125,255,.44));}
+.tc-mode:focus-visible{outline:2px solid var(--tc-accent);outline-offset:1px;}
+.tc-chev{flex:none;font-size:.8em;opacity:.45;transition:transform var(--tc-dur,.18s) var(--tc-ease,ease),opacity var(--tc-dur,.18s) var(--tc-ease,ease);}
+.tc-wrap[data-tc-open='1'] .tc-chev{transform:rotate(90deg);opacity:.8;}
+.tc-body{margin-top:var(--tc-gap,7px);padding:var(--tc-pad-lg-y,11px) var(--tc-pad-lg-x,13px);border:1px solid var(--tc-line);border-left:3px solid var(--tc-accent-line,rgba(176,125,255,.44));border-radius:var(--tc-r-md,10px);background:var(--tc-card-2,#1d1d22);background-image:var(--tc-texture,none);animation:tc-in var(--tc-dur-slow,.25s) var(--tc-ease,ease) backwards;}
+.tc-body[hidden]{display:none;}
+.tc-empty{opacity:.6;}
+.tc-body p{margin:.35em 0;}
+.tc-body p:first-child{margin-top:0;}
+.tc-body p:last-child{margin-bottom:0;}
+.tc-body code{font-family:var(--tc-mono);font-size:.88em;padding:1px 5px;border-radius:var(--tc-r-xs,6px);background:var(--tc-t2);}
+.tc-body strong{font-weight:700;color:var(--tc-accent);}
+.tc-body del{opacity:.6;}
+.tc-body hr{border:0;border-top:1px dashed var(--tc-line);margin:9px 0;}
+.tc-body h1,.tc-body h2,.tc-body h3,.tc-body h4,.tc-body h5,.tc-body h6{margin:.5em 0 .3em;line-height:1.4;font-weight:700;}
+.tc-body h1{font-size:1.15em;}
+.tc-body h2{font-size:1.1em;}
+.tc-body h3{font-size:1.05em;}
+.tc-body h4,.tc-body h5,.tc-body h6{font-size:1em;}
+.tc-body blockquote{margin:.4em 0;padding:2px 10px;border-left:3px solid var(--tc-line);opacity:.85;}
+.tc-body ul,.tc-body ol{margin:.4em 0;padding-left:1.5em;}
+.tc-body li>ul,.tc-body li>ol{margin:.15em 0;}
+.tc-body li{margin:.15em 0;}
+/* 无序清单：不依赖浏览器默认 marker，自己画点；每级“大小/形状”都不同 */
+.tc-body ul{list-style:none;padding-left:1.15em;}
+.tc-body ul>li{position:relative;}
+.tc-body ul>li::before{content:"";position:absolute;left:-.98em;top:calc(var(--tc-lh,1.65) * .5em - .22em);width:.44em;height:.44em;border-radius:50%;background:var(--tc-accent);box-shadow:0 0 calc(var(--tc-glow-size,6px) * .6) var(--tc-glow,rgba(176,125,255,.7));}
+.tc-body ul ul>li::before{width:.3em;height:.3em;left:-.95em;top:calc(var(--tc-lh,1.65) * .5em - .15em);opacity:.85;box-shadow:none;}
+.tc-body ul ul ul>li::before{width:.34em;height:.18em;border-radius:1px;left:-.95em;top:calc(var(--tc-lh,1.65) * .5em - .09em);opacity:.7;}
+/* 有序清单：数字 → 字母 → 罗马数字，颜色跟随主题 */
+.tc-body ol{list-style:decimal;}
+.tc-body ol ol{list-style:lower-alpha;}
+.tc-body ol ol ol{list-style:lower-roman;}
+.tc-body ol>li::marker{color:var(--tc-accent);font-weight:600;}
+.tc-body a{color:var(--tc-accent);text-decoration:underline;text-underline-offset:2px;}
+.tc-raw{margin:0;white-space:pre-wrap;word-break:break-word;font-family:var(--tc-mono);font-size:.82em;line-height:1.6;opacity:.85;}
+@keyframes tc-in{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion:reduce){.tc-body{animation:none;}.tc-mode,.tc-chev,.tc-head{transition:none;}}
+/* 主题脚本连接状态提示（只在异常时显示） */
+.sfe-hint{margin:0 0 var(--tc-gap,7px);padding:6px 9px;border-radius:var(--tc-r-sm,8px);font-size:.78em;line-height:1.5;border:1px dashed var(--sfe-warn,#d9a44d);color:var(--sfe-warn,#d9a44d);background:var(--tc-warn-bg,#3a2f1a);cursor:pointer;}
+</style>
+<script>
+/* ============================================================
+ * SFE 主题客户端  ·  与「SFE 主题脚本」配套
+ * 取主题的顺序：
+ *   ① localStorage.sfe.tokens.v1（可用 parent/top 兜底）
+ *   ② 父窗口 :root 上的 --sfe-* 变量
+ *   ③ 系统亮暗（只决定 data-sfe-scheme，颜色用本文件兜底值）
+ * 装没装主题脚本都能正常显示；支持切主题时实时换肤。
+ * ============================================================ */
+(function () {
+  'use strict';
+  var K = 'sfe.tokens.v1';
+  var KC = 'sfe.usercss.v1';
+  var KB = 'sfe.basecss.v1';
+  var KBEAT = 'sfe.beat.v1';
+  var gotTokens = false, gotCss = false;
+  var NAMES = ['scheme','bg','bg-soft','bg-elev','card','fg','fg-dim','fg-mute','accent','accent-2',
+    'accent-fg','accent-soft','accent-line','hl','glow','glow-size','line','line-strong','s1','s2','s3',
+    'shadow','shadow-sm','shadow-lg','r-xs','r-sm','r-md','r-lg','r-pill','pad-y','pad-x','pad-lg-y',
+    'pad-lg-x','gap','gap-sm','fs','fs-scale','lh','ls','ls-title','font','font-mono','dur-fast','dur',
+    'dur-slow','ease','motion','blur','texture','role-action','role-social','role-plot','role-info',
+    'role-fun','role-intimate','role-neutral','ok','warn','err',
+    'wrap-bg','wrap-shadow','text-glow','overlay','overlay-size','overlay-alpha','overlay-blend',
+    'overlay-roll','overlay-dur','overlay-flicker','anim-roll','anim-flicker','sweep','sweep-alpha',
+    'sweep-dur','anim-sweep','surface-pad','filter','filter-alt','anim-stage','stage-dur','stage-ease','card-2','warn-bg',
+    'card-hover','card-2-hover'];
+
+  function ls(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+
+  function fromStore() {
+    var raw = ls(K);
+    if (!raw) { try { raw = window.parent.localStorage.getItem(K); } catch (e) { } }
+    if (!raw) { try { raw = window.top.localStorage.getItem(K); } catch (e) { } }
+    if (!raw) { return null; }
+    try { var o = JSON.parse(raw); return o && o.tokens ? o.tokens : null; } catch (e) { return null; }
+  }
+
+  function fromParentRoot() {
+    try {
+      var w = window.parent, cs = w.getComputedStyle(w.document.documentElement);
+      var out = {}, n = 0, i, name, v;
+      for (i = 0; i < NAMES.length; i++) {
+        name = '--sfe-' + NAMES[i];
+        v = cs.getPropertyValue(name);
+        if (v && v.trim()) { out[name] = v.trim(); n++; }
+      }
+      return n > 6 ? out : null;
+    } catch (e) { return null; }
+  }
+
+  function syncFont() {
+    try {
+      var w = window.parent, t = w.document.querySelector('.mes_text');
+      if (!t) { return; }
+      var cs = w.getComputedStyle(t);
+      if (cs.fontSize) { document.documentElement.style.setProperty('--sfe-fs', cs.fontSize); }
+    } catch (e) { }
+  }
+
+  function put(t) {
+    if (!t) { return false; }
+    var r = document.documentElement, k, n = 0;
+    for (k in t) {
+      if (k.indexOf('--sfe-') === 0) { try { r.style.setProperty(k, t[k]); n++; } catch (e) { } }
+    }
+    if (t['--sfe-scheme']) { r.setAttribute('data-sfe-scheme', t['--sfe-scheme']); }
+    syncFont();
+    if (n > 6) { gotTokens = true; }
+    return n > 6;
+  }
+
+  function schemeBySystem() {
+    var light = false;
+    try { light = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches); } catch (e) { }
+    document.documentElement.setAttribute('data-sfe-scheme', light ? 'light' : 'dark');
+  }
+
+  function putCss(css) {
+    if (css === undefined) { css = (ls(KB) || '') + '\n' + (ls(KC) || ''); }
+    var el = document.getElementById('sfe-extra');
+    if (!css || !css.trim()) { if (el) { el.remove(); } return; }
+    if (!el) { el = document.createElement('style'); el.id = 'sfe-extra'; document.head.appendChild(el); }
+    el.textContent = css;
+    gotCss = true;
+  }
+
+  /* ── 连接状态提示：主题脚本没跑 / 被沙箱隔离时，直接显示在前端里 ── */
+  function hintEl() { try { return document.querySelector('.sfe-hint'); } catch (e) { return null; } }
+  function showHint(msg) {
+    try {
+      var el = hintEl();
+      if (!el) { return; }
+      if (msg) {
+        if (el.hidden !== false || el.textContent !== msg) { el.textContent = msg; el.hidden = false; }
+      } else if (!el.hidden) { el.hidden = true; el.textContent = ''; }
+    } catch (e) { }
+  }
+  function diagnose() {
+    if (gotTokens && gotCss) { showHint(''); return; }
+    var beat = 0;
+    try { beat = parseInt(ls(KBEAT) || '0', 10) || 0; } catch (e) { beat = 0; }
+    var fresh = beat > 0 && (Date.now() - beat < 240000);
+    var miss = (gotTokens ? '' : '令牌 ') + (gotCss ? '' : '特效CSS ');
+    if (fresh) {
+      showHint('⚠ 主题脚本在运行，但本前端读不到' + miss + '—— iframe 被沙箱隔离（本前端用内置兜底样式）');
+    } else {
+      showHint('⚠ 未检测到「🎨 SFE 主题」脚本：现在用的是内置默认样式。请到 酒馆助手 → 脚本库 确认它已启用（点这里可关闭本条提示）');
+    }
+  }
+
+  if (!put(fromStore()) && !put(fromParentRoot())) { schemeBySystem(); }
+  putCss();
+  try {
+    var he = hintEl();
+    if (he) { he.addEventListener('click', function () { he.hidden = true; }); }
+  } catch (e) { }
+  diagnose();
+  try { setTimeout(diagnose, 1500); } catch (e) { }
+
+  window.addEventListener('storage', function (ev) {
+    if (!ev.key || ev.key === K) { if (!put(fromStore())) { schemeBySystem(); } }
+    if (!ev.key || ev.key === KC) { putCss(); }
+  });
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d) { return; }
+    if (d.type === 'sfe-theme' && d.tokens) { put(d.tokens); }
+    if (d.type === 'sfe-usercss') { putCss(d.css || ''); }
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { if (!put(fromStore())) { schemeBySystem(); } }
+  });
+  try { window.parent.postMessage({ type: 'sfe-theme-request' }, '*'); } catch (e) { }
+  try { window.parent.postMessage({ type: 'sfe-usercss-request' }, '*'); } catch (e) { }
+})();
+</script>
+</head>
+<body>
+
+<main class="tc-wrap sfe-surface" data-tc-ready="0" data-tc-open="0">
+  <script type="text/markdown" class="tc-md">$1</script>
+
+  <div class="sfe-hint" hidden></div>
+
+  <header class="tc-head">
+    <span class="tc-hl">
+      <span class="tc-dot" aria-hidden="true"></span>
+      <span class="tc-hl-t">💭 奈亚子的思考</span>
+      <span class="tc-hl-n"></span>
+    </span>
+    <span class="tc-hr">
+      <span class="tc-modes" role="group" aria-label="显示模式">
+        <button type="button" class="tc-mode" data-tc-mode="render" title="Markdown 渲染">渲染</button>
+        <button type="button" class="tc-mode" data-tc-mode="raw" title="原始文本">原文</button>
+      </span>
+      <span class="tc-chev" aria-hidden="true">▸</span>
+    </span>
+  </header>
+
+  <section class="tc-body" hidden>
+    <div class="tc-render"></div>
+    <pre class="tc-raw" hidden></pre>
+  </section>
+
+  <noscript><p style="margin:6px 0 0;font-size:.85em;opacity:.7;">需要启用 JavaScript 才能显示思考空间。</p></noscript>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var DOLLAR = String.fromCharCode(36);
+  var PLACEHOLDER = DOLLAR + '1';
+  var OPEN_KEY = 'tc-think-open';
+
+  function storeGet(k) {
+    try { return String(window.localStorage.getItem(k) || ''); } catch (e) { return ''; }
+  }
+
+  function storeSet(k, v) {
+    try { window.localStorage.setItem(k, v); } catch (e) { }
+  }
+
+  function readVar(win, doc, name) {
+    var els = [doc.documentElement, doc.body];
+    for (var i = 0; i < els.length; i++) {
+      if (!els[i]) { continue; }
+      try {
+        var v = win.getComputedStyle(els[i]).getPropertyValue('--' + name);
+        if (v && String(v).trim()) { return String(v).trim(); }
+      } catch (e) { }
+    }
+    return '';
+  }
+
+  function luminance(c) {
+    c = String(c || '').trim();
+    var r, g, b;
+    var m = /rgba?\(\s*(\d+)[^\d]+(\d+)[^\d]+(\d+)/.exec(c);
+    if (m) { r = Number(m[1]); g = Number(m[2]); b = Number(m[3]); }
+    else {
+      var h = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+      if (!h) { return null; }
+      var s = h[1];
+      if (s.length === 3) { s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2); }
+      r = parseInt(s.slice(0, 2), 16);
+      g = parseInt(s.slice(2, 4), 16);
+      b = parseInt(s.slice(4, 6), 16);
+    }
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62;
+  }
+
+  function adoptTheme(root) {
+    var win = null, doc = null;
+    try {
+      if (window.parent && window.parent !== window && window.parent.document) {
+        win = window.parent;
+        doc = win.document;
+      }
+    } catch (e) { win = null; doc = null; }
+    if (!doc) { return; }
+    var names = ['SmartThemeBodyColor', 'SmartThemeEmColor', 'SmartThemeBorderColor', 'SmartThemeBlurTintColor'];
+    for (var i = 0; i < names.length; i++) {
+      var v = readVar(win, doc, names[i]);
+      if (v) { try { root.style.setProperty('--' + names[i], v); } catch (e) { } }
+    }
+    var sfeScheme = '';
+    try { sfeScheme = String(document.documentElement.getAttribute('data-sfe-scheme') || ''); } catch (e) { }
+    var light = sfeScheme === 'light' ? true : (sfeScheme === 'dark' ? false : luminance(readVar(win, doc, 'SmartThemeBodyColor')));
+    if (light !== null) { try { root.setAttribute('data-tc-lum', light ? 'light' : 'dark'); } catch (e) { } }
+    try {
+      var t = doc.querySelector('.mes_text');
+      if (t) {
+        var cs = win.getComputedStyle(t);
+        var rcs = null;
+        try { rcs = getComputedStyle(document.documentElement); } catch (e) { }
+        if (cs && cs.fontSize && !(rcs && rcs.getPropertyValue('--sfe-fs').trim())) {
+          root.style.setProperty('--sfe-fs', cs.fontSize);
+        }
+        if (cs && cs.fontFamily && !(rcs && rcs.getPropertyValue('--sfe-font').trim())) {
+          root.style.setProperty('--sfe-font', cs.fontFamily);
+        }
+      }
+    } catch (e) { }
+
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function trim(s) {
+    return String(s || '').replace(/^\s+/, '').replace(/\s+$/, '');
+  }
+
+  function repeatChar(ch, n) {
+    var r = '';
+    for (var i = 0; i < n; i++) { r += ch; }
+    return r;
+  }
+
+  /* 纯文本段的行内格式（不含代码） */
+  function fmt(s) {
+    s = esc(s);
+    s = s.replace(/\[([^\]\n]+)\]\((https?:[^)\s]+)\)/g, function (m, t, u) { return '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + t + '</a>'; });
+    s = s.replace(/\*\*([^*\n]+)\*\*/g, function (m, c) { return '<strong>' + c + '</strong>'; });
+    s = s.replace(/__([^_\n]+)__/g, function (m, c) { return '<strong>' + c + '</strong>'; });
+    s = s.replace(/\*([^*\n]+)\*/g, function (m, c) { return '<em>' + c + '</em>'; });
+    s = s.replace(/(^|[^A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])/g, function (m, p, c) { return p + '<em>' + c + '</em>'; });
+    s = s.replace(/~~([^~\n]+)~~/g, function (m, c) { return '<del>' + c + '</del>'; });
+    return s;
+  }
+
+  /* 行内格式（扫描器实现，反引号内容永远可见） */
+  function inline(s) {
+    s = String(s);
+    var out = '';
+    var i = 0;
+    var n = s.length;
+    while (i < n) {
+      if (s.charAt(i) === '`') {
+        var t = 0;
+        while (i + t < n && s.charAt(i + t) === '`') { t++; }
+        var close = s.indexOf(repeatChar('`', t), i + t);
+        var code = close > -1 ? s.slice(i + t, close) : '';
+        if (close > -1 && code.length > 0) {
+          out += '<code>' + esc(code) + '</code>';
+          i = close + t;
+          continue;
+        }
+        out += repeatChar('`', t);
+        i += t;
+        continue;
+      }
+      var j = i;
+      while (j < n && s.charAt(j) !== '`') { j++; }
+      out += fmt(s.slice(i, j));
+      i = j;
+    }
+    return out;
+  }
+
+  /* 缩进宽度：Tab=4，全角空格=2，半角空格=1 */
+  function indw(s) {
+    var w = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charAt(i);
+      if (c === '\t') { w += 4; }
+      else if (c === '\u3000') { w += 2; }
+      else if (c === ' ') { w += 1; }
+      else { break; }
+    }
+    return w;
+  }
+
+  /* 解析单行列表项（无序/有序、任意缩进） */
+  function parseItem(line) {
+    var m = /^([ \t\u3000]*)([-*+•·])\s+(.*)$/.exec(line);
+    if (m) { return { ind: indw(m[1]), type: 'ul', lines: [m[3]] }; }
+    m = /^([ \t\u3000]*)(\d{1,3})\s*([、)）])\s*(.+)$/.exec(line);
+    if (m) { return { ind: indw(m[1]), type: 'ol', lines: [m[4]] }; }
+    m = /^([ \t\u3000]*)(\d{1,3})[.．]\s+(.+)$/.exec(line);
+    if (m) { return { ind: indw(m[1]), type: 'ol', lines: [m[3]] }; }
+    m = /^([ \t\u3000]*)[（(](\d{1,3})[)）]\s*(.+)$/.exec(line);
+    if (m) { return { ind: indw(m[1]), type: 'ol', lines: [m[3]] }; }
+    return null;
+  }
+
+  /* 按缩进构建列表树 */
+  function buildTree(items) {
+    var root = { ind: -1, children: [] };
+    var stack = [root];
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      while (stack.length > 1 && stack[stack.length - 1].ind >= it.ind) { stack.pop(); }
+      var node = { ind: it.ind, type: it.type, lines: it.lines, children: [] };
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
+    }
+    return root;
+  }
+
+  /* 递归渲染嵌套 ul/ol */
+  function renderTree(node) {
+    var html = '';
+    var ch = node.children;
+    var i = 0;
+    while (i < ch.length) {
+      var type = ch[i].type;
+      var group = [];
+      while (i < ch.length && ch[i].type === type) { group.push(ch[i]); i++; }
+      html += '<' + type + '>';
+      for (var j = 0; j < group.length; j++) {
+        var g = group[j];
+        var txt = '';
+        for (var k = 0; k < g.lines.length; k++) {
+          if (k) { txt += '<br>'; }
+          txt += inline(g.lines[k]);
+        }
+        html += '<li>' + txt + renderTree(g) + '</li>';
+      }
+      html += '</' + type + '>';
+    }
+    return html;
+  }
+
+  /* 逐行 Markdown 状态机 */
+  function md(src) {
+    src = String(src || '').replace(/\r\n?/g, '\n');
+    var L = src.split('\n');
+    var out = [];
+    var para = [];
+    var i = 0;
+    function flush() {
+      if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; }
+    }
+    while (i < L.length) {
+      var raw = L[i];
+      var t = raw.trim();
+      if (!t) { flush(); i++; continue; }
+      if (/^([-*_])(\s*\1){2,}$/.test(t)) { flush(); out.push('<hr>'); i++; continue; }
+      var hm = /^(#{1,6})\s*(.+)$/.exec(t);
+      if (hm) { flush(); out.push('<h' + hm[1].length + '>' + inline(hm[2]) + '</h' + hm[1].length + '>'); i++; continue; }
+      if (/^>/.test(t)) {
+        flush();
+        var q = [];
+        while (i < L.length && /^\s*>/.test(L[i])) { q.push(inline(L[i].replace(/^\s*>\s?/, ''))); i++; }
+        out.push('<blockquote>' + q.join('<br>') + '</blockquote>');
+        continue;
+      }
+      var item0 = parseItem(raw);
+      if (item0) {
+        flush();
+        var items = [];
+        var last = null;
+        while (i < L.length) {
+          var cur = L[i];
+          var it = parseItem(cur);
+          if (it) {
+            items.push(it);
+            last = it;
+            i++;
+            continue;
+          }
+          if (!cur.trim()) {
+            var k = i + 1;
+            while (k < L.length && !L[k].trim()) { k++; }
+            if (k < L.length && parseItem(L[k])) { i = k; continue; }
+            break;
+          }
+          if (last && /^[ \t\u3000]/.test(cur)) {
+            last.lines.push(cur.trim());
+            i++;
+            continue;
+          }
+          break;
+        }
+        out.push(renderTree(buildTree(items)));
+        continue;
+      }
+      para.push(inline(raw.replace(/[ \t]+$/, '')));
+      i++;
+    }
+    flush();
+    return out.join('');
+  }
+
+  function fitHeight() {
+    try {
+      var fe = window.frameElement;
+      if (!fe) { return; }
+      var h = 0;
+      if (document.body) { h = Math.max(h, document.body.scrollHeight); }
+      if (document.documentElement) { h = Math.max(h, document.documentElement.scrollHeight); }
+      if (h > 0) { fe.style.height = (h + 2) + 'px'; }
+    } catch (e) { }
+  }
+
+  function setOpen(root, open, silent) {
+    open = !!open;
+    root.setAttribute('data-tc-open', open ? '1' : '0');
+    var body = root.querySelector('.tc-body');
+    if (body) { body.hidden = !open; }
+    if (!silent) { storeSet(OPEN_KEY, open ? '1' : '0'); }
+    fitHeight();
+    window.setTimeout(fitHeight, 80);
+    window.setTimeout(fitHeight, 260);
+  }
+
+  function setMode(root, mode) {
+    mode = mode === 'raw' ? 'raw' : 'render';
+    var btns = root.querySelectorAll('.tc-mode');
+    for (var i = 0; i < btns.length; i++) {
+      var m = btns[i].getAttribute('data-tc-mode');
+      if (m === mode) { btns[i].classList.add('is-on'); } else { btns[i].classList.remove('is-on'); }
+    }
+    var r = root.querySelector('.tc-render');
+    var w = root.querySelector('.tc-raw');
+    if (r) { r.hidden = mode !== 'render'; }
+    if (w) { w.hidden = mode !== 'raw'; }
+    fitHeight();
+    window.setTimeout(fitHeight, 80);
+  }
+
+  function boot(root) {
+    try { adoptTheme(root); } catch (e) { }
+
+    var holder = root.querySelector('.tc-md');
+    var raw = holder ? trim(holder.textContent) : '';
+
+    var meta = root.querySelector('.tc-hl-n');
+    if (meta) { meta.textContent = raw.replace(/\s/g, '').length + ' 字'; }
+
+    var render = root.querySelector('.tc-render');
+    if (render) {
+      if (!raw || raw === PLACEHOLDER) {
+        render.innerHTML = '<p class="tc-empty">（未捕获到思维链内容：请检查正则捕获组是否正确传入）</p>';
+      } else {
+        try { render.innerHTML = md(raw); } catch (e) { render.textContent = raw; }
+      }
+    }
+    var rawEl = root.querySelector('.tc-raw');
+    if (rawEl) { rawEl.textContent = raw; }
+
+    var head = root.querySelector('.tc-head');
+    if (head) {
+      head.addEventListener('click', function () {
+        setOpen(root, root.getAttribute('data-tc-open') !== '1', false);
+      });
+    }
+    var btns = root.querySelectorAll('.tc-mode');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', function (ev) {
+        try { ev.stopPropagation(); } catch (e) { }
+        setMode(root, this.getAttribute('data-tc-mode'));
+      });
+    }
+
+    setMode(root, 'render');
+    setOpen(root, storeGet(OPEN_KEY) === '1', true);
+  }
+
+  function bootAll() {
+    var wraps = document.querySelectorAll('.tc-wrap');
+    for (var i = 0; i < wraps.length; i++) {
+      var w = wraps[i];
+      if (w.getAttribute('data-tc-ready') === '1') { continue; }
+      w.setAttribute('data-tc-ready', '1');
+      try { boot(w); } catch (e) { if (window.console && console.warn) { console.warn('[think-chain]', e); } }
+    }
+    fitHeight();
+  }
+
+  bootAll();
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', bootAll); }
+  window.addEventListener('load', fitHeight);
+  window.setTimeout(bootAll, 450);
+  if (window.ResizeObserver) {
+    try {
+      var ro = new ResizeObserver(function () { fitHeight(); });
+      if (document.body) { ro.observe(document.body); }
+    } catch (e) { }
+  }
+})();
+</script>
+
+</body>
+</html>
+```

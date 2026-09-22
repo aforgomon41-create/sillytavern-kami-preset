@@ -1,0 +1,91 @@
+{
+  "id": "nixie",
+  "name": "辉光管",
+  "button": "辉光管",
+  "scheme": "dark",
+  "tagline": "一台老式计数仪器：暗金属外壳配蚀刻铭牌，真空管内亮着暖橙色的阴极读数。",
+  "effects": [
+    {
+      "id": "idle",
+      "label": "市电呼吸",
+      "desc": "发光数码管呈现缓慢起伏的明暗闪烁与极微弱的电压瞬闪。",
+      "default": true
+    },
+    {
+      "id": "strike",
+      "label": "起辉动效",
+      "desc": "面板展开与切换时，一道琥珀色光带自上而下扫过金属外壳。",
+      "default": true
+    },
+    {
+      "id": "vacuum",
+      "label": "真空玻璃",
+      "desc": "灯管顶部呈现弧形反光高光、管壁暗角与内部透视灯丝。",
+      "default": true
+    },
+    {
+      "id": "stack",
+      "label": "阴极层叠",
+      "desc": "选项卡片底层叠加未通电金属暗层，悬停时向外滑出抽离。",
+      "default": true
+    },
+    {
+      "id": "counter",
+      "label": "阴极编号",
+      "desc": "选项左侧显示蚀刻金属编号，悬停激活时通电点亮为暖橙数码。",
+      "default": false
+    },
+    {
+      "id": "halo",
+      "label": "过载溢光",
+      "desc": "辉光管周围向暗金属面板漫射大面积琥珀色柔和强光晕。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "glow",
+      "label": "辉光半径",
+      "group": "光照",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "value": 9
+    },
+    {
+      "id": "halo",
+      "label": "溢光强度",
+      "group": "光照",
+      "token": "--kami-nixie-halo",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 55
+    },
+    {
+      "id": "stack",
+      "label": "层叠间距",
+      "group": "材质",
+      "token": "--kami-nixie-stack",
+      "unit": "px",
+      "min": 0,
+      "max": 10,
+      "step": 1,
+      "value": 4
+    },
+    {
+      "id": "mesh",
+      "label": "阳极网浓度",
+      "group": "材质",
+      "token": "--kami-nixie-mesh",
+      "unit": "%",
+      "min": 0,
+      "max": 140,
+      "step": 5,
+      "value": 100
+    }
+  ]
+}

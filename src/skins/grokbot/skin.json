@@ -1,0 +1,59 @@
+{
+  "id": "grokbot",
+  "name": "色块",
+  "button": "色块",
+  "scheme": "dark",
+  "tagline": "一块不对称圆角的哑光白歪块压在炭黑底板上：纯平面色块，零渐变零阴影。",
+  "effects": [
+    {
+      "id": "grain",
+      "label": "色块噪点",
+      "desc": "色块上铺一层很淡的哑光噪点，像没抛光的塑料；静态、不上动画。"
+    },
+    {
+      "id": "sheen",
+      "label": "顶边亮线",
+      "desc": "色块上缘一道 1 像素亮边，跟参考图那圈边缘一样硬，不做光晕。"
+    },
+    {
+      "id": "breathe",
+      "label": "方块喘气",
+      "desc": "整块色块极慢地涨缩一点点，幅度可用下面的滑杆调。"
+    }
+  ],
+  "params": [
+    {
+      "id": "grain",
+      "label": "噪点浓度",
+      "group": "表面",
+      "token": "--kami-gb-grain",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 4
+    },
+    {
+      "id": "breathe",
+      "label": "呼吸幅度",
+      "group": "动效",
+      "token": "--kami-gb-breathe",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 55
+    },
+    {
+      "id": "sheen",
+      "label": "顶边亮度",
+      "group": "表面",
+      "token": "--kami-gb-sheen",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    }
+  ]
+}

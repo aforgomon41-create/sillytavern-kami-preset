@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>卡密预设 · 皮肤管理 harness</title>
+<style>
+  body { background:#0d0d10; color:#ddd; font-family: ui-monospace, Consolas, monospace; margin:0; padding:10px; }
+  h1 { font-size:14px; margin:0 0 8px; color:#b07dff; }
+  #tavern { border:1px dashed #444; padding:8px; margin-bottom:8px; }
+  #qr-bar { display:flex; gap:6px; margin-bottom:8px; min-height:26px; }
+  .qr--button { background:#2a2a33; border:1px solid #444; border-radius:6px; padding:3px 8px; color:#ddd; cursor:pointer; }
+  .qr--button-label { pointer-events:none; }
+  #results { white-space:pre-wrap; background:#16161c; border:1px solid #333; border-radius:6px; padding:10px; font-size:12px; line-height:1.5; }
+</style>
+</head>
+<body>
+<h1>卡密预设 · 皮肤管理 harness（模拟酒馆页面 + 消息 iframe + 酒馆助手 4.9.5）</h1>
+<div id="tavern">
+  <div id="qr-bar"></div>
+  <div id="chat"><div class="mes"><div class="mes_text" id="slot">模拟聊天</div></div></div>
+  <textarea id="send_textarea"></textarea>
+</div>
+<pre id="results">running…</pre>
+
+<script>
+const STATE = { buttons: new Map(), visible: new Map(), handlers: new Map() };
+STATE.render = function () {
+  const bar = document.getElementById('qr-bar');
+  bar.textContent = '';
+  for (const [id, list] of STATE.visible) {
+    for (const b of list) {
+      if (b.visible === false) continue;
+      const btn = document.createElement('button');
+      btn.className = 'qr--button';
+      btn.innerHTML = '<span class="qr--button-label"></span>';
+      btn.querySelector('.qr--button-label').textContent = b.name;
+      btn.setAttribute('data-script', id);
+      btn.addEventListener('click', () => {
+        const evt = 'button:' + id + ':' + b.name;
+        const m = STATE.handlers.get(evt);
+        if (m && m.size) { for (const w of [...m.values()]) w(); }
+      });
+      bar.appendChild(btn);
+    }
+  }
+};
+STATE.emit = function (evt, ...args) {
+  const m = STATE.handlers.get(evt);
+  if (m && m.size) { for (const w of [...m.values()]) w(...args); return true; }
+  return false;
+};
+
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
+  w.tavern_events = {};
+  w.getScriptId = () => scriptId;
+  w.getScriptButtons = () => (STATE.buttons.get(scriptId) || []).slice();
+  w.replaceScriptButtons = (a, b) => {
+    const list = (typeof a === 'string' ? b : a) || [];
+    STATE.buttons.set(scriptId, JSON.parse(JSON.stringify(list)));
+    STATE.visible.set(scriptId, JSON.parse(JSON.stringify(list)));
+    STATE.render();
+  };
+  w.appendInexistentScriptButtons = (list) => {
+    const cur = STATE.buttons.get(scriptId) || [];
+    w.replaceScriptButtons([...cur, ...(list || []).filter(x => !cur.some(y => y.name === x.name))]);
+  };
+  w.getButtonEvent = (name) => 'button:' + scriptId + ':' + name;
+  w.eventOn = (evt, cb) => {
+    if (!STATE.handlers.has(evt)) STATE.handlers.set(evt, new Map());
+    STATE.handlers.get(evt).set(cb, cb);
+    return { stop: () => { STATE.handlers.get(evt).delete(cb); } };
+  };
+  w.eventRemoveListener = (evt, cb) => { const m = STATE.handlers.get(evt); if (m) m.delete(cb); };
+  w.eventClearAll = () => { STATE.handlers.clear(); };
+  w.getAllEnabledScriptButtons = () => { const o = {}; for (const [id, l] of STATE.buttons) o[id] = l.map(b => ({ button_id: b.name, button_name: b.name })); return o; };
+  w.getScriptTrees = () => [];
+  w.getVariables = (opt) => (opt && opt.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, opt) => { if (opt && opt.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+  w.updateVariablesWith = (fn, opt) => { const v = fn(w.getVariables(opt)); w.replaceVariables(v, opt); return v; };
+}
+
+async function loadScript(file, scriptId) {
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
+  iframe.src = 'about:blank';
+  document.body.appendChild(iframe);
+  await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
+  const w = iframe.contentWindow;
+  installMocks(w, scriptId);
+  const code = await (await fetch(file)).text();
+  w.eval(code);
+  return { iframe, w, scriptId };
+}
+
+/* ---------- 造一个“真前端”出来：把兜底皮肤内联进去，模拟消息楼层里的前端 ---------- */
+let BASE_CSS = '';
+function frontendBody() {
+  return [
+    '<div class="kami-root" data-kami-comp="think">',
+    '  <div class="kami-shell kami-surface kami-collapse" data-kami-open="1">',
+    '    <div class="kami-head kami-collapse-head">',
+    '      <span class="kami-dot"></span><span class="kami-title">思维链</span>',
+    '      <span class="kami-sub">1284 字</span>',
+    '      <span class="kami-actions"><span class="kami-seg">',
+    '        <button class="kami-seg-item is-on">渲染</button><button class="kami-seg-item">原文</button>',
+    '      </span><span class="kami-chev">▸</span></span>',
+    '    </div>',
+    '    <div class="kami-body kami-collapse-body">',
+    '      <div class="kami-md"><p>先确认一下玩家想要的方向，再决定要不要把节奏推快。</p>',
+    '      <p><strong>关键点</strong>：这个选项会直接影响下一幕的冲突强度。</p></div>',
+    '      <div class="kami-actions" style="margin-top:8px"><button class="kami-btn kami-btn--ghost">复制</button></div>',
+    '    </div>',
+    '  </div>',
+    '</div>',
+    '<div class="kami-root" data-kami-comp="options" data-kami-mode="fill">',
+    '  <div class="kami-shell kami-surface">',
+    '    <div class="kami-head">',
+    '      <span class="kami-dot"></span><span class="kami-title">行动选项</span><span class="kami-sub">6 项</span>',
+    '      <span class="kami-actions"><span class="kami-seg">',
+    '        <button class="kami-seg-item is-on">填入</button><button class="kami-seg-item">发送</button>',
+    '      </span></span>',
+    '    </div>',
+    '    <div class="kami-grid kami-list">',
+    '      <button class="kami-item kami-card" data-kami-kind="action"><span class="kami-card-head">',
+    '        <span class="kami-badge" data-kami-kind="action">行动</span><span class="kami-card-title">直接拉入怀中</span>',
+    '        <span class="kami-item-side">↵</span></span>',
+    '        <span class="kami-card-body">伸手一把扣住她的手腕，顺势将整个人拉进怀里。</span></button>',
+    '      <button class="kami-item kami-card" data-kami-kind="persona"><span class="kami-card-head">',
+    '        <span class="kami-badge" data-kami-kind="persona">性格</span><span class="kami-card-title">戏谑调侃她的身材</span>',
+    '        <span class="kami-item-side">↵</span></span>',
+    '        <span class="kami-card-body">嘴角勾起一抹坏笑，抬起手机在她面前晃了晃。</span></button>',
+    '      <button class="kami-item kami-card" data-kami-kind="nsfw"><span class="kami-card-head">',
+    '        <span class="kami-badge" data-kami-kind="nsfw">NSFW</span><span class="kami-card-title">指尖触碰透光的领口</span>',
+    '        <span class="kami-item-side">↵</span></span>',
+    '        <span class="kami-card-body">一言不发地抬起手，指尖顺着他敞开的领口缓缓滑入。</span></button>',
+    '      <button class="kami-item kami-card" data-kami-kind="fun"><span class="kami-card-head">',
+    '        <span class="kami-badge" data-kami-kind="fun">搞笑</span><span class="kami-card-title">装傻充愣转移话题</span>',
+    '        <span class="kami-item-side">↵</span></span>',
+    '        <span class="kami-card-body">指着她身上宽大的衬衫大呼小叫，试图用日常打闹蒙混过关。</span></button>',
+    '    </div>',
+    '    <div class="kami-foot"><span class="kami-sub">轻点卡片即可生效</span><span class="kami-chip">示例</span></div>',
+    '  </div>',
+    '</div>'
+  ].join('\n');
+}
+function installFrontend(iframe) {
+  const doc = iframe.contentDocument;
+  const styleBase = '<style>' + BASE_CSS + '</style>';
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>' + styleBase + '</head><body>' + frontendBody() + '</body></html>');
+  doc.close();
+}
+function makeMessageFrame(slot, id) {
+  const d = document.createElement('div');
+  d.className = 'TH-render';
+  const f = document.createElement('iframe');
+  f.id = id; f.name = id; f.className = 'w-full';
+  f.style.cssText = 'width:100%;height:520px;border:0;display:block;margin:8px 0';
+  d.appendChild(f);
+  slot.appendChild(d);
+  setTimeout(() => installFrontend(f), 0);
+  return f;
+}
+
+const R = [];
+function check(name, cond, extra) {
+  R.push((cond ? 'PASS  ' : 'FAIL  ') + name + (extra !== undefined ? '   [' + extra + ']' : ''));
+  /* 边跑边写，卡在哪一步一眼可见 */
+  try { document.getElementById('results').textContent = R.join(String.fromCharCode(10)); } catch (e) { }
+  return cond;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const labels = () => [...document.querySelectorAll('#qr-bar .qr--button-label')].map(e => e.textContent);
+function report() {
+  const failed = R.filter(x => x.startsWith('FAIL')).length;
+  document.getElementById('results').textContent = R.join('\n') + '\n\n==== ' + (failed ? failed + ' 项失败' : '全部 ' + R.length + ' 项通过') + ' ====';
+  document.title = (failed ? 'FAIL:' + failed : 'PASS') + ' | 皮肤管理 harness';
+  return failed;
+}
+const attr = (doc, k) => doc.documentElement.getAttribute(k);
+const styleText = (doc, id) => { const e = doc.getElementById(id); return e ? e.textContent : null; };
+
+(async function main() {
+  const HOST = window;
+  BASE_CSS = await (await fetch('/src/skin/base.css')).text();
+  const frame1 = makeMessageFrame(document.getElementById('slot'), 'TH-message--3--0');
+  await sleep(300);
+
+  await loadScript('/built/10-脚本按钮.js', 'hub');
+  await sleep(250);
+  const skinFrame = await loadScript('/built/30-皮肤管理.js', 'skinmgr');
+  await sleep(2600);
+
+  /* ---------- 启动 / 登记 ---------- */
+  check('皮肤管理挂上宿主全局 KamiSkin', !!HOST.KamiSkin);
+  check('登记的按钮名是 🎨', (HOST.__hubDefs || []).some(d => d.name === '🎨'),
+    JSON.stringify((HOST.__hubDefs || []).map(d => d.name)));
+  var firstSkin = HOST.KamiSkin.skins().find(x => x.id === HOST.KamiSkin.skin);
+  check('按钮文案 = 🎨 + 当前皮肤短名', labels().includes('🎨' + firstSkin.button), JSON.stringify(labels()) + ' vs 🎨' + firstSkin.button);
+
+  /* ---------- 下发到酒馆页面 ---------- */
+  check('宿主 html 设了 data-kami-skin', attr(document, 'data-kami-skin') === 'trpg', attr(document, 'data-kami-skin'));
+  check('宿主 html 设了 scheme/motion/density',
+    !!attr(document, 'data-kami-scheme') && !!attr(document, 'data-kami-motion') && !!attr(document, 'data-kami-density'),
+    [attr(document, 'data-kami-scheme'), attr(document, 'data-kami-motion'), attr(document, 'data-kami-density')].join('/'));
+  check('宿主注入 #kami-skin（皮肤 CSS）', (styleText(document, 'kami-skin') || '').includes('skin: trpg'));
+  check('宿主注入 #kami-skin-user（用户参数，含 --kami-fs-scale）',
+    (styleText(document, 'kami-skin-user') || '').includes('--kami-fs-scale: 1'));
+
+  /* ---------- 下发到消息 iframe ---------- */
+  const fdoc = frame1.contentDocument;
+  check('消息 iframe 也被下发 data-kami-skin', attr(fdoc, 'data-kami-skin') === 'trpg', attr(fdoc, 'data-kami-skin'));
+  check('消息 iframe 也被注入 #kami-skin', (styleText(fdoc, 'kami-skin') || '').includes('skin: trpg'));
+  check('消息 iframe 也被注入 #kami-skin-user', !!styleText(fdoc, 'kami-skin-user'));
+
+  /* ---------- 新楼层：事件驱动 ---------- */
+  const frame2 = makeMessageFrame(document.getElementById('slot'), 'TH-message--4--0');
+  await sleep(200);
+  const emitted = STATE.emit('message_iframe_render_ended', 'TH-message--4--0');
+  await sleep(400);
+  check('派发 MESSAGE_IFRAME_RENDER_ENDED 有订阅者', emitted);
+  check('新楼层 iframe 被事件同步', attr(frame2.contentDocument, 'data-kami-skin') === 'trpg',
+    attr(frame2.contentDocument, 'data-kami-skin'));
+
+  /* ---------- 特效开关 ---------- */
+  check('API 在面板未创建时也不崩（setFlag/setSkin 容错）', (function () {
+    try { HOST.KamiSkin.setFlag('motion', 'calm'); HOST.KamiSkin.setFlag('motion', 'full'); return true; } catch (e) { return false; }
+  })());
+  const fx = HOST.KamiSkin.status().effects;
+  check('特效通道可读（初始为空）', Array.isArray(fx), JSON.stringify(fx));
+  HOST.KamiSkin.open();
+  await sleep(300);
+  const panel = document.getElementById('kami-skin-panel');
+  check('面板已创建', !!panel);
+  var skinCards = panel.querySelectorAll('[data-kami-act^="skin:"]').length;
+  check('面板里渲染出全部皮肤的卡片', skinCards >= 1 && skinCards === HOST.KamiSkin.skins().length, skinCards);
+
+  /* 切到特效页并开一个特效 */
+  const tabFx = panel.querySelector('[data-kami-tab="fx"]');
+  tabFx.click();
+  await sleep(200);
+  const firstSwitch = panel.querySelector('[data-kami-pane="fx"] input[type=checkbox]');
+  check('特效页渲染出开关', !!firstSwitch);
+  firstSwitch.click();
+  await sleep(300);
+  check('开启特效应写入 data-kami-effects（宿主）', (attr(document, 'data-kami-effects') || '').includes('scanline'), attr(document, 'data-kami-effects'));
+  check('开启特应写入 data-kami-effects（消息 iframe）', (attr(fdoc, 'data-kami-effects') || '').includes('scanline'), attr(fdoc, 'data-kami-effects'));
+
+  /* ---------- 参数：滑杆 + 数字输入 ---------- */
+  const tabParam = panel.querySelector('[data-kami-tab="param"]');
+  tabParam.click();
+  await sleep(200);
+  const groupHead = panel.querySelector('[data-kami-pane="param"] .kami-collapse-head');
+  check('参数分组默认折叠', !!groupHead && !panel.querySelector('[data-kami-pane="param"] input[type=range]'));
+  groupHead.click();
+  await sleep(200);
+  const range = panel.querySelector('[data-kami-pane="param"] input[type=range]');
+  const num = panel.querySelector('[data-kami-pane="param"] input[type=number]');
+  check('展开后同时有滑杆与数字输入框', !!range && !!num);
+  /* 直接键入数字 */
+  num.value = '1.2';
+  num.dispatchEvent(new Event('input', { bubbles: true }));
+  await sleep(300);
+  check('数字输入生效：--kami-fs-scale 写入后置样式',
+    (styleText(document, 'kami-skin-user') || '').includes('--kami-fs-scale: 1.2'),
+    (styleText(document, 'kami-skin-user') || '').match(/--kami-fs-scale:[^;]*/));
+  check('滑杆被同步为 1.2', range.value === '1.2', range.value);
+
+  /* ---------- 切皮肤 ---------- */
+  const tabSkin = panel.querySelector('[data-kami-tab="skin"]');
+  tabSkin.click();
+  await sleep(200);
+  const other = HOST.KamiSkin.skins().find(x => x.id !== HOST.KamiSkin.skin);
+  check('至少有两套皮肤可切换', !!other, JSON.stringify(HOST.KamiSkin.skins().map(x => x.id)));
+  const altCard = other ? panel.querySelector('[data-kami-act="skin:' + other.id + '"]') : null;
+  check('皮肤页有第二套皮肤的卡片', !!altCard);
+  altCard.click();
+  await sleep(400);
+  const wantId = other ? other.id : '';
+  check('切换后宿主 data-kami-skin 变成目标皮肤', attr(document, 'data-kami-skin') === wantId, attr(document, 'data-kami-skin'));
+  check('切换后消息 iframe 同步换肤', attr(frame1.contentDocument, 'data-kami-skin') === wantId, attr(frame1.contentDocument, 'data-kami-skin'));
+  check('切换后 CSS 内容换成新皮肤', (styleText(document, 'kami-skin') || '').includes('skin: ' + wantId));
+  check('按钮文案跟随皮肤短名变化', labels().some(l => l === '🎨' + (other ? other.button : '')), JSON.stringify(labels()));
+
+  /* ---------- 注销 ---------- */
+  skinFrame.w.dispatchEvent(new skinFrame.w.Event('pagehide'));
+  await sleep(600);
+  check('注销：宿主 data-kami-skin 已摘除', attr(document, 'data-kami-skin') === null, attr(document, 'data-kami-skin'));
+  check('注销：宿主样式已移除', !document.getElementById('kami-skin') && !document.getElementById('kami-skin-user'));
+  check('注销：宿主其余 data-kami-* 属性已摘除',
+    !attr(document, 'data-kami-motion') && !attr(document, 'data-kami-effects'));
+  check('注销：消息 iframe 属性已摘除', attr(fdoc, 'data-kami-skin') === null, attr(fdoc, 'data-kami-skin'));
+  check('注销：消息 iframe 样式已移除', !fdoc.getElementById('kami-skin'));
+  check('注销：面板 DOM 已移除', !document.getElementById('kami-skin-panel'));
+  check('注销：全局 KamiSkin 已删除', HOST.KamiSkin === undefined);
+  await sleep(1200);
+  check('注销：按钮已撤下', labels().length === 0, JSON.stringify(labels()));
+
+  report();
+})().catch(e => {
+  R.push('FAIL  测试脚本自身异常: ' + (e && e.stack || e));
+  report();
+});
+</script>
+</body>
+</html>

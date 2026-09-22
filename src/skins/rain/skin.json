@@ -1,0 +1,74 @@
+{
+  "id": "rain",
+  "name": "恋雨",
+  "button": "恋雨",
+  "scheme": "dark",
+  "tagline": "一块从内侧看的窗玻璃：雨在外面，恋在里面；玻璃上蒙着薄雾与滑落的水痕。",
+  "effects": [
+    {
+      "id": "fog",
+      "label": "玻璃起雾",
+      "desc": "组件表面覆盖半透明水雾，展开时雾气淡去，收起后重新蒙上。",
+      "default": true
+    },
+    {
+      "id": "beading",
+      "label": "水珠凝结",
+      "desc": "玻璃表面附着细密微小凝结水珠，增加湿润反光质感。",
+      "default": true
+    },
+    {
+      "id": "impact",
+      "label": "雨滴敲击",
+      "desc": "组件背景交替闪现雨滴撞击玻璃的扩散光斑与水晕。",
+      "default": true
+    },
+    {
+      "id": "runnel",
+      "label": "雨痕滑落",
+      "desc": "多道水痕沿玻璃表面自上而下缓慢流淌滑落。",
+      "default": false
+    },
+    {
+      "id": "longexposure",
+      "label": "车灯光斑",
+      "desc": "玻璃背景右上侧有一团静止的暖橙色车灯散焦光晕。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "fog",
+      "label": "水雾浓度",
+      "group": "水汽",
+      "token": "--kami-fog",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 45
+    },
+    {
+      "id": "mark",
+      "label": "标线宽度",
+      "group": "面板",
+      "token": "--kami-accent-mark",
+      "unit": "px",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "value": 3
+    },
+    {
+      "id": "ground",
+      "label": "底部暗影",
+      "group": "光照",
+      "token": "--kami-ground",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 90
+    }
+  ]
+}

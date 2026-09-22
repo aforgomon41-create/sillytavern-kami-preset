@@ -1,0 +1,1009 @@
+/* ============================================================
+ * 卡密预设 · 兜底皮肤 (Kami Base Skin)  v0.1
+ * ------------------------------------------------------------
+ * 作用域：html:not([data-kami-skin]) .kami-root
+ *   —— 皮肤管理脚本一运行（<html data-kami-skin> 出现），本文件整体失效，
+ *      由选中皮肤包完全接管；皮肤管理被关闭/删除时，本文件重新生效。
+ *
+ * 构建时会被内联进：两个正则前端、皮肤管理面板、预设设置面板、引导面板。
+ * 契约见 docs/皮肤契约.md —— 本文件是 §3 全部令牌的参考实现。
+ *
+ * ------------------------------------------------------------
+ * 配色：清新的毛玻璃（2026-09-21 换掉原来那套紫 + 蓝）
+ *   · 强调色是石墨灰蓝：暗档 #93a8bb（提亮一档，压在深色玻璃上才看得见），
+ *     亮档 #5b6b7a（用户指定值）。
+ *   · 表面一律半透明：暗档 70%~72% 的冷灰再叠 5%~10% 的白，亮档 58%~68% 的白。
+ *     半透明是毛玻璃的前提 —— 底写死成不透明色，backdrop-filter 就什么也透不出来。
+ *   · 七个 kind 色只留下「互相分得开」的色相：石墨蓝灰 / 藕粉 / 苔绿 / 青灰 /
+ *     琥珀 / 玫红 / 中性灰。暗档提亮、亮档压深，两档在各自的底上都 >= 4.5:1。
+ *   · 阴影改成冷灰（rgba(6,10,14,…)），不再是纯黑。
+ *
+ * 对比度（WCAG 2.1 相对亮度公式实算。玻璃底取「同族页面」的合成值：暗档假设页面是
+ *   #14181c、亮档假设页面是 #eef1f4。玻璃底跟着页面走，跨族场景（系统深色配酒馆浅色
+ *   主题）下字色不变、底会变浅，这是毛玻璃的固有代价，改令牌治不了）：
+ *     暗档  正文 14.42（面板）/ 12.46（卡片）/ 10.72（悬停卡，最坏一档）；
+ *           次要 9.28 / 8.02 / 6.90；最弱 5.91 / 5.11 / 4.40；
+ *           强调底上的字 7.42；强调色当文字用 6.98 / 6.03；警示红 7.23。
+ *     亮档  正文 14.86 / 15.37；次要 7.21 / 7.46；最弱 4.81 / 4.97；
+ *           强调底上的字 5.48；强调色当文字用 5.20 / 5.38；警示红 5.25。
+ *   描边强档（--kami-line-strong）对卡片底：暗档 3.02、亮档 3.24，§22 那条 >= 3:1 仍然成立。
+ * ============================================================ */
+
+/* ---------- 令牌：暗色（默认） ---------- */
+html:not([data-kami-skin]) .kami-root {
+  --kami-fg: #e8ecf0;
+  --kami-fg-dim: #b7c0c8;
+  --kami-fg-mute: #8f99a3;
+  --kami-accent: #93a8bb;
+  --kami-accent-fg: #10161c;
+  --kami-accent-soft: rgba(147, 168, 187, .16);
+  --kami-accent-line: rgba(147, 168, 187, .50);
+
+  --kami-bg: rgba(26, 30, 35, .70);
+  --kami-bg-soft: rgba(30, 35, 41, .72);
+  --kami-card: rgba(255, 255, 255, .055);
+  --kami-card-2: rgba(14, 18, 22, .36);
+  --kami-card-hover: rgba(255, 255, 255, .10);
+  --kami-line: rgba(255, 255, 255, .12);
+  --kami-line-strong: rgba(255, 255, 255, .34);
+  --kami-t1: rgba(255, 255, 255, .05);
+  --kami-t2: rgba(255, 255, 255, .09);
+  --kami-t3: rgba(255, 255, 255, .16);
+  --kami-warn: #ff8a8a;
+  --kami-shadow: 0 10px 30px rgba(6, 10, 14, .42);
+  --kami-shadow-sm: 0 3px 10px rgba(6, 10, 14, .30);
+  --kami-blur: 18px;
+
+  --kami-r-xs: 6px;
+  --kami-r-sm: 9px;
+  --kami-r-md: 12px;
+  --kami-r-lg: 16px;
+  --kami-r-pill: 999px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 34px;
+  --kami-icon: 15px;
+  --kami-maxw: none;
+  --kami-items-min: 240px;
+  --kami-panel-w: 420px;
+  --kami-panel-h: 560px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .74);
+  --kami-fs-sm: calc(var(--kami-fs) * .86);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.12);
+  --kami-lh: 1.62;
+  --kami-ls: .01em;
+  --kami-ls-title: .06em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 600;
+  --kami-title-transform: none;
+
+  --kami-texture: none;
+  --kami-glow: rgba(147, 168, 187, .55);
+  --kami-glow-size: 0px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 2px;
+
+  --kami-dur-fast: .13s;
+  --kami-dur: .2s;
+  --kami-dur-slow: .3s;
+  --kami-ease: cubic-bezier(.22, .61, .36, 1);
+  --kami-ease-out: cubic-bezier(.16, 1, .3, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 24ms;
+
+  --kami-kind-action: #93b7d1;
+  --kami-kind-persona: #e0b0bf;
+  --kami-kind-plot: #9ccb96;
+  --kami-kind-info: #96c8c8;
+  --kami-kind-fun: #dfc06a;
+  --kami-kind-nsfw: #e08aa0;
+  --kami-kind-other: #a8b2bc;
+}
+
+/* ---------- 令牌：亮色 ---------- */
+@media (prefers-color-scheme: light) {
+  html:not([data-kami-skin]) .kami-root {
+    --kami-fg: #1e242a;
+    --kami-fg-dim: #4b555f;
+    --kami-fg-mute: #64707b;
+    --kami-accent: #5b6b7a;
+    --kami-accent-fg: #ffffff;
+    --kami-accent-soft: rgba(91, 107, 122, .12);
+    --kami-accent-line: rgba(91, 107, 122, .46);
+    --kami-bg: rgba(255, 255, 255, .58);
+    --kami-bg-soft: rgba(255, 255, 255, .68);
+    --kami-card: rgba(255, 255, 255, .62);
+    --kami-card-2: rgba(246, 249, 252, .55);
+    --kami-card-hover: rgba(255, 255, 255, .92);
+    --kami-line: rgba(30, 40, 50, .12);
+    --kami-line-strong: rgba(30, 40, 50, .52);
+    --kami-t1: rgba(30, 40, 50, .045);
+    --kami-t2: rgba(30, 40, 50, .075);
+    --kami-t3: rgba(30, 40, 50, .14);
+    --kami-warn: #c0392b;
+    --kami-shadow: 0 10px 26px rgba(6, 10, 14, .18);
+    --kami-shadow-sm: 0 2px 8px rgba(6, 10, 14, .12);
+    --kami-kind-action: #3f637e;
+    --kami-kind-persona: #9a5269;
+    --kami-kind-plot: #3f7a3a;
+    --kami-kind-info: #2f6a6a;
+    --kami-kind-fun: #82630c;
+    --kami-kind-nsfw: #a83b5e;
+    --kami-kind-other: #5e6873;
+  }
+}
+
+/* ---------- 结构兜底（与脚本注入的 STRUCT_CSS 一致） ---------- */
+html:not([data-kami-skin]) .kami-collapse[data-kami-open="0"] > .kami-collapse-body { display: none; }
+html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-collapse-body { display: block; }
+html:not([data-kami-skin]) .kami-root[data-kami-view="raw"] [data-kami-view="render"] { display: none; }
+html:not([data-kami-skin]) .kami-root[data-kami-view="render"] [data-kami-view="raw"] { display: none; }
+
+/* ---------- 根与外壳 ---------- */
+html:not([data-kami-skin]) .kami-root {
+  box-sizing: border-box;
+  margin: 10px 0 6px;
+  text-align: left;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  word-break: break-word;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not([data-kami-skin]) .kami-root *,
+html:not([data-kami-skin]) .kami-root *::before,
+html:not([data-kami-skin]) .kami-root *::after { box-sizing: border-box; }
+html:not([data-kami-skin]) .kami-root button,
+html:not([data-kami-skin]) .kami-root input { font: inherit; color: inherit; }
+html:not([data-kami-skin]) .kami-root :focus-visible {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-xs);
+}
+html:not([data-kami-skin]) .kami-surface {
+  position: relative;
+  clip-path: var(--kami-surface-clip);
+}
+html:not([data-kami-skin]) .kami-shell {
+  max-width: var(--kami-maxw);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-lg);
+  background: var(--kami-bg);
+  background-image: var(--kami-texture);
+  box-shadow: var(--kami-shadow);
+  overflow: hidden;
+}
+/* ⚠️ 查询条件必须把 -webkit- 前缀那一版也写进 or —— iOS Safari 18 以前只认前缀属性，
+   只写无前缀的话，这条查询在那些机器上本身就不成立，连里面的 -webkit- 声明也一并不生效。 */
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  html:not([data-kami-skin]) .kami-shell {
+    -webkit-backdrop-filter: blur(var(--kami-blur));
+    backdrop-filter: blur(var(--kami-blur));
+  }
+}
+
+/* ---------- 头部 / 主体 / 底部 ---------- */
+html:not([data-kami-skin]) .kami-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-bottom: var(--kami-gap);
+}
+html:not([data-kami-skin]) .kami-bar > :last-child { margin-left: auto; }
+html:not([data-kami-skin]) .kami-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  min-height: calc(var(--kami-row-h) + var(--kami-pad-y));
+}
+html:not([data-kami-skin]) .kami-title {
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  white-space: nowrap;
+}
+html:not([data-kami-skin]) .kami-sub {
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+  white-space: nowrap;
+}
+html:not([data-kami-skin]) .kami-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-left: auto;
+  flex: none;
+}
+/* 装饰槽：默认隐藏，由皮肤决定显不显 */
+html:not([data-kami-skin]) .kami-deco { display: none; }
+html:not([data-kami-skin]) .kami-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--kami-accent);
+  box-shadow: 0 0 var(--kami-glow-size) var(--kami-glow);
+}
+/* 进度点（引导向导 .kami-dots 里复用 .kami-dot）：非当前页压暗，当前页保持强调色 */
+html:not([data-kami-skin]) .kami-dots .kami-dot { opacity: .38; }
+html:not([data-kami-skin]) .kami-dots .kami-dot[data-kami-on="1"] { opacity: 1; }
+html:not([data-kami-skin]) .kami-body { padding: 0 var(--kami-pad-lg-x) var(--kami-pad-lg-y); }
+html:not([data-kami-skin]) .kami-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-lg-x) calc(var(--kami-pad-lg-y));
+  border-top: var(--kami-border-w) solid var(--kami-line);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+
+/* ---------- 按钮 ---------- */
+html:not([data-kami-skin]) .kami-btn,
+html:not([data-kami-skin]) .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background: var(--kami-t1);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  transition: background var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease),
+              transform var(--kami-dur-fast) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-icon-btn {
+  min-width: var(--kami-row-h);
+  padding: 0;
+  font-size: var(--kami-icon);
+}
+html:not([data-kami-skin]) .kami-btn--ghost { background: transparent; }
+html:not([data-kami-skin]) .kami-root .kami-btn--primary {
+  background: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+}
+html:not([data-kami-skin]) .kami-btn.is-on {
+  background: var(--kami-accent-soft);
+  border-color: var(--kami-accent-line);
+  color: var(--kami-fg);
+}
+@media (hover: hover) {
+  html:not([data-kami-skin]) .kami-btn:hover,
+  html:not([data-kami-skin]) .kami-icon-btn:hover { background: var(--kami-t2); border-color: var(--kami-line-strong); }
+  html:not([data-kami-skin]) .kami-btn--primary:hover { filter: brightness(1.06); }
+}
+html:not([data-kami-skin]) .kami-btn:active,
+html:not([data-kami-skin]) .kami-icon-btn:active { transform: translateY(1px); }
+html:not([data-kami-skin]) .kami-btn[disabled],
+html:not([data-kami-skin]) .kami-icon-btn[disabled] { opacity: .45; cursor: default; }
+
+/* ---------- 分段切换 ---------- */
+html:not([data-kami-skin]) .kami-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background: var(--kami-t1);
+}
+html:not([data-kami-skin]) .kami-seg-item {
+  border: 0;
+  border-radius: calc(var(--kami-r-sm) - 3px);
+  background: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: var(--kami-ls);
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: background var(--kami-dur-fast) var(--kami-ease), color var(--kami-dur-fast) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-seg-item.is-on {
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  box-shadow: inset 0 0 0 1px var(--kami-accent-line);
+}
+
+/* ---------- 卡片 / 列表 / 徽章 ---------- */
+html:not([data-kami-skin]) .kami-card {
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background: var(--kami-card);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+html:not([data-kami-skin]) .kami-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-bottom: 6px;
+}
+html:not([data-kami-skin]) .kami-card-title {
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs-sm);
+}
+html:not([data-kami-skin]) .kami-card-note { font-size: var(--kami-fs-xs); color: var(--kami-fg-mute); }
+html:not([data-kami-skin]) .kami-card-body { display: block; font-size: var(--kami-fs-sm); color: var(--kami-fg-dim); }
+
+html:not([data-kami-skin]) .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap);
+}
+html:not([data-kami-skin]) .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap);
+}
+html:not([data-kami-skin]) .kami-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background: var(--kami-card);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  cursor: pointer;
+  transition: background var(--kami-dur) var(--kami-ease),
+              border-color var(--kami-dur) var(--kami-ease),
+              transform var(--kami-dur) var(--kami-ease);
+}
+@media (hover: hover) {
+  html:not([data-kami-skin]) .kami-item:hover {
+    background: var(--kami-card-hover);
+    border-color: var(--kami-accent-line);
+    transform: translateY(-1px);
+  }
+}
+html:not([data-kami-skin]) .kami-item.is-demo { opacity: .62; cursor: default; }
+html:not([data-kami-skin]) .kami-item-main { min-width: 0; }
+html:not([data-kami-skin]) .kami-item-side { flex: none; margin-left: auto; color: var(--kami-fg-mute); font-size: var(--kami-fs-sm); }
+
+html:not([data-kami-skin]) .kami-badge,
+html:not([data-kami-skin]) .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 1px 7px;
+  border-radius: var(--kami-r-pill);
+  border: var(--kami-border-w) solid currentColor;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.5;
+  color: var(--kami-kind-other);
+  white-space: nowrap;
+}
+html:not([data-kami-skin]) .kami-chip { border-color: var(--kami-line); color: var(--kami-fg-dim); background: var(--kami-t1); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="action"]  { color: var(--kami-kind-action); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="persona"] { color: var(--kami-kind-persona); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="plot"]    { color: var(--kami-kind-plot); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="info"]    { color: var(--kami-kind-info); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="fun"]     { color: var(--kami-kind-fun); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="nsfw"]    { color: var(--kami-kind-nsfw); }
+html:not([data-kami-skin]) .kami-root [data-kami-kind="other"]   { color: var(--kami-kind-other); }
+
+/* ---------- 折叠 ---------- */
+html:not([data-kami-skin]) .kami-collapse-head { cursor: pointer; user-select: none; }
+html:not([data-kami-skin]) .kami-chev {
+  flex: none;
+  font-size: calc(var(--kami-icon) * .8);
+  color: var(--kami-fg-mute);
+  transition: transform var(--kami-dur) var(--kami-ease), color var(--kami-dur) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev { transform: rotate(90deg); color: var(--kami-accent); }
+html:not([data-kami-skin]) .kami-collapse > .kami-body { display: none; }
+html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-body {
+  display: block;
+  animation: kami-base-in var(--kami-dur-slow) var(--kami-ease-out) backwards;
+}
+@keyframes kami-base-in {
+  from { opacity: 0; transform: translateY(calc(var(--kami-enter-y) * -1)) scale(var(--kami-enter-scale)); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 正文 / markdown / 原文 ---------- */
+html:not([data-kami-skin]) .kami-md {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-radius: var(--kami-r-md);
+  background: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+}
+html:not([data-kami-skin]) .kami-md > :first-child { margin-top: 0; }
+html:not([data-kami-skin]) .kami-md > :last-child { margin-bottom: 0; }
+html:not([data-kami-skin]) .kami-md p { margin: .5em 0; }
+html:not([data-kami-skin]) .kami-md h1,
+html:not([data-kami-skin]) .kami-md h2,
+html:not([data-kami-skin]) .kami-md h3 {
+  margin: .9em 0 .4em;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  color: var(--kami-fg);
+}
+html:not([data-kami-skin]) .kami-md code {
+  font-family: var(--kami-font-mono);
+  font-size: .88em;
+  padding: 1px 5px;
+  border-radius: var(--kami-r-xs);
+  background: var(--kami-t2);
+}
+html:not([data-kami-skin]) .kami-md pre {
+  margin: .6em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: var(--kami-r-sm);
+  background: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line);
+  overflow-x: auto;
+}
+html:not([data-kami-skin]) .kami-md pre code { background: none; padding: 0; }
+html:not([data-kami-skin]) .kami-md blockquote {
+  margin: .6em 0;
+  padding: 2px 0 2px 10px;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent-line);
+  color: var(--kami-fg-mute);
+}
+html:not([data-kami-skin]) .kami-md ul,
+html:not([data-kami-skin]) .kami-md ol { margin: .5em 0; padding-left: 1.3em; }
+html:not([data-kami-skin]) .kami-md li { margin: .18em 0; }
+html:not([data-kami-skin]) .kami-md strong { color: var(--kami-fg); font-weight: 700; }
+html:not([data-kami-skin]) .kami-md a { color: var(--kami-accent); text-underline-offset: 2px; }
+html:not([data-kami-skin]) .kami-md hr { border: 0; border-top: var(--kami-border-w) solid var(--kami-line); margin: .8em 0; }
+html:not([data-kami-skin]) .kami-md img { max-width: 100%; border-radius: var(--kami-r-sm); }
+html:not([data-kami-skin]) .kami-md table { border-collapse: collapse; width: 100%; font-size: var(--kami-fs-xs); }
+html:not([data-kami-skin]) .kami-md th,
+html:not([data-kami-skin]) .kami-md td { border: var(--kami-border-w) solid var(--kami-line); padding: 4px 7px; }
+html:not([data-kami-skin]) .kami-raw {
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-radius: var(--kami-r-md);
+  background: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.6;
+  color: var(--kami-fg-dim);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* ---------- 表单控件 ---------- */
+html:not([data-kami-skin]) .kami-field {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+}
+html:not([data-kami-skin]) .kami-field-label { flex: 1 1 auto; min-width: 0; font-size: var(--kami-fs-sm); }
+html:not([data-kami-skin]) .kami-field-value { flex: none; display: flex; align-items: center; gap: 6px; }
+html:not([data-kami-skin]) .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 96px;
+  height: 4px;
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-t3);
+  cursor: pointer;
+}
+html:not([data-kami-skin]) .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--kami-accent);
+  border: 2px solid var(--kami-bg);
+  box-shadow: var(--kami-shadow-sm);
+}
+html:not([data-kami-skin]) .kami-range::-moz-range-thumb {
+  width: 12px; height: 12px; border: 2px solid var(--kami-bg);
+  border-radius: 50%; background: var(--kami-accent);
+}
+html:not([data-kami-skin]) .kami-number {
+  width: 62px;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background: var(--kami-t1);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg);
+}
+/* 右对齐只属于数字框。以前挂在裸 .kami-number 上，被复用它的 select / textarea /
+   input[type=text] 一起吃了 —— 摘要提示词正文与角色下拉全部右对齐（用户真机报的 bug）。
+   契约 §4.2 要求收窄成 input.kami-number[type="number"]。 */
+html:not([data-kami-skin]) .kami-root input.kami-number[type="number"] { text-align: right; }
+
+/* 面板里的输入类控件（兜底皮肤）：底色原本是 6% 的叠加，跟卡片底几乎分不出边界；
+   换成次级容器底并抬一道描边，字仍然用正文色。四类控件（数字 / 文本 / 多行 / 下拉）
+   共用这一条 —— 契约 §3 的对比度条款要求每套皮肤同时写这四类，兜底皮肤也不例外；
+   六块面板的输入类控件都走它，不带面板 id（契约 §4.4）。
+   底必须显式写、并且带 !important：酒馆「用户设置 → 自定义 CSS」里那条
+    input[type="number"] { background-color: var(--ui-color-sec) !important } 会盖掉这里的底
+   （真机实测），select / textarea / text 各有同款 !important 深漆。
+   必须写 background-color 而不是 background 简写：简写会把下面 .kami-select 自绘箭头的
+   background-image 一起重置掉。
+   color-scheme 写 light dark：兜底令牌本来就分「默认＝暗」与
+   prefers-color-scheme: light 两套，交给浏览器按用户偏好选，别写死。
+   select.kami-number / textarea.kami-number 是 2026-09-21 分工收口前的旧写法，压缩面板
+   还在用（60-压缩.js:1526 / 1541 / 1559）；等那批脚本迁到 .kami-select / .kami-textarea 再删。 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] input.kami-number,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] select.kami-number,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] textarea.kami-number,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] input.kami-text,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] select.kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-bg-soft) !important;
+  border-color: var(--kami-line-strong) !important;
+  color-scheme: light dark;
+}
+
+/* ---------- 文本 / 多行 / 下拉（契约 §4.2，2026-09-21 登记的三个类名） ----------
+   这三类此前一条样式都没有（全项目只有压缩面板在用 <select>），真机上就是浏览器默认外观。
+   底 --kami-bg-soft（半透明玻璃，能透出后面的内容）、描边 --kami-line、字 --kami-fg，
+   一律左对齐；字数与控件同高，和 .kami-btn 对齐成一行。
+   font-family 必须写：.kami-root 那条 font: inherit 只给了 button 与 input，
+   textarea / select 吃不到，不写就掉回浏览器默认字体。 */
+html:not([data-kami-skin]) .kami-root .kami-text,
+html:not([data-kami-skin]) .kami-root .kami-textarea {
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  text-align: left;
+}
+html:not([data-kami-skin]) .kami-root .kami-textarea { resize: vertical; }
+/* 下拉：抹掉原生外观，用两层 linear-gradient 拼一个 V 形箭头（箭头色 --kami-fg-mute）。
+   右侧内边距多留 16px 给箭头；底必须写 background-color —— 写 background 简写会把
+   上面那两层 background-image 一起重置掉，箭头就没了（面板那条对比度规则同理）。 */
+html:not([data-kami-skin]) .kami-root .kami-select {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) calc(var(--kami-pad-x) + 16px) var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-bg-soft);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--kami-fg-mute) 50%),
+    linear-gradient(135deg, var(--kami-fg-mute) 50%, transparent 50%);
+  background-size: 4px 4px, 4px 4px;
+  background-position: calc(100% - 13px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+  background-repeat: no-repeat;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+html:not([data-kami-skin]) .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
+html:not([data-kami-skin]) .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
+html:not([data-kami-skin]) .kami-switch-track {
+  position: relative;
+  width: 38px; height: 22px;
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-t3);
+  transition: background var(--kami-dur) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-switch-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--kami-fg-dim);
+  transition: transform var(--kami-dur) var(--kami-ease), background var(--kami-dur) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-switch-input:checked + .kami-switch-track { background: var(--kami-accent-soft); box-shadow: inset 0 0 0 1px var(--kami-accent-line); }
+html:not([data-kami-skin]) .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { transform: translateX(16px); background: var(--kami-accent); }
+html:not([data-kami-skin]) .kami-switch-input:focus-visible + .kami-switch-track { outline: 2px solid var(--kami-accent); outline-offset: 2px; }
+
+/* ---------- 标签页 ---------- */
+html:not([data-kami-skin]) .kami-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--kami-pad-lg-x);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html:not([data-kami-skin]) .kami-tabs::-webkit-scrollbar { display: none; }
+/* tab 行放不下时（7 个 tab / 420px 面板、或手机抽屉）要**看得出来还能往右滑**：
+   给滚动容器右缘一道 20px 的渐隐遮罩。遮罩挂在滚动容器自己的边框盒上，内容在它下面滚，
+   被裁掉的那半个 tab 会淡出成「还有」的暗示；tab 行排得下时渐隐落在右侧内边距与底线上。
+   兜底皮肤也要给：皮肤管理没在跑时，面板用的就是这一份。 */
+html:not([data-kami-skin]) .kami-tabs {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+}
+/* ② tab 行放不下时：只允许横向手势（脚本另外把纵向滚轮转成横向滚动）。
+   这一条是「结构」不是外观：皮肤切换后也必须成立，所以放开皮肤前缀。 */
+.kami-tabs { touch-action: pan-x; overscroll-behavior-x: contain; }
+html:not([data-kami-skin]) .kami-tab {
+  flex: none;
+  border: 0;
+  border-bottom: var(--kami-accent-mark) solid transparent;
+  background: transparent;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+  padding: 9px var(--kami-pad-x);
+  cursor: pointer;
+  transition: color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease);
+}
+html:not([data-kami-skin]) .kami-tab[aria-selected="true"] { color: var(--kami-fg); border-bottom-color: var(--kami-accent); }
+
+/* ---------- 滚动区 / 浮动层 / 其它 ---------- */
+html:not([data-kami-skin]) .kami-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kami-t3) transparent;
+}
+html:not([data-kami-skin]) .kami-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+html:not([data-kami-skin]) .kami-scroll::-webkit-scrollbar-thumb {
+  background: var(--kami-t3);
+  border-radius: var(--kami-r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+/* 面板几何：舞台铺满视口，面板位置/尺寸来自脚本下发的几何令牌 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] {
+  position: fixed;
+  inset: 0;
+  top: 0; right: 0; bottom: 0; left: 0;
+  width: auto; height: auto; min-height: 0;
+  margin: 0;
+  z-index: 30000;
+  pointer-events: none;
+}
+html:not([data-kami-skin]) .kami-root .kami-drop.kami-drop {
+  position: absolute;
+  left: var(--kami-panel-x, 50%);
+  top: var(--kami-panel-y, 72px);
+  width: var(--kami-panel-w, min(420px, calc(100% - 24px)));
+  height: var(--kami-panel-h, 560px);
+  max-height: calc(100% - 24px);
+  pointer-events: auto;
+  background: var(--kami-bg-soft);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-lg);
+  box-shadow: var(--kami-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* 浮动面板也要毛玻璃：底是半透明的 --kami-bg-soft（不写死不透明色），
+   模糊由下面的 @supports 给，写法与 .kami-shell 那条一致（含 -webkit- 前缀那一条）。 */
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  html:not([data-kami-skin]) .kami-root .kami-drop.kami-drop {
+    -webkit-backdrop-filter: blur(var(--kami-blur));
+    backdrop-filter: blur(var(--kami-blur));
+  }
+}
+/* 毛玻璃的通用做法：1px 高光上边缘，光从上面打下来的错觉。只能引令牌，所以「高光」
+   用 --kami-line-strong —— 它比其余三条的 --kami-line 实一档（暗档 34% 对 12% 的白，
+   亮档 52% 对 12% 的黑），不能写死 rgba(255,255,255,.3) 那类颜色。
+   写在 .kami-drop 基础规则之后：两条特异性都是 (0,4,1)，靠顺序取胜。 */
+html:not([data-kami-skin]) .kami-root .kami-shell,
+html:not([data-kami-skin]) .kami-root .kami-drop.kami-drop {
+  border-top-color: var(--kami-line-strong);
+}
+html:not([data-kami-skin]) .kami-drop > .kami-body { flex: 1 1 auto; min-height: 0; }
+/* 面板是 flex 列：头部 / 标签轨 / 底部不得被长内容压扁（窄屏抽屉下尤其明显） */
+html:not([data-kami-skin]) .kami-drop > .kami-head,
+html:not([data-kami-skin]) .kami-drop > .kami-tabs,
+html:not([data-kami-skin]) .kami-drop > .kami-foot { flex: 0 0 auto; }
+/* 贴底抽屉：由脚本下发的 data-kami-layout="sheet" 决定（皮肤管理没在跑时，面板脚本自己下发，
+   见 40-预设设置.js 的 sheetMode；皮肤管理在跑时由它注入的几何层负责）。
+   注意选择器必须把特异性抬到上面那条 `.kami-root .kami-drop.kami-drop`（0,4,1）之上：
+   下面这条规则原来写成 `html:not([data-kami-skin]) .kami-drop`（0,2,1），**被上面那条整体压掉**，
+   于是「皮肤管理没运行 + 窄屏」时面板会按 50%/420px 摆成一个挂在视口外的小窗
+   （关闭按钮直接被裁掉，点不到）。这里补一个 [data-kami-layout="sheet"] 版本，特异性 (0,5,1)。 */
+html:not([data-kami-skin]) .kami-root .kami-drop.kami-drop[data-kami-layout="sheet"] {
+  left: 0; right: 0; top: auto; bottom: 0;
+  width: auto; height: 78%; max-height: 78%;
+  border-radius: var(--kami-r-lg) var(--kami-r-lg) 0 0;
+}
+/* 兜底：面板脚本还没跑起来（元素上还没有 data-kami-layout）时按 768px 贴底 */
+@media (max-width: 768px) {
+  html:not([data-kami-skin]) .kami-root .kami-drop.kami-drop:not([data-kami-layout]) {
+    left: 0; right: 0; top: auto; bottom: 0;
+    width: auto; height: 78%; max-height: 78%;
+    border-radius: var(--kami-r-lg) var(--kami-r-lg) 0 0;
+  }
+}
+html:not([data-kami-skin]) .kami-resize {
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 16px; height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 46%, var(--kami-line-strong) 46%, var(--kami-line-strong) 54%, transparent 54%);
+}
+html:not([data-kami-skin]) .kami-empty { padding: var(--kami-pad-lg-y) 0; color: var(--kami-fg-mute); font-size: var(--kami-fs-sm); }
+html:not([data-kami-skin]) .kami-toast {
+  margin-top: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: var(--kami-r-sm);
+  border: var(--kami-border-w) solid var(--kami-line);
+  background: var(--kami-t2);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-dim);
+  animation: kami-base-in var(--kami-dur) var(--kami-ease-out) backwards;
+}
+html:not([data-kami-skin]) .kami-toast.is-bad { color: var(--kami-warn); border-color: currentColor; }
+html:not([data-kami-skin]) .kami-preview {
+  position: relative;
+  border-radius: var(--kami-r-md);
+  border: var(--kami-border-w) solid var(--kami-line);
+  background: var(--kami-card);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+html:not([data-kami-skin]) .kami-preview i {
+  display: block;
+  height: 6px;
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-t3);
+}
+html:not([data-kami-skin]) .kami-preview i:first-child { width: 58%; background: var(--kami-accent); }
+
+/* ---------- 动效降级 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-kami-skin]) .kami-root *,
+  html:not([data-kami-skin]) .kami-root *::before,
+  html:not([data-kami-skin]) .kami-root *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+html:not([data-kami-skin]) .kami-root[data-kami-motion="off"] *,
+html:not([data-kami-skin]) .kami-root[data-kami-motion="off"] *::before,
+html:not([data-kami-skin]) .kami-root[data-kami-motion="off"] *::after {
+  animation-duration: 1ms !important;
+  transition-duration: 1ms !important;
+}
+
+/* ============================================================
+ * 设置面板里的条目网格：紧凑多列（兜底皮肤）
+ * ------------------------------------------------------------
+ * 兜底皮肤的 --kami-items-min 是 240px（按 820px 宽的消息区调的），在设置面板里
+ * 永远只排得下 1 列 —— 面板里的网格只有 350px 宽。面板作用域内压到 96px：
+ * 390px 宽的底部抽屉正好 3 列，桌面 420px 面板 3~4 列。
+ *
+ * 三重限定，缺一不可：
+ *   · html:not([data-kami-skin]) 是兜底皮肤的作用域前缀；
+ *   · [data-kami-comp="panel"] 是面板限定：消息 iframe 里只有 think 与 options
+ *     两种组件，没有 panel。带上它，紧凑化就绝不会渗进聊天前端
+ *     （两个正则前端内联的就是本文件）；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ *     它那张网格装的是带预览 iframe 的大卡，不能一起压。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+  --kami-items-min: 96px;
+}
+
+/* 窄屏（手机底部抽屉）下的列宽：96px 会让 375px 的抽屉排出 3 列、卡只有 ~110px，
+   「DS/GLM底部破限」这种名字被拦腰断成 DS/GLM 断行。窄屏把列宽调大，宁可两列：
+   375px 抽屉 → 2 列（卡 ~166px），320px → 2 列（卡 ~110px）。
+   只改令牌，不动脚本结构；桌面 420px 面板不受影响（视口 > 560px 时照旧 3~4 列）。 */
+@media (max-width: 560px) {
+  html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 152px;
+  }
+}
+@media (max-width: 380px) {
+  html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 108px;
+  }
+}
+
+
+/* ============================================================
+ * 面板内的「条目名角标」：emoji 从条目名里摘出来钉在卡片角上（兜底皮肤）
+ * ------------------------------------------------------------
+ * 为什么：条目名绝大多数是四个汉字，前面那枚 emoji + 空格会把 110px 的紧凑小卡顶成两行。
+ * 把 emoji 绝对定位到卡片角上，文字那一行就**整行**腾出来了；卡片高度不因此变高。
+ * 脚本只摘**显示**，预设里条目名的一个字都没动（40-预设设置.js 的 splitLeadingEmoji）。
+ *
+ * 三重限定，缺一不可（与上面那节同一套理由）：
+ *   · html:not([data-kami-skin]) 是兜底皮肤的作用域前缀；
+ *   · [data-kami-comp="panel"] 是面板限定：消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ *     装的是带预览 iframe 的大卡，不能一起改。
+ *
+ * 类名只用契约 §4.2 已登记的 .kami-badge（小标签），左右上角靠 data-kami-corner 区分，
+ * 不新增类名；颜色/字号全部取本文件已有令牌，没有新颜色。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item.kami-card {
+  position: relative;   /* 角标的定位基准 */
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  color: var(--kami-fg-mute);
+  pointer-events: none;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 3px;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 1px;
+}
+/* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
+   有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片会略高一点点，
+   但文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+
+/* ============================================================
+ * 24 · 非当前模型的模型专属条目：锁死
+ * ------------------------------------------------------------
+ * 面板「🤖 模型」tab 里，不属于「当前模型」的模型专属条目一律禁用（脚本写 HTML 原生的
+ * disabled，条目卡本来就是 button）。外观也要给出「锁死」的样子：变暗 + 去掉悬停反馈
+ * + 鼠标禁止符号。颜色只用本文件已有的「最弱文字色」令牌 --kami-fg-mute，不引入新颜色。
+ *
+ * 三重限定，缺一不可（理由同上面 22 节）：
+ *   · html:not([data-kami-skin]) —— 兜底皮肤（无皮肤时生效） 的作用域前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  background-color: var(--kami-card);
+  background-image: none;
+  border-color: var(--kami-line);
+  box-shadow: none;
+  transform: none;
+  opacity: .42;
+  color: var(--kami-fg-mute);
+  cursor: not-allowed;
+}
+/* 悬停才会冒出来的装饰（角标转正 / 左缘竖条 / 湿痕横线）在锁死时一律不许动 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+  transform: scale(0);
+  opacity: 0;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge { transform: none; }
+
+/* ============================================================
+ * 26 · 面板里的「注释查看」与「设置变量」
+ * ------------------------------------------------------------
+ * 用户裁定：注释入口**不是角标**，就挂在名字后面（条目卡挂在条目名后面，
+ * 卡片头挂在卡片名后面），占一格宽度、带高亮，让人一眼看出可以点；
+ * 点它就地展开注释正文（.kami-card-note[data-kami-note]），再点收起。
+ * **没有注释的条目/卡片一枚记号都不加**（不显示灰色不可点，免得用户困惑）。
+ *
+ * 三重限定，缺一不可（理由同 22 节）：
+ *   · 皮肤作用域前缀（本套皮肤 / 兜底皮肤）；
+ *   · [data-kami-comp="panel"] —— 消息 iframe 里只有 think / options，没有 panel；
+ *   · **不得再用面板 id 限定**（契约 §4.4 硬规则）—— 面板不止 #kami-preset-panel 一块，
+ *     引导面板 #kami-guide-panel 的 ⓘ 用的是同一套 DOM，加了 id 就会漏。
+ * 类名只用契约 §4.2 已登记的 .kami-card-note / .kami-number，不新增类名；
+ * 标记与正文靠 data-kami-note-mark / data-kami-note 两个属性区分。
+ * ============================================================ */
+/* 兜底皮肤：注释标记 + 展开出来的注释正文 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  margin-left: 5px;
+  border: var(--kami-border-w) solid var(--kami-accent);
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-xs);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+  background: var(--kami-accent);
+  color: var(--kami-bg);
+  border-color: var(--kami-accent);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  display: block;
+  margin: 5px 0 0;
+  padding: 5px 7px;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+  border-radius: var(--kami-r-xs);
+  background: var(--kami-t2);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+
+/* ============================================================
+ * · 面板里的控件边界：描边抬到「看得见」那一档
+ * ------------------------------------------------------------
+ * 面板里的条目卡底与外面那层卡片底是同一个色，唯一的边界就是那 1px 描边；
+ * 原来的 --kami-line 实测只有 1.3~1.6:1，卡片会连成一片、看不出是一张一张的按钮。
+ * 面板内的控件描边统一提到 --kami-line-strong（同一个色，只是更实），卡片边界实测 >= 3:1。
+ * 只用本皮肤已有令牌，没有新颜色；不开 --kami-line 本身：聊天前端的细线该细还是细。
+ * 不带面板 id（契约 §4.4）：三块面板与以后的新面板共用这一条。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+  border-color: var(--kami-line-strong);
+}
+
+/* ============================================================
+ * · 兜底皮肤的面板条目卡「开着」高亮（原来缺这一条）
+ * ------------------------------------------------------------
+ * 没有皮肤管理脚本时，所有面板（皮肤管理 / 预设设置 / 引导 / 压缩）都用这一份兜底皮肤。
+ * 原来只有 .kami-btn.is-on，条目卡开着与关着长得一模一样 —— 补上：
+ * 强调色描边 + 淡染强调底色 + 名字回到正文色，与 .kami-btn.is-on 同一套令牌。
+ * 不带面板 id（契约 §4.4）：以后加面板零维护。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item.is-on,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] {
+  border-color: var(--kami-accent-line);
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item.is-on .kami-item-main,
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] .kami-item-main {
+  color: var(--kami-fg);
+}

@@ -1,0 +1,169 @@
+{
+  "hubTip": "压缩：滚动压缩 / 超限压缩（点击展开）",
+  "hubAbsent": "压缩脚本未就绪",
+  "mode": {
+    "section": "模式",
+    "rollTitle": "滚动压缩",
+    "rollDepthLine": "起始深度 {n}",
+    "rollNote": "按楼层深度把旧楼替换为摘要，改动即时写入正则「压缩|摘要/设定」。可与超限压缩同时开，但不建议。",
+    "grandTitle": "超限压缩（大总结）",
+    "grandNote": "平时不压缩。发送 token 达到上限时自动分块总结旧楼层并隐藏，也可在下方手动触发。",
+    "on": "开启",
+    "off": "关闭",
+    "bad": "不可用"
+  },
+  "roll": {
+    "section": "滚动压缩参数",
+    "depthLabel": "起始深度（从第几楼起只发摘要）",
+    "depthHint": "设为 0 表示从第 1 楼开始压缩。修改会立即写入正则，无需保存。"
+  },
+  "grand": {
+    "section": "超限压缩参数",
+    "thresholdLabel": "触发上限（发送 token）",
+    "thresholdHint": "达到该数值自动触发大总结。需小于模型的上下文窗口，底部有上次实测值供参考。",
+    "keepLabel": "保留最近楼层",
+    "keepHint": "这些最新楼层永远原样发送，不参与压缩与隐藏。",
+    "chunkLabel": "每块楼层数",
+    "chunkHint": "每达到设定楼数生成一个「压缩块」，各块之间不再合并。",
+    "runNow": "立即大总结",
+    "running": "总结中",
+    "unhideAll": "全部取消隐藏",
+    "clearData": "清除压缩数据",
+    "clearArmed": "再点一次确认",
+    "runHint": "手动触发不受模式开关限制；失败会停在失败的块，下次从断点继续。"
+  },
+  "model": {
+    "section": "大总结模型",
+    "tavern": "跟随酒馆",
+    "custom": "自定义接口",
+    "note": "大总结使用哪个 AI 接口。跟随酒馆用当前连接；自定义可存多套配置随时切换。",
+    "cfgLabel": "已存配置",
+    "noCfgName": "（未命名配置）",
+    "sourceLabel": "接口格式",
+    "apiUrlLabel": "接口地址",
+    "keyLabel": "密钥",
+    "modelLabel": "模型名",
+    "sources": [
+      {
+        "v": "custom",
+        "n": "OpenAI 兼容（自定义）"
+      },
+      {
+        "v": "openai",
+        "n": "OpenAI"
+      },
+      {
+        "v": "claude",
+        "n": "Claude"
+      },
+      {
+        "v": "makersuite",
+        "n": "Gemini（Google AI Studio）"
+      },
+      {
+        "v": "deepseek",
+        "n": "DeepSeek"
+      },
+      {
+        "v": "xai",
+        "n": "xAI"
+      },
+      {
+        "v": "openrouter",
+        "n": "OpenRouter"
+      },
+      {
+        "v": "azure_openai",
+        "n": "Azure OpenAI"
+      }
+    ],
+    "sourceHint": "接口格式必须与地址匹配，例如选 Claude 格式，接口地址就必须支持 Anthropic 协议。",
+    "apiUrlHint": "自定义格式填完整地址。其他格式一般填反代地址，留空使用官方入口。",
+    "keyHint": "密钥只存本机，不会写入聊天或「世界书」",
+    "modelHint": "可手动填写模型名，也可点击右侧按钮在线获取。",
+    "fetchModels": "获取模型列表",
+    "fetching": "获取中…",
+    "fetchFail": "获取模型列表失败：{err}",
+    "fetchEmpty": "接口没有返回任何模型",
+    "fetchPick": "（请选择模型）",
+    "importBtn": "导入连接配置",
+    "importNone": "酒馆里没有可导入的对话补全连接配置",
+    "importDone": "已导入连接配置「{name}」。若未带上密钥，请手动补填。",
+    "importNoUrl": "配置「{name}」未包含接口地址。已导入名称与模型，请手动补填地址。",
+    "saveAs": "存为新配置",
+    "namePh": "配置名称",
+    "nameMissing": "请先输入配置名称。",
+    "saveDone": "已保存配置「{name}」",
+    "delBtn": "删除当前配置",
+    "delDone": "已删除配置「{name}」",
+    "delLast": "至少保留一个配置。",
+    "customHint": "地址、密钥、模型名三项都填才生效。若有缺失，自动回退为跟随酒馆。"
+  },
+  "prompts": {
+    "section": "摘要提示词",
+    "head": "头部（可选，排在最前）",
+    "task": "任务（正文后自动接材料）",
+    "tail": "尾部（可选，排在最后）",
+    "addEntry": "添加一条",
+    "removeEntry": "删除",
+    "reset": "恢复默认",
+    "hint": "头尾可自由增删条目（角色与内容），任务只改动正文。改动即时生效，无需保存。",
+    "roleSystem": "系统",
+    "roleUser": "用户",
+    "roleChar": "角色"
+  },
+  "pins": {
+    "section": "例外楼层（隐藏时跳过）",
+    "empty": "暂无例外楼层。",
+    "ph": "楼层号",
+    "add": "添加",
+    "remove": "移除",
+    "chipTitle": "点击移除",
+    "note": "例外楼层永远保持显示，不参与总结。每次生成「压缩块」都会带上它们的信息。"
+  },
+  "blocks": {
+    "section": "压缩块",
+    "empty": "暂无「压缩块」。开启超限压缩达到上限后自动生成，也可点击「立即大总结」。",
+    "depthTag": "注入深度",
+    "note": "每个块对应一个「世界书」条目（📜 压缩块 #N），锚在块尾楼层之后注入。数据保存在聊天「{lb}」的世界书中，切换预设不会丢。"
+  },
+  "entry": {
+    "section": "「🧱 摘要(小总结)」条目",
+    "turnOn": "开启条目",
+    "turnOff": "关闭条目",
+    "note": "建议保持常开：滚动压缩时若某楼层缺少摘要，压缩后信息将直接丢失。仅使用超限压缩时可关闭（大总结读取楼层原文）。本面板不会自动开关此条目。"
+  },
+  "toasts": {
+    "running": "大总结正在进行中，请等待跑完",
+    "noChat": "当前没有打开的聊天",
+    "start": "大总结开始（{x}）",
+    "startAuto": "达到上限自动触发",
+    "startManual": "手动触发",
+    "nothing": "没有需要压缩的楼层（保留最近 {n} 楼）",
+    "onlyPins": "范围内没有未隐藏的楼层（前沿推进到 {n} 楼）",
+    "partial": "大总结未全部完成：{err}",
+    "partialTail": "。已完成的 {n} 块照常生效。",
+    "done": "大总结完成：新增 {a} 块，隐藏 {b} 楼（共 {c} 块）",
+    "noHidden": "当前聊天没有被隐藏的楼层",
+    "unhideDone": "已恢复 {n} 楼的显示（压缩数据未变动）",
+    "noLorebook": "当前聊天未绑定世界书，也没有压缩数据",
+    "clearFail": "删除世界书条目失败：{err}",
+    "clearDone": "已清除本聊天的压缩数据（{n} 个条目；已隐藏楼层保持原样，可用「全部取消隐藏」恢复显示）",
+    "pinRange": "楼层号必须在 0 到 {n} 之间",
+    "pinMissing": "例外楼层中不存在 #{n}",
+    "pinDup": "#{n} 已在例外楼层中",
+    "pinSaveFail": "写入世界书失败：{err}",
+    "pinAdded": "已添加例外楼层 #{n}",
+    "pinRemoved": "已移除例外楼层 #{n}",
+    "grandOn": "超限压缩已开启：达到 {n} token 自动大总结",
+    "numBad": "请填写有效数字",
+    "writeFail": "写入失败：{err}",
+    "toggleFail": "切换失败：{err}",
+    "noSummaryEntry": "当前预设中未找到「🧱 摘要(小总结)」条目",
+    "noRollRegex": "当前预设中未找到滚动压缩正则「{name}」",
+    "noGenerate": "酒馆助手缺少 generateRaw（版本过旧？）",
+    "emptyReply": "模型返回内容为空",
+    "tooMany": "头部与尾部最多各 {n} 条",
+    "saveFail": "保存失败：{err}"
+  }
+}

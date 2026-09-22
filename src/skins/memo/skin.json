@@ -1,0 +1,91 @@
+{
+  "id": "memo",
+  "name": "记事本",
+  "button": "记事本",
+  "scheme": "light",
+  "tagline": "一页刚印好的方格手账：纸面平整，印着裁切标记与荧光笔痕。",
+  "effects": [
+    {
+      "id": "grid",
+      "label": "方格底纹",
+      "desc": "纸面底层的淡色方格网纹，正文区域会自动覆盖格线。",
+      "default": true
+    },
+    {
+      "id": "crop",
+      "label": "裁切线",
+      "desc": "纸张四角显示十字裁切标记，呈现印制裁剪的对齐参考线。",
+      "default": true
+    },
+    {
+      "id": "ink",
+      "label": "印刷重影",
+      "desc": "标题文字带有轻微红青双色重影，展开时伴随错位复位动效。",
+      "default": true
+    },
+    {
+      "id": "dice",
+      "label": "翻牌入场",
+      "desc": "行动选项展开时，左侧编号按顺序逐枚翻牌落位。",
+      "default": true
+    },
+    {
+      "id": "bleed",
+      "label": "纸边洇墨",
+      "desc": "纸张外边缘呈现不规则的暗色墨水渗透与晕染痕迹。",
+      "default": false
+    },
+    {
+      "id": "grain",
+      "label": "影印颗粒",
+      "desc": "整张纸面覆盖一层微细的复印噪点与油墨杂质纹理。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "grid-step",
+      "label": "格线间距",
+      "group": "纸面",
+      "token": "--kami-grid-step",
+      "unit": "px",
+      "min": 10,
+      "max": 40,
+      "step": 2,
+      "value": 20
+    },
+    {
+      "id": "corner",
+      "label": "右下裁角",
+      "group": "纸面",
+      "token": "--kami-corner",
+      "unit": "px",
+      "min": 0,
+      "max": 22,
+      "step": 1,
+      "value": 9
+    },
+    {
+      "id": "marker",
+      "label": "荧光笔浓度",
+      "group": "印记",
+      "token": "--kami-marker",
+      "unit": "%",
+      "min": 0,
+      "max": 60,
+      "step": 2,
+      "value": 30
+    },
+    {
+      "id": "tilt",
+      "label": "印章倾角",
+      "group": "印记",
+      "token": "--kami-stamp-tilt",
+      "unit": "deg",
+      "min": -4,
+      "max": 0,
+      "step": 0.2,
+      "value": -1.2
+    }
+  ]
+}

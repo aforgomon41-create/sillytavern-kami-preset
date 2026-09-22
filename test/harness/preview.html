@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卡密预设 · 皮肤预览台</title>
+<style>
+  html,body{margin:0;padding:0;}
+  body{background:#0b0b0e;color:#cfcfd6;font-family:system-ui,"Microsoft YaHei",sans-serif;padding:12px 14px 80px;}
+  .bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+       background:rgba(16,16,22,.92);backdrop-filter:blur(8px);border:1px solid #2a2a35;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;}
+  .bar b{color:#b07dff;font-weight:600;}
+  .bar button{background:#23232d;border:1px solid #3a3a48;color:#dcdce4;border-radius:7px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px;}
+  .bar button:hover{background:#2e2e3a;}
+  #chat{max-width:820px;margin:0 auto;}
+  #qr-bar{display:flex;gap:6px;min-height:26px;margin-bottom:10px;}
+  .qr--button{background:#23232d;border:1px solid #3a3a48;border-radius:7px;padding:4px 9px;color:#dcdce4;cursor:pointer;font:inherit;font-size:13px;}
+  .qr--button-label{pointer-events:none;}
+  #send_textarea{width:100%;height:38px;margin-top:14px;background:#16161c;border:1px solid #2a2a35;border-radius:8px;color:#cfcfd6;}
+</style>
+</head>
+<body>
+<div class="bar">
+  <b>皮肤预览台</b>
+  <span id="hint">模拟酒馆页面 + 消息楼层 iframe；🎨 按钮在下方 QR bar，点击展开面板</span>
+  <span id="which" style="margin-left:auto;opacity:.7"></span>
+</div>
+<div id="qr-bar"></div>
+<pre id="diag" style="font-size:11px;color:#8f8fa0;white-space:pre-wrap;margin:0 0 8px"></pre>
+<pre id="pdiag" style="font-size:11px;color:#8fb0d0;white-space:pre-wrap;margin:0 0 8px"></pre>
+<pre id="btnrepro" style="font-size:11px;color:#d8c08f;white-space:pre-wrap;margin:0 0 8px"></pre>
+<div id="chat">
+  <div class="mes"><div class="mes_text" id="slot"></div></div>
+</div>
+<textarea id="send_textarea"></textarea>
+
+<script>
+/* 启动期异常必须可见：不然「脚本没挂上」只会表现为面板不出来 */
+window.addEventListener('unhandledrejection', function (e) {
+  var r = e && e.reason;
+  console.log('未处理拒绝|' + ((r && (r.message || r)) || 'unknown'));
+});
+window.addEventListener('error', function (e) {
+  console.log('页面错误|' + (e && e.message) + ' @' + (e && e.filename) + ':' + (e && e.lineno));
+});
+const STATE = { buttons: new Map(), visible: new Map(), handlers: new Map(), logs: [] };
+STATE.render = function () {
+  const bar = document.getElementById('qr-bar');
+  bar.textContent = '';
+  /* 与真酒馆一致：酒馆助手的脚本按钮是 QuickReply 按钮，
+     外面套一层 .qr--buttons 容器（ST: QuickReplySet.js render() root.classList.add('qr--buttons')），
+     每个按钮是 .qr--button 宿主 + .qr--button-label 文字。 */
+  const row = document.createElement('div');
+  row.className = 'qr--buttons';
+  for (const [id, list] of STATE.visible) {
+    for (const b of list) {
+      if (b.visible === false) continue;
+      const btn = document.createElement('button');
+      btn.className = 'qr--button';
+      btn.innerHTML = '<span class="qr--button-label"></span>';
+      btn.querySelector('.qr--button-label').textContent = b.name;
+      btn.addEventListener('click', () => {
+        const m = STATE.handlers.get('button:' + id + ':' + b.name);
+        if (m && m.size) { for (const w of [...m.values()]) w(); }
+      });
+      row.appendChild(btn);
+    }
+  }
+  bar.appendChild(row);
+};
+STATE.emit = function (evt, ...a) { const m = STATE.handlers.get(evt); if (m && m.size) { for (const w of [...m.values()]) w(...a); return true; } return false; };
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
+  w.getScriptId = () => scriptId;
+  w.getScriptButtons = () => (STATE.buttons.get(scriptId) || []).slice();
+  w.replaceScriptButtons = (a, b) => { const l = (typeof a === 'string' ? b : a) || []; STATE.buttons.set(scriptId, JSON.parse(JSON.stringify(l))); STATE.visible.set(scriptId, JSON.parse(JSON.stringify(l))); STATE.render(); };
+  w.appendInexistentScriptButtons = (l) => { const c = STATE.buttons.get(scriptId) || []; w.replaceScriptButtons([...c, ...(l || []).filter(x => !c.some(y => y.name === x.name))]); };
+  w.getButtonEvent = (n) => 'button:' + scriptId + ':' + n;
+  w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
+  w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
+  w.eventClearAll = () => STATE.handlers.clear();
+  w.getAllEnabledScriptButtons = () => { const o = {}; for (const [i, l] of STATE.buttons) o[i] = l.map(b => ({ button_id: b.name, button_name: b.name })); return o; };
+  w.getScriptTrees = () => [];
+  w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+  w.updateVariablesWith = (fn, o) => { const v = fn(w.getVariables(o)); w.replaceVariables(v, o); return v; };
+  /* SillyTavern 全局：预设置面板要用它读/写当前预设（与真机同一条路径）。
+     这里给的是**可观测**的活对象：prompt_order 就是那份真预设的 order，
+     saveSettingsDebounced 只计数、不写盘（没有 settings.json 可写）。 */
+  if (window.SillyTavern) { w.SillyTavern = window.SillyTavern; }
+}
+/* 真预设数据（src/preset.base.json）直接当酒馆的 oai_settings 用：
+   prompts / prompt_order / character_id 都是真的，面板解析出来的东西才作数。 */
+async function setupSillyTavern() {
+  const preset = await (await fetch('/src/preset.base.json')).json();
+  const order = (preset.prompt_order || []).find(o => o.character_id === 100001) || (preset.prompt_order || [])[0];
+  const settings = { name: preset.name || '预览台预设', prompts: preset.prompts || [], prompt_order: [order] };
+  const st = {
+    saves: 0, lastSaveAt: 0, settings: settings, order: order,
+    /* ③ 的验收口径：面板写完 prompt_order.enabled 之后，必须发一次
+       OAI_PRESET_CHANGED_AFTER（酒馆原生预设面板就是靠它重画的）。
+       这里只计数、只记调用顺序，不模拟酒馆的 render。 */
+    emits: [], seq: [],
+    /* 变量写回的观测点：面板改完 content 之后必须调 savePreset(预设名)，
+       而且**第二个参数必须不传**（传了酒馆就会拿那份残对象做白名单重建，把预设写坏）。 */
+    presetSaves: [],
+    ctx: {
+      chatCompletionSettings: settings,
+      saveSettingsDebounced: () => { st.saves++; st.lastSaveAt = Date.now(); st.seq.push('save'); },
+      eventSource: { emit: (name) => { st.emits.push(name); st.seq.push('emit:' + name); return true; } },
+      eventTypes: { OAI_PRESET_CHANGED_AFTER: 'oai_preset_changed_after' },
+      /* 酒馆自己的预设通道（st-context.js 的 getPresetManager + preset-manager.js 的 savePreset）。
+         这里是最小 mock：只记录调用，把 chatCompletionSettings.prompts[].content 当作
+         「保存结果」返回 —— 预览台**不写任何文件**，src/preset.base.json 是只读真相。 */
+      getPresetManager: (apiId) => ({
+        savePreset: (name, second) => {
+          st.presetSaves.push({ apiId: apiId, name: name, secondArg: second === undefined ? null : String(second).slice(0, 40) });
+          st.seq.push('savePreset:' + name);
+          return name;
+        }
+      })
+    }
+  };
+  st.getContext = () => st.ctx;
+  window.SillyTavern = st;
+  /* 观测用：某条目现在的 enabled（从活的 order 里现读，不是缓存） */
+  window.__stEnabled = (identifier) => {
+    const e = (st.order.order || []).find(x => x.identifier === identifier);
+    return e ? e.enabled : undefined;
+  };
+  return st;
+}
+async function loadScript(file, scriptId) {
+  const f = document.createElement('iframe');
+  f.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
+  f.src = 'about:blank';
+  document.body.appendChild(f);
+  await new Promise(r => { f.onload = r; setTimeout(r, 800); });
+  const w = f.contentWindow;
+  try {
+    installMocks(w, scriptId);
+    const code = await (await fetch(file)).text();
+    var h = document.getElementById('hint');
+    if (h) { h.textContent = '已取到 ' + file + ' (' + code.length + 'B)，准备注入'; }
+    w.eval(code);
+    if (h) { h.textContent = '已注入 ' + file; }
+  } catch (e) {
+    console.log('脚本注入失败|' + file + '|' + (e && (e.message || e)));
+    var h2 = document.getElementById('hint');
+    if (h2) { h2.textContent = '⚠ 脚本注入失败 ' + file + ' :: ' + (e && (e.message || e)); }
+    throw e;
+  }
+  return { iframe: f, w };
+}
+let BASE_CSS = '';
+async function makeFrame(kind) {
+  const d = document.createElement('div');
+  d.className = 'TH-render';
+  const f = document.createElement('iframe');
+  f.id = 'TH-message--' + (3 + Math.floor(Math.random() * 900)) + '--0';
+  f.name = f.id;
+  f.style.cssText = 'width:100%;height:120px;border:0;display:block;margin:10px 0';
+  d.appendChild(f);
+  document.getElementById('slot').appendChild(d);
+  f.onload = async function () {
+    if (f.getAttribute('data-written') === '1') { return; }   /* 写文档会再次触发 load，必须防重入 */
+    f.setAttribute('data-written', '1');
+    const html = await (await fetch('/doc/' + kind + '?demo=1')).text();
+    const doc = f.contentDocument;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => STATE.emit('message_iframe_render_ended', f.id), 120);
+    /* 高度自适应：模拟酒馆助手把 iframe 高度设为 body.scrollHeight 的行为 */
+    const fit = () => {
+      try {
+        const h = Math.max(doc.body.scrollHeight, 40);
+        if (Math.abs(f.clientHeight - h) > 2) { f.style.height = h + 'px'; }
+      } catch (e) { }
+    };
+    [60, 200, 500, 1000, 2000].forEach(t => setTimeout(fit, t));
+    window.addEventListener('resize', fit);
+    try { new ResizeObserver(fit).observe(doc.body); } catch (e) { }
+    /* 预览台专用兜底：真机里高度由酒馆助手的 ResizeObserver(body) 负责（已实测可靠），
+       但预览台的 iframe 是同文档内嵌的，展开/折叠时 RO 有时不触发；这里只「重新量一次」，
+       不改变任何被测代码的行为。 */
+    setInterval(fit, 1000);
+    /* 刻意不再监听 data-kami-open 之类的属性变化。
+       真机里酒馆助手只有 ResizeObserver(body) -> frameElement.style.height = body.scrollHeight，
+       预览台多一分额外贴心，就会把「前端自己不重测高度」这类 bug 掩盖掉（已经被坑过一次）。 */
+  };
+  return f;
+}
+
+/* ── d20 探针（装饰模块的验收用）───────────────────────────────
+   只用 DOM 上的数字独立复算「哪一面正对镜头」：
+     面片内联 transform 给出 rotateY(ry) rotateX(rx) -> 面法线 n = Ry(ry)Rx(rx)(0,0,1)
+     容器内联 transform 给出 rotateZ(az) rotateX(ax) rotateY(ay) -> M = Rz(ax 顺序同 CSS)
+   朝上的面 = argmax(M n).z，再和模块自己写的 data-kami-d20-value 对比。
+   复算代码与 src/decor/d20.js 无关，是独立实现。 */
+function d20m3mul(A, B) {
+  var C = [[0,0,0],[0,0,0],[0,0,0]];
+  for (var i = 0; i < 3; i++) for (var j = 0; j < 3; j++) for (var k = 0; k < 3; k++) C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+function d20m3v(M, v) { return [0,1,2].map(function (i) { return M[i][0]*v[0] + M[i][1]*v[1] + M[i][2]*v[2]; }); }
+function d20rx(a) { var c = Math.cos(a), s = Math.sin(a); return [[1,0,0],[0,c,-s],[0,s,c]]; }
+function d20ry(a) { var c = Math.cos(a), s = Math.sin(a); return [[c,0,s],[0,1,0],[-s,0,c]]; }
+function d20rz(a) { var c = Math.cos(a), s = Math.sin(a); return [[c,-s,0],[s,c,0],[0,0,1]]; }
+var D20RE_B = /rotateZ\(([-0-9.]+)deg\) rotateX\(([-0-9.]+)deg\) rotateY\(([-0-9.]+)deg\)/;
+var D20RE_F = /rotateY\(([-0-9.]+)deg\) rotateX\(([-0-9.]+)deg\)/;
+function d20front(el) {
+  var body = el.querySelector('.kami-d20-body');
+  if (!body) { return null; }
+  var mb = D20RE_B.exec(body.style.transform || '');
+  if (!mb) { return null; }
+  var D = Math.PI / 180;
+  var M = d20m3mul(d20rz(+mb[1]*D), d20m3mul(d20rx(+mb[2]*D), d20ry(+mb[3]*D)));
+  var kids = body.children, best = null, bestZ = -9;
+  for (var i = 0; i < kids.length; i++) {
+    var mf = D20RE_F.exec(kids[i].style.transform || '');
+    if (!mf) { continue; }
+    var n = d20m3v(d20m3mul(d20ry(+mf[1]*D), d20rx(+mf[2]*D)), [0,0,1]);
+    var z = d20m3v(M, n)[2];
+    if (z > bestZ) { bestZ = z; best = kids[i].getAttribute('data-kami-d20-n'); }
+  }
+  return best === null ? null : { n: best, z: bestZ };
+}
+function d20report(doc, tag) {
+  var dies = doc.querySelectorAll('.kami-d20');
+  var slots = doc.querySelectorAll('.kami-deco[data-kami-deco="d20"]');
+  var js = doc.getElementById('kami-d20-js') ? '有' : '无';
+  var css = doc.getElementById('kami-d20-css') ? '有' : '无';
+  if (!dies.length) {
+    /* 没有骰子时把槽位原样打出来：注销要求「槽位恢复为空、脚本与样式一并收回」 */
+    var raw = slots.length ? String(slots[0].outerHTML).replace(/\s+/g, ' ') : '（连槽位都没有）';
+    return tag + '=无骰子 槽位x' + slots.length + ' [' + raw + '] js=' + js + ' css=' + css;
+  }
+  var el = dies[0];
+  var faces = el.querySelectorAll('.kami-d20-face');
+  var f = d20front(el);
+  var val = el.getAttribute('data-kami-d20-value');
+  var st = (doc.defaultView.KamiD20 && doc.defaultView.KamiD20.stats) ? doc.defaultView.KamiD20.stats() : {};
+  var cs = doc.defaultView.getComputedStyle(el);
+  var size = ' 槽位宽=' + cs.width + ' 内联s=' + (el.style.getPropertyValue('--kami-d20-s') || '-') +
+    ' 令牌die=' + (cs.getPropertyValue('--kami-trpg-die') || '-') +
+    ' 计数=' + JSON.stringify(st);
+  return tag + '=' + faces.length + '面 val=' + val + size +
+    (el.getAttribute('data-kami-d20-rolling') === '1' ? ' 滚动中' : '') +
+    ' front=' + (f ? f.n : '?') + (f && String(f.n) === String(val) ? '(OK)' : '(??)') +
+    ' js=' + js + ' css=' + css +
+    ' tf=[' + ((el.querySelector('.kami-d20-body') || {}).style || {}).transform + ']';
+}
+(async function () {
+  var step = function (t) { var h = document.getElementById('hint'); if (h) { h.textContent = '▶ ' + t; } };
+  step('读兜底皮肤');
+  BASE_CSS = await (await fetch('/src/skin/base.css')).text();
+  var params = new URLSearchParams(location.search);
+  /* 预设置面板要读酒馆设置，所以先把 SillyTavern 全局准备好（真预设数据）。
+     ?nocontext=1：**故意不给** SillyTavern —— 验收「拿不到设置时面板照常打开并说明原因」。 */
+  var ST = (params.get('nocontext') === '1') ? { saves: 0 } : await setupSillyTavern();
+  step('装按钮中转站');
+  await loadScript('/dev/10-脚本按钮.js', 'hub');
+  await new Promise(r => setTimeout(r, 200));
+  /* ?noskin=1：不加载皮肤管理 —— 用来验收「皮肤管理没运行时面板的兜底皮肤」 */
+  if (params.get('noskin') !== '1') { step('装皮肤管理'); await loadScript('/dev/30-皮肤管理.js', 'skinmgr'); }
+  step('等皮肤管理就绪');
+  await new Promise(r => setTimeout(r, 1800));
+  step('建消息楼层');
+  await makeFrame('think'); await makeFrame('options');
+  await new Promise(r => setTimeout(r, 1200));
+  step('装预设设置面板');
+  await loadScript('/dev/40-预设设置.js', 'presetmgr');
+  step('预设设置已装');
+  await new Promise(r => setTimeout(r, 1200));
+  if (params.get('presetclosed') !== '1') { try { window.KamiPreset.open(); } catch (e) { } }
+  if (params.get('reset') === '1') {
+    try { ['kami.think.open', 'kami.think.view', 'kami.options.mode'].forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
+  }
+  /* ?skin= 永远优先：等皮肤管理就绪后强制设定一次 */
+  var want = params.get('skin');
+  if (want) {
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      try {
+        if (window.KamiSkin && window.KamiSkin.skins().some(function (x) { return x.id === want; })) {
+          window.KamiSkin.setSkin(want); clearInterval(timer);
+        }
+      } catch (e) { }
+      if (tries > 40) { clearInterval(timer); }
+    }, 250);
+  }
+  if (params.get('closed') !== '1') { try { window.KamiSkin.open(); } catch (e) { } }
+  /* 启动失败要显眼，别让验收的人以为是皮肤坏了（?noskin=1 本来就没加载皮肤管理，不算异常） */
+  setTimeout(function () {
+    var noskin = params.get('noskin') === '1';
+    var okSkin = !!window.KamiSkin, okHub = !!(window.__hub), okPreset = !!window.KamiPreset;
+    if (!okHub || !okPreset || (!okSkin && !noskin)) {
+      var b = document.createElement('div');
+      b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#7a1020;color:#fff;padding:6px 12px;font-size:13px';
+      b.textContent = '预览台异常：' + (okHub ? '' : '__hub 未启动 ') + (okPreset ? '' : 'KamiPreset 未启动 ') +
+        ((noskin || okSkin) ? '' : 'KamiSkin 未启动 ') + '（检查本端口服务器是否在跑，或刷新页面）';
+      document.body.appendChild(b);
+    }
+  }, 4000);
+  /* ── 预设置面板探针（独立于皮肤探针：noskin / 皮肤管理被注销后也要继续报数）──
+     只读：读的是面板脚本自己的 KamiPreset / 与 mock 的计数器，不改被测代码的任何行为。 */
+  var lastLine = '';
+  setInterval(function () {
+    var P = window.KamiPreset;
+    if (!P) return;
+    var out = [];
+    try {
+      var st = P.status();
+      var ins = P.inspect();
+      out.push('状态|ok=' + st.ok + ' 预设=' + (st.preset || '-') + ' 错误=' + (st.error || '无') +
+        ' tab=' + st.tabCount + '(特殊' + st.specialTabCount + ') 卡片=' + st.cardCount + ' 开关=' + st.switchCount +
+        ' 锁定=' + st.lockedCount + ' 写入=' + st.writes + ' 保存=' + st.saves +
+        ' 事件=' + st.presetChangedEmits + '/' + st.presetChangedSkipped);
+      out.push('tab名|' + ins.tabTitles.join(' / '));
+      ins.tabs.forEach(function (t) {
+        var cards = t.cards.map(function (c) { return c.name + '(' + c.mode + ',' + c.items + ')'; }).join(' ');
+        out.push('tab[' + t.title + ']' + (t.special ? ' 特殊=' + t.special : '') + ' 卡片' + t.cards.length + ' 条目' + t.itemCount + ' :: ' + cards);
+      });
+      var pn = document.getElementById('kami-preset-panel');
+      var pd = pn ? pn.querySelector('.kami-drop') : null;
+      var rr = function (el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(','); };
+      var tabs = pd ? pd.querySelectorAll('.kami-tab') : [];
+      var tops = [];
+      tabs.forEach(function (t) { if (tops.indexOf(t.offsetTop) < 0) tops.push(t.offsetTop); });
+      /* ① 卡片化的读数：网格列数（窄屏要 2 列）、条目卡张数、开/关分布、以及「老的一行滑块」必须是 0 */
+      var grids = pd ? pd.querySelectorAll('.kami-grid') : [];
+      var cards = pd ? pd.querySelectorAll('button.kami-item.kami-card[data-kami-item]') : [];
+      var onCount = 0;
+      cards.forEach(function (b) { if (b.getAttribute('aria-pressed') === 'true') { onCount++; } });
+      var gridCols = [], gridW = [];
+      /* 只认「看得见」的那张网格（隐藏 tab 的网格宽为 0，列数是没用到的计算值）：
+         把宽>0 的网格单独串成 宽:列 的读数，验收列数只看它。 */
+      var visGrid = '';
+      grids.forEach(function (g) {
+        var t = '';
+        try { t = getComputedStyle(g).gridTemplateColumns || ''; } catch (e2) { }
+        var n = t.split(' ').filter(function (x) { return x.length > 0; }).length;
+        gridCols.push(n);
+        gridW.push(g.clientWidth);
+        if (g.clientWidth > 0) {
+          var gap = parseFloat(getComputedStyle(g).columnGap) || 0;
+          var first = g.querySelector('button.kami-item, .kami-item');
+          var fw = first ? Math.round(first.getBoundingClientRect().width) : 0;
+          var fh = first ? Math.round(first.getBoundingClientRect().height) : 0;
+          visGrid += (visGrid ? ' + ' : '') + g.clientWidth + 'px→' + n + '列 卡' + fw + 'x' + fh + ' 间距' + gap;
+        }
+      });
+      var longName = '';
+      try {
+        var names = [];
+        cards.forEach(function (b) {
+          var el = b.querySelector('.kami-item-main');
+          if (!el) { return; }
+          var h = el.getBoundingClientRect().height;
+          var lh = parseFloat(getComputedStyle(el).lineHeight) || 0;
+          var lines = lh ? Math.round(h / lh) : 0;
+          if (lines > 1 && names.length < 2) { names.push((el.textContent || '').slice(0, 12) + '=' + lines + '行'); }
+          if ((el.textContent || '').length > longName.length) longName = el.textContent || '';
+        });
+        longName = longName.length + '字' + (names.length ? ' 换行样本 ' + names.join(' ') : ' 无换行');
+      } catch (e5) { longName = 'err'; }
+      out.push('条目卡|共' + cards.length + '张(开' + onCount + '/关' + (cards.length - onCount) + ') 老滑块.kami-switch=' +
+        (pd ? pd.querySelectorAll('.kami-switch').length : '-') + ' 网格数=' + grids.length +
+        ' 列数=' + gridCols.join('/') + ' 网格宽=' + gridW.join('/') +
+        ' 可见网格[' + (visGrid || '无') + ']' +
+        ' 首卡=' + (cards.length ? (function () {
+          var b = cards[0].getBoundingClientRect();
+          return Math.round(b.width) + 'x' + Math.round(b.height);
+        })() : '-') + ' 名字=' + longName);
+      var de = document.documentElement;
+      var bar = pd ? pd.querySelector('.kami-tabs') : null;
+      out.push('面板|视口' + de.clientWidth + 'x' + de.clientHeight +
+        ' skin=' + (de.getAttribute('data-kami-skin') || 'none') +
+        ' open=' + (pd ? pd.getAttribute('data-kami-open') : '-') +
+        ' layout=' + (pd ? pd.getAttribute('data-kami-layout') : '-') +
+        ' 舞台=' + (pn ? rr(pn) : '无') + ' drop=' + (pd ? rr(pd) : '无') +
+        ' 令牌x=' + (pn ? (pn.style.getPropertyValue('--kami-panel-x') || '空') : '-') +
+        ' tab行: 条数=' + tabs.length + ' 不同行数=' + tops.length +
+        ' 轨道' + (bar ? (bar.clientWidth + '/' + bar.scrollWidth + (bar.scrollWidth > bar.clientWidth ? '(可横滚)' : '(无溢出)')) : '-') +
+        ' 面板内溢出=' + (pd ? (pd.scrollWidth - pd.clientWidth) : '-') +
+        ' 页面溢出=' + (de.scrollWidth - de.clientWidth) +
+        /* ② tab 轨的实时读数：用真滚轮 / 真拖动打进来之后，这里必须变 */
+        ' tab轨=' + (bar ? (Math.round(bar.scrollLeft) + '/' + bar.scrollWidth + ' 可视' + bar.clientWidth) : '-'));
+      out.push('探测|保存次数=' + ST.saves + ' 事件发出=' + JSON.stringify(ST.emits) +
+        ' 调用序列=' + ST.seq.join('>') +
+        ' 锁定条目在面板里=' + JSON.stringify(ins.lockedInPanel) +
+        ' 面板里开关数=' + ins.drawnIdentifiers.length + ' 锁定数=' + ins.lockedIdentifiers.length);
+      /* 面板自己的脚注原文（人看到的数字） */
+      var footEl = pd ? pd.querySelector('[data-kami-role="status"]') : null;
+      if (footEl) { out.push('脚注|' + footEl.textContent); }
+      /* 「🗣️ [语言文字]」这张单选卡的四条：点一条之后这里会立刻反映出来（读的是活的 order）。
+         ?nocontext=1 时没有 mock，跳过这一段。 */
+      if (window.__stEnabled) {
+        var LANGS = ['1691ea8b-623b-4b71-8f22-b91b04b70241', '15b8dc34-afa9-4c80-8311-e569655a0ed2',
+          '4c306bfa-1f19-4b25-8578-3b42717ccbe3', '5412371f-2849-49d4-9e6a-0d61d5588ffa'];
+        out.push('开关读数|保存次数=' + ST.saves + ' 事件次数=' + ST.emits.length + ' 简体=' + window.__stEnabled(LANGS[0]) +
+          ' 繁体=' + window.__stEnabled(LANGS[1]) + ' English=' + window.__stEnabled(LANGS[2]) +
+          ' 日本語=' + window.__stEnabled(LANGS[3]));
+      }
+      /* 面板本体溢出时把「谁宽了」列出来：overflow:hidden 的 .kami-drop 会把超出的部分**裁掉**，
+         只看一个总数（drop 420/472）是查不出是哪一层宽了的。 */
+      if (pd && pd.scrollWidth - pd.clientWidth > 1) {
+        var over = [];
+        var all = pn.querySelectorAll('*');
+        for (var oi = 0; oi < all.length; oi++) {
+          var e2 = all[oi];
+          if (e2.clientWidth > 0 && e2.scrollWidth - e2.clientWidth > 1) {
+            over.push((e2.className || e2.tagName) + ' ' + e2.clientWidth + '>' + e2.scrollWidth);
+          }
+        }
+        out.push('溢出元素|' + over.slice(0, 8).join(' ｜ '));
+        var kids = [];
+        for (var ki = 0; ki < pd.children.length; ki++) {
+          var k = pd.children[ki];
+          kids.push((k.className || k.tagName) + ' ow=' + k.offsetWidth + ' cw=' + k.clientWidth + ' sw=' + k.scrollWidth);
+        }
+        out.push('drop子元素|' + kids.join(' ｜ '));
+      }
+      /* 「🧩 设置变量」与「注释查看」的只读读数（探测口，不改被测代码行为） */
+      try {
+        var vs = P.vars();
+        var vcards = vs.cards.map(function (c) {
+          return c.name + '(' + c.kind + ':' + c.vars.map(function (v) { return v.name + '=' + v.value; }).join(',') + ')';
+        });
+        var vinputs = pd ? pd.querySelectorAll('[data-kami-var]') : [];
+        out.push('变量|卡' + vs.cards.length + ' 输入框' + vinputs.length + ' 写回' + vs.varWrites + ' :: ' + vcards.join(' '));
+        var marks = pd ? pd.querySelectorAll('[data-kami-note-mark]') : [];
+        var opened = pd ? pd.querySelectorAll('[data-kami-note]:not([hidden])') : [];
+        var box = pd ? pd.querySelectorAll('[data-kami-note]') : [];
+        out.push('注释|有标记' + marks.length + ' 注释元素' + box.length + ' 已展开' + opened.length +
+          ' ｜ 面板卡片头有标记=' + (pd ? pd.querySelectorAll('.kami-card > .kami-card-head [data-kami-note-mark]').length : '-'));
+      } catch (e6) { out.push('变量/注释探针出错|' + (e6 && e6.message)); }
+      /* 对照组：皮肤管理自己的面板（同一层几何、同一套皮肤），用来区分
+         「我的面板宽了」和「trpg 皮肤/兜底皮肤本来就多这几像素」 */
+      try {
+        var sp = document.getElementById('kami-skin-panel');
+        var spd = sp ? sp.querySelector('.kami-drop') : null;
+        if (spd) { out.push('皮肤面板|drop=' + spd.clientWidth + '>' + spd.scrollWidth); }
+      } catch (e) { }
+      /* 幂等性一次性自检：拿一条**已经是开**的条目再要求开一遍（取值相同），
+         期望 saveSettingsDebounced 不增加、值不变 —— 这就是「已经是目标状态就不写」。 */
+      if (!window.__idemDone && window.KamiPreset && ST.settings) {
+        window.__idemDone = true;
+        setTimeout(function () {
+          try {
+            var first = document.querySelector('#kami-preset-panel [data-kami-item][aria-pressed="true"]');
+            if (!first) { console.log('预设探针|幂等自检|找不到已打开的开关'); return; }
+            var id = first.getAttribute('data-kami-item');
+            var before = ST.saves;
+            var r = window.KamiPreset.setEnabled(id, true);
+            console.log('预设探针|幂等自检|条目=' + id + ' 已开=' + window.__stEnabled(id) +
+              ' 写入前保存=' + before + ' 写入后保存=' + ST.saves + ' 返回改动=' + r.changed +
+              ' 现在值=' + window.__stEnabled(id));
+          } catch (e) { console.log('预设探针|幂等自检出错|' + (e && e.message)); }
+        }, 2500);
+      }
+    } catch (e) { out.push('探针出错|' + (e && e.message)); }
+    var txt = out.join(String.fromCharCode(10));
+    document.getElementById('pdiag').textContent = txt;
+    if (txt !== lastLine) {
+      lastLine = txt;
+      /* 整块只在页面上滚（#pdiag）；控制台留给「列数探针 / 渗漏探针」两条短行，
+         不然扫一遍宽度会被十几行日志淹没（?probelog=1 可以把整块也打到控制台）。 */
+      if (params.get('probelog') === '1') {
+        txt.split(String.fromCharCode(10)).forEach(function (l) { console.log('预设探针|' + l); });
+      }
+    }
+  }, 600);
+  /* ?check=1：⑤①④② 的一次性只读自检（只看外观与状态，不改被测代码行为）
+       · 点一张条目卡之后，当前 tab / 面板几何 / 该页滚动位置必须一个都不变
+       · 条目卡上不允许再有「开 / 关」那枚 .kami-chip 小标签
+       · tab 行溢出时，纵向滚轮必须把它滚起来 */
+  if (params.get('check') === '1') {
+    setTimeout(function () {
+      var P = window.KamiPreset;
+      var pn = document.getElementById('kami-preset-panel');
+      var pd = pn ? pn.querySelector('.kami-drop') : null;
+      if (!P || !pd) { console.log('复位自检|面板没起来，跳过'); return; }
+      var rectOf = function (el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(','); };
+      var paneOf = function (k) { return pd.querySelector('[data-kami-pane="' + k + '"]'); };
+      /* 换到一个有内容、且能滚的 tab 上（第一个非空 tab） */
+      var ins = P.inspect();
+      var picked = null;
+      ins.tabs.forEach(function (t) { if (!picked && !t.special && t.cards.length) picked = t.key; });
+      if (!picked) { console.log('复位自检|没有可点的 tab，跳过'); return; }
+      P.open();
+      pd.querySelector('[data-kami-tab="' + picked + '"]').click();
+      setTimeout(function () {
+        var pane = paneOf(P.status().activeTab);
+        if (pane) { pane.scrollTop = 40; }
+        var before = {
+          tab: P.status().activeTab, rect: rectOf(pd),
+          tok: [pn.style.getPropertyValue('--kami-panel-x'), pn.style.getPropertyValue('--kami-panel-y'),
+            pn.style.getPropertyValue('--kami-panel-w'), pn.style.getPropertyValue('--kami-panel-h')].join(','),
+          scroll: pane ? pane.scrollTop : -1
+        };
+        var card = pd.querySelector('[data-kami-pane="' + before.tab + '"] [data-kami-item]');
+        if (!card) { console.log('复位自检|这一页没有条目卡，跳过'); return; }
+        var id = card.getAttribute('data-kami-item');
+        var wasOn = card.getAttribute('aria-pressed') === 'true';
+        /* ④ 条目卡上不该再有小标签 */
+        var chip = pd.querySelectorAll('.kami-item .kami-chip').length;
+        var chipTexts = [];
+        pd.querySelectorAll('.kami-item .kami-chip').forEach(function (c) { if (chipTexts.indexOf(c.textContent) < 0) { chipTexts.push(c.textContent); } });
+        /* ② tab 行滚轮：纵向滚轮必须把它滚起来 */
+        var bar = pd.querySelector('.kami-tabs');
+        var over = bar.scrollWidth - bar.clientWidth;
+        var wheelManual = null;
+        /* ② 只报「这条轨道本身能不能滚」：合成 WheelEvent 在 Chrome 里既不会冒泡到监听器、
+           也一律带 defaultPrevented，拿它测滚轮 handler 是测不出来的（实测过）。
+           真滚轮用手动操作验，这里只给出溢出量与可滚性。 */
+        if (over > 4) {
+          var manual = bar.scrollLeft; bar.scrollLeft = 120; wheelManual = (bar.scrollLeft === 120); bar.scrollLeft = manual;
+        }
+        /* ⑤ 点开关：看它会不会把面板整体重画 */
+        card.click();
+        setTimeout(function () {
+          var after = {
+            tab: P.status().activeTab, rect: rectOf(pd),
+            tok: [pn.style.getPropertyValue('--kami-panel-x'), pn.style.getPropertyValue('--kami-panel-y'),
+              pn.style.getPropertyValue('--kami-panel-w'), pn.style.getPropertyValue('--kami-panel-h')].join(','),
+            scroll: paneOf(before.tab) ? paneOf(before.tab).scrollTop : -1
+          };
+          var card2 = pd.querySelector('[data-kami-item="' + id + '"]');
+          console.log('复位自检|tab ' + before.tab + '→' + after.tab + '（不变=' + (before.tab === after.tab) + '）' +
+            ' 几何 ' + before.rect + '→' + after.rect + '（不变=' + (before.rect === after.rect) + '）' +
+            ' 令牌 ' + before.tok + '→' + after.tok + '（不变=' + (before.tok === after.tok) + '）' +
+            ' 滚动 ' + before.scroll + '→' + after.scroll +
+            ' 卡片已就地翻转=' + (card2 && (card2.getAttribute('aria-pressed') === 'true') === !wasOn) +
+            ' 同一张卡还在=' + !!card2 +
+            ' .is-on=' + (card2 ? card2.classList.contains('is-on') : '-') +
+            ' 值=' + window.__stEnabled(id));
+          console.log('复位自检|条目卡上的 .kami-chip 标签=' + chip + ' 张' + (chip ? ' 文案=' + JSON.stringify(chipTexts) : '') +
+            ' ｜ tab行 ' + bar.clientWidth + '/' + bar.scrollWidth +
+            '（溢出=' + over + ' 轨道可滚=' + wheelManual + '）');
+        }, 700);
+      }, 700);
+    }, 3000);
+  }
+  /* ?notes=1：注释查看的一次性自检（一次真实点击，等 500ms 看结果）
+       ① 有注释的条目卡上有一枚 ⓘ，没注释的**一枚都没有**；
+       ② 点 ⓘ → 注释展开、**开关没被翻**（aria-pressed / 活设置 / 保存次数都不动）；
+       ③ 再点一下收起；
+       ④ 前后 tab、面板几何令牌、滚动位置一个都不许变。 */
+  if (params.get('notes') === '1') {
+    setTimeout(function () {
+      var P = window.KamiPreset;
+      var pn = document.getElementById('kami-preset-panel');
+      var pd = pn ? pn.querySelector('.kami-drop') : null;
+      if (!P || !pd) { console.log('注释自检|面板没起来，跳过'); return; }
+      var rectOf = function (el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(','); };
+      var tokOf = function () { return [pn.style.getPropertyValue('--kami-panel-x'), pn.style.getPropertyValue('--kami-panel-y'), pn.style.getPropertyValue('--kami-panel-w'), pn.style.getPropertyValue('--kami-panel-h')].join(','); };
+      /* ⚠️ P.open() 会整块重画面板（refresh(true)），所以**先开面板、再取元素引用**，
+         否则拿到的是已经被摘掉的旧节点，点它什么都不会发生。 */
+      P.open();
+      var all = pd.querySelectorAll('[data-kami-item]'), i, perPane = {};
+      var withMark = 0, bare = null, picked = null;
+      for (i = 0; i < all.length; i++) {
+        var mm = all[i].querySelector('[data-kami-note-mark]');
+        var pk = all[i].closest('[data-kami-pane]');
+        pk = pk ? pk.getAttribute('data-kami-pane') : '?';
+        if (!perPane[pk]) { perPane[pk] = { on: 0, off: 0, onNames: [], offName: '' }; }
+        if (mm) {
+          withMark++; perPane[pk].on++;
+          if (perPane[pk].onNames.length < 4) { perPane[pk].onNames.push(all[i].getAttribute('aria-label')); }
+          if (!picked) { picked = { mark: mm, card: all[i] }; }
+        } else {
+          perPane[pk].off++;
+          if (!perPane[pk].offName) { perPane[pk].offName = all[i].getAttribute('aria-label'); }
+        }
+      }
+      console.log('注释自检|条目卡共' + all.length + ' 张：有标记 ' + withMark + ' 张，无标记 ' + (all.length - withMark) + ' 张');
+      Object.keys(perPane).forEach(function (k) {
+        var v = perPane[k];
+        console.log('注释自检|  pane ' + k + '：有标记 ' + v.on + ' 张 [' + v.onNames.join(' / ') + ']，无标记 ' + v.off + ' 张，例：' + v.offName);
+      });
+      var headMarks = [];
+      pd.querySelectorAll('.kami-card-head > [data-kami-note-mark]').forEach(function (m) {
+        var box = m.closest('.kami-card');
+        if (box && box.classList.contains('kami-item')) { return; }   // 条目卡内的不算卡片头
+        var ttl = box ? box.querySelector('.kami-card-title') : null;
+        if (ttl) { headMarks.push(ttl.textContent); }
+      });
+      console.log('注释自检|卡片头有标记 ' + headMarks.length + ' 张: ' + headMarks.join(' / '));
+      if (!picked) { console.log('注释自检|找不到带注释的条目卡，跳过'); return; }
+      var tab = picked.card.closest('[data-kami-pane]').getAttribute('data-kami-pane');
+      pd.querySelector('[data-kami-tab="' + tab + '"]').click();
+      setTimeout(function () {
+        var pane = pd.querySelector('[data-kami-pane="' + tab + '"]');
+        if (pane) { pane.scrollTop = 30; }
+        /* 切 tab 之后重新取一次引用（切 tab 只切 hidden，不会重画；这里仍然是保险） */
+        var mark = null, card = null;
+        var again = pd.querySelectorAll('[data-kami-item]');
+        for (var q = 0; q < again.length; q++) {
+          var mm2 = again[q].querySelector('[data-kami-note-mark]');
+          if (mm2 && again[q].closest('[data-kami-pane]') === pane) { mark = mm2; card = again[q]; break; }
+        }
+        if (!card) { console.log('注释自检|这一页没有带注释的条目卡，跳过'); return; }
+        var txt = card.querySelector('[data-kami-note]');
+        var before = {
+          tab: P.status().activeTab, rect: rectOf(pd), tok: tokOf(), scroll: pane ? pane.scrollTop : -1,
+          hidden: txt.hasAttribute('hidden'), on: card.getAttribute('aria-pressed'),
+          saves: ST.saves, pressed: window.__stEnabled(card.getAttribute('data-kami-item'))
+        };
+        mark.click();
+        var mid = { hidden: txt.hasAttribute('hidden'), on: card.getAttribute('aria-pressed'), saves: ST.saves, pressed: window.__stEnabled(card.getAttribute('data-kami-item')) };
+        console.log('注释自检|展开|条目=' + card.getAttribute('aria-label') + ' 展开前 hidden=' + before.hidden + ' 展开后 hidden=' + mid.hidden +
+          ' 注释首句=' + JSON.stringify((txt.textContent || '').slice(0, 26)) +
+          ' ｜ aria-pressed ' + before.on + '→' + mid.on + '（开关没被翻=' + (before.on === mid.on) + '）' +
+          ' 活设置 ' + before.pressed + '→' + mid.pressed + '（不变=' + (before.pressed === mid.pressed) + '）' +
+          ' 保存次数 ' + before.saves + '→' + mid.saves + '（不变=' + (before.saves === mid.saves) + '）');
+        mark.click();
+        setTimeout(function () {
+          var after = { tab: P.status().activeTab, rect: rectOf(pd), tok: tokOf(), scroll: pane ? pane.scrollTop : -1 };
+          console.log('注释自检|收起|hidden=' + txt.hasAttribute('hidden') + ' aria-expanded=' + mark.getAttribute('aria-expanded') +
+            ' ｜ tab ' + before.tab + '→' + after.tab + '（不变=' + (before.tab === after.tab) + '）' +
+            ' 几何 ' + before.rect + '→' + after.rect + '（不变=' + (before.rect === after.rect) + '）' +
+            ' 令牌 ' + before.tok + '→' + after.tok + '（不变=' + (before.tok === after.tok) + '）' +
+            ' 滚动 ' + before.scroll + '→' + after.scroll + '（不变=' + (before.scroll === after.scroll) + '）');
+        }, 500);
+      }, 700);
+    }, 3200);
+  }
+  /* ?vars=1：设置变量 tab 的一次性自检
+       ① 数卡、读初值；② 改一个数字看写回后的 content（前后只差那一位）；
+       ③ 范围卡填反 → 自动交换；④ 前后 tab / 几何 / 滚动不变。 */
+  if (params.get('vars') === '1') {
+    setTimeout(function () {
+      var P = window.KamiPreset;
+      var pn = document.getElementById('kami-preset-panel');
+      var pd = pn ? pn.querySelector('.kami-drop') : null;
+      if (!P || !pd) { console.log('变量自检|面板没起来，跳过'); return; }
+      var rectOf = function (el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(','); };
+      var tokOf = function () { return [pn.style.getPropertyValue('--kami-panel-x'), pn.style.getPropertyValue('--kami-panel-y'), pn.style.getPropertyValue('--kami-panel-w'), pn.style.getPropertyValue('--kami-panel-h')].join(','); };
+      var vtab = null;
+      P.inspect().tabs.forEach(function (t) { if (t.special === 'var') { vtab = t.key; } });
+      if (!vtab) { console.log('变量自检|没有变量 tab，跳过'); return; }
+      P.open();
+      pd.querySelector('[data-kami-tab="' + vtab + '"]').click();
+      setTimeout(function () {
+        var pane = pd.querySelector('[data-kami-pane="' + vtab + '"]');
+        var inputs = pane.querySelectorAll('[data-kami-var]');
+        var before = { tab: P.status().activeTab, rect: rectOf(pd), tok: tokOf(), scroll: pane ? pane.scrollTop : -1 };
+        var v0 = P.vars();
+        console.log('变量自检|卡 ' + v0.cards.length + ' 张，输入框 ' + inputs.length + ' 个：');
+        v0.cards.forEach(function (c) {
+          console.log('变量自检|  ' + c.name + '  ' + c.kind + '  ' + c.vars.map(function (v) { return v.name + '=' + v.value; }).join(' , '));
+        });
+        var inp = inputs[0];
+        var name = inp.getAttribute('data-kami-var');
+        var oldVal = inp.value;
+        var newVal = String(Number(oldVal) + 1);
+        var c0 = (v0.contents[0] || {}).content;
+        inp.value = newVal;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        setTimeout(function () {
+          var v1 = P.vars();
+          var c1 = (v1.contents[0] || {}).content;
+          var diff = -1;
+          for (var k = 0; k < Math.max(c0.length, c1.length); k++) { if (c0.charAt(k) !== c1.charAt(k)) { diff = k; break; } }
+          var restSame = (c0.slice(diff + 1) === c1.slice(diff + 1));
+          console.log('变量自检|改值|' + name + ' ' + oldVal + '→' + newVal +
+            ' ｜ savePreset 调用=' + JSON.stringify(ST.presetSaves) +
+            ' ｜ 输入框 data-kami-old=' + inp.getAttribute('data-kami-old') + ' 显示值=' + inp.value);
+          console.log('变量自检|content 前| ' + JSON.stringify(c0));
+          console.log('变量自检|content 后| ' + JSON.stringify(c1));
+          console.log('变量自检|差异位置=' + diff + ' 只差这一处=' + restSame + '（长度 ' + c0.length + '→' + c1.length + '）');
+          /* 范围卡：把 min 填得比 max 大，看它自不自动交换 */
+          var rangeCard = null;
+          for (var r = 0; r < v1.cards.length; r++) { if (v1.cards[r].kind === 'range') { rangeCard = v1.cards[r]; break; } }
+          if (rangeCard) {
+            var box = pane.querySelector('[data-kami-var-card="' + rangeCard.key + '"]');
+            var two = box ? box.querySelectorAll('[data-kami-var]') : [];
+            if (two.length === 2) {
+              var a = two[0].value, b = two[1].value;
+              var typed = String(Number(b) + 100);
+              two[0].value = typed;      // 故意把 min 填得比 max 大
+              two[1].value = b;
+              two[0].dispatchEvent(new Event('change', { bubbles: true }));
+              setTimeout(function () {
+                var now2 = P.vars().cards.filter(function (c) { return c.key === rangeCard.key; })[0];
+                console.log('变量自检|填反交换| ' + rangeCard.label + ' 原 ' + a + '/' + b +
+                  ' → 填成 min=' + typed + ' max=' + b + '（填反）→ 结果 min=' + now2.vars[0].value + ' max=' + now2.vars[1].value +
+                  ' ｜ 输入框显示 ' + two[0].value + '/' + two[1].value +
+                  ' ｜ 交换成功=' + (String(now2.vars[0].value) === String(b) && String(now2.vars[1].value) === typed));
+                var after = { tab: P.status().activeTab, rect: rectOf(pd), tok: tokOf(), scroll: pane ? pane.scrollTop : -1 };
+                console.log('变量自检|改值后| tab ' + before.tab + '→' + after.tab + '（不变=' + (before.tab === after.tab) + '）' +
+                  ' 几何 ' + before.rect + '→' + after.rect + '（不变=' + (before.rect === after.rect) + '）' +
+                  ' 令牌 ' + before.tok + '→' + after.tok + '（不变=' + (before.tok === after.tok) + '）' +
+                  ' 滚动 ' + before.scroll + '→' + after.scroll + '（不变=' + (before.scroll === after.scroll) + '）');
+              }, 600);
+            }
+          }
+        }, 600);
+      }, 800);
+    }, 3200);
+  }
+  /* ?shutdown=1：验收「注销零残留」——面板 / 自注入样式 / 全局 API / 登记 / 中转站按钮逐项点名。
+     只调用被测脚本自己公开的 KamiPreset.shutdown()，不做任何额外清理。 */
+  if (params.get('shutdown') === '1') {
+    setTimeout(function () {
+      var snap = function () {
+        return {
+          panel: !!document.getElementById('kami-preset-panel'),
+          css: !!document.getElementById('kami-preset-css'),
+          api: !!window.KamiPreset,
+          defs: (window.__hubDefs || []).filter(function (d) { return d && d.name === '🌟卡密预设'; }).length,
+          hub: (window.__hub && window.__hub.buttons) ? window.__hub.buttons.map(function (b) { return b.name; }) : 'nohub',
+          dom: document.querySelectorAll('[data-kami-item]').length
+        };
+      };
+      try {
+        var before = snap();
+        window.KamiPreset.shutdown();
+        var after = snap();
+        console.log('预设探针|注销前|面板=' + before.panel + ' 样式=' + before.css + ' API=' + before.api +
+          ' 登记=' + before.defs + ' 中转站按钮=' + JSON.stringify(before.hub) + ' 开关DOM=' + before.dom);
+        console.log('预设探针|注销后|面板=' + after.panel + ' 样式=' + after.css + ' API=' + after.api +
+          ' 登记=' + after.defs + ' 中转站按钮=' + JSON.stringify(after.hub) + ' 开关DOM=' + after.dom);
+      } catch (e) { console.log('预设探针|注销出错|' + (e && e.message)); }
+    }, 4500);
+  }
+  setInterval(() => {
+    if (!window.KamiSkin) return;
+    var diag = [];
+    var leakLine = '';   /* 渗漏探针的汇总：变了才往控制台打一行，方便精确取回每个皮肤的一条读数 */
+    document.querySelectorAll('#slot iframe').forEach(function (f) {
+      try {
+        var d = f.contentDocument, r = d.querySelector('.kami-root');
+        diag.push(f.id.slice(11, 20) + ' ' + f.clientWidth + 'x' + f.clientHeight +
+          ' sw=' + d.body.scrollWidth + ' sh=' + d.body.scrollHeight +
+          ' root=' + (r ? (r.getAttribute('data-kami-view') || '-') + '/' + (r.querySelector('.kami-collapse') ? r.querySelector('.kami-collapse').getAttribute('data-kami-open') : 'x') : 'none') +
+          ' items=' + d.querySelectorAll('.kami-item').length +
+          ' skin=' + (d.documentElement.getAttribute('data-kami-skin') || 'none'));
+        try { diag.push(d20report(d, 'd20:' + f.id.slice(11, 20))); } catch (e) { diag.push('d20:err'); }
+        /* 文案落地核对：槽位渲染出的字必须等于皮肤令牌给的字。
+           四套皮肤的令牌值原本与前端 HTML 里的默认值一字不差，所以「令牌到底有没有被解析到」
+           在这次改文案之前根本分辨不出来 —— 这里把三个令牌值单独读出来，回退到默认值会当场暴露。 */
+        try {
+          var cr = [];
+          ['think-title', 'think-title-open', 'options-title'].forEach(function (k) {
+            var v = '';
+            try { v = getComputedStyle(r).getPropertyValue('--kami-label-' + k).trim(); } catch (e2) { }
+            cr.push(k + '=' + (v || '空'));
+          });
+          d.querySelectorAll('.kami-root [data-kami-label]').forEach(function (el) {
+            var slot = el.getAttribute('data-kami-label');
+            var cur = (el.textContent || '').trim();
+            var lh = parseFloat(getComputedStyle(el).lineHeight) || 0;
+            var hh = el.getBoundingClientRect().height;
+            cr.push('shown ' + slot + '=' + cur + (lh ? (' 行数' + Math.round(hh / lh)) : ''));
+          });
+          var hd = r ? r.querySelector('.kami-head') : null;
+          cr.push('标题栏溢出=' + (hd ? (hd.scrollWidth - hd.clientWidth) : 'x'));
+          diag.push('文案|' + f.id.slice(11, 20) + '| ' + cr.join(' ｜ '));
+        } catch (e3) { diag.push('文案|err'); }
+        /* 渗漏探针：**消息 iframe 里** .kami-grid 的 --kami-items-min 实测值。
+           面板的紧凑网格只许写在 [data-kami-comp="panel"] 作用域里，而消息 iframe 里
+           只有 think / options 两种组件，所以这个数改动前后必须一字不差。 */
+        try {
+          var lg = d.querySelector('.kami-root .kami-grid');
+          var le = lg || d.querySelector('.kami-root');
+          var lv = le ? getComputedStyle(le).getPropertyValue('--kami-items-min').trim() : 'none';
+          var lc = '-';
+          if (lg) { try { lc = (getComputedStyle(lg).gridTemplateColumns || '').split(' ').filter(function (x) { return x.length; }).length; } catch (e8) { lc = 'x'; } }
+          diag.push('渗漏|' + f.id.slice(11, 20) + '|' + (lg ? 'grid' : 'root') + '令牌=' + (lv || '空') + ' 列数=' + lc);
+          leakLine += (leakLine ? ' ; ' : '') + f.id.slice(11, 20) + '.' + (lg ? 'grid' : 'root') + '=' + (lv || '空');
+        } catch (e9) { diag.push('渗漏|err'); }
+        /* 骰子几何探针：槽位宽度归零时，骰子既不占位（压住标题）又会溢出盒子被纸边裁掉。
+           这两个数就是那个 bug 的判据：宽度应为正值，且左缘不应跑到纸面左边之外。 */
+        try {
+          var dc = r ? r.querySelector('.kami-deco.kami-d20[data-kami-d20="on"]') : null;
+          if (dc && r) {
+            var dr = dc.getBoundingClientRect();
+            var hr = dc.parentNode.getBoundingClientRect();
+            var padL = parseFloat(getComputedStyle(dc.parentNode).paddingLeft) || 0;
+            var offL = Math.round(dr.left - hr.left);
+            diag.push('骰位|宽' + Math.round(dr.width) + 'x高' + Math.round(dr.height) +
+              ' 左缘距头' + offL + '(内边距' + Math.round(padL) + ')' +
+              ' 头高' + Math.round(hr.height) +
+              ' ' + (dr.width > 8 ? '有宽度' : '⚠宽度归零') +
+              ' ' + (offL >= -1 ? '在纸面内' : '⚠出纸面'));
+          }
+        } catch (e4) { diag.push('骰位|err'); }
+      } catch (e) { diag.push(f.id + ' ERR ' + e.message); }
+    });
+    if (leakLine !== window.__leakLast && leakLine) {
+      window.__leakLast = leakLine;
+      console.log('渗漏探针|皮肤=' + (document.documentElement.getAttribute('data-kami-skin') || 'none') + '|' + leakLine);
+    }
+    /* 面板几何探针（窄屏「只剩一条细线」用）：
+       舞台铺满视口是平台保证，抽屉高度是舞台的百分比；把三层（视口 / 舞台 / 面板）
+       和脚本自己认的布局模式一起报出来，塌在哪一层一目了然。 */
+    try {
+      var pn = document.getElementById('kami-skin-panel');
+      var pd = pn ? pn.querySelector('.kami-drop') : null;
+      var de = document.documentElement;
+      var rr = function (el) {
+        var b = el.getBoundingClientRect();
+        return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(',');
+      };
+      var mm = '';
+      try { mm = String(window.matchMedia('(max-width: 768px)').matches); } catch (e6) { mm = 'err'; }
+      diag.push('面板|视口' + de.clientWidth + 'x' + de.clientHeight +
+        ' mm768=' + mm +
+        ' layout=' + (pd ? pd.getAttribute('data-kami-layout') : '-') +
+        ' open=' + (pd ? pd.getAttribute('data-kami-open') : '-') +
+        ' 舞台=' + (pn ? rr(pn) : '无') +
+        ' drop=' + (pd ? rr(pd) : '无') +
+        ' 令牌=' + (pn ? ['x', 'y', 'w', 'h'].map(function (k) {
+          return k + ':' + (pn.style.getPropertyValue('--kami-panel-' + k) || '空');
+        }).join(' ') : '-') +
+        ' 舞台pos=' + (pn ? getComputedStyle(pn).position : '-') +
+        ' droppos=' + (pd ? getComputedStyle(pd).position : '-') +
+        ' drop高=' + (pd ? getComputedStyle(pd).height : '-'));
+      /* 同一份读数再打一行到控制台：只在「签名」变化时输出，
+         这样扫宽度时可以用 console 游标精确取回每个宽度的一条记录。 */
+      var line = '面板探针|皮肤=' + (document.documentElement.getAttribute('data-kami-skin') || 'none') +
+        '|视口=' + de.clientWidth + 'x' + de.clientHeight +
+        '|mm768=' + mm +
+        '|layout=' + (pd ? pd.getAttribute('data-kami-layout') : '-') +
+        '|open=' + (pd ? pd.getAttribute('data-kami-open') : '-') +
+        '|舞台=' + (pn ? rr(pn) : '无') +
+        '|drop=' + (pd ? rr(pd) : '无') +
+        '|令牌=' + (pn ? ['x', 'y', 'w', 'h'].map(function (k) {
+          return k + ':' + (pn.style.getPropertyValue('--kami-panel-' + k) || '空');
+        }).join(',') : '-') +
+        '|舞台pos=' + (pn ? getComputedStyle(pn).position : '-') +
+        '|droppos=' + (pd ? getComputedStyle(pd).position : '-') +
+        '|drop高=' + (pd ? getComputedStyle(pd).height : '-') +
+        '|drop宽=' + (pd ? getComputedStyle(pd).width : '-');
+      if (line !== window.__panelProbeLast) {
+        window.__panelProbeLast = line;
+        console.log(line);
+      }
+    } catch (e7) { diag.push('面板|err'); }
+    /* 列数探针（验收用）：只看**设置面板**里看得见的那张网格 —— 宽 / 列数 / 首卡尺寸。
+       单独打一行短日志，扫宽度取数时一眼就能抓到，不用在长日志里翻。 */
+    try {
+      var colPd = document.getElementById('kami-preset-panel');
+      colPd = colPd ? colPd.querySelector('.kami-drop') : null;
+      var colGs = colPd ? colPd.querySelectorAll('.kami-grid') : [];
+      var colVis = [];
+      colGs.forEach(function (g) {
+        if (g.clientWidth <= 0) { return; }
+        var t2 = '';
+        try { t2 = getComputedStyle(g).gridTemplateColumns || ''; } catch (e8) { }
+        var n2 = t2.split(' ').filter(function (x) { return x.length > 0; }).length;
+        var f2 = g.querySelector('button.kami-item, .kami-item');
+        var b2 = f2 ? f2.getBoundingClientRect() : { width: 0, height: 0 };
+        colVis.push(g.clientWidth + 'px→' + n2 + '列 卡' + Math.round(b2.width) + 'x' + Math.round(b2.height));
+      });
+      var colLine = '列数探针|皮肤=' + (document.documentElement.getAttribute('data-kami-skin') || 'none') +
+        '|视口=' + document.documentElement.clientWidth + 'x' + document.documentElement.clientHeight +
+        '|drop宽=' + (colPd ? Math.round(colPd.getBoundingClientRect().width) : '-') +
+        '|' + (colVis.join(' + ') || '无可见网格');
+      /* 开/关高亮核对：开着的卡与关着的卡，边框色 + 底色必须不一样（trpg / rain 本轮补齐） */
+      try {
+        var onCard = colPd ? colPd.querySelector('.kami-grid .kami-card.is-on') : null;
+        var offCard = colPd ? colPd.querySelector('.kami-grid .kami-card:not(.is-on)') : null;
+        var cpair = function (el) {
+          if (!el) { return '-'; }
+          var s = getComputedStyle(el);
+          return s.borderTopColor.split(' ').join('') + '/' + s.backgroundColor.split(' ').join('');
+        };
+        var a1 = cpair(onCard), a2 = cpair(offCard);
+        colLine += '|开=' + a1 + '|关=' + a2 + '|' + (onCard && offCard && a1 !== a2 ? '高亮不同OK' : '⚠高亮相同');
+      } catch (e11) { }
+      if (colLine !== window.__colProbeLast) {
+        window.__colProbeLast = colLine;
+        console.log(colLine);
+      }
+      /* 也写进标题：窄屏下面板是铺满的模态，页面上的 diag 会被挡住，
+         标题在可访问性树里始终可读，扫宽度取数就不用去翻控制台。 */
+      try { if (document.title !== colLine) { document.title = colLine; } } catch (e10) { }
+    } catch (e9) { }
+    try { diag.push(d20report(document, 'd20:宿主')); } catch (e) { diag.push('d20:宿主 err'); }
+    /* 皮肤预览卡片：每张卡是一个 iframe，确认它用自己的皮肤渲染 */
+    document.querySelectorAll('[data-kami-preview]').forEach(function (w) {
+      try {
+        var fr = w.querySelector('iframe');
+        var d = fr ? fr.contentDocument : null;
+        var sh = d ? d.querySelector('.kami-shell') : null;
+        diag.push('pv:' + w.getAttribute('data-kami-preview') + '=' +
+          (d ? (d.documentElement.getAttribute('data-kami-skin') || 'none') : 'nodoc') + '/' +
+          (fr ? fr.clientHeight + 'x' + (d && d.body ? d.body.scrollHeight : '-') : '-') + '/' +
+          (sh ? getComputedStyle(sh).backgroundColor.replace(/ /g, '') : '-'));
+      } catch (e) { diag.push('pv:err'); }
+    });
+    try {
+      var pst = document.getElementById('kami-skin-preview');
+      diag.push('pv:previewStyle=' + (pst ? (pst.textContent.length + 'B') : 'MISSING'));
+      diag.push('pv:hasScopeRule=' + (pst && pst.textContent.indexOf('#kami-skin-panel [data-kami-preview=') >= 0 ? 'yes' : 'no'));
+      diag.push('pv:activeSkin=' + document.documentElement.getAttribute('data-kami-skin'));
+      diag.push('pv:cards=' + document.querySelectorAll('[data-kami-preview]').length);
+    } catch (e) { diag.push('probeErr'); }
+    /* 用户参数 CSS 原文探针：皮肤管理把 params 写成 `token: 值+单位`，单位不是纯显示字段。
+       打印原文就能一眼看出某个令牌有没有被写成非法值（曾把骰子宽度写成 1× 归零）。 */
+    try {
+      var us = document.getElementById('kami-skin-user');
+      var NL = String.fromCharCode(10);
+      var utxt = us ? String(us.textContent || '').split(NL).join(' ').split('  ').join(' ').trim() : 'MISSING';
+      diag.push('用户参数CSS|' + utxt);
+    } catch (e5) { diag.push('用户参数CSS|err'); }
+    document.getElementById('diag').textContent = diag.join(' ｜ ');
+    const s = window.KamiSkin.status();
+    var pn = document.getElementById('kami-skin-panel');
+    var dp = pn ? pn.querySelector('.kami-drop') : null;
+    var r = dp ? dp.getBoundingClientRect() : null;
+    document.getElementById('which').textContent = '当前皮肤：' + s.skin + ' ｜ 特效 ' + (s.effects.join(' ') || '无') +
+      ' ｜ 面板 ' + (r ? [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(',') : '无') +
+      ' ｜ display=' + (pn ? getComputedStyle(pn).display : '-') + '/' + (dp ? getComputedStyle(dp).display + ' pos=' + getComputedStyle(dp).position + ' z=' + getComputedStyle(dp).zIndex + ' bg=' + getComputedStyle(dp).backgroundColor : '-');
+  }, 600);
+})();
+</script>
+<script>
+/* ── ?btnrepro=1：按钮串台复现台 ──────────────────────────────────────────────
+   只读被测脚本（不碰它一行代码），用假按钮复现「点 A 触发 B」。
+   结构照真酒馆：.qr--buttons 容器 > .qr--button 宿主 > .qr--button-label 文字。
+   假按钮名故意互为前缀（「假A」是「假A长」的前缀），这正是中转站文件头警告的隐性依赖。 */
+(function () {
+  if (new URLSearchParams(location.search).get('btnrepro') !== '1') { return; }
+  var lines = [], NL = String.fromCharCode(10), hits = [];
+  function out(s) {
+    lines.push(s);
+    try { console.log('串台复现|' + s); } catch (e) { }
+    var el = document.getElementById('btnrepro');
+    if (el) { el.textContent = lines.join(NL); }
+  }
+  function btnByLabel(want) {
+    var list = document.querySelectorAll('#qr-bar .qr--button');
+    for (var i = 0; i < list.length; i += 1) {
+      var lb = list[i].querySelector('.qr--button-label');
+      if (lb && (lb.textContent || '').trim() === want) { return list[i]; }
+    }
+    return null;
+  }
+  function describe(el) {
+    if (!el) { return '（无此元素）'; }
+    var cls = '';
+    try { cls = String(el.className || ''); } catch (e) { }
+    return el.tagName + (cls ? '.' + cls : '') + ' 该层文字=' + JSON.stringify((el.textContent || '').trim());
+  }
+  function doClick(el) {
+    hits = [];
+    if (!el) { out('  ⚠ 目标元素不存在，跳过'); return; }
+    out('  点击目标：' + describe(el));
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    out('  实际触发：' + (hits.length ? hits.join(' + ') : '（没有任何按钮被触发）'));
+  }
+  function start() {
+    var H = window.__hub;
+    if (!H) { out('中转站没启动，复现台退出'); return; }
+    function mk(name, order, label) {
+      H.register({
+        name: name, order: order, ping: Date.now(),
+        alive: function () { return true; }, ready: function () { return true; },
+        label: function () { return label; }, click: function () { hits.push(name); }
+      });
+    }
+    mk('假A', 5, '假A 关');
+    mk('假A长', 6, '假A长');
+    setTimeout(function () {
+      var row = document.querySelector('#qr-bar .qr--buttons');
+      out('── 场景 0：登记顺序与 DOM 文字 ──');
+      out('  中转站按钮顺序：' + JSON.stringify(H.status().buttons.map(function (b) { return b.name; })));
+      out('  DOM 文字顺序：' + JSON.stringify([].map.call(document.querySelectorAll('#qr-bar .qr--button-label'), function (x) { return x.textContent; })));
+      out('  祖先容器：' + describe(row));
+      /* 每一步间隔 >450ms：中转站有 320ms 的防连击去重，挨太近会把后面的点击吃掉（那会变成假阴性）*/
+      var queue = [];
+      queue.push(['── 场景 A：点「假A长」自己的按钮 ──', function () { doClick(btnByLabel('假A长')); out('  期望：只触发 假A长'); }]);
+      queue.push(['── 场景 B：点祖先容器 .qr--buttons（按钮条的空隙） ──', function () { doClick(document.querySelector('#qr-bar .qr--buttons')); out('  期望：什么都不触发（不许拿祖先拼起来的文字猜按钮）'); }]);
+      queue.push(['── 场景 C：点「假A长」的文字层 .qr--button-label ──', function () {
+        var lb = btnByLabel('假A长');
+        doClick(lb ? lb.querySelector('.qr--button-label') : null); out('  期望：只触发 假A长');
+      }]);
+      queue.push(['── 场景 D：把「假A」的 DOM 按钮拆掉，再点「假A长」自己的按钮 ──', function () {
+        var aBtn = btnByLabel('假A 关');
+        if (aBtn && aBtn.parentNode) { aBtn.parentNode.removeChild(aBtn); }
+        doClick(btnByLabel('假A长')); out('  期望：只触发 假A长');
+      }]);
+      queue.push(['── 场景 E：在「假A」的 DOM 已经不存在的情况下，点祖先容器 ──', function () {
+        doClick(document.querySelector('#qr-bar .qr--buttons')); out('  期望：什么都不触发');
+      }]);
+      var step = 0;
+      (function next() {
+        if (step >= queue.length) {
+          H.unregister('假A'); H.unregister('假A长');
+          out('── 复现结束 ──');
+          return;
+        }
+        out(queue[step][0]);
+        queue[step][1]();
+        step += 1;
+        setTimeout(next, 500);
+      })();
+    }, 1500);
+  }
+  var tries = 0;
+  var t = setInterval(function () {
+    tries += 1;
+    if (window.__hub) { clearInterval(t); start(); }
+    else if (tries > 60) { clearInterval(t); out('等不到 __hub，复现台退出'); }
+  }, 250);
+})();
+</script>
+</body>
+</html>

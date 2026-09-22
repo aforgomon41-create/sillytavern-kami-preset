@@ -1,0 +1,1356 @@
+/* ============================================================================
+ * 卡密预设 · 皮肤：奈亚子的TRPG（trpg）
+ * ----------------------------------------------------------------------------
+ * 桌面上的四样东西：一颗一直在慢慢翻面的 d20 · 一块立着的三折硬纸板帷幕 ·
+ * 一张从草稿本上撕下来的纸 · 一叠硬纸卡牌。
+ *
+ * 三条律：
+ *   · 纸律 —— 能撕的不裁：所有纸面都是撕边 clip-path，边角没有一处是圆角矩形；
+ *            能画的不印：涂鸦是手画的线条，不是贴图。
+ *   · 板律 —— 硬东西必须有厚度：帷幕、卡牌、纸叠都看得见第二层。
+ *   · 静律 —— 全皮肤只有一处常驻 3D（左上角那颗 d20，面片精灵在带 perspective
+ *            的容器里转）；其余动效只碰 transform / opacity。
+ *            消息楼层里不使用 filter / backdrop-filter。
+ *
+ * 纯 CSS：无 JS、无外部资源、无 @import、无 vh。
+ * 契约：docs/皮肤契约.md（作用域前缀 / 令牌全集 / 三处风格性文案槽）。
+ * ========================================================================== */
+
+
+/* ==========================================================================
+ * 1 · 令牌
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-root {
+  /* —— 风格性文案（契约 §3.7：只剩这三处；中性占位，等文案 Agent 统一重写） —— */
+  --kami-label-think-title: 手稿;
+  --kami-label-think-title-open: 手稿正文;
+  --kami-label-options-title: 手牌;
+
+  /* —— 色彩：奶油纸 + 卡纸 + 一管藤绿墨水 —— */
+  --kami-fg: #2c3444;
+  --kami-fg-dim: #4f586a;
+  --kami-fg-mute: #5f6877;
+  --kami-accent: #2f8f7a;
+  --kami-accent-fg: #ffffff;
+  --kami-accent-soft: rgba(47, 143, 122, .13);
+  --kami-accent-line: rgba(47, 143, 122, .42);
+  --kami-bg: #faf7ef;
+  --kami-bg-soft: #f3eee1;
+  --kami-card: #f4ecda;
+  --kami-card-2: #fffdf7;
+  --kami-card-hover: #fdf6e4;
+  --kami-line: rgba(44, 52, 68, .16);
+  --kami-line-strong: rgba(44, 52, 68, .60);
+  --kami-t1: rgba(44, 52, 68, .045);
+  --kami-t2: rgba(44, 52, 68, .09);
+  --kami-t3: rgba(44, 52, 68, .18);
+  --kami-warn: #c0503c;
+  --kami-shadow: 0 12px 26px -16px rgba(74, 60, 34, .55), 0 2px 0 rgba(126, 108, 74, .18);
+  --kami-shadow-sm: 0 2px 6px -3px rgba(74, 60, 34, .35);
+  --kami-blur: 0px;
+
+  /* —— 布局与尺寸：小圆角，因为纸与卡牌本来就不圆 —— */
+  --kami-r-xs: 2px;
+  --kami-r-sm: 3px;
+  --kami-r-md: 5px;
+  --kami-r-lg: 8px;
+  --kami-r-pill: 4px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 11px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 15px;
+  --kami-pad-lg-y: 13px;
+  --kami-gap: 9px;
+  --kami-gap-lg: 13px;
+  --kami-row-h: 38px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 15.5rem;
+  --kami-panel-w: 430px;
+  --kami-panel-h: 570px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+
+  /* —— 文本与排版：正文用干净的无衬线（要读得下去），标题用楷体（像手写的标签） —— */
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .76);
+  --kami-fs-sm: calc(var(--kami-fs) * .88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.14);
+  --kami-lh: 1.7;
+  --kami-ls: .012em;
+  --kami-ls-title: .04em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-title: "Kaiti SC", "STKaiti", "KaiTi", "Kaiti TC", "Xingkai SC", "LiSu", "Hiragino Mincho ProN", "Songti SC", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 700;
+  --kami-title-transform: none;
+
+  /* —— 装饰与特效 —— */
+  --kami-texture: repeating-linear-gradient(112deg, rgba(122, 108, 78, .035) 0 1px, rgba(122, 108, 78, 0) 1px 4px);
+  --kami-glow: rgba(47, 143, 122, 0);
+  --kami-glow-size: 0px;
+  --kami-accent-mark: 2px;
+  --kami-surface-clip: polygon(0 0, 6% calc(var(--kami-trpg-jag) * .8), 14% 0, 23% calc(var(--kami-trpg-jag) * .45), 31% calc(var(--kami-trpg-jag)), 40% 0, 49% calc(var(--kami-trpg-jag) * .6), 58% calc(var(--kami-trpg-jag) * .15), 67% calc(var(--kami-trpg-jag) * .9), 76% 0, 85% calc(var(--kami-trpg-jag) * .5), 93% calc(var(--kami-trpg-jag) * .2), 100% calc(var(--kami-trpg-jag) * .7), calc(100% - var(--kami-trpg-jag) * .8) 12%, 100% 24%, calc(100% - var(--kami-trpg-jag) * .45) 36%, calc(100% - var(--kami-trpg-jag)) 48%, calc(100% - var(--kami-trpg-jag) * .3) 60%, calc(100% - var(--kami-trpg-jag) * .9) 72%, 100% 84%, calc(100% - var(--kami-trpg-jag) * .55) 100%, 88% calc(100% - var(--kami-trpg-jag)), 79% 100%, 70% calc(100% - var(--kami-trpg-jag) * .5), 60% calc(100% - var(--kami-trpg-jag) * .85), 50% calc(100% - var(--kami-trpg-jag) * .25), 40% 100%, 30% calc(100% - var(--kami-trpg-jag) * .7), 20% calc(100% - var(--kami-trpg-jag) * .35), 10% calc(100% - var(--kami-trpg-jag)), 4% calc(100% - var(--kami-trpg-jag) * .5), 0 calc(100% - var(--kami-trpg-jag) * .85), calc(var(--kami-trpg-jag) * .7) 86%, 0 74%, calc(var(--kami-trpg-jag) * .5) 62%, calc(var(--kami-trpg-jag)) 50%, calc(var(--kami-trpg-jag) * .3) 38%, calc(var(--kami-trpg-jag) * .85) 26%, 0 14%, calc(var(--kami-trpg-jag) * .45) 6%);
+
+  /* —— 动效 —— */
+  --kami-dur-fast: .12s;
+  --kami-dur: .2s;
+  --kami-dur-slow: .32s;
+  --kami-ease: cubic-bezier(.3, .7, .3, 1);
+  --kami-ease-out: cubic-bezier(.18, .9, .3, 1);
+  --kami-enter-y: 5px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 30ms;
+
+  /* —— 语义色 —— */
+  --kami-kind-action: #2f6fb5;
+  --kami-kind-persona: #c8538f;
+  --kami-kind-plot: #2f8f6a;
+  --kami-kind-info: #3a86a8;
+  --kami-kind-fun: #c08420;
+  --kami-kind-nsfw: #c04a5c;
+  --kami-kind-other: #6d7488;
+
+  /* —— 皮肤私有：旋钮 —— */
+  --kami-trpg-die: 1;
+  --kami-trpg-jag: 3px;
+  --kami-trpg-board: 3px;
+  --kami-trpg-grid-size: 22px;
+
+  /* —— 皮肤私有：纸 —— */
+  --kami-trpg-sheet: rgba(104, 90, 62, .22);
+  --kami-trpg-grid-ink: rgba(58, 74, 62, .13);
+  --kami-trpg-tape: rgba(255, 255, 255, .48);
+  --kami-trpg-margin-line: rgba(198, 92, 68, .30);
+
+  /* —— 皮肤私有：d20 面片（六瓣 + 中心面） —— */
+  --kami-trpg-die-f1: #4aa88d;
+  --kami-trpg-die-f2: #358a72;
+  --kami-trpg-die-f3: #1f6653;
+  --kami-trpg-die-f4: #2a7863;
+  --kami-trpg-die-f5: #429c81;
+  --kami-trpg-die-f6: #5cb79b;
+  --kami-trpg-die-face-hi: #83d2b6;
+  --kami-trpg-die-face-lo: #4fae90;
+  --kami-trpg-die-edge: rgba(16, 56, 46, .55);
+  --kami-trpg-die-ink: #f4fdf9;
+  --kami-trpg-die-num: rgba(9, 46, 37, .55);
+  --kami-trpg-die-dur: 17s;
+
+  /* —— 皮肤私有：涂鸦图层（默认关，由 doodle 特效打开） —— */
+  --kami-trpg-art: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='460' height='340' viewBox='0 0 460 340' fill='none' stroke='%236f7a72' stroke-opacity='.42' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M56 24 l26 -14 26 14 v38 l-26 20 -26 -20 z'/><path d='M56 24 l26 20 26 -20 M82 44 v38 M56 62 l26 -18 26 18' stroke-width='1.4'/><path d='M140 64 q44 -30 92 -22'/><path d='M222 32 l12 10 -14 8'/><ellipse cx='330' cy='52' rx='42' ry='21'/><path d='M288 52 a42 21 0 1 0 62 22' stroke-width='1.3' stroke-dasharray='28 11 16 9'/><path d='M150 108 q14 -8 28 2' stroke-width='1.5'/><path d='M34 126 h74 v46 h-74 z'/><path d='M104 131 l9 6 -8 7'/><path d='M160 152 q16 -11 32 0 t32 0 t32 0 t32 0 t32 0'/><circle cx='392' cy='152' r='32' stroke-opacity='.3' stroke-width='2.6'/><circle cx='392' cy='152' r='25' stroke-opacity='.16' stroke-width='1.4'/><path d='M36 296 l20 -20 M50 302 l20 -20 M64 308 l20 -20'/><rect x='30' y='200' width='46' height='46' rx='6'/><circle cx='43' cy='213' r='3' fill='%236f7a72' stroke='none'/><circle cx='63' cy='233' r='3' fill='%236f7a72' stroke='none'/><circle cx='53' cy='223' r='3' fill='%236f7a72' stroke='none'/><path d='M132 282 v22 M121 287 l22 12 M143 287 l-22 12' stroke-width='1.7'/><path d='M200 286 h34 M200 294 h22 M200 302 h28' stroke-width='1.5'/><path d='M125 199 q0 -6 7 -6 q7 0 7 6 q0 6 -7 6 q-6 0 -7 -4'/><path d='M132 206 q1 11 0 22' stroke-width='2.3'/><path d='M132 212 l-9 8 M132 211 l9 -3' stroke-width='1.6'/><path d='M140 207 l15 -15'/><path d='M140 201 l6 6'/><path d='M140 207 l-3 3'/><path d='M132 228 l-7 14 M132 228 l8 13' stroke-width='1.5'/><path d='M244 203 q0 -5 6 -5 q6 0 6 5 q0 5 -6 5 q-5 0 -6 -4'/><path d='M235 200 q15 -3 30 0' stroke-width='2.2'/><path d='M241 199 q0 -11 9 -11 q9 0 9 11' stroke-width='2.2'/><path d='M250 210 q-1 11 0 22' stroke-width='2.3'/><path d='M250 216 l-10 8 M250 216 l12 2'/><path d='M261 219 l20 -2'/><path d='M265 219 l1 7'/><path d='M250 232 l-7 15 M250 232 l8 14' stroke-width='1.5'/><ellipse cx='380' cy='240' rx='34' ry='24'/><path d='M352 228 q10 -9 22 -9' stroke-width='1.3'/><path d='M362 218 l-3 -12 M378 216 l1 -13 M394 219 l6 -11' stroke-width='1.6'/><circle cx='368' cy='234' r='2.6' fill='%236f7a72' stroke='none'/><circle cx='380' cy='232' r='2.6' fill='%236f7a72' stroke='none'/><circle cx='392' cy='235' r='2.6' fill='%236f7a72' stroke='none'/><path d='M362 252 l6 -4 6 4 6 -4 6 4 6 -4 6 4' stroke-width='1.4'/><path d='M424 54 q0 -6 6 -6 q6 0 6 6 q0 6 -6 6 q-6 0 -6 -4'/><path d='M416 46 q14 4 28 0' stroke-width='2.2'/><path d='M421 46 q-1 -17 9 -17 q10 0 9 17' stroke-width='2.2'/><path d='M430 60 q1 12 0 24' stroke-width='2.3'/><path d='M430 66 l11 6 M430 68 l-10 8'/><path d='M437 73 h9 v10 h-9 z' stroke-width='1.4'/><path d='M438 73 q4 -5 8 0' stroke-width='1.4'/><path d='M448 75 l5 -3 M448 81 l5 3' stroke-width='1.4'/><path d='M430 84 l-6 14 M430 84 l7 13' stroke-width='1.5'/></svg>");
+  --kami-trpg-doodle: none;
+  --kami-trpg-grid: none;
+  --kami-trpg-blend: multiply;
+}
+
+/* —— 暗色：不是反色，是「同一张纸被搬到台灯照不到的桌角」 —— */
+html[data-kami-skin="trpg"][data-kami-scheme="dark"] .kami-root {
+  --kami-fg: #e2dbc9;
+  --kami-fg-dim: #b4ac99;
+  --kami-fg-mute: #948c7c;
+  --kami-accent: #4fb79a;
+  --kami-accent-fg: #10201c;
+  --kami-accent-soft: rgba(79, 183, 154, .16);
+  --kami-accent-line: rgba(79, 183, 154, .44);
+  --kami-bg: #23262c;
+  --kami-bg-soft: #1b1e23;
+  --kami-card: #2d313a;
+  --kami-card-2: #1a1d22;
+  --kami-card-hover: #363b46;
+  --kami-line: rgba(232, 226, 208, .13);
+  --kami-line-strong: rgba(232, 226, 208, .42);
+  --kami-t1: rgba(232, 226, 208, .05);
+  --kami-t2: rgba(232, 226, 208, .10);
+  --kami-t3: rgba(232, 226, 208, .18);
+  --kami-warn: #e4796a;
+  --kami-shadow: 0 14px 30px -18px rgba(0, 0, 0, .8), 0 2px 0 rgba(0, 0, 0, .35);
+  --kami-shadow-sm: 0 3px 8px -4px rgba(0, 0, 0, .6);
+  --kami-texture: repeating-linear-gradient(112deg, rgba(255, 248, 228, .025) 0 1px, rgba(255, 248, 228, 0) 1px 4px);
+  --kami-kind-action: #6ba7e8;
+  --kami-kind-persona: #e884b4;
+  --kami-kind-plot: #5cc596;
+  --kami-kind-info: #6db6d4;
+  --kami-kind-fun: #e0b054;
+  --kami-kind-nsfw: #e0788c;
+  --kami-kind-other: #9aa0b2;
+  --kami-trpg-sheet: rgba(0, 0, 0, .40);
+  --kami-trpg-grid-ink: rgba(232, 226, 208, .09);
+  --kami-trpg-tape: rgba(255, 250, 232, .10);
+  --kami-trpg-margin-line: rgba(224, 120, 96, .28);
+  --kami-trpg-die-f1: #5cc2a4;
+  --kami-trpg-die-f2: #46a88c;
+  --kami-trpg-die-f3: #2f8a6f;
+  --kami-trpg-die-f4: #3a997c;
+  --kami-trpg-die-f5: #52b699;
+  --kami-trpg-die-f6: #6ed0b1;
+  --kami-trpg-die-face-hi: #9ce4c9;
+  --kami-trpg-die-face-lo: #63c8a6;
+  --kami-trpg-die-edge: rgba(4, 26, 20, .6);
+  --kami-trpg-die-ink: #06251e;
+  --kami-trpg-die-num: rgba(255, 255, 255, .45);
+  --kami-trpg-blend: screen;
+}
+
+/* —— 密度 —— */
+html[data-kami-skin="trpg"][data-kami-density="compact"] .kami-root {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 10px;
+  --kami-gap: 7px;
+  --kami-gap-lg: 10px;
+  --kami-row-h: 34px;
+  --kami-lh: 1.6;
+}
+html[data-kami-skin="trpg"][data-kami-density="roomy"] .kami-root {
+  --kami-pad-x: 13px;
+  --kami-pad-y: 9px;
+  --kami-pad-lg-x: 18px;
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 11px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 42px;
+  --kami-lh: 1.78;
+}
+
+/* —— 动效档位（皮肤自己响应） —— */
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-root {
+  --kami-dur-fast: .1s;
+  --kami-dur: .16s;
+  --kami-dur-slow: .24s;
+  --kami-stagger: 0ms;
+  --kami-enter-y: 3px;
+}
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-root {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+
+
+/* ==========================================================================
+ * 2 · 根与纸面（撕下来的草稿纸）
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-root {
+  position: relative;
+  box-sizing: border-box;
+  margin: 12px 0 8px;
+  text-align: left;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  word-break: break-word;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="trpg"] .kami-root *,
+html[data-kami-skin="trpg"] .kami-root *::before,
+html[data-kami-skin="trpg"] .kami-root *::after { box-sizing: border-box; }
+html[data-kami-skin="trpg"] .kami-root button,
+html[data-kami-skin="trpg"] .kami-root input,
+html[data-kami-skin="trpg"] .kami-root textarea { font: inherit; color: inherit; letter-spacing: inherit; }
+html[data-kami-skin="trpg"] .kami-root :focus-visible {
+  outline: 2px dashed var(--kami-accent);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-xs);
+}
+
+/* 纸叠：外壳底下压着的第二张纸（厚度），撕边与外壳完全同形 */
+html[data-kami-skin="trpg"] .kami-root::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: var(--kami-trpg-sheet);
+  clip-path: var(--kami-surface-clip);
+  transform: translateY(var(--kami-trpg-board));
+  pointer-events: none;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]::before { content: none; }
+
+/* 纸面本体：底色 + 涂鸦 + 稿纸格 + 纸纹，四层一次性画完，之后不再重绘 */
+html[data-kami-skin="trpg"] .kami-surface {
+  position: relative;
+  clip-path: var(--kami-surface-clip);
+  background-color: var(--kami-bg);
+  background-image: var(--kami-trpg-doodle), var(--kami-trpg-grid), var(--kami-texture);
+  background-repeat: repeat, repeat, repeat;
+  background-size: 460px 340px, var(--kami-trpg-grid-size) var(--kami-trpg-grid-size), auto;
+  background-position: 10px 6px, 0 0, 0 0;
+  background-blend-mode: var(--kami-trpg-blend), var(--kami-trpg-blend), normal;
+}
+/* 注意：.kami-shell 与 .kami-surface 是同一个元素。
+   这里绝不能写 background 简写 —— 它会连 background-image / -color 一起重置，
+   把上面那四层纸面全部抹掉（皮肤里最容易踩的一脚）。 */
+html[data-kami-skin="trpg"] .kami-shell {
+  max-width: var(--kami-maxw);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+
+/* ==========================================================================
+ * 3 · 头部：状态点 / d20 / 三折帷幕标题 / 右侧动作区
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-head {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  min-height: calc(var(--kami-row-h) + var(--kami-pad-y));
+  overflow: visible;
+}
+html[data-kami-skin="trpg"] .kami-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--kami-accent);
+  box-shadow: 0 0 0 2px var(--kami-accent-soft);
+}
+html[data-kami-skin="trpg"] .kami-dot[data-kami-on="1"] { background: var(--kami-kind-fun); }
+/* 骰子在场时它就是状态标记，那个小圆点让位 */
+html[data-kami-skin="trpg"] .kami-head:has(> .kami-deco[data-kami-deco="d20"]) > .kami-dot { display: none; }
+
+/* —— d20 装饰槽：容器负责透视与合成层，面片精灵在容器里转 —— */
+html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"] {
+  display: inline-block;
+  position: relative;
+  flex: none;
+  width: calc(var(--kami-fs) * 2.4 * var(--kami-trpg-die));
+  height: calc(var(--kami-fs) * 2.4 * var(--kami-trpg-die));
+  margin: 0 1px 0 0;
+  pointer-events: none;
+  perspective: calc(var(--kami-fs) * 14);
+  transform-style: preserve-3d;
+  will-change: transform;
+  background-image: radial-gradient(ellipse 58% 11% at 50% 93%, var(--kami-trpg-sheet), rgba(0, 0, 0, 0) 72%);
+  background-repeat: no-repeat;
+}
+/* 面片：六边形轮廓 + 六瓣明暗 + 三道折线，全部是渐变，没有位图 */
+html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"]::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  clip-path: polygon(50% 1.5%, 91.5% 26%, 91.5% 74%, 50% 98.5%, 8.5% 74%, 8.5% 26%);
+  background-image:
+    linear-gradient(146deg, rgba(255, 255, 255, .42) 0, rgba(255, 255, 255, 0) 44%, rgba(0, 0, 0, .22) 100%),
+    conic-gradient(from 0deg at 50% 50%,
+      var(--kami-trpg-die-edge) 0deg .9deg,
+      var(--kami-trpg-die-f6) .9deg 60deg,
+      var(--kami-trpg-die-f1) 60deg 119.1deg,
+      var(--kami-trpg-die-edge) 119.1deg 120.9deg,
+      var(--kami-trpg-die-f2) 120.9deg 180deg,
+      var(--kami-trpg-die-f3) 180deg 239.1deg,
+      var(--kami-trpg-die-edge) 239.1deg 240.9deg,
+      var(--kami-trpg-die-f4) 240.9deg 300deg,
+      var(--kami-trpg-die-f5) 300deg 359.1deg,
+      var(--kami-trpg-die-edge) 359.1deg 360deg);
+  transform: translateZ(2px) rotateX(-14deg) rotateY(-26deg) rotateZ(-4deg);
+}
+/* 中心面：正对镜头的那一面，比周围亮一档 */
+html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"]::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  clip-path: polygon(50% 22%, 74.2% 64%, 25.8% 64%);
+  background-image: linear-gradient(158deg, var(--kami-trpg-die-face-hi) 0, var(--kami-trpg-die-face-lo) 100%);
+  transform: translateZ(2px) rotateX(-14deg) rotateY(-26deg) rotateZ(-4deg);
+}
+@keyframes kami-trpg-d20 {
+  0%   { transform: translateZ(2px) rotateX(-14deg) rotateY(-26deg) rotateZ(-4deg); }
+  25%  { transform: translateZ(2px) rotateX(-5deg) rotateY(12deg) rotateZ(3deg); }
+  50%  { transform: translateZ(2px) rotateX(-21deg) rotateY(29deg) rotateZ(6deg); }
+  75%  { transform: translateZ(2px) rotateX(-9deg) rotateY(-7deg) rotateZ(-2deg); }
+  100% { transform: translateZ(2px) rotateX(-14deg) rotateY(-26deg) rotateZ(-4deg); }
+}
+/* 同屏多颗骰子必须错开相位，否则像一排同步闪的灯 */
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco[data-kami-deco="d20"]::after {
+  animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
+  animation-delay: -.4s;
+}
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="options"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="options"] .kami-deco[data-kami-deco="d20"]::after {
+  animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
+  animation-delay: -6.3s;
+}
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"]::after {
+  animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
+  animation-delay: -11.6s;
+}
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="preview"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="preview"] .kami-deco[data-kami-deco="d20"]::after {
+  animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
+  animation-delay: -3.1s;
+}
+/* 面板里的骰子更大 */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"] {
+  width: calc(var(--kami-fs) * 3.4 * var(--kami-trpg-die));
+  height: calc(var(--kami-fs) * 3.4 * var(--kami-trpg-die));
+}
+
+/* —— 真 3D d20：槽位被装饰模块升级成 .kami-d20 之后，上面那两颗占位精灵整体让位 ——
+   二十面体的 20 个面片由 JS 摆位（几何全在 src/decor/d20.js），皮肤只负责配色：
+   外层 .kami-d20-face 是棱边色，内层 i 是面片底色（两个三角形都由模块算进 --kami-d20-clip-i）。 */
+html[data-kami-skin="trpg"] .kami-deco.kami-d20 {
+  pointer-events: auto;
+  cursor: pointer;
+  perspective: none;
+  transform-style: flat;
+  will-change: auto;
+}
+html[data-kami-skin="trpg"] .kami-deco.kami-d20::before,
+html[data-kami-skin="trpg"] .kami-deco.kami-d20::after { content: none; animation: none !important; }
+html[data-kami-skin="trpg"] .kami-deco.kami-d20 { --kami-d20-dur: .95s; }
+html[data-kami-skin="trpg"] .kami-d20-face { background-color: var(--kami-trpg-die-edge); }
+html[data-kami-skin="trpg"] .kami-d20-face > i {
+  clip-path: var(--kami-d20-clip-i);
+  background-image: linear-gradient(158deg, var(--kami-trpg-die-face-hi) 0, var(--kami-trpg-die-face-lo) 100%);
+  color: var(--kami-trpg-die-ink);
+  font-family: var(--kami-font-mono);
+  font-size: calc(var(--kami-d20-s, 32px) * .34);
+  font-weight: 700;
+  letter-spacing: -.03em;
+  text-shadow: 0 1px 0 var(--kami-trpg-die-num);
+}
+/* 手涂感：相邻面片轮换色调，和占位精灵的六瓣用的是同一套颜色 */
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+1) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f6), var(--kami-trpg-die-f3)); }
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+2) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f5), var(--kami-trpg-die-f2)); }
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+3) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f1), var(--kami-trpg-die-f4)); }
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+4) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f2), var(--kami-trpg-die-f5)); }
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+5) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f3), var(--kami-trpg-die-f6)); }
+html[data-kami-skin="trpg"] .kami-d20-face:nth-child(6n+6) > i { background-image: linear-gradient(158deg, var(--kami-trpg-die-f4), var(--kami-trpg-die-f1)); }
+/* 悬停 / 焦点 / 滚动中 */
+html[data-kami-skin="trpg"] .kami-deco.kami-d20:hover .kami-d20-face > i { filter: brightness(1.07); }
+html[data-kami-skin="trpg"] .kami-deco.kami-d20:focus-visible {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-sm);
+}
+html[data-kami-skin="trpg"] .kami-deco.kami-d20[data-kami-d20-rolling="1"] .kami-d20-face > i { filter: brightness(.95); }
+/* 桌面上的轻微晃动：只在「骰子转动」特效开着时跑，动效档位交给下面第 8 节统一掐掉 */
+@keyframes kami-trpg-d20-idle {
+  0%   { transform: rotate(-2.4deg) translateY(0); }
+  50%  { transform: rotate(2.4deg) translateY(-5%); }
+  100% { transform: rotate(-2.4deg) translateY(0); }
+}
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-deco.kami-d20 .kami-d20-stage {
+  animation: kami-trpg-d20-idle var(--kami-trpg-die-dur) ease-in-out infinite;
+}
+/* 同屏多颗骰子错开相位，否则像一排同步闪的灯 */
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -.4s; }
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="options"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -6.3s; }
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -11.6s; }
+
+/* —— 标题：默认（行动选项 / 面板）是一张写了字的硬纸条 —— */
+html[data-kami-skin="trpg"] .kami-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  white-space: nowrap;
+}
+
+/* —— 显式思维链的标题：曾经是"三折硬纸板帷幕"（折页 + perspective 翻面）。
+   用户看过之后认为效果不佳，2026 本轮整套撤掉：这里不写任何规则，标题就用上面那条
+   通用 .kami-title —— 点 + 标题（左）+ 字数与箭头（右），字体/字距/截断沿用本皮肤；
+   "纸感"由标题背后的纸面（撕边、稿纸格、涂鸦）承担，不再做立体折板。
+   相应的令牌（wing / fold / slope / persp / board-*）也一并删掉了。 */
+
+html[data-kami-skin="trpg"] .kami-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-left: auto;
+  flex: none;
+}
+html[data-kami-skin="trpg"] .kami-sub {
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+html[data-kami-skin="trpg"] .kami-chev {
+  flex: none;
+  width: 0;
+  height: 0;
+  margin: 0 3px 0 5px;
+  font-size: 0;
+  border-top: 5px solid rgba(0, 0, 0, 0);
+  border-bottom: 5px solid rgba(0, 0, 0, 0);
+  border-left: 6px solid var(--kami-fg-mute);
+  transform: rotate(0deg);
+  transition: transform var(--kami-dur) var(--kami-ease), border-left-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev {
+  transform: rotate(90deg);
+  border-left-color: var(--kami-accent);
+}
+html[data-kami-skin="trpg"] .kami-collapse-head { cursor: pointer; user-select: none; }
+
+
+/* ==========================================================================
+ * 4 · 正文：正文头部的操作行 / 双视图 / 按钮
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-body { padding: 0 var(--kami-pad-lg-x) var(--kami-pad-lg-y); }
+html[data-kami-skin="trpg"] .kami-collapse { display: block; }
+html[data-kami-skin="trpg"] .kami-collapse > .kami-body { display: none; }
+html[data-kami-skin="trpg"] .kami-collapse[data-kami-open="1"] > .kami-body {
+  display: block;
+  animation: kami-trpg-drop var(--kami-dur-slow) var(--kami-ease-out) backwards;
+}
+@keyframes kami-trpg-drop {
+  0% { opacity: 0; transform: translateY(calc(var(--kami-enter-y) * -1)); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 组件内的横向操作行：一条手画的下划线把它和正文分开 */
+html[data-kami-skin="trpg"] .kami-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  flex-wrap: nowrap;
+  margin-bottom: var(--kami-gap-lg);
+  padding-bottom: 7px;
+  border-bottom: 1px dashed var(--kami-line-strong);
+}
+html[data-kami-skin="trpg"] .kami-bar > :last-child { margin-left: auto; }
+
+/* 分段切换：两枚小纸片，选中的那枚被墨水描过 */
+html[data-kami-skin="trpg"] .kami-seg {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  padding: 2px;
+  border: 1px dashed var(--kami-line-strong);
+  border-radius: 3px;
+  background: var(--kami-t1);
+}
+html[data-kami-skin="trpg"] .kami-seg-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.5;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--kami-dur-fast) var(--kami-ease), color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-seg-item.is-on {
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  box-shadow: inset 0 -2px 0 var(--kami-accent-line);
+}
+
+/* 按钮：一小块卡纸 */
+html[data-kami-skin="trpg"] .kami-btn,
+html[data-kami-skin="trpg"] .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+  min-height: calc(var(--kami-row-h) - 4px);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: 1px solid var(--kami-line);
+  border-radius: 3px;
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--kami-line-strong);
+  transition: background-color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease), transform var(--kami-dur-fast) var(--kami-ease),
+              box-shadow var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-btn--ghost { background-color: transparent; box-shadow: none; }
+html[data-kami-skin="trpg"] .kami-root .kami-btn--primary {
+  /* 藤绿底 + 白字只有 3.9:1：把底往墨色里调一档（同一个绿，深一点），白字实测 4.8:1。
+     这是「同一支笔写出来的深浅」，不是换颜色。 */
+  background-color: color-mix(in srgb, var(--kami-accent) 84%, var(--kami-fg));
+  border-color: color-mix(in srgb, var(--kami-accent) 84%, var(--kami-fg));
+  color: var(--kami-accent-fg);
+}
+html[data-kami-skin="trpg"] .kami-btn.is-on {
+  background-color: var(--kami-accent-soft);
+  border-color: var(--kami-accent-line);
+}
+html[data-kami-skin="trpg"] .kami-icon-btn {
+  min-width: calc(var(--kami-row-h) - 4px);
+  padding: 0;
+  font-size: var(--kami-icon);
+  box-shadow: none;
+}
+html[data-kami-skin="trpg"] .kami-btn:active,
+html[data-kami-skin="trpg"] .kami-icon-btn:active { transform: translateY(2px); box-shadow: none; }
+html[data-kami-skin="trpg"] .kami-btn[disabled],
+html[data-kami-skin="trpg"] .kami-icon-btn[disabled] { opacity: .45; cursor: default; }
+html[data-kami-skin="trpg"] .kami-btn.is-done,
+html[data-kami-skin="trpg"] .kami-icon-btn.is-done {
+  color: var(--kami-accent);
+  border-color: var(--kami-accent-line);
+  background-color: var(--kami-accent-soft);
+}
+@media (hover: hover) {
+  html[data-kami-skin="trpg"] .kami-btn:hover,
+  html[data-kami-skin="trpg"] .kami-icon-btn:hover {
+    background-color: var(--kami-card-hover);
+    border-color: var(--kami-accent-line);
+  }
+  html[data-kami-skin="trpg"] .kami-btn--primary:hover { background-color: var(--kami-accent); }
+}
+
+/* 正文纸块：一张干净的纸，左边一道红铅笔线 */
+html[data-kami-skin="trpg"] .kami-md {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  padding-left: calc(var(--kami-pad-lg-x) + 12px);
+  border-radius: 3px;
+  border: 1px solid var(--kami-line);
+  background-color: var(--kami-card-2);
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0 calc(var(--kami-pad-lg-x) * .62), var(--kami-trpg-margin-line) calc(var(--kami-pad-lg-x) * .62) calc(var(--kami-pad-lg-x) * .62 + 1px), rgba(0, 0, 0, 0) calc(var(--kami-pad-lg-x) * .62 + 1px));
+  box-shadow: 0 1px 0 var(--kami-t2);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="trpg"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="trpg"] .kami-md > :last-child { margin-bottom: 0; }
+html[data-kami-skin="trpg"] .kami-md p { margin: .5em 0; }
+html[data-kami-skin="trpg"] .kami-md h1,
+html[data-kami-skin="trpg"] .kami-md h2,
+html[data-kami-skin="trpg"] .kami-md h3 {
+  margin: .9em 0 .4em;
+  font-family: var(--kami-font-title);
+  font-weight: 700;
+  font-size: var(--kami-fs);
+  letter-spacing: var(--kami-ls-title);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="trpg"] .kami-md code {
+  font-family: var(--kami-font-mono);
+  font-size: .88em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--kami-t2);
+}
+html[data-kami-skin="trpg"] .kami-md pre {
+  margin: .6em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: 3px;
+  background: var(--kami-bg-soft);
+  border: 1px dashed var(--kami-line-strong);
+  overflow-x: auto;
+}
+html[data-kami-skin="trpg"] .kami-md pre code { background: none; padding: 0; }
+html[data-kami-skin="trpg"] .kami-md blockquote {
+  margin: .6em 0;
+  padding: 2px 0 2px 11px;
+  border-left: 2px solid var(--kami-accent-line);
+  color: var(--kami-fg-mute);
+}
+html[data-kami-skin="trpg"] .kami-md ul,
+html[data-kami-skin="trpg"] .kami-md ol { margin: .5em 0; padding-left: 1.3em; }
+html[data-kami-skin="trpg"] .kami-md li { margin: .18em 0; }
+html[data-kami-skin="trpg"] .kami-md strong { color: var(--kami-fg); font-weight: 700; }
+html[data-kami-skin="trpg"] .kami-md a { color: var(--kami-accent); text-underline-offset: 2px; }
+html[data-kami-skin="trpg"] .kami-md hr { border: 0; border-top: 1px dashed var(--kami-line-strong); margin: .8em 0; }
+html[data-kami-skin="trpg"] .kami-md img { max-width: 100%; border-radius: 2px; }
+html[data-kami-skin="trpg"] .kami-md table { border-collapse: collapse; width: 100%; font-size: var(--kami-fs-xs); }
+html[data-kami-skin="trpg"] .kami-md th,
+html[data-kami-skin="trpg"] .kami-md td { border: 1px solid var(--kami-line); padding: 4px 7px; }
+
+/* 原文：方格本上的一页 */
+html[data-kami-skin="trpg"] .kami-raw {
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-radius: 3px;
+  border: 1px solid var(--kami-line);
+  background-color: var(--kami-card-2);
+  background-image: linear-gradient(rgba(58, 74, 62, .07) 1px, rgba(0, 0, 0, 0) 1px),
+                    linear-gradient(90deg, rgba(58, 74, 62, .07) 1px, rgba(0, 0, 0, 0) 1px);
+  background-size: 22px 22px, 22px 22px;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.75;
+  color: var(--kami-fg-dim);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+html[data-kami-skin="trpg"] .kami-empty { padding: var(--kami-pad-lg-y) 0; color: var(--kami-fg-mute); font-size: var(--kami-fs-sm); }
+html[data-kami-skin="trpg"] .kami-toast {
+  margin-top: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: 3px;
+  border: 1px dashed var(--kami-line-strong);
+  background-color: var(--kami-accent-soft);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-dim);
+  animation: kami-trpg-drop var(--kami-dur) var(--kami-ease-out) backwards;
+}
+html[data-kami-skin="trpg"] .kami-toast.is-bad { color: var(--kami-warn); border-color: currentColor; background-color: transparent; }
+
+
+/* ==========================================================================
+ * 5 · 卡牌：桌游硬纸卡
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap);
+}
+/* 必须写在 .kami-list 之后：选项卡同时带 kami-grid 与 kami-list 两个类，
+   靠文档顺序决定「一列」还是「多列」 */
+html[data-kami-skin="trpg"] .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap-lg);
+}
+html[data-kami-skin="trpg"] .kami-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--kami-line-strong);
+  border-radius: 4px;
+  background-color: var(--kami-card);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, .5) 0, rgba(255, 255, 255, 0) 40%),
+                    repeating-linear-gradient(104deg, rgba(255, 255, 255, .05) 0 1px, rgba(255, 255, 255, 0) 1px 4px);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  box-shadow: 0 var(--kami-trpg-board) 0 rgba(120, 102, 68, .34), 0 calc(var(--kami-trpg-board) + 5px) 10px -6px rgba(74, 60, 34, .5);
+  transition: background-color var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease),
+              transform var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
+}
+/* 卡牌磨损：右上角一块磨白 + 左下角一道压痕 */
+html[data-kami-skin="trpg"][data-kami-effects~="wear"] .kami-card {
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, .5) 0, rgba(255, 255, 255, 0) 40%),
+                    linear-gradient(225deg, rgba(255, 255, 255, .85) 0 5px, rgba(190, 172, 136, .45) 5px 6px, rgba(0, 0, 0, 0) 6px),
+                    linear-gradient(45deg, rgba(120, 102, 68, .16) 0 7px, rgba(0, 0, 0, 0) 7px),
+                    repeating-linear-gradient(104deg, rgba(255, 255, 255, .05) 0 1px, rgba(255, 255, 255, 0) 1px 4px);
+}
+html[data-kami-skin="trpg"] .kami-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+html[data-kami-skin="trpg"] .kami-item.is-demo { opacity: .6; cursor: default; }
+html[data-kami-skin="trpg"] .kami-item-main { min-width: 0; }
+html[data-kami-skin="trpg"] .kami-item-side {
+  flex: none;
+  margin-left: auto;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+  opacity: .7;
+  transition: transform var(--kami-dur) var(--kami-ease), opacity var(--kami-dur) var(--kami-ease);
+}
+@media (hover: hover) {
+  html[data-kami-skin="trpg"] .kami-item:hover {
+    background-color: var(--kami-card-hover);
+    border-color: var(--kami-accent-line);
+    transform: translateY(-2px);
+    box-shadow: 0 calc(var(--kami-trpg-board) + 2px) 0 rgba(120, 102, 68, .34), 0 calc(var(--kami-trpg-board) + 9px) 14px -8px rgba(74, 60, 34, .55);
+  }
+  html[data-kami-skin="trpg"] .kami-item:hover .kami-item-side { transform: translateX(2px); opacity: 1; }
+  html[data-kami-skin="trpg"] .kami-item:hover .kami-badge { transform: rotate(0deg); }
+}
+html[data-kami-skin="trpg"] .kami-item:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(120, 102, 68, .34), 0 2px 3px -2px rgba(74, 60, 34, .5);
+}
+html[data-kami-skin="trpg"] .kami-item.is-done {
+  border-color: var(--kami-accent-line);
+  background-color: var(--kami-accent-soft);
+}
+html[data-kami-skin="trpg"] .kami-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-bottom: 7px;
+}
+html[data-kami-skin="trpg"] .kami-card-title {
+  font-family: var(--kami-font-title);
+  font-weight: 700;
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls-title);
+  min-width: 0;
+}
+html[data-kami-skin="trpg"] .kami-card-note { font-size: var(--kami-fs-xs); color: var(--kami-fg-mute); }
+html[data-kami-skin="trpg"] .kami-card-body { display: block; font-size: var(--kami-fs-sm); color: var(--kami-fg-dim); }
+
+/* 角落的类型标签：一枚歪着盖上去的章 */
+html[data-kami-skin="trpg"] .kami-badge,
+html[data-kami-skin="trpg"] .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 1px 7px 2px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-xs);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: .06em;
+  color: var(--kami-kind-other);
+  white-space: nowrap;
+}
+html[data-kami-skin="trpg"] .kami-badge {
+  transform: rotate(-1.4deg);
+  background-color: currentColor;
+  background-image: linear-gradient(rgba(255, 255, 255, .82), rgba(255, 255, 255, .82));
+  background-clip: padding-box;
+  transition: transform var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-chip {
+  border: 1px dashed var(--kami-line-strong);
+  background-color: var(--kami-t1);
+  color: var(--kami-fg-dim);
+  font-weight: 400;
+}
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="action"] { color: var(--kami-kind-action); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="persona"] { color: var(--kami-kind-persona); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="plot"] { color: var(--kami-kind-plot); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="info"] { color: var(--kami-kind-info); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="fun"] { color: var(--kami-kind-fun); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="nsfw"] { color: var(--kami-kind-nsfw); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-kind="other"] { color: var(--kami-kind-other); }
+html[data-kami-skin="trpg"] .kami-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-lg-x) var(--kami-pad-lg-y);
+  border-top: 1px dashed var(--kami-line-strong);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+
+
+/* ==========================================================================
+ * 6 · 面板：桌上摊开的那张最大的纸
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] {
+  background: rgba(38, 32, 20, .28);
+}
+/* .kami-drop 也是 .kami-surface：面板几何层给的是 position:absolute，
+   而上面 .kami-surface 的 position:relative 特异性更高会把它顶掉 ——
+   窄屏抽屉靠 bottom:0 定位，一旦退回 relative 就会跑到屏幕顶端。这里显式压回来。 */
+html[data-kami-skin="trpg"] .kami-drop {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  clip-path: var(--kami-surface-clip);
+  background-color: var(--kami-bg);
+  background-image: var(--kami-trpg-doodle), var(--kami-trpg-grid), var(--kami-texture);
+  background-repeat: repeat, repeat, repeat;
+  background-size: 460px 340px, var(--kami-trpg-grid-size) var(--kami-trpg-grid-size), auto;
+  background-position: 6px 4px, 0 0, 0 0;
+  background-blend-mode: var(--kami-trpg-blend), var(--kami-trpg-blend), normal;
+}
+html[data-kami-skin="trpg"] .kami-drop > .kami-head { flex: 0 0 auto; }
+html[data-kami-skin="trpg"] .kami-drop > .kami-tabs { flex: 0 0 auto; }
+html[data-kami-skin="trpg"] .kami-drop > .kami-foot { flex: 0 0 auto; }
+html[data-kami-skin="trpg"] .kami-drop > .kami-body { flex: 1 1 auto; min-height: 0; }
+
+html[data-kami-skin="trpg"] .kami-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 var(--kami-pad-lg-x);
+  border-bottom: 1px dashed var(--kami-line-strong);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-kami-skin="trpg"] .kami-tabs::-webkit-scrollbar { display: none; }
+/* tab 行放不下时（7 个 tab / 430px 面板、或手机抽屉）要**看得出来还能往右滑**：
+   给滚动容器右缘一道 20px 的渐隐遮罩。遮罩挂在滚动容器自己的边框盒上，内容在它下面滚，
+   被裁掉的那半个 tab 会淡出成「还有」的暗示；tab 行排得下时渐隐落在右侧内边距与底线上。 */
+html[data-kami-skin="trpg"] .kami-tabs {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+}
+html[data-kami-skin="trpg"] .kami-tab {
+  flex: none;
+  position: relative;
+  top: 1px;
+  border: 1px solid var(--kami-line);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background-color: var(--kami-t1);
+  color: var(--kami-fg-mute);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-sm);
+  letter-spacing: var(--kami-ls-title);
+  padding: 7px var(--kami-pad-x) 6px;
+  cursor: pointer;
+  transition: color var(--kami-dur-fast) var(--kami-ease), background-color var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-tab[aria-selected="true"] {
+  color: var(--kami-fg);
+  background-color: var(--kami-bg);
+  border-color: var(--kami-line-strong);
+  box-shadow: inset 0 2px 0 var(--kami-accent);
+}
+
+html[data-kami-skin="trpg"] .kami-field {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+  border-bottom: 1px dotted var(--kami-line);
+}
+html[data-kami-skin="trpg"] .kami-field-label { flex: 1 1 auto; min-width: 0; font-size: var(--kami-fs-sm); }
+html[data-kami-skin="trpg"] .kami-field-value { flex: none; display: flex; align-items: center; gap: 6px; }
+html[data-kami-skin="trpg"] .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 96px;
+  height: 6px;
+  border-radius: 1px;
+  border: 1px solid var(--kami-line);
+  background-color: var(--kami-t2);
+  background-image: repeating-linear-gradient(90deg, var(--kami-line) 0 1px, rgba(0, 0, 0, 0) 1px 8px);
+  cursor: pointer;
+}
+html[data-kami-skin="trpg"] .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--kami-accent);
+  border: 1px solid var(--kami-accent-fg);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .22);
+}
+html[data-kami-skin="trpg"] .kami-range::-moz-range-thumb {
+  width: 12px;
+  height: 15px;
+  border-radius: 2px;
+  border: 1px solid var(--kami-accent-fg);
+  background-color: var(--kami-accent);
+}
+html[data-kami-skin="trpg"] .kami-number {
+  width: 62px;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--kami-line);
+  border-radius: 2px;
+  background-color: var(--kami-card-2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg);
+}
+/* 右对齐是数字框的专属：以前这条写在裸 .kami-number 上，把摘要提示词的正文与角色下拉一起带偏了 */
+html[data-kami-skin="trpg"] input.kami-number[type="number"] { text-align: right; }
+
+/* 面板里的数字输入框：字用正文色（--kami-fg）+ 亮底，并给凹槽加一圈内阴影
+   （卡片底与输入底只差 0.14 亮度时还看得见，但暗色卡片上光靠底色分不出来）。
+   必须点名 input.kami-number：.kami-root input 的 color:inherit 特异性更高，
+   会把上面的 color:var(--kami-fg) 压成继承来的 --kami-fg-dim。两块面板共用，panel 限定即可。
+   底必须显式写、并且带 !important：酒馆「用户设置 → 自定义 CSS」里那条
+    input[type="number"] { background-color: var(--ui-color-sec) !important } 会盖掉
+    .kami-number 上的亮底，深色主题下就变成深底压深字（真机实测，见本轮报告）。
+    底只能写 background-color：写成 background 简写会把 .kami-select 那枚自绘箭头
+    的 background-image 一起重置掉。 */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] input.kami-number,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] input.kami-text,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] select.kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card-2) !important;
+  border-color: var(--kami-line-strong) !important;
+  color-scheme: light;
+  box-shadow: inset 0 1px 2px var(--kami-t3);
+}
+
+/* 文本 / 多行 / 下拉（契约 §4.2 新登记的三类）：直角小圆角 + 一管墨线的卡纸控件，一律左对齐。
+   选择器点名到元素：.kami-root textarea 的 color:inherit 与它同为 (0,2,2)，
+   只有源码顺序在后才压得住，否则字会被 .kami-field 的 --kami-fg-dim 接管。 */
+html[data-kami-skin="trpg"] input.kami-text,
+html[data-kami-skin="trpg"] textarea.kami-textarea,
+html[data-kami-skin="trpg"] select.kami-select {
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  text-align: left;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg);
+}
+html[data-kami-skin="trpg"] textarea.kami-textarea { resize: vertical; }
+/* 下拉框：抹掉浏览器默认外观，用两层渐变拼一枚 V 形箭头；右内边距给箭头留位 */
+html[data-kami-skin="trpg"] select.kami-select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: calc(var(--kami-pad-x) + 16px);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--kami-fg-mute) 50%),
+    linear-gradient(135deg, var(--kami-fg-mute) 50%, transparent 50%);
+  background-size: 4px 4px, 4px 4px;
+  background-position: calc(100% - 13px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+html[data-kami-skin="trpg"] .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
+html[data-kami-skin="trpg"] .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
+html[data-kami-skin="trpg"] .kami-switch-track {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 2px;
+  border: 1px solid var(--kami-line-strong);
+  background-color: var(--kami-t2);
+  transition: background-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-switch-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--kami-fg-mute);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .2);
+  transition: transform var(--kami-dur) var(--kami-ease), background-color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="trpg"] .kami-switch-input:checked + .kami-switch-track { background-color: var(--kami-accent-soft); border-color: var(--kami-accent-line); }
+html[data-kami-skin="trpg"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { transform: translateX(20px); background-color: var(--kami-accent); }
+html[data-kami-skin="trpg"] .kami-switch-input:focus-visible + .kami-switch-track { outline: 2px dashed var(--kami-accent); outline-offset: 2px; }
+
+html[data-kami-skin="trpg"] .kami-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kami-t3) transparent;
+}
+html[data-kami-skin="trpg"] .kami-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+html[data-kami-skin="trpg"] .kami-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--kami-t3);
+  border-radius: 0;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+html[data-kami-skin="trpg"] .kami-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background-image: linear-gradient(135deg, rgba(0, 0, 0, 0) 46%, var(--kami-line-strong) 46%, var(--kami-line-strong) 56%, rgba(0, 0, 0, 0) 56%);
+}
+html[data-kami-skin="trpg"] .kami-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--kami-line);
+  border-radius: 3px;
+  background-color: var(--kami-card);
+}
+html[data-kami-skin="trpg"] .kami-preview i {
+  display: block;
+  height: 6px;
+  border-radius: 1px;
+  background-color: var(--kami-t3);
+}
+html[data-kami-skin="trpg"] .kami-preview i:first-child { width: 58%; background-color: var(--kami-accent); }
+html[data-kami-skin="trpg"] .kami-pv {
+  position: relative;
+  border: 1px solid var(--kami-line);
+  border-radius: 3px;
+  background-color: var(--kami-bg);
+  overflow: hidden;
+}
+html[data-kami-skin="trpg"] .kami-pv-frame { display: block; width: 100%; border: 0; }
+
+/* 贴底抽屉：模式由脚本按**酒馆自己的单栏状态**下发（data-kami-layout="sheet"），
+   所以这里写属性选择器而不是媒体查询 —— 面板什么时候变成抽屉，跟酒馆什么时候只剩中间栏一致。 */
+html[data-kami-skin="trpg"] .kami-drop[data-kami-layout="sheet"] { border-radius: 0; }
+
+
+/* ==========================================================================
+ * 7 · 特效（每个 id 都能被面板单独关掉）
+ * ======================================================================== */
+html[data-kami-skin="trpg"][data-kami-effects~="grid"] .kami-root {
+  --kami-trpg-grid: radial-gradient(circle at 50% 50%, var(--kami-trpg-grid-ink) 0 1.1px, rgba(0, 0, 0, 0) 1.6px);
+}
+html[data-kami-skin="trpg"][data-kami-effects~="doodle"] .kami-root {
+  --kami-trpg-doodle: var(--kami-trpg-art);
+}
+/* 胶带：两条半透明胶纸压住两个对角，在纸面之上、文字之外 */
+html[data-kami-skin="trpg"][data-kami-effects~="tape"] .kami-surface::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  top: 5px;
+  left: -7px;
+  width: 42px;
+  height: 14px;
+  pointer-events: none;
+  border-radius: 1px;
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0 5%, var(--kami-trpg-tape) 9%, var(--kami-trpg-tape) 91%, rgba(255, 255, 255, 0) 95%),
+                    linear-gradient(180deg, rgba(255, 255, 255, .35) 0, rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 1px 2px rgba(90, 80, 60, .16);
+  transform: rotate(-38deg);
+}
+html[data-kami-skin="trpg"][data-kami-effects~="tape"] .kami-surface::before {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  right: -7px;
+  bottom: 6px;
+  width: 42px;
+  height: 14px;
+  pointer-events: none;
+  border-radius: 1px;
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0 5%, var(--kami-trpg-tape) 9%, var(--kami-trpg-tape) 91%, rgba(255, 255, 255, 0) 95%),
+                    linear-gradient(180deg, rgba(255, 255, 255, .35) 0, rgba(255, 255, 255, 0) 100%);
+  box-shadow: 0 1px 2px rgba(90, 80, 60, .16);
+  transform: rotate(-38deg);
+}
+
+
+/* ==========================================================================
+ * 8 · 动效降级：不是减速，是停住
+ * ======================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="trpg"] .kami-root *,
+  html[data-kami-skin="trpg"] .kami-root *::before,
+  html[data-kami-skin="trpg"] .kami-root *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"]::before,
+  html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"]::after,
+  html[data-kami-skin="trpg"] .kami-deco.kami-d20 .kami-d20-stage { animation: none !important; }
+}
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-root *,
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-root *::before,
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-root *::after {
+  animation-iteration-count: 1 !important;
+}
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-deco[data-kami-deco="d20"]::after,
+html[data-kami-skin="trpg"][data-kami-motion="calm"] .kami-deco.kami-d20 .kami-d20-stage { animation: none !important; }
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-root *,
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-root *::before,
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-root *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-deco[data-kami-deco="d20"]::after,
+html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-deco.kami-d20 .kami-d20-stage { animation: none !important; }
+
+/* ==========================================================================
+ * 9 · 设置面板里的条目：紧凑网格（手机抽屉 3 列）+ 开着的卡片高亮
+ * ------------------------------------------------------------------------
+ * ① 皮肤默认的 --kami-items-min（15.5rem ≈ 248px，按 820px 宽的消息区调的）
+ *    在设置面板里永远只排得下 1 列 —— 面板里的网格只有 353px 宽。
+ *    面板作用域内压到 96px：390px 宽的底部抽屉正好 3 列，桌面 420px 面板 3~4 列。
+ * ② 开着（is-on）以前只有右侧那枚「开/关」标签能看出来。这里按本皮肤
+ *    「这张牌已经摊在桌上」的语汇点亮它：边框转强调色、纸面染一层淡绿，
+ *    与 .kami-item.is-done 同一套令牌，没有新颜色。
+ *
+ * 三重限定，缺一不可：
+ *   · html[data-kami-skin="trpg"] —— 皮肤契约要求的皮肤前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options 两种组件，
+ *                                   没有 panel。带上它，面板的改动绝不会渗进聊天前端；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * ======================================================================== */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+  --kami-items-min: 96px;
+}
+
+/* 窄屏（手机底部抽屉）下的列宽：96px 会让 375px 的抽屉排出 3 列、卡只有 ~110px，
+   「DS/GLM底部破限」这种名字被拦腰断成 DS/GLM 断行。窄屏把列宽调大，宁可两列：
+   375px 抽屉 → 2 列（卡 ~166px），320px → 2 列（卡 ~110px）。
+   只改令牌，不动脚本结构；桌面 420px 面板不受影响（视口 > 560px 时照旧 3~4 列）。 */
+@media (max-width: 560px) {
+  html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 152px;
+  }
+}
+@media (max-width: 380px) {
+  html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+    --kami-items-min: 108px;
+  }
+}
+
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card.is-on {
+  border-color: var(--kami-accent-line);
+  background-color: var(--kami-accent-soft);
+}
+
+/* ============================================================
+ * 22 · 条目名角标：emoji 摘下来，像桌沿上贴的一枚小签
+ * ------------------------------------------------------------
+ * 条目名绝大多数是四个汉字，前面那枚 emoji + 空格会把 110px 的紧凑小卡顶成两行。
+ * 把 emoji 绝对定位到卡片角上，文字那一行**整行**腾出来，卡片高度不因此变高。
+ * 脚本只摘显示，预设里条目名一个字没动。
+ *
+ * 三重限定，缺一不可（理由同上节）：
+ *   · html[data-kami-skin="trpg"] —— 皮肤前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * 只用本皮肤已有令牌；把这一枚上「整块铺色」的跑纸底纹收掉，角上只留 emoji 本身。
+ * ============================================================ */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item.kami-card {
+  position: relative;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  position: absolute;
+  top: 1px;
+  right: 4px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-image: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--kami-fg-dim);
+  transform: rotate(-1.4deg);
+  pointer-events: none;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 4px;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 1px;
+}
+/* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
+   有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片略高一点点，
+   文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:hover > .kami-badge {
+  transform: rotate(0deg);
+}
+
+/* ============================================================
+ * 24 · 非当前模型的模型专属条目：锁死
+ * ------------------------------------------------------------
+ * 面板「🤖 模型」tab 里，不属于「当前模型」的模型专属条目一律禁用（脚本写 HTML 原生的
+ * disabled，条目卡本来就是 button）。外观也要给出「锁死」的样子：变暗 + 去掉悬停反馈
+ * + 鼠标禁止符号。颜色只用本文件已有的「最弱文字色」令牌 --kami-fg-mute，不引入新颜色。
+ *
+ * 三重限定，缺一不可（理由同上面 22 节）：
+ *   · html[data-kami-skin="trpg"] —— trpg 的作用域前缀；
+ *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
+ * ============================================================ */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  background-color: var(--kami-card);
+  background-image: none;
+  border-color: var(--kami-line);
+  box-shadow: none;
+  transform: none;
+  opacity: .42;
+  color: var(--kami-fg-mute);
+  cursor: not-allowed;
+}
+/* 悬停才会冒出来的装饰（角标转正 / 左缘竖条 / 湿痕横线）在锁死时一律不许动 */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+  transform: scale(0);
+  opacity: 0;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge { transform: none; }
+
+/* 注释标记 + 展开出来的注释正文：**不得用面板 id 限定**（契约 §4.4 硬规则），
+   否则后加的面板（如引导 ）一条都匹配不上。
+   标记元素 = span.kami-card-note[data-kami-note-mark]，与 🌟 预设面板同构。 */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  margin-left: 5px;
+  border: var(--kami-border-w) solid var(--kami-accent);
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-xs);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+  background: var(--kami-accent);
+  color: var(--kami-bg);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  display: block;
+  margin: 5px 0 0;
+  padding: 5px 7px;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+  border-radius: var(--kami-r-xs);
+  background: var(--kami-t2);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+
+/* ============================================================
+ * · 面板里的控件边界：描边抬到「看得见」那一档
+ * ------------------------------------------------------------
+ * 面板里的条目卡底与外面那层卡片底是同一个色，唯一的边界就是那 1px 描边；
+ * 原来的 --kami-line 实测只有 1.3~1.6:1，卡片会连成一片、看不出是一张一张的按钮。
+ * 面板内的控件描边统一提到 --kami-line-strong（同一个色，只是更实），卡片边界实测 >= 3:1。
+ * 只用本皮肤已有令牌，没有新颜色；不开 --kami-line 本身：聊天前端的细线该细还是细。
+ * 不带面板 id（契约 §4.4）：三块面板与以后的新面板共用这一条。
+ * ============================================================ */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+  border-color: var(--kami-line-strong);
+}

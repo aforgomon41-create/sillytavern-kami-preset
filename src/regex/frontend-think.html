@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>思考</title>
+<style>
+/* ===== 兜底皮肤（皮肤管理未运行时生效；有皮肤时整体失效） ===== */
+/* @@KAMI_BASE_CSS@@ */
+
+/* ===== 结构层：只声明“必须存在才能工作”的最小行为，不含任何外观 ===== */
+html, body { margin: 0; padding: 0; background: transparent; border: 0; }
+body { font-family: inherit; color: inherit; }
+.kami-root[data-kami-comp="think"] { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- 载荷：模型输出的思考原文（正则捕获组 1）。用 text/plain 承载，正文里的标签不会被解析 -->
+<script type="text/plain" data-kami-payload>@@PAYLOAD@@</script>
+
+<div class="kami-root" data-kami-comp="think" data-kami-view="render">
+  <div class="kami-shell kami-surface kami-collapse" data-kami-open="0">
+    <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="false">
+      <span class="kami-dot"></span>
+      <span class="kami-deco" data-kami-deco="d20" aria-hidden="true"></span>
+      <span class="kami-title" data-kami-slot="think-title" data-kami-label="think-title" data-kami-label-open="think-title-open">思维链</span>
+      <span class="kami-actions">
+        <span class="kami-sub" data-kami-slot="think-count"></span>
+        <span class="kami-chev" aria-hidden="true">▸</span>
+      </span>
+    </div>
+    <div class="kami-body kami-collapse-body">
+      <div class="kami-bar">
+        <span class="kami-seg">
+          <button type="button" class="kami-seg-item is-on" data-kami-mode="render">渲染</button>
+          <button type="button" class="kami-seg-item" data-kami-mode="raw">原文</button>
+        </span>
+        <button type="button" class="kami-btn kami-btn--ghost" data-kami-act="copy">复制</button>
+      </div>
+      <div class="kami-md" data-kami-view="render"></div>
+      <pre class="kami-raw" data-kami-view="raw"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var NL = String.fromCharCode(10);
+  var SP = '[\\s\\u3000]';
+  /* 注意：本文件（含注释）不允许出现美元符号字面量。构建期会把每个美元符号加倍，
+     而酒馆 1.18 的正则引擎是「回调替换 + 自行解析编号捕获组」，不会把加倍的符号还原，
+     于是「加倍符号 + 数字 1」会被解析成「一个美元符号 + 捕获组 1」，把载荷整段注入
+     JS 字符串字面量里 —— 前端脚本语法错误、标题栏点击永远没反应。 */
+  var D = String.fromCharCode(36);
+  var RE_TRIM = new RegExp('^' + SP + '+|' + SP + '+' + D, 'g');
+  var RE_BLANK = new RegExp(NL + '{2,}');
+  var RE_BR = new RegExp(NL, 'g');
+  var RE_SP = new RegExp(SP, 'g');
+  var RE_BOLD = new RegExp('\\*\\*([^*]+)\\*\\*', 'g');
+  var RE_CODE = new RegExp('\\u0060([^\\u0060]+)\\u0060', 'g');
+  var RE_HEAD = new RegExp('^\\u0023{1,6}');
+  var RE_LI = new RegExp('^' + SP + '*[-*]' + SP);
+  var LS_OPEN = 'kami.think.open';
+  var LS_VIEW = 'kami.think.view';
+
+  function q(sel, root) { return (root || document).querySelector(sel); }
+  function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function store(key, val) {
+    try {
+      if (val === undefined) { return localStorage.getItem(key); }
+      localStorage.setItem(key, val);
+    } catch (e) { }
+    return null;
+  }
+
+  /* ---------- 文案令牌：皮肤通过 CSS 变量提供品牌化文案 ---------- */
+  function labelVar(root, name) {
+    var v = '';
+    try { v = getComputedStyle(root).getPropertyValue('--kami-label-' + name); } catch (e) { return ''; }
+    v = String(v || '').replace(RE_TRIM, '');
+    if (v.length > 1) {
+      var a = v.charAt(0), b = v.charAt(v.length - 1);
+      if ((a === '"' && b === '"') || (a === "'" && b === "'")) { v = v.slice(1, -1).replace(RE_TRIM, ''); }
+    }
+    return v;
+  }
+  /* 风格性文案：任何带 data-kami-label 的元素都可被皮肤用 --kami-label-<slot> 覆盖。
+     展开态优先读 data-kami-label-open（皮肤没给就回退）。新增槽位只需在 HTML 上加属性，不用改这里。 */
+  function applyLabels(root, open) {
+    var els = root.querySelectorAll('[data-kami-label]');
+    for (var i = 0; i < els.length; i++) {
+      (function (el) {
+        if (!el.getAttribute('data-kami-default')) { el.setAttribute('data-kami-default', el.textContent || ''); }
+        var token = el.getAttribute('data-kami-label');
+        if (open) {
+          var openTok = el.getAttribute('data-kami-label-open');
+          if (openTok && labelVar(root, openTok)) { token = openTok; }
+        }
+        var v = labelVar(root, token) || el.getAttribute('data-kami-default') || '';
+        if (el.textContent !== v) { el.textContent = v; }
+      })(els[i]);
+    }
+  }
+  /* ---------- 载荷 ---------- */
+  function payload() {
+    var el = q('script[data-kami-payload]');
+    var raw = el ? (el.textContent || '') : '';
+    return raw.replace(RE_TRIM, '');
+  }
+
+  /* ---------- markdown ---------- */
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function md(text) {
+    try {
+      if (window.showdown && window.showdown.Converter) {
+        var c = new window.showdown.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: false });
+        var html = c.makeHtml(text);
+        if (html) { return html; }
+      }
+    } catch (e) { }
+    /* 极简兜底：段落 / 粗体 / 行内代码 / 标题 / 列表 */
+    return String(text).split(RE_BLANK).map(function (block) {
+      var b = escHtml(block)
+        .replace(RE_BOLD, function (m, g) { return '<strong>' + g + '</strong>'; })
+        .replace(RE_CODE, function (m, g) { return '<code>' + g + '</code>'; });
+      if (RE_HEAD.test(block)) {
+        return '<p><strong>' + escHtml(block.replace(RE_HEAD, '').replace(RE_TRIM, '')) + '</strong></p>';
+      }
+      if (RE_LI.test(block)) {
+        return '<ul>' + block.split(NL).map(function (l) {
+          return '<li>' + escHtml(l.replace(RE_LI, '')) + '</li>';
+        }).join('') + '</ul>';
+      }
+      return '<p>' + b.replace(RE_BR, '<br>') + '</p>';
+    }).join('');
+  }
+
+  /* ---------- 复制 ---------- */
+  function copy(text, btn) {
+    function done() {
+      if (!btn) { return; }
+      btn.classList.add('is-done');
+      var old = btn.getAttribute('data-kami-timer');
+      if (old) { clearTimeout(Number(old)); }
+      btn.setAttribute('data-kami-timer', String(setTimeout(function () {
+        btn.classList.remove('is-done');
+        btn.removeAttribute('data-kami-timer');
+      }, 1200)));
+    }
+    function fallback() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+      } catch (e) { }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+        return;
+      }
+    } catch (e) { }
+    fallback();
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    var root = q('.kami-root[data-kami-comp="think"]');
+    if (!root || root.getAttribute('data-kami-ready') === '1') { return; }
+    root.setAttribute('data-kami-ready', '1');
+
+    var collapse = q('.kami-collapse', root);
+    var head = q('.kami-collapse-head', root);
+    var mdBox = q('.kami-md', root);
+    var rawBox = q('.kami-raw', root);
+    var raw = payload();
+
+    if (!raw) {
+      if (mdBox) {
+        mdBox.innerHTML = '';
+        var emp = document.createElement('p');
+        emp.className = 'kami-empty';
+        emp.textContent = labelVar(root, 'empty') || '未捕获到内容';
+        mdBox.appendChild(emp);
+      }
+    } else {
+      if (mdBox) { try { mdBox.innerHTML = md(raw); } catch (e) { mdBox.textContent = raw; } }
+      if (rawBox) { rawBox.textContent = raw; }
+    }
+
+    /* 字数（去掉空白后的字符数；不是 token 数） */
+    var n = raw.replace(RE_SP, '').length;
+    var countEl = q('[data-kami-slot="think-count"]', root);
+    if (countEl) { countEl.textContent = n ? (n + ' ' + (labelVar(root, 'chars') || '字')) : ''; }
+
+    /* 展开状态：默认折叠 */
+    var open = store(LS_OPEN) === '1';
+    function setOpen(v, silent) {
+      open = !!v;
+      collapse.setAttribute('data-kami-open', open ? '1' : '0');
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      applyLabels(root, open);
+      if (!silent) { store(LS_OPEN, open ? '1' : '0'); }
+    }
+    setOpen(open, true);
+
+    head.addEventListener('click', function () { setOpen(!open); });
+    head.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') { ev.preventDefault(); setOpen(!open); }
+    });
+
+    /* 双视图：只切属性，显隐交给皮肤 */
+    var view = store(LS_VIEW) === 'raw' ? 'raw' : 'render';
+    function setView(v) {
+      view = v === 'raw' ? 'raw' : 'render';
+      root.setAttribute('data-kami-view', view);
+      qa('.kami-seg-item', root).forEach(function (b) {
+        b.classList.toggle('is-on', b.getAttribute('data-kami-mode') === view);
+      });
+      store(LS_VIEW, view);
+    }
+    qa('.kami-seg-item', root).forEach(function (b) {
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); setView(b.getAttribute('data-kami-mode')); });
+    });
+    setView(view);
+
+    /* 复制 */
+    var copyBtn = q('[data-kami-act="copy"]', root);
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function (ev) { ev.stopPropagation(); copy(raw, copyBtn); });
+      if (!raw) { copyBtn.setAttribute('disabled', 'disabled'); }
+    }
+
+    /* 皮肤切换时重读文案令牌 */
+    try {
+      var mo = new MutationObserver(function () { applyLabels(root, open); });
+      mo.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-kami-skin', 'data-kami-scheme', 'data-kami-density', 'data-kami-motion']
+      });
+    } catch (e) { }
+    applyLabels(root, open);
+  }
+
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
+  window.addEventListener('load', function () { try { boot(); } catch (e) { } });
+})();
+</script>
+</body>
+</html>
