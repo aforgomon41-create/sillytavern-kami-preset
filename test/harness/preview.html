@@ -1328,15 +1328,21 @@ function d20report(doc, tag) {
               var out = [];
               var vw = document.documentElement.clientWidth;
               var all = document.querySelectorAll('body *');
-              for (var i = 0; i < all.length && out.length < 3; i++) {
+              for (var i = 0; i < all.length; i++) {
                 var e = all[i];
                 if (e === gpn || gpn.contains(e) || e.contains(gpn)) { continue; }
+                var pos = '';
+                try { pos = getComputedStyle(e).position; } catch (e13) { }
+                /* fixed 元素只会「跟着」被撑宽（它以 html 盒子为定位包含块），不是原因，跳过 */
+                if (pos === 'fixed') { continue; }
                 var r = e.getBoundingClientRect();
                 if (r.width <= 0 || r.right <= vw + 1) { continue; }
-                out.push((e.tagName || '?').toLowerCase() + '.' + String(e.className || '-').split(' ')[0] +
-                  '@' + Math.round(r.right));
+                out.push({ s: (e.tagName || '?').toLowerCase() + (e.id ? '#' + e.id : '') +
+                  (String(e.className || '') ? '.' + String(e.className).split(' ')[0] : ''), r: Math.round(r.right), w: Math.round(r.width) });
               }
-              return out.length ? out.join(',') : '无';
+              out.sort(function (a, b) { return b.r - a.r; });
+              out = out.slice(0, 4);
+              return out.length ? out.map(function (x) { return x.s + '@' + x.r + 'w' + x.w; }).join(',') : '无';
             })() +
             '|面板左' + (rD ? Math.round(rD.left) : '-') + '宽' + (rD ? Math.round(rD.width) : '-') +
             '|页头宽' + (rH ? Math.round(rH.width) : '-') +

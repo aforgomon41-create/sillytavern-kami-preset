@@ -466,6 +466,15 @@
        ⚠️ border-radius:0!important 是**登记在案的例外**（契约 §9）：全屏向导的四角必须贴边，
        几何层给 .kami-drop 写的是 var(--kami-r-lg,14px)，不压掉就会在屏幕上留四个圆角。
        不要为了「合规」把它改成圆角令牌 —— 那会把全屏向导变成一张带圆角的浮窗。 */
+    /* ⚠️ 第二条登记在案的例外：舞台宽度夹到视口（`100vw`）。
+       舞台是 `position:fixed;left:0;right:0` 撑的，**定位包含块不是视口而是酒馆的 html 盒子**
+       （酒馆给 html 上了 transform/perspective，见 30-皮肤管理.js 里那段注释）。
+       于是**页面一旦横向溢出，舞台就跟着变宽，全屏面板整体右移，最右边的 ✕ 被推出屏幕**
+       —— 预览台 375px 下实测 wod / trpg 是 399 宽、✕ 视口右距 -9 ~ -11（其它 13 套都是 +11 以上）。
+       越界来源是预览台自己的固定工具条，**不是皮肤元素**（皮肤一条页面级选择器都没有）。
+       `max-width:100vw` 只在「页面比视口宽」时生效：桌面端 100vw ≥ 视口，等于没有这条；
+       手机上它把面板夹回屏幕内，✕ 就回来了。契约 §9.2 已登记。 */
+    '#' + PANEL_ID + '{max-width:100vw!important;}',
     '#' + PANEL_ID + ' .kami-drop.kami-drop{left:0!important;top:0!important;right:auto!important;bottom:auto!important;',
     'width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important;}',
     '#' + PANEL_ID + ' .kami-drop{display:flex;flex-direction:column;overflow:hidden;',
