@@ -409,7 +409,12 @@
         }
         groups.push({
           name: card.name,
-          mode: card.mode === 'once' ? 'once' : 'any',
+          /* ⚠️ 解析器给的是**中文**模式名（preset-parse.mjs:368 的 '单选' / '多选'），
+           这里原来写成 card.mode === 'once'，永远不成立 —— 后果是引导里「单选卡片」
+           既不取消同组其它卡片的选中，也没给卡片打上 data-kami-single
+           （用户 2026-09-22 真机报的「选一张，原来那张不取消高亮」就是这个）。
+           同一套词汇在 40-预设设置.js 里用的是 '单选'，两边必须一致。 */
+        mode: card.mode === '单选' ? 'once' : 'any',
           intro: cardIntro,
           items: items
         });
@@ -479,18 +484,19 @@
 
     /* 照片卡（选项）：标题栏 = 图版位（emoji ＋ 条目名同行），下面是图片说明。
        列宽自适应，宽屏多栏、窄屏一栏 */
-    '#' + PANEL_ID + ' .kami-guide-grid{display:grid;',
+    /* ⚠️ align-items:start 是**必须的**（2026-09-22 用户报「同一行里最后一张卡总是高一点」）：
+       默认的 normal/stretch 在网格里会让**每一行最后一张卡**被拉伸到行高（实测 63px vs 其它 47px），
+       成因是表单控件（条目卡是 <button>）在 normal 下的拉伸行为不一致；显式 start 之后
+       每张卡都取自己的自然高度，整行立刻齐平（实测 47/51/47，选中的那张高 4px 是强调线的设计）。
+       实测：改成 stretch 无效（最后一张仍 63）。别再删这一行。 */
+    '#' + PANEL_ID + ' .kami-guide-grid{display:grid;align-items:start;',
     'grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:var(--kami-gap,8px);}',
     '#' + PANEL_ID + ' .kami-guide-grid > .kami-item{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;text-align:left;}',
-    /* 条目开关卡片的排版分工（2026-09-21 用户裁定）：
-       **没有注释的排成网格（紧凑多列），有注释的占满整行** —— 注释是一句话，挤在 180px 的
-       格子里会被折成四五行的窄柱；标题只有一个名字，占整行又白白浪费。
-       判据用卡片上的 data-kami-guide-note（由 renderCardPage 按「有没有 desc」打），
-       不用 `:has(.kami-guide-capdesc)` —— 被锁死的卡片也会带一条 .kami-guide-capdesc
-       （写「XX 专用」），那种卡片不该跟着占整行。
+    /* 条目开关卡片一律排网格（2026-09-21 用户裁定，**推翻**同日「有注释的占满整行」的旧决定）：
+       带注释的卡片（说明文字常展开）与普通卡片同列宽排布，不独占一行。带注释的卡片会高一截
+       （多一行图片说明），同行其它卡片被网格拉伸到同一高度，视觉上仍是一整行。
        模型页的条目卡走另一条路（带注释的会被 buildItemCard 包进 .kami-item-note），
        规则见下面的 .kami-guide-grid-models 段。 */
-    '#' + PANEL_ID + ' .kami-guide-grid > .kami-item[data-kami-guide-note="1"]{grid-column:1 / -1;}',
     /* 标题栏（图版位）：emoji 与名字一行。
        上下内边距比通用档多 4px：卡片自带大圆角（皮肤决定，各套不同），
        通用档在圆角大的皮肤下会让文字的墨水盒贴到圆弧上（真机实测余量只剩 5.9px）。
@@ -560,13 +566,10 @@
     /* ⚠️ 2026-09-21 二次修（用户报「解析出来的条目开关卡片，没有注释的话应该排网格」）：
        220px 的下限在手机上会把卡内条目排成**一行一张**（实测 442px 的模型卡 → 卡内条目 441px 宽、
        正好 1 列），于是没有注释的条目也白占一整行。现在收到 150px：手机上 2 列、宽屏 3 列。
-       **带注释的条目卡占满整行**（它们外面包着 .kami-item-note）：注释是一句话，
-       塞进 150px 的格子会被折成窄柱，标题却只有一个名字。 */
+       2026-09-21 三次修（用户裁定「带注释的也不要独占一行」）：带注释的条目卡（外包层
+       .kami-item-note）与普通条目卡同列宽排布，注释在卡下方容器里展开/收起。 */
     '#' + PANEL_ID + ' .kami-guide-grid-models .kami-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));}',
     '#' + PANEL_ID + ' .kami-guide-grid-models .kami-item > .kami-card-head{padding-left:0;padding-right:0;}',
-    /* 带注释的条目卡（外包层是 .kami-item-note）在模型页里占满整行。
-       不带面板 id：.kami-guide-grid-models 本身只在引导里用得到。 */
-    '.kami-guide-grid-models .kami-grid > .kami-item-note{grid-column:1 / -1;}',
     /* 带注释的外包层（契约 §4.2 .kami-item-note）：网格里占满一格，注释容器在卡下方。
        ⚠️ 不许用面板 id 限定 —— 这是两块面板共用的组件（契约 §4.4 硬规则 2 与新增的
        「面板内组件规则一律不得用面板 id 限定」），写死 #kami-guide-panel 会让 🌟 面板的
@@ -654,6 +657,47 @@
     if (first && first !== s && first.indexOf('[') !== 0) { return s.slice(first.length).trim() || s; }
     return s;
   }
+  /* ── 真 markdown 渲染（2026-09-22 补，用户指出「引导面板也用 markdown」）──
+     免责条目是真 markdown（标题 / 粗体 / 表格 / 分隔线 / 列表），下面的迷你排版只认
+     #、**、- 三样 —— 表格会整段原样露出来、标题退化成一行粗体。
+     showdown 与 DOMPurify 酒馆助手**已经合并进脚本 iframe 的 window**
+     （JS-Slash-Runner 的 src/iframe/predefine.js:12 从父窗口 pick 了 'showdown'），
+     所以这里比消息 iframe 里的前端还省事：直接用全局的，拿不到（老版酒馆助手 / 预览台没装）
+     就退回上面的迷你排版 —— 宁少渲染，不白屏。
+     ⚠️ 输出必须过 DOMPurify：预设内容不可信，而面板就建在酒馆页面那个文档里。
+     ⚠️ simpleLineBreaks 开着：免责这份文档是「单个换行就是换行」的手写体（比如开头那四行
+     版本/作者/平台/依赖），不是标准 markdown 的软换行；渲染完再把「标签之间的换行」清掉，
+     免得 .kami-guide-doc 的 white-space:pre-wrap 把它们放大成一段段空行。 */
+  var GD = false, GPURIFY = false, GCONV = null, GD_PROBED = false, GD_LOGGED = false;
+  function probeMd() {
+    if (GD_PROBED) { return; }
+    GD_PROBED = true;
+    function sd(w) { try { return (w && w.showdown && w.showdown.Converter) ? w.showdown : null; } catch (e) { return null; } }
+    function dp(w) { try { return (w && w.DOMPurify && w.DOMPurify.sanitize) ? w.DOMPurify : null; } catch (e) { return null; } }
+    GD = sd(window) || sd(HOST) || false;
+    GPURIFY = dp(window) || dp(HOST) || false;
+  }
+  function mdHtml(text) {
+    probeMd();
+    if (!GD || !GPURIFY) { return ''; }
+    try {
+      if (!GCONV) { GCONV = new GD.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: true }); }
+      var html = GCONV.makeHtml(String(text || ''));
+      if (!html) { return ''; }
+      return GPURIFY.sanitize(html.split('>' + String.fromCharCode(10) + '<').join('><'));
+    } catch (e) { log('markdown 渲染失败，退回迷你排版：' + ((e && e.message) || e)); return ''; }
+  }
+  function fillMarkdown(box, text) {
+    var html = mdHtml(text);
+    if (html) {
+      box.innerHTML = html;
+      if (!GD_LOGGED) { GD_LOGGED = true; log('markdown：用酒馆助手的 showdown 渲染'); }
+      return true;
+    }
+    fillParagraphs(box, text);
+    return false;
+  }
+
   function fillParagraphs(box, text) {
     /* 迷你排版：# 开头当小标题，**x** 加粗，- x 当列表点；其余整段。不使用正则。 */
     var lines = String(text || '').split(String.fromCharCode(10)), i;
@@ -703,7 +747,7 @@
       return;
     }
     var doc = el('div', 'kami-md kami-guide-doc');
-    fillParagraphs(doc, st.text);
+    fillMarkdown(doc, st.text);
     panelBody.appendChild(doc);
   }
 
@@ -1073,12 +1117,9 @@
             plate.appendChild(el('span', 'kami-guide-plate-glyph', leadingGlyph(it.name)));
             plate.appendChild(el('span', 'kami-guide-plate-name', stripGlyph(it.name)));
             b.appendChild(plate);
-            /* 有注释的卡片在网格里占满整行（GUIDE_CSS 里按这个属性写规则）：
-               注释是一句话，塞进 180px 的格子会被折成窄柱；标题只有一个名字，占整行又浪费。
-               注意**不能用 `:has(.kami-guide-capdesc)` 当判据** —— 被锁死的卡片也会带一条
-               .kami-guide-capdesc（写「XX 专用」），那种卡片不该跟着占整行。 */
+            /* 图片说明（一句话注释）常展开在标题栏下方：有没有注释都排同一个网格，
+               不独占整行（2026-09-21 用户裁定）。 */
             if (it.desc) {
-              b.setAttribute('data-kami-guide-note', '1');
               b.appendChild(el('span', 'kami-guide-capdesc', it.desc));
             }
             if (locked) {

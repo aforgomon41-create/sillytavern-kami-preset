@@ -62,13 +62,18 @@ function pcMake(doc, tag, cls, text) {
 var PC_EMOJI_ONE = '(?:\\p{Regional_Indicator}{2}|[0-9#*]\\uFE0F?\\u20E3|\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?[\\u{1F3FB}-\\u{1F3FF}]?(?:\\u200D(?:\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?[\\u{1F3FB}-\\u{1F3FF}]?|[\\u{1F3FB}-\\u{1F3FF}]))*)';
 var PC_EMOJI_ALL_RE = null;
 var PC_CORNERS = ['tl', 'tr', 'bl', 'br'];   // 角标最多 4 枚：左上 → 右上 → 左下 → 右下（用户裁定）
+/* ⓘ 注释标记占掉右上角（tr）时的 emoji 角表：tl → bl → br（最多 3 枚，第 4 枚起留在文字里） */
+var PC_CORNERS_NO_TR = ['tl', 'bl', 'br'];
 try { PC_EMOJI_ALL_RE = new RegExp(PC_EMOJI_ONE, 'gu'); }
 catch (e) { PC_EMOJI_ALL_RE = null; }   // 老宿主不认 \p{...}/u 时：不摘角标，文字照常显示
 
-function splitNameEmoji(rawName) {
+function splitNameEmoji(rawName, max) {
   var name = (rawName === null || rawName === undefined) ? '' : String(rawName);
   var empty = { emojis: [], rest: name };
   if (!PC_EMOJI_ALL_RE) { return empty; }
+  /* max = 最多摘几枚角标（默认 4）。ⓘ 占右上角时传 3：emoji 从左上角起排，
+     摘满 3 枚后其余的整枚留在文字里，信息不丢。 */
+  var cap = (max === undefined || max === null) ? PC_CORNERS.length : max;
   var found = [], keep = '', last = 0, m;
   /* 被摘走的 emoji 之间可能漏下一个「连接符」（ZWJ，零宽）——只清**匹配之外**的碎片，
      第 5 枚及以后整枚留在文字里，它内部的 ZWJ 必须原样保住 */
@@ -77,7 +82,7 @@ function splitNameEmoji(rawName) {
   while ((m = PC_EMOJI_ALL_RE.exec(name))) {
     if (!m[0]) { PC_EMOJI_ALL_RE.lastIndex++; continue; }
     keep += clean(name.slice(last, m.index));
-    if (found.length < PC_CORNERS.length) { found.push(m[0]); }
+    if (found.length < cap) { found.push(m[0]); }
     else { keep += m[0]; }          // 第 5 枚及以后：留在文字里
     keep += ' ';                    // 被摘走的位置补个空格，两边文字不会被粘到一起
     last = m.index + m[0].length;
@@ -88,7 +93,11 @@ function splitNameEmoji(rawName) {
   return { emojis: found, rest: rest };
 }
 
-/* ── 注释查看（用户裁定：不是角标，挂名字后面；没有注释就什么都别显示） ──
+/* ── 注释查看（没有注释就什么都别显示） ──
+   2026-09-21 用户裁定改版：条目卡里的 ⓘ 从「名字后面的行内记号」变成**右上角角标**
+   （顶掉原来留给第 2 枚 emoji 的位置，见 buildItemCard）—— 行内记号会把窄卡片
+   （面板网格里约 100–150px）里的条目名挤到换行，同一行的卡片因此被撑高。
+   卡片头里的 ⓘ（卡片组标题、变量卡）仍是行内记号：那一行宽，不会挤到名字。
    做法：
      · 标记 = 名字后面一枚 ⓘ，占一格的宽度（.kami-card-note 是契约 §4.2 已登记的类名，
        用 data-kami-note-mark 与展开出来的正文区分，不新增类名）；
@@ -131,7 +140,9 @@ export function noteBoxEl(doc, note) {
    · 非当前模型的专属条目：原生 disabled 锁死（外观交给皮肤）
    属性顺序是**冻结**的（外层与预设面板逐属性一致）：class → type → role → aria-pressed
    → (disabled / aria-disabled) → aria-label → data-kami-item → data-kami-card → (data-kami-single)；
-   子节点顺序也是：角标们 → .kami-card-head（.kami-item-main + ⓘ）。 */
+   子节点顺序：ⓘ 角标（有注释时，data-kami-corner="tr"）→ emoji 角标们 →
+   .kami-card-head（.kami-item-main）。ⓘ 是按钮的直接子元素（与 emoji 角标同一层），
+   不再占名字那一行的宽度。 */
 export function buildItemCard(doc, item, group, opts) {
   opts = opts || {};
   var key = (group && group.key) || '';
@@ -148,24 +159,35 @@ export function buildItemCard(doc, item, group, opts) {
   btn.setAttribute('data-kami-item', item.identifier);
   btn.setAttribute('data-kami-card', key);
   if (group && group.mode === '单选') { btn.setAttribute('data-kami-single', '1'); }
-  var name = splitNameEmoji(item.name);
+  /* 有注释时右上角（tr）预留给 ⓘ：emoji 从左上角起排、最多摘 3 枚（第 4 枚起留在文字里）；
+     没有注释时维持四角（tl → tr → bl → br，最多 4 枚）。 */
+  var name = splitNameEmoji(item.name, note ? 3 : PC_CORNERS.length);
+  var corners = note ? PC_CORNERS_NO_TR : PC_CORNERS;
   var head = pcMake(doc, 'span', 'kami-card-head');
   /* 名字放 .kami-item-main：它在五套皮肤里都没有 nowrap，长条目名会自然换行显示全
      （放 .kami-card-title 的话 memo / rain / nixie 都是 nowrap + 省略号，名字会被截断） */
   head.appendChild(pcMake(doc, 'span', 'kami-item-main', name.rest));
-  /* 注释标记：挂在名字后面（同一行），**只有真有注释的条目才有这一枚** */
+  /* 注释标记：**右上角角标**（2026-09-21 用户裁定）。它跟着 emoji 角标同一套定位机制
+     （data-kami-corner，契约 §4.4），是按钮的直接子元素、不占名字那一行的宽度 ——
+     行内记号在约 100px 宽的条目卡里会把名字挤成两行，同一行的卡片就被撑高。
+     属性仍与预设面板逐属性同构（契约 §4.4 硬规则 1：span.kami-card-note +
+     data-kami-note-mark + role=button + tabindex=0 + aria-expanded + aria-label），
+     两块面板共用同一份构建器，结构不会分叉。只有真有注释的条目才有这一枚。 */
   var mark = noteMarkEl(doc, note);
-  if (mark) { head.appendChild(mark); }
+  if (mark) {
+    mark.setAttribute('data-kami-corner', 'tr');
+    btn.appendChild(mark);
+  }
   /* 角标：用契约里已登记的 .kami-badge（§4.2「小标签」），四角靠 data-kami-corner 区分，
      不新增类名。没有 emoji 的条目**一枚角标都不加**（正常排版）。 */
   for (var bi = 0; bi < name.emojis.length; bi++) {
     var badge = pcMake(doc, 'span', 'kami-badge', name.emojis[bi]);
-    badge.setAttribute('data-kami-corner', PC_CORNERS[bi] || 'tr');
+    badge.setAttribute('data-kami-corner', corners[bi] || 'tr');
     badge.setAttribute('aria-hidden', 'true');
     btn.appendChild(badge);
   }
   btn.appendChild(head);
-  /* 注释正文：**挪到条目卡外面**。卡本体 = 标题栏（条目名 + ⓘ，自带底色/描边/内边距的一条），
+  /* 注释正文：**挪到条目卡外面**。卡本体 = 标题栏（条目名，自带底色/描边/内边距的一条），
      注释是它**下方**那个独立容器；开关状态（.is-on 高亮）照旧只在卡本体上。
      以前正文塞在按钮里，一展开就跟开关状态挤在同一条里，而且点正文还会顺手把开关翻掉
      （正文本来就是按钮的一部分）。没有注释的条目**不包这一层**，结构跟以前一模一样。 */

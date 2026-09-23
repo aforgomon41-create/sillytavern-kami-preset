@@ -517,6 +517,28 @@
       b.setAttribute('aria-selected', t[0] === pane ? 'true' : 'false');
       tabs.appendChild(b);
     });
+    /* 皮肤快速切换下拉（2026-09-22 用户裁定：放在 **tab 行的最右端**）。
+       两个实现要点：
+         · `.kami-tabs` 是**横向滚动**容器（tab 多的时候要能滑），所以下拉框必须
+           `position:sticky; right:0` 贴在右端 —— 普通子元素一滑动就跟着跑没了；
+         · 用契约 §4.2 已登记的 `.kami-select`：六套皮肤都已经有它的外观与对比度规则，
+           **不新增类名、不新增令牌**。外观归皮肤，这里只摆位置。
+       选它就等于点那张皮肤卡（都走同一个 setSkin）。 */
+    var pick = mk('select', 'kami-select');
+    pick.setAttribute('data-kami-role', 'skin-pick');
+    pick.setAttribute('aria-label', '快速切换皮肤');
+    pick.style.maxWidth = '100%';
+    pick.style.minWidth = '5.5em';
+    var pickWrap = mk('span', '', '');
+    pickWrap.style.display = 'flex';
+    pickWrap.style.alignItems = 'center';
+    pickWrap.style.position = 'sticky';
+    pickWrap.style.right = '0';
+    pickWrap.style.marginLeft = 'auto';
+    pickWrap.style.flex = '0 0 auto';
+    pickWrap.appendChild(pick);
+    pick.addEventListener('change', function () { setSkin(pick.value); });
+    tabs.appendChild(pickWrap);
     panelDrop.appendChild(tabs);
 
     /* 三个面板容器 */
@@ -700,8 +722,30 @@
 
   function paneEl(k) { return panelDrop ? panelDrop.querySelector('[data-kami-pane="' + k + '"]') : null; }
 
+  /* tab 行右端那个皮肤下拉：选项一次建好，之后每次 renderPane 只同步选中项。
+     列表为空（皮肤包没读到）时不显示这一枚，免得给出一个点不动的空框。 */
+  function paintSkinPick() {
+    if (!panelDrop) { return; }
+    var pick = panelDrop.querySelector('[data-kami-role="skin-pick"]');
+    if (!pick || !pick.parentNode) { return; }
+    if (!SKINS || !SKINS.length) { pick.parentNode.hidden = true; return; }
+    pick.parentNode.hidden = false;
+    if (pick.options.length !== SKINS.length) {
+      pick.textContent = '';
+      SKINS.forEach(function (s) {
+        var o = HDOC.createElement('option');
+        o.value = s.id;
+        o.textContent = s.name;
+        pick.appendChild(o);
+      });
+    }
+    var now = curSkin().id;
+    if (pick.value !== now) { pick.value = now; }
+  }
+
   function renderPane() {
     if (!panelDrop) { return; }
+    paintSkinPick();
     var sub = panelDrop.querySelector('[data-kami-role="cur"]');
     if (sub) { sub.textContent = '🎨' + curSkin().button; }
     var st = panelDrop.querySelector('[data-kami-role="status"]');

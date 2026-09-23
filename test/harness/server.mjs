@@ -2,12 +2,36 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures } from '../../build/kami-doc.mjs';
+import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from '../../build/kami-doc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
 const PORT = (function () { const i = process.argv.indexOf('--port'); return i >= 0 ? Number(process.argv[i + 1]) : 8765; })();
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8' };
+
+/* ── /vendor/<库>.js：把**本机酒馆自带的**第三方库按「酒馆页面」的身份发给预览台 ──
+   为什么需要：消息 iframe 里的前端**不内联** markdown 库，而是沿父窗口链去拿酒馆页面上的
+   window.showdown（酒馆 public/lib.js 的 initLibraryShims 挂上去的）。预览台要测这条链路，
+   就得让父窗口（预览台页面自己）也有同样的两个库。
+   路径是本机约定，找不到就 404（前端会安静退回极简渲染，预览台不因此坏掉）；
+   要换机器：设环境变量 KAMI_ST_ROOT=<酒馆根目录>，多个目录用 ; 分隔。 */
+const LIB_ROOTS = (process.env.KAMI_ST_ROOT || [
+  'D:/sillytavern-software/SillyTavern Launcher GUI/data/sillytavern/1.18.0',
+  'D:/SillyTavern/SillyTavern',
+].join(';')).split(';').map(s => s.trim()).filter(Boolean);
+const VENDOR = {
+  'showdown.js': 'node_modules/showdown/dist/showdown.min.js',
+  'dompurify.js': 'node_modules/dompurify/dist/purify.min.js',
+};
+function vendorFile(name) {
+  const rel = VENDOR[name];
+  if (!rel) { return null; }
+  for (const root of LIB_ROOTS) {
+    const p = path.join(root, rel);
+    if (fs.existsSync(p)) { return p; }
+  }
+  return null;
+}
 
 const DEMO = {
   think: [
@@ -99,6 +123,9 @@ function devScript(file) {
   code = expandPresetParse(ROOT, code);
   /* 与 build.mjs 一致：面板手势共享模块（src/scripts/_panel-gestures.js） */
   code = expandPanelGestures(ROOT, code);
+  /* 与 build.mjs 一致：引导文案表（design/copy/guide-copy.json）。漏了它，预览台里的引导
+     只会说脚本内置的中性兜底文案，看到的就不是真机上的样子。 */
+  code = expandGuideCopy(ROOT, code);
   return code;
 }
 function builtScript(file) {
@@ -128,6 +155,14 @@ http.createServer((req, res) => {
     if (name !== 'think' && name !== 'options') { send(404, 'text/plain', 'no doc: ' + name); return; }
     const payload = url.searchParams.get('payload') != null ? url.searchParams.get('payload') : DEMO[name];
     send(200, 'text/html; charset=utf-8', expandForPreview(ROOT, name, payload));
+    return;
+  }
+
+  /* 本机酒馆自带的第三方库（markdown 渲染链路用，见上方 LIB_ROOTS 的说明） */
+  if (p.startsWith('/vendor/')) {
+    const vf = vendorFile(p.slice(8));
+    if (!vf) { send(404, 'text/plain', 'no vendor lib: ' + p.slice(8) + '（设 KAMI_ST_ROOT 指向酒馆根目录）'); return; }
+    send(200, 'text/javascript; charset=utf-8', fs.readFileSync(vf));
     return;
   }
 

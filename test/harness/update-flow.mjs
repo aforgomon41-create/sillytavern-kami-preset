@@ -295,7 +295,7 @@ console.log('--- reset / shutdown ---');
   await settle();
   const s = env.api().reset();
   ok(env.scriptVars['kami-update'].skipped === '' && env.scriptVars['kami-update'].imported === '', 'reset 清空版本记录');
-  ok(s.version === '1.1' && s.configured === true, 'status() 有版本与仓库配置');
+  ok(s.version === '1.2' && s.configured === true, 'status() 有版本与仓库配置');
   env.api().shutdown();
   ok(env.W.KamiUpdate === undefined, 'shutdown 收回全局 API');
   const before = env.fetchCalls.length;

@@ -111,16 +111,51 @@ body { font-family: inherit; color: inherit; }
     return raw.replace(RE_TRIM, '');
   }
 
-  /* ---------- markdown ---------- */
+  /* ---------- markdown ----------
+     showdown 与 DOMPurify 都不在本 iframe 里，而在**酒馆页面那一层**：
+       · 酒馆助手把前端渲染进 <iframe srcdoc>（没有 sandbox 属性 = 与酒馆页同源），
+         所以 window.parent 是能读的（行动选项前端就是靠它拿到 #send_textarea 的）；
+       · 酒馆页面自己把这两个库挂在 window 上 —— public/lib.js 的 initLibraryShims 里写着
+         「if (!('showdown' in window)) { window.showdown = showdown; }」，DOMPurify 同款。
+     所以只要**沿父窗口链往上找一层**就能拿到酒馆那份 showdown。
+     为什么不在每个前端里内联一份：正则替换是**逐楼层**跑一遍的，内联 72KB 的库
+     （base64 之后 96KB）意味着每一个思维链楼层都多背一份库、多编译一次 JS ——
+     几十层的聊天就是几十份，手机上白付一大笔体积与解析开销。
+     ⚠️ 找不到就用下面的极简兜底（宁可少渲染，也不白屏）。 */
+  function hostGlobal(name) {
+    var w = window, i;
+    for (i = 0; i < 8; i++) {
+      try { if (w[name]) { return w[name]; } } catch (e) { }
+      try {
+        if (!w.parent || w.parent === w) { break; }
+        w = w.parent;
+      } catch (e) { break; }   // 真的跨源了（有 sandbox 的宿主）：安静放弃
+    }
+    return null;
+  }
+  var SD = null, PURIFY = null, CONV = null, MD_PROBED = false;
+  /* 这一条渲染用的是哪套引擎（showdown / 极简兜底）：写进组件根的 data-kami-md-engine，
+     真机与预览台都能一眼看出来「markdown 到底是拿谁渲染的」（排障用）。 */
+  var MD_ENGINE = 'mini';
+  function probeMd() {
+    if (MD_PROBED) { return; }
+    MD_PROBED = true;
+    SD = hostGlobal('showdown');
+    PURIFY = hostGlobal('DOMPurify');
+  }
   function escHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function md(text) {
     try {
-      if (window.showdown && window.showdown.Converter) {
-        var c = new window.showdown.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: false });
-        var html = c.makeHtml(text);
-        if (html) { return html; }
+      probeMd();
+      if (SD && SD.Converter) {
+        if (!CONV) { CONV = new SD.Converter({ tables: true, strikethrough: true, tasklists: true, simpleLineBreaks: false }); }
+        var html = CONV.makeHtml(text);
+        /* 模型输出不可信：酒馆自己渲染消息也要过一遍 DOMPurify，这里照做。
+           净化器拿不到（理论上不会）就退回极简兜底 —— 不把未净化的 HTML 塞进同源页面。 */
+        if (html && PURIFY && PURIFY.sanitize) { MD_ENGINE = 'showdown'; return PURIFY.sanitize(html); }
+        if (html) { try { console.warn('[kami] 拿到了 showdown 但没有 DOMPurify，退回极简渲染（不把未净化的 HTML 塞进同源页面）'); } catch (e2) { } }
       }
     } catch (e) { }
     /* 极简兜底：段落 / 粗体 / 行内代码 / 标题 / 列表 */
@@ -195,7 +230,10 @@ body { font-family: inherit; color: inherit; }
         mdBox.appendChild(emp);
       }
     } else {
-      if (mdBox) { try { mdBox.innerHTML = md(raw); } catch (e) { mdBox.textContent = raw; } }
+      if (mdBox) {
+        try { mdBox.innerHTML = md(raw); } catch (e) { mdBox.textContent = raw; }
+        root.setAttribute('data-kami-md-engine', MD_ENGINE);
+      }
       if (rawBox) { rawBox.textContent = raw; }
     }
 

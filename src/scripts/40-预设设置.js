@@ -1,5 +1,5 @@
 /* ============================================================
- * 🌟 预设设置   v0.3
+ * 🌟 预设设置   v0.5
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 它把「当前预设」变成一块可以点的面板：
@@ -17,6 +17,12 @@
  * 兜底皮肤只有一份：src/skin/base.css，同样构建期内联；它的作用域是
  * `html:not([data-kami-skin]) .kami-root`，所以皮肤管理一运行就整体失效，由选中皮肤接管。
  *
+ * v0.5 新增（用户裁定）：固定的最后一页「ℹ️ 关于」—— 三个版本读数
+ *   （酒馆本体 / 酒馆助手 / 预设本体）＋ 一颗「检查更新」按钮。
+ *   检查更新调的是 70-远程更新.js 的全局 API KamiUpdate.check(true)：用户主动点，
+ *   必须忽略「拒绝过 / 已写入」的记录真查一次。那个脚本没在运行时按钮照样能点，
+ *   只把一句人话写进结果行（不把按钮做成点不动 —— 用户会犯懵）。
+ *
  * 本轮范围（v0.4）：
  *   · 「🧩 设置变量」tab：每个变量条目一张卡（单值 → 数字卡，_min/_max 一对 → 范围卡），
  *     改完走**酒馆自己的保存通道**写回预设（见下方 commitVars 的长注释）；
@@ -32,7 +38,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.4';
+  var VERSION = '0.5';
   var HUB_NAME = '🌟卡密预设';
   /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
   var HUB_ORDER = 30;
@@ -40,6 +46,9 @@
   var CSS_ID = 'kami-preset-css';
   var API_NAME = 'KamiPreset';
   var VARS_KEY = 'kami-preset';
+  /* 产物号：构建时把 @@KAMI_BUILD_N@@ 换成真实编号（源码必须能独立编译，所以写成字符串）。
+     与 50-引导.js 用的是同一个占位符 —— 「关于」页拿它给预设版本做交叉核对。 */
+  var BUILD_N = parseInt('@@KAMI_BUILD_N@@', 10) || 0;
   var CHAR_ID = 100001;          // 酒馆 preset 的 prompt_order 主键（这份预设就是 100001）
   var Z = 30000;
   /* 面板几何的上下限：与拖动/缩放时的夹取共用同一组常量（照搬皮肤管理面板） */
@@ -125,6 +134,7 @@
   var view = [];                    // tab 模型（渲染用）
   var tabKey = null;                // 当前 tab
   var cardMap = {};                 // 卡片键 -> { tabKey, items }
+  var aboutEls = null;              // 「关于」页的元素句柄（检查更新的结果就地写，不重画面板）
   var geom = { x: null, y: null, w: null, h: null };  // 面板位置与大小（拖动/缩放时存回脚本变量 kami-preset）
   var currentModel = null;          // 当前模型（模型 emoji）：存在脚本变量 kami-preset.currentModel 里
   var writeCount = 0, saveCount = 0, lastWrite = '';
@@ -893,7 +903,15 @@
     for (i = 0; i < out.length; i++) {
       if (out[i].special === 'model') { out.unshift(out.splice(i, 1)[0]); break; }
     }
+    /* 固定的最后一页：「ℹ️ 关于」（用户裁定）。它**不随预设结构变化**，永远排在最后，
+       内容也与解析结果无关（版本信息 + 检查更新）。 */
+    out.push(aboutTab());
     return out;
+  }
+
+  /* 「关于」页的定义：固定页，任何预设、任何解析结果下都在（连读不到预设时也建得出来）。 */
+  function aboutTab() {
+    return { key: 'ABOUT', title: 'ℹ️ 关于', special: 'about', cards: [], own: [] };
   }
 
   function counts(tab) {
@@ -1080,6 +1098,8 @@
           if (t.getAttribute('data-kami-item') && t.tagName === 'BUTTON') { toggleItem(t); return; }
           if (t.getAttribute('data-kami-tab')) { setTab(t.getAttribute('data-kami-tab')); return; }
           if (t.getAttribute('data-kami-act') === 'close') { setOpen(false); return; }
+          /* 「关于」页的检查更新：调 70-远程更新.js 的全局 API（用户主动点 = force 一次真查） */
+          if (t.getAttribute('data-kami-act') === 'check-update') { runUpdateCheck(t); return; }
         }
         t = t.parentNode;
       }
@@ -1222,6 +1242,21 @@
   function paneEls() { return panelDrop ? panelDrop.querySelectorAll('[data-kami-pane]') : []; }
   function paneEl(k) { return panelDrop ? panelDrop.querySelector('[data-kami-pane="' + k + '"]') : null; }
 
+  /* 画一枚 tab 与它对应的页面板（两处都要用：正常路径与「读不到预设」路径）。
+     页面板一律插在 .kami-foot 之前，顺序与 view 一致。 */
+  function appendTab(bar, foot, tab) {
+    var btn = mk('button', 'kami-tab', tab.title);
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('data-kami-tab', tab.key);
+    btn.setAttribute('aria-selected', 'false');
+    bar.appendChild(btn);
+    var pane = mk('div', 'kami-body kami-scroll');
+    pane.setAttribute('data-kami-pane', tab.key);
+    pane.hidden = true;
+    renderTab(pane, tab);
+    panelDrop.insertBefore(pane, foot);
+  }
+
   /* 重建 tab 轨道与每一页（数据变了就整体重画；tab 数量级很小） */
   function renderTabs() {
     if (!panelDrop) { return; }
@@ -1234,41 +1269,29 @@
     }
     cardMap = {};
 
-    /* 出错 / 解析不出来：面板照常打开，但只有一页人话说明，不白屏 */
+    var foot0 = panelDrop.querySelector('.kami-foot');
+    /* 出错 / 解析不出来：面板照常打开，但只有一页人话说明，不白屏。
+       「关于」页照旧排在最后 —— 三个版本读数与检查更新都不依赖预设能不能解析。 */
     if (!liveData || !liveData.ok) {
       var msg = (liveData && liveData.error) ? liveData.error : '读不到当前预设';
-      var b = mk('span', 'kami-sub', '读不到预设');
-      bar.appendChild(b);
-      var pane = mk('div', 'kami-body kami-scroll');
-      pane.setAttribute('data-kami-pane', 'ERR');
-      pane.appendChild(mk('div', 'kami-empty', msg + '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
-      panelDrop.insertBefore(pane, panelDrop.querySelector('.kami-foot'));
+      view = [
+        { key: 'ERR', title: '读不到预设', special: 'err', error: msg, cards: [], own: [] },
+        aboutTab()
+      ];
+      for (i = 0; i < view.length; i++) { appendTab(bar, foot0, view[i]); }
       tabKey = 'ERR';
+      applyTab();
       renderStatus();
       return;
     }
 
     view = buildView(liveData.tree);
-    var foot = panelDrop.querySelector('.kami-foot');
-    for (i = 0; i < view.length; i++) {
-      (function (tab) {
-        var btn = mk('button', 'kami-tab', tab.title);
-        btn.setAttribute('role', 'tab');
-        btn.setAttribute('data-kami-tab', tab.key);
-        btn.setAttribute('aria-selected', 'false');
-        bar.appendChild(btn);
-        var pane = mk('div', 'kami-body kami-scroll');
-        pane.setAttribute('data-kami-pane', tab.key);
-        pane.hidden = true;
-        renderTab(pane, tab);
-        panelDrop.insertBefore(pane, foot);
-      })(view[i]);
-    }
+    for (i = 0; i < view.length; i++) { appendTab(bar, foot0, view[i]); }
     if (!view.length) {
       var pane2 = mk('div', 'kami-body kami-scroll');
       pane2.setAttribute('data-kami-pane', 'ERR');
       pane2.appendChild(mk('div', 'kami-empty', '这份预设里没有任何可显示的层级（没有卡片、也没有变量条目）。'));
-      panelDrop.insertBefore(pane2, foot);
+      panelDrop.insertBefore(pane2, foot0);
       tabKey = 'ERR';
       renderStatus();
       return;
@@ -1328,6 +1351,12 @@
     pane.textContent = '';
     if (tab.special === 'model') { renderModelTab(pane, tab); return; }
     if (tab.special === 'var') { renderVarTab(pane, tab); return; }
+    if (tab.special === 'about') { renderAboutTab(pane, tab); return; }
+    if (tab.special === 'err') {
+      pane.appendChild(mk('div', 'kami-empty', (tab.error || '读不到当前预设') +
+        '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
+      return;
+    }
     var drawn = 0, i;
     for (i = 0; i < tab.cards.length; i++) { pane.appendChild(cardEl(tab, tab.cards[i], i)); drawn++; }
     /* 不属任何卡片的裸放条目：直接铺一层网格，不套假卡片 */
@@ -1491,6 +1520,194 @@
     inp.setAttribute('data-kami-old', v.value);
     inp.setAttribute('aria-label', v.name);
     return inp;
+  }
+
+  /* ───────── 「ℹ️ 关于」页（固定的最后一页） ─────────
+
+     三个版本读数各有来源与兜底，**任何一条读不到都只显示「读不到」，绝不假装**：
+
+       · 酒馆本体  酒馆助手把整个 API 注入了脚本 iframe（JS-Slash-Runner 的
+                   src/iframe/predefine.js:12-18 把 window.parent 上的 TavernHelper 合并进本窗口），
+                   所以 getTavernVersion() 是**本窗口的全局函数**、同步返回字符串。
+                   兜底：酒馆页面上的 #version_display 文本（酒馆自己写的 "SillyTavern 1.18.0"，
+                   见 public/script.js 的 getCurrentVersion）。
+       · 酒馆助手  getTavernHelperVersion()（同一个注入通道）；再兜底 HOST.TavernHelper 上的同名方法。
+       · 预设本体  当前预设名里解析出的版本 ＋ 构建时注入的产物号（BUILD_N）做交叉核对。
+                   名字认不出编号时只显示产物号。
+
+     检查更新调 70-远程更新.js 的全局 API KamiUpdate.check(true)：force=true 才会忽略
+     「拒绝过 / 已写入」的记录 —— 用户主动点的按钮必须是真查一次。那个脚本没在运行时
+     按钮照样点得动，只把一句人话写进结果行（不把按钮做成点不动，用户会犯懵）。 */
+
+  /* 本窗口 → 宿主窗口 → 宿主上的 TavernHelper，三层找一个函数并调用它（找不到/抛错都返回空串） */
+  function callGlobal(name) {
+    var f = null;
+    try { if (typeof window[name] === 'function') { f = window[name]; } } catch (e) { }
+    if (!f) { try { if (HOST && typeof HOST[name] === 'function') { f = HOST[name]; } } catch (e) { } }
+    if (!f) {
+      try { if (HOST && HOST.TavernHelper && typeof HOST.TavernHelper[name] === 'function') { f = HOST.TavernHelper[name]; } } catch (e) { }
+    }
+    if (!f) { return ''; }
+    try { return cleanName(f()); } catch (e) { return ''; }
+  }
+
+  function tavernVersionText() {
+    var v = callGlobal('getTavernVersion');
+    if (v) { return /^sillytavern/i.test(v) ? v : ('SillyTavern ' + v); }
+    try {
+      var el = HDOC.getElementById('version_display');
+      var t = el ? cleanName(el.textContent) : '';
+      if (t) { return t; }
+    } catch (e) { }
+    return '';
+  }
+
+  /* 预设版本：从预设名里认**正式命名**（卡密预设v0.90-102-20260922）。认不出返回 null。
+     ⚠️ 与 70-远程更新.js 的 parseVersion 是同一套命名规则的两份实现：那边管「比大小」，
+     这份只管「显示」。不共用是为了让面板不依赖那个脚本是否在运行（它可能被用户关掉）。 */
+  function presetVersionOf(name) {
+    var s = cleanName(name);
+    var m = /卡密预设v(\d+)\.(\d+)-(\d+)-(\d{8})/.exec(s);
+    if (m) { return { label: 'v' + m[1] + '.' + m[2] + '-' + m[3], date: m[4], build: +m[3] }; }
+    /* 旧命名也认（用户盘上还留着旧产物）：卡密预设0.9-97 / 卡密预设0.9-260917-97 */
+    m = /卡密预设0\.9-(?:\d{6}-)?(\d+)(?:\D|$)/.exec(s);
+    if (m) { return { label: 'v0.9-' + m[1], date: '', build: +m[1] }; }
+    return null;
+  }
+
+  /* 当前预设名：先问酒馆（与写盘用的是同一套四层兜底），再退回预设文件里的 name 字段。
+     预设文件里的 name 是**构建时写进去的产物名**，改了文件名它也不变 —— 做交叉核对正好。 */
+  function presetNameNow() {
+    try {
+      var ctx = liveData ? liveData.ctx : null;
+      var r = resolvePresetName(ctx, liveData ? liveData.settings : null, presetManagerOf(ctx));
+      if (r && r.name) { return r.name; }
+    } catch (e) { }
+    try {
+      var n = liveData && liveData.preset ? cleanName(liveData.preset.name) : '';
+      if (n && n !== '当前预设') { return n; }
+    } catch (e) { }
+    return '';
+  }
+
+  /* 一行「标签 ＋ 值（＋可选小标签）」。用的都是契约 §4.2 已登记的类名，不新增。 */
+  function aboutRow(label, value, chip) {
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', label));
+    var val = mk('span', 'kami-field-value');
+    val.textContent = value || '读不到';
+    if (chip) { val.appendChild(mk('span', 'kami-chip', chip)); }
+    row.appendChild(val);
+    return row;
+  }
+
+  /* 「🔄 远程更新」脚本的全局 API（它挂在宿主窗口上；拿不到就返回 null） */
+  function kamiUpdateApi() {
+    var api = null;
+    try { if (HOST && HOST.KamiUpdate) { api = HOST.KamiUpdate; } } catch (e) { }
+    if (!api) { try { if (typeof KamiUpdate !== 'undefined' && KamiUpdate) { api = KamiUpdate; } } catch (e) { } }
+    return (api && typeof api.check === 'function') ? api : null;
+  }
+
+  function renderAboutTab(pane) {
+    aboutEls = null;
+    var i;
+
+    /* ① 版本信息 */
+    var box = mk('div', 'kami-card');
+    var head = mk('div', 'kami-card-head');
+    head.appendChild(mk('span', 'kami-card-title', '版本信息'));
+    box.appendChild(head);
+    var body = mk('div', 'kami-card-body');
+    var pv = presetVersionOf(presetNameNow());
+    var rows = [
+      ['酒馆版本', tavernVersionText(), ''],
+      ['酒馆助手', callGlobal('getTavernHelperVersion'), ''],
+      ['预设版本', pv ? (pv.date ? (pv.label + '（' + pv.date + '）') : pv.label) : '名称里认不出编号', BUILD_N ? ('构建 ' + BUILD_N) : '']
+    ];
+    for (i = 0; i < rows.length; i++) { body.appendChild(aboutRow(rows[i][0], rows[i][1], rows[i][2])); }
+    box.appendChild(body);
+    pane.appendChild(box);
+
+    /* ② 检查更新 */
+    var api = kamiUpdateApi();
+    var snap = null;
+    try { snap = api ? api.status() : null; } catch (e) { snap = null; }
+    var box2 = mk('div', 'kami-card');
+    var head2 = mk('div', 'kami-card-head');
+    head2.appendChild(mk('span', 'kami-card-title', '检查更新'));
+    box2.appendChild(head2);
+    var body2 = mk('div', 'kami-card-body');
+    var repoText = '「🔄 远程更新」脚本没在运行';
+    if (snap) { repoText = (snap.repo && snap.repo.configured) ? (snap.repo.owner + '/' + snap.repo.repo) : '还没配置仓库'; }
+    body2.appendChild(aboutRow('远程仓库', repoText, ''));
+    var lastRow = aboutRow('上次检查', (snap && snap.lastCheckedAt) ? snap.lastCheckedAt : '本次会话还没查过', '');
+    body2.appendChild(lastRow);
+    var btn = mk('button', 'kami-btn kami-btn--primary', '检查更新');
+    btn.type = 'button';
+    btn.setAttribute('data-kami-act', 'check-update');
+    var rowBtn = mk('div', 'kami-field');
+    rowBtn.appendChild(mk('span', 'kami-field-label', '手动检查'));
+    var valBtn = mk('span', 'kami-field-value');
+    valBtn.appendChild(btn);
+    rowBtn.appendChild(valBtn);
+    body2.appendChild(rowBtn);
+    var outRow = aboutRow('检查结果', '还没查过', '');
+    body2.appendChild(outRow);
+    box2.appendChild(body2);
+    pane.appendChild(box2);
+
+    aboutEls = {
+      btn: btn,
+      out: outRow.querySelector('.kami-field-value'),
+      last: lastRow.querySelector('.kami-field-value')
+    };
+  }
+
+  /* 把一次检查的结果翻成一句人话（动作名与 70-远程更新.js 的 last.action 一一对应） */
+  function updateResultText(r) {
+    if (!r) { return '检查完成（没拿到结果）'; }
+    if (r.error) { return '检查失败：' + r.error; }
+    var act = r.action;
+    if (act === 'unconfigured') { return '远程更新脚本还没配置仓库'; }
+    if (act === 'cooldown') { return '刚查过，还没到下次检查时间'; }
+    if (act === 'none') { return '已经是最新版本' + (r.localVersion ? ('（' + r.localVersion + '）') : ''); }
+    if (act === 'imported') { return '这个版本已经下载过了'; }
+    if (act === 'installed') { return '本机已经有这个版本了'; }
+    if (act === 'skipped') { return '这个版本你拒绝过，不再提示'; }
+    if (act === 'declined') { return '发现新版本，你选了暂不更新'; }
+    if (r.remote && r.remote.version) { return '发现新版本 ' + r.remote.version; }
+    return '检查完成';
+  }
+
+  function runUpdateCheck(btn) {
+    var els = aboutEls;
+    if (!els || els.btn !== btn) { return; }
+    var api = kamiUpdateApi();
+    if (!api) {
+      els.out.textContent = '「🔄 远程更新」脚本没在运行，检查不了';
+      return;
+    }
+    if (btn.getAttribute('data-kami-busy') === '1') { return; }
+    btn.setAttribute('data-kami-busy', '1');
+    btn.disabled = true;
+    els.out.textContent = '正在检查…';
+    log('手动检查更新（KamiUpdate.check(true)）');
+    Promise.resolve(api.check(true))['then'](function (r) {
+      btn.removeAttribute('data-kami-busy');
+      btn.disabled = false;
+      /* 面板重画过（aboutEls 换了一份）就别往旧节点上写了 */
+      if (aboutEls !== els) { return; }
+      els.out.textContent = updateResultText(r);
+      try {
+        var s = api.status();
+        if (s && s.lastCheckedAt) { els.last.textContent = s.lastCheckedAt; }
+      } catch (e) { }
+    })['catch'](function (e) {
+      btn.removeAttribute('data-kami-busy');
+      btn.disabled = false;
+      if (aboutEls === els) { els.out.textContent = '检查失败：' + ((e && e.message) || e); }
+    });
   }
 
   /* ⑤ 就地改一张条目卡的样子（不重建 DOM：不重排、不丢焦点、滚动位置不动） */

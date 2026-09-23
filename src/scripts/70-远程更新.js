@@ -34,9 +34,14 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.1';
+  var VERSION = '1.2';
   var API_NAME = 'KamiUpdate';
   var VARS_KEY = 'kami-update';
+  /* 本实例的身份证。pagehide 可能**迟到**（酒馆助手重挂脚本 iframe 时旧实例的 pagehide
+     晚于新实例的启动），注销时如果按名字删全局，会把新实例刚挂上去的 API 一起删掉 ——
+     真机表现就是「远程更新脚本没在运行」且再也无法唤醒（本脚本没有按钮，唯一产物是这个
+     全局，删了只能整页刷新）。同一个坑 10-脚本按钮.js 在 __hub 上已经修过一次（:673）。 */
+  var INSTANCE_ID = 'kami-update-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
   var LOGTAG = '更新';
   var TOAST_TITLE = '🔄 远程更新';
 
@@ -654,6 +659,7 @@
   function expose() {
     var api = {
       version: VERSION,
+      __instance: INSTANCE_ID,   /* 注销时只删“自己这一份”的判据（见 INSTANCE_ID 的注释） */
       status: status,
       /* 手动查一次；force=true 时忽略「已拒绝/已写入/已安装」记录 */
       check: function (force) { return check(!!force); },
@@ -680,8 +686,11 @@
     timers = [];
     hclear(calmTimer);
     calmTimer = null;
-    try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
-    try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
+    /* ★ 只删“自己这一份”：旧实例的 pagehide 迟到时，全局可能已经是新实例的了，不能动。 */
+    try { if (HOST[API_NAME] && HOST[API_NAME].__instance === INSTANCE_ID) { delete HOST[API_NAME]; } } catch (e) { }
+    try { if (window[API_NAME] && window[API_NAME].__instance === INSTANCE_ID) { delete window[API_NAME]; } } catch (e) { }
+    /* 启动声明同样只清自己的：不清的话，30 秒内重挂的新实例会被旧声明挡在门外直接退出。 */
+    try { var c = HOST.__kamiUpdateClaim; if (c && c.id === INSTANCE_ID) { delete HOST.__kamiUpdateClaim; } } catch (e) { }
     log('注销完成（本脚本没有按钮、没有注入样式与 DOM，没有什么需要收回的）');
   }
 
@@ -704,11 +713,11 @@
     var prev = null;
     try { prev = HOST.__kamiUpdateClaim; } catch (e) { }
     var now = Date.now();
-    if (prev && prev.bootAt && (now - prev.bootAt) < DEDUPE_MS) {
+    if (prev && prev.bootAt && (now - prev.bootAt) < DEDUPE_MS && prev.id !== INSTANCE_ID) {
       log('已有另一个「🔄 远程更新」实例在 ' + Math.round((now - prev.bootAt) / 1000) + 's 前启动，本实例退出（脚本库里是不是有两份？）');
       return false;
     }
-    try { HOST.__kamiUpdateClaim = { bootAt: now }; } catch (e) { }
+    try { HOST.__kamiUpdateClaim = { bootAt: now, id: INSTANCE_ID }; } catch (e) { }
     return true;
   }
 
@@ -723,9 +732,13 @@
     }
     /* 稍等几秒再做第一次检查：让向导、皮肤、面板先就绪，弹窗不跟它们抢 */
     timers.push(hsetTimeout(function () { autoCheck(); }, BOOT_DELAY));
+    /* 页面只是**进 BFCache**（手机上切后台 / 返回上一页，persisted=true）时不注销：
+       这种情况下脚本 iframe 活得好好的，回来还要用；注销了就没有任何东西能唤醒。
+       只有真卸载（persisted=false / undefined）才走注销。 */
+    function onHide(ev) { try { if (ev && ev.persisted) { return; } teardown(); } catch (e) { } }
     try {
-      window.addEventListener('pagehide', function () { try { teardown(); } catch (e) { } });
-      if (HOST !== window) { HOST.addEventListener('pagehide', function () { try { teardown(); } catch (e) { } }); }
+      window.addEventListener('pagehide', onHide);
+      if (HOST !== window) { HOST.addEventListener('pagehide', onHide); }
     } catch (e) { }
   }
 

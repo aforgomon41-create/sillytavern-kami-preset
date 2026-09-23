@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <title>卡密预设 · 脚本 harness</title>
+<!-- 酒馆页面本来就把 showdown / DOMPurify 挂在 window 上（public/lib.js 的 initLibraryShims），
+     酒馆助手又把它们合并进脚本 iframe（predefine.js:12）。引导的免责声明按真 markdown 渲染靠它们；
+     这两个文件取自本机酒馆安装目录（/vendor/*，见 server.mjs），拿不到就退回迷你排版。 -->
+<script src="/vendor/showdown.js"></script>
+<script src="/vendor/dompurify.js"></script>
 <style>
   body { background:#111; color:#ddd; font-family: ui-monospace, Consolas, monospace; margin:0; padding:12px; }
   h1 { font-size:15px; margin:0 0 8px; color:#b07dff; }
@@ -522,6 +527,17 @@ function report() {
   check('引导：免责页正文来自预设条目（含许可协议关键词）',
     guideBody.textContent.indexOf('CC BY-NC') >= 0,
     guideBody.textContent.slice(0, 40));
+  /* 免责页是真 markdown（标题/表格/列表/粗体）：装了 showdown（/vendor/*）就必须渲染出
+     真表格、表格的管道符不能原样露出来；取不到 showdown 时退回迷你排版，也是合法状态
+     （v0.2 之前只有这一条路，表格会整段露出来）。 */
+  const discDoc = guideBody.querySelector('.kami-guide-doc');
+  const mdReady = !!(window.showdown && window.showdown.Converter && window.DOMPurify && window.DOMPurify.sanitize);
+  check('引导：免责页 markdown' + (mdReady ? '（showdown：表格是真表格，管道符不外露）' : '（无 showdown：退回迷你排版）'),
+    !discDoc ? false :
+      (mdReady ? (!!(discDoc.querySelector('table')) && discDoc.textContent.indexOf('|------|') < 0)
+               : (discDoc.textContent.indexOf('CC BY-NC') >= 0)),
+    'showdown=' + mdReady + ' table=' + (discDoc ? !!discDoc.querySelector('table') : '-') +
+    ' 管道符外露=' + (discDoc ? (discDoc.textContent.indexOf('|------|') >= 0) : '-'));
   guideNext.click();
   await sleep(300);
   check('引导：点「确认」后主按钮变「下一步」、关闭键解锁',
