@@ -1292,6 +1292,68 @@ function d20report(doc, tag) {
       }
       /* 也写进标题：窄屏下面板是铺满的模态，页面上的 diag 会被挡住，
          标题在可访问性树里始终可读，扫宽度取数就不用去翻控制台。 */
+      /* 引导探针（验收用）：引导面板的页头/页脚都写在"结构层"，颜色只认皮肤令牌。
+         要一眼看清两件事：小屏下 ✕ 有没有被挤出页头；页脚主键的字与底有没有糊在一起。 */
+      try {
+        var gpn = document.getElementById('kami-guide-panel');
+        if (gpn) {
+          var gDrop = gpn.querySelector('.kami-drop');
+          var gHead = gpn.querySelector('.kami-head');
+          var gActs = gpn.querySelector('.kami-head .kami-actions');
+          var gClose = gpn.querySelector('.kami-head .kami-icon-btn');
+          var gPri = gpn.querySelector('.kami-foot .kami-btn--primary');
+          var rD = gDrop ? gDrop.getBoundingClientRect() : null;
+          var rH = gHead ? gHead.getBoundingClientRect() : null;
+          var rA = gActs ? gActs.getBoundingClientRect() : null;
+          var rC = gClose ? gClose.getBoundingClientRect() : null;
+          var lum = function (c) {
+            var m = String(c || '').match(/-?\d+(?:\.\d+)?/g) || [];
+            if (m.length < 3) { return -1; }
+            var v = m.slice(0, 3).map(function (x) { return parseFloat(x) / 255; }).map(function (u) {
+              return u <= 0.03928 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+          };
+          var cratio = function (a, b) {
+            var la = lum(a), lb = lum(b);
+            if (la < 0 || lb < 0) { return '-'; }
+            return ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)).toFixed(2);
+          };
+          var gs = gPri ? getComputedStyle(gPri) : null;
+          var gline = '引导探针|视口=' + document.documentElement.clientWidth +
+            '|文档' + document.documentElement.scrollWidth + '/' + document.body.scrollWidth +
+            '|越界' + (function () {
+              /* 谁把页面撑宽了：fixed 舞台是 left:0/right:0 撑的，页面一越界，舞台就跟着越界，
+                 ✕ 也跟着跑到屏幕外。这里点名越界的元素，区分「皮肤的元素」和「预览台自己的界面」。 */
+              var out = [];
+              var vw = document.documentElement.clientWidth;
+              var all = document.querySelectorAll('body *');
+              for (var i = 0; i < all.length && out.length < 3; i++) {
+                var e = all[i];
+                if (e === gpn || gpn.contains(e) || e.contains(gpn)) { continue; }
+                var r = e.getBoundingClientRect();
+                if (r.width <= 0 || r.right <= vw + 1) { continue; }
+                out.push((e.tagName || '?').toLowerCase() + '.' + String(e.className || '-').split(' ')[0] +
+                  '@' + Math.round(r.right));
+              }
+              return out.length ? out.join(',') : '无';
+            })() +
+            '|面板左' + (rD ? Math.round(rD.left) : '-') + '宽' + (rD ? Math.round(rD.width) : '-') +
+            '|页头宽' + (rH ? Math.round(rH.width) : '-') +
+            '溢' + (gHead ? (gHead.scrollWidth - gHead.clientWidth) : '-') +
+            '高' + (rH ? Math.round(rH.height) : '-') +
+            '|叉' + (rC ? Math.round(rC.width) + 'x' + Math.round(rC.height) : '-') +
+            '右距' + (rC && rD ? Math.round(rD.right - rC.right) : '-') +
+            '视口右距' + (rC ? Math.round(document.documentElement.clientWidth - rC.right) : '-') +
+            '|行动宽' + (rA ? Math.round(rA.width) : '-') +
+            '|主键' + JSON.stringify(gPri ? String(gPri.textContent || '').trim() : '-') +
+            '底' + (gs ? gs.backgroundColor.replace(/ /g, '') : '-') +
+            '字' + (gs ? gs.color.replace(/ /g, '') : '-') +
+            '对比' + (gs ? cratio(gs.color, gs.backgroundColor) : '-') +
+            '禁用' + (gPri ? (gPri.disabled ? 'y' : 'n') : '-');
+          colLine += '|' + gline;
+        }
+      } catch (e12) { colLine += '|引导探针|err'; }
       try { if (document.title !== colLine) { document.title = colLine; } } catch (e10) { }
     } catch (e9) { }
     try { diag.push(d20report(document, 'd20:宿主')); } catch (e) { diag.push('d20:宿主 err'); }

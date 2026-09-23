@@ -106,6 +106,19 @@ try {
   process.exit(1);
 }
 
+/* ---------- 引导跨层取色护栏（GUIDE_CSS 里不许直接读皮肤的面色令牌） ----------
+ * 为什么需要：皮肤可以在组件元素自己身上重定义 --kami-fg / --kami-bg
+ * （empire / terminal / mileng 的主按钮就是「强调底 + 底上的深色字」，合法写法），
+ * 引导页脚那条墨块规则特异性最高、读的若还是 var(--kami-fg)，就会取到被换过的值 ——
+ * 实测底 rgb(27,18,38) 配字 rgb(22,16,31)，对比度 1.03，按钮在屏幕上等于不存在
+ * （2026-09-23 用户真机报的统御 / 终端 / 冷凝三套）。判定细节见 build/lint-guide.mjs 文件头。 */
+try {
+  execFileSync(process.execPath, [path.join(__dirname, 'lint-guide.mjs')], { stdio: 'inherit' });
+} catch (e) {
+  console.error('  [中止] 引导结构层出现「直接读皮肤面色令牌」的写法，按 lint-guide 的提示改成面板快照再构建。');
+  process.exit(1);
+}
+
 /* ---------- 脚本编译护栏（src/scripts/*.js 必须全部能编译，编译不过就中止） ----------
  * 为什么需要：文案校验管 skin.json、lint-skins 管皮肤 CSS、verify-frontends 管两个前端，
  * **没有任何一步会看 src/scripts/*.js**——脚本里漏一个花括号，构建照样全绿，

@@ -468,7 +468,15 @@
        不要为了「合规」把它改成圆角令牌 —— 那会把全屏向导变成一张带圆角的浮窗。 */
     '#' + PANEL_ID + ' .kami-drop.kami-drop{left:0!important;top:0!important;right:auto!important;bottom:auto!important;',
     'width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important;}',
-    '#' + PANEL_ID + ' .kami-drop{display:flex;flex-direction:column;overflow:hidden;}',
+    '#' + PANEL_ID + ' .kami-drop{display:flex;flex-direction:column;overflow:hidden;',
+    /* ⚠️ 墨色 / 纸色必须在这里先拍快照（2026-09-23 用户报「统御皮肤的确认和下一步按钮看不见」）：
+       wod / terminal / empire / grokbot / mileng 五套皮肤把 --kami-fg 重定义在 .kami-btn--primary
+       **元素自己身上**（`--kami-fg:var(--kami-accent-fg)`，为的是让强调块反相）。
+       页脚主键那条规则特异性最高，底与字读的都是 --kami-fg / --kami-bg 这族令牌，
+       于是元素上的 --kami-fg 被换成强调块里的深色字，--kami-bg 又是深色面板 ——
+       实测底 rgb(27,18,38) + 字 rgb(22,16,31)，对比度 1.03，等于一个隐形按钮。
+       快照拍在面板表面（祖先元素）上，元素级的重定义就影响不到它。 */
+    '--kami-guide-ink:var(--kami-fg,#1a1a1a);--kami-guide-paper:var(--kami-bg,#fff);}',
 
     /* 报纸骨架：正文区一栏到底，页脚墨块，滚动只在正文 */
     '#' + PANEL_ID + ' .kami-body{flex:1 1 auto;min-height:0;}',
@@ -476,9 +484,16 @@
     '#' + PANEL_ID + ' .kami-foot .kami-btn{flex:1 1 0;min-width:0;}',
 
     /* 刊头：标题加大、期号行等宽、上下双规线（结构，颜色用令牌） */
-    '#' + PANEL_ID + ' .kami-head{padding:calc(var(--kami-pad-lg-y,12px) * 1.4) var(--kami-pad-lg-x,14px);}',
-    '#' + PANEL_ID + ' .kami-head .kami-title{font-size:var(--kami-fs-lg,17px);letter-spacing:var(--kami-ls-title,.06em);}',
-    '#' + PANEL_ID + ' .kami-head .kami-sub{font-family:var(--kami-font-mono,monospace);}',
+    '#' + PANEL_ID + ' .kami-head{flex-wrap:nowrap;padding:calc(var(--kami-pad-lg-y,12px) * 1.4) var(--kami-pad-lg-x,14px);}',
+    /* 刊头三件套的伸缩权（2026-09-23 用户报「手机端看不到关闭按钮」）：
+       375px 实测页头溢出 18px、✕ 的右缘越过面板 17px，被 overflow:hidden 裁掉。
+       占宽度的是长标题，所以由标题承担收缩（flex:1 1 auto + min-width:0 + 省略号），
+       圆点 / 期号 / 动作区一律不缩 —— 关闭键在任何宽度下都必须留在面板里。 */
+    '#' + PANEL_ID + ' .kami-head .kami-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+    'font-size:var(--kami-fs-lg,17px);letter-spacing:var(--kami-ls-title,.06em);}',
+    '#' + PANEL_ID + ' .kami-head .kami-dot,' + '#' + PANEL_ID + ' .kami-head .kami-sub,' +
+    '#' + PANEL_ID + ' .kami-head .kami-actions{flex:0 0 auto;}',
+    '#' + PANEL_ID + ' .kami-head .kami-sub{white-space:nowrap;font-family:var(--kami-font-mono,monospace);}',
     '#' + PANEL_ID + ' .kami-dots{display:flex;flex-wrap:wrap;gap:calc(var(--kami-gap,8px)/2);justify-content:center;align-items:center;',
     'padding:calc(var(--kami-pad-y,6px) + 2px) var(--kami-pad-x,10px) 0;flex:0 0 auto;}',
     '#' + PANEL_ID + ' .kami-dots .kami-dot{cursor:pointer;}',
@@ -621,12 +636,15 @@
 
     /* 主按钮＝报纸的「墨块」：用皮肤自己的墨色与纸色做反相（不是新配色）。
        正文对比度契约保证 fg/bg ≥ 4.5:1，所以任何皮肤下墨块都清楚；
-       禁用的主按钮（确认前）保持可读但不抢注意力。 */
+       禁用的主按钮（确认前）保持可读但不抢注意力。
+       ⚠️ 读的是拍在面板表面上的快照（见上面 .kami-drop 那条），不能改回去直接读 --kami-fg：
+       五套皮肤在按钮元素上重定义了这个令牌，直接读就会得到「深字压深底」的隐形按钮。
+       `node build/lint-guide.mjs` 会机械拦这种写法。 */
     '#' + PANEL_ID + ' .kami-foot .kami-btn--primary{',
-    'background-color:var(--kami-fg,#1a1a1a);border-color:var(--kami-fg,#1a1a1a);color:var(--kami-bg,#fff);',
+    'background-color:var(--kami-guide-ink,#1a1a1a);border-color:var(--kami-guide-ink,#1a1a1a);color:var(--kami-guide-paper,#fff);',
     'font-weight:var(--kami-fw-title,600);}',
     '#' + PANEL_ID + ' .kami-foot .kami-btn--primary[disabled]{',
-    'background-color:var(--kami-fg,#1a1a1a);border-color:var(--kami-fg,#1a1a1a);color:var(--kami-bg,#fff);opacity:var(--kami-dim-lock,.38);}',
+    'background-color:var(--kami-guide-ink,#1a1a1a);border-color:var(--kami-guide-ink,#1a1a1a);color:var(--kami-guide-paper,#fff);opacity:var(--kami-dim-lock,.38);}',
     '#' + PANEL_ID + ' .kami-foot .kami-btn--ghost{background-color:transparent;}'
   ].join('');
 
