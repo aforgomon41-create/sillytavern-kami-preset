@@ -6,8 +6,9 @@
  *
  * 页面从哪来（两条来源，都在运行时决定）：
  *   · 固定页：免责声明（正文现读预设里的免责条目）、选皮肤（读皮肤管理）、
- *     选模型（读预设设置）、变量页（读预设设置）、反截断（读反截断脚本）、完成页、
- *     两页预留位（压缩机制 / 状态变量，内容就绪前隐藏）。
+ *     选模型（读预设设置）、变量页（读预设设置）、反截断（读反截断脚本）、
+ *     压缩（读压缩脚本，只讲基础用法与开关，调参指向 📜 面板）、完成页、
+ *     一页预留位（状态变量，内容就绪前隐藏）。
  *   · 推导页：预设解析器（test/harness/preset-parse.mjs，构建期内联）在运行时把
  *     当前预设拍成树，**每张「[功能] 选一/任选」卡片一页**——卡片头注释当页首说明，
  *     条目自己的注释当选项说明。以后只改预设本体（增删条目、改注释），引导自动跟着变。
@@ -16,6 +17,7 @@
  *   · 条目开关 / 选模型 / 写变量 → KamiPreset.setEnabled / selectModel / setVar（🌟 预设设置）
  *   · 换皮肤 → KamiSkin.setSkin（🎨 皮肤管理）
  *   · 反截断开关 → AntiTruncation.on / off（🛡 反截断）
+ *   · 压缩开关 → KamiSummarize.setRolling / setGrand、调参去 KamiSummarize.open() 打开的 📜 面板（📜 压缩）
  *   对应脚本没在运行时，相关页面降级成纯说明，不让用户卡住。
  *
  * 其它：
@@ -50,10 +52,10 @@
   /* 产物号：构建时把 @@KAMI_BUILD_N@@ 替换成真实编号（源码必须能独立编译，所以这么写） */
   var BUILD_N = parseInt('@@KAMI_BUILD_N@@', 10) || 0;
 
-  /* 预留页（压缩机制 / 状态变量）：内容就绪后把 RESERVED_ON 改 true 并填文案即可上线 */
+  /* 预留页（状态变量）：内容就绪后把 RESERVED_ON 改 true 并填文案即可上线。
+     压缩页已于 2026-09-23 上线（见 buildSteps 里「6.5 压缩」那一步），不再是预留页。 */
   var RESERVED_ON = false;
   var RESERVED_STEPS = [
-    { id: 'reserved-compress', title: '压缩机制', body: '（占位：压缩机制说明，内容就绪后填写）' },
     { id: 'reserved-statevars', title: '状态变量', body: '（占位：状态变量说明，内容就绪后填写）' }
   ];
 
@@ -115,6 +117,15 @@
     antitruncOn: '已开启',
     antitruncOff: '已关闭',
     antitruncDegrade: '反截断脚本没有在运行，这里只有说明。启用 🛡 反截断 后可用按钮条上的 🛡 开关。',
+    compressPageTitle: '长文压缩',
+    compressPageIntro: '聊久了上下文会越来越长，迟早顶到模型的上限。压缩会把旧的楼层总结成几段「压缩块」再发给模型：内容不丢，长度和花费降下来。两种模式一般只开一种就够。',
+    compressRollName: '滚动压缩（聊到一定深度就开始收）',
+    compressGrandName: '超限压缩（快顶到上限时自动总结）',
+    compressOn: '已开启',
+    compressOff: '已关闭',
+    compressParamsNote: '触发阈值、保留楼层、分块大小这三个参数在 📜 压缩面板里调；面板里还能手动跑一次总结、看已经压了多少。第一次用建议先只开「滚动压缩」，觉得不够再开另一个。',
+    compressOpenPanel: '打开 📜 压缩面板',
+    compressDegrade: '压缩脚本没有在运行，这一页只剩说明。启用 📜 压缩 之后可以在这里开关，参数在那块面板里调。',
     completionTitle: '设置完成',
     completionBody: '你的选择已经生效。以后想调整：🌟卡密预设 管条目与变量，🎨 管皮肤，🛡 管反截断；点 🧭引导 可以随时重看这份引导。',
     fallbackMissing: '这一项在预设里找不到了，可能已被改名或删除。',
@@ -429,6 +440,9 @@
 
     /* 6. 反截断 */
     out.push({ kind: 'antitrunc', id: 'antitrunc', title: copyOf('antitruncPageTitle'), intro: copyOf('antitruncPageIntro') });
+
+    /* 6.5 压缩（用户 2026-09-23 点名加在反截断后面：只讲基础用法 + 开关，调参指向 📜 面板） */
+    out.push({ kind: 'compress', id: 'compress', title: copyOf('compressPageTitle'), intro: copyOf('compressPageIntro') });
 
     /* 7. 预留页（内容就绪前隐藏） */
     if (RESERVED_ON) {
@@ -1267,6 +1281,77 @@
     panelBody.appendChild(row);
   }
 
+  /* 压缩页：两枚开关行（滚动压缩 / 超限压缩）＋ 一段调参说明 ＋ 一颗打开 📜 面板的按钮。
+     全部走 KamiSummarize 的现成 API；那个脚本没在跑时只留说明（与反截断页同款降级）。
+     参数（阈值 / 保留楼层 / 分块）不在这一页重复造控件 —— 用户裁定「只教基础使用和开关/调参」。 */
+  function renderCompress(st) {
+    panelBody.appendChild(el('span', 'kami-guide-sec', st.title));
+    panelBody.appendChild(el('p', 'kami-guide-lead', st.intro));
+    var api = HOST.KamiSummarize;
+    if (!api || typeof api.status !== 'function' || typeof api.setGrand !== 'function') {
+      degradeNote(copyOf('compressDegrade'));
+      return;
+    }
+    var stat = null;
+    try { stat = api.status(); } catch (e) { }
+
+    /* 一枚开关行：整行即开关，右侧状态字。写失败只提示、不改界面。 */
+    function switchRow(nameKey, readOn, write) {
+      var on = false;
+      try { on = !!readOn(); } catch (e) { }
+      var row = el('button', 'kami-guide-switchrow');
+      row.type = 'button';
+      if (on) { row.classList.add('is-on'); }
+      row.appendChild(el('span', 'kami-guide-rowname', copyOf(nameKey)));
+      var stateEl = el('span', 'kami-guide-rowstate', on ? copyOf('compressOn') : copyOf('compressOff'));
+      if (on) { stateEl.classList.add('is-on'); }
+      row.appendChild(stateEl);
+      function paint(v) {
+        on = !!v;
+        row.classList.toggle('is-on', on);
+        stateEl.classList.toggle('is-on', on);
+        stateEl.textContent = on ? copyOf('compressOn') : copyOf('compressOff');
+      }
+      row.addEventListener('click', function () {
+        var want = !on;
+        try {
+          var r = write(want);
+          if (r && typeof r.then === 'function') {
+            /* 滚动压缩要写酒馆正则，是异步的：成功了再翻界面，失败了只提示 */
+            r.then(function () { paint(want); log(nameKey + ' → ' + (want ? '开' : '关')); },
+              function () { toast('error', copyOf('applyFail')); });
+          } else {
+            paint(want);
+            log(nameKey + ' → ' + (want ? '开' : '关'));
+          }
+        } catch (e) { toast('error', copyOf('applyFail')); }
+      });
+      panelBody.appendChild(row);
+    }
+
+    /* 滚动压缩：正则不在当前预设里时（roll.ok=false）这枚开关不出现，只留超限那一枚 */
+    var rollOk = !!(stat && stat.roll && stat.roll.ok);
+    if (rollOk) {
+      switchRow('compressRollName',
+        function () { return api.status().roll && api.status().roll.enabled; },
+        function (v) { return api.setRolling(v); });
+    }
+    switchRow('compressGrandName',
+      function () { return api.status().grandOn; },
+      function (v) { return api.setGrand(v); });
+
+    panelBody.appendChild(el('p', 'kami-guide-offnote', copyOf('compressParamsNote')));
+    if (typeof api.open === 'function') {
+      var btn = el('button', 'kami-btn kami-btn--ghost', copyOf('compressOpenPanel'));
+      btn.type = 'button';
+      btn.setAttribute('data-kami-guide-open', 'compress');
+      btn.addEventListener('click', function () {
+        try { api.open(); } catch (e) { toast('error', copyOf('applyFail')); }
+      });
+      panelBody.appendChild(btn);
+    }
+  }
+
   function renderDone(st) {
     var sec = el('div', 'kami-guide-sec');
     sec.appendChild(el('span', '', st.title));
@@ -1285,6 +1370,7 @@
     vars: renderVars,
     card: renderCardPage,
     antitrunc: renderAntitrunc,
+    compress: renderCompress,
     done: renderDone,
     draft: renderDraft
   };
