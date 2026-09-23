@@ -119,6 +119,23 @@ function installMocks(w, scriptId) {
   w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
   w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
   w.updateVariablesWith = (fn, o) => { const v = fn(w.getVariables(o)); w.replaceVariables(v, o); return v; };
+  /* 假酒馆正则表（2026-09-23 补）：📜 压缩的「滚动压缩」开关只在读得到**酒馆自己的**正则表时
+     才出现（roll.ok=true），它跟预设里那份正则不是一回事 —— 预览台以前没有这两个接口，
+     于是那一枚开关、以及它下面那段模式说明，在预览台里根本测不到（只有真机能看）。
+     这里给一份与预设 src/regex/list.json 同源的替身（同 id、同名字、minDepth 20），
+     写入也照单收下：于是「点开关 → 状态字翻转」这条路径在预览台也能跑。
+     全项目只有 60-压缩.js 用这两个 API，加它们不会影响别的脚本。 */
+  w.__tavernRegexes = [{
+    id: '0c74198f-1acc-43e3-8d88-d776d7242b89',
+    script_name: '压缩|摘要/设定(默认最小深度20)',
+    enabled: false,
+    min_depth: 20,
+    find_regex: '',
+    replace_string: '$1',
+    disabled: false,
+  }];
+  w.getTavernRegexes = () => JSON.parse(JSON.stringify(w.__tavernRegexes));
+  w.replaceTavernRegexes = (list) => { w.__tavernRegexes = JSON.parse(JSON.stringify(list || [])); };
   /* SillyTavern 全局：预设置面板要用它读/写当前预设（与真机同一条路径）。
      这里给的是**可观测**的活对象：prompt_order 就是那份真预设的 order，
      saveSettingsDebounced 只计数、不写盘（没有 settings.json 可写）。 */
@@ -1351,6 +1368,14 @@ function d20report(doc, tag) {
             '|叉' + (rC ? Math.round(rC.width) + 'x' + Math.round(rC.height) : '-') +
             '右距' + (rC && rD ? Math.round(rD.right - rC.right) : '-') +
             '视口右距' + (rC ? Math.round(document.documentElement.clientWidth - rC.right) : '-') +
+            /* 正文区能不能滚：这一页说明变长之后要看的就是它（scrollHeight > clientHeight 且 overflow-y 可滚） */
+            '|体' + (function () {
+              var b = gpn.querySelector('.kami-body');
+              if (!b) { return '-'; }
+              var ov = '';
+              try { ov = getComputedStyle(b).overflowY; } catch (e14) { }
+              return b.clientHeight + '/' + b.scrollHeight + ':' + ov;
+            })() +
             '|行动宽' + (rA ? Math.round(rA.width) : '-') +
             '|主键' + JSON.stringify(gPri ? String(gPri.textContent || '').trim() : '-') +
             '底' + (gs ? gs.backgroundColor.replace(/ /g, '') : '-') +

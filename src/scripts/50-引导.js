@@ -117,13 +117,17 @@
     antitruncOn: '已开启',
     antitruncOff: '已关闭',
     antitruncDegrade: '反截断脚本没有在运行，这里只有说明。启用 🛡 反截断 后可用按钮条上的 🛡 开关。',
-    compressPageTitle: '长文压缩',
-    compressPageIntro: '聊久了上下文会越来越长，迟早顶到模型的上限。压缩会把旧的楼层总结成几段「压缩块」再发给模型：内容不丢，长度和花费降下来。两种模式一般只开一种就够。',
-    compressRollName: '滚动压缩（聊到一定深度就开始收）',
-    compressGrandName: '超限压缩（快顶到上限时自动总结）',
+    compressPageTitle: '长文压缩（避免顶到模型上限）',
+    compressPageIntro: '聊久了每次发出去的内容会越来越多，迟早顶到模型能记住的上限。这一页有两个压缩开关，用来把旧楼层总结成摘要。它们出手的时机不一样，各自都有优劣。',
+    compressRollName: '滚动压缩（楼层深了就出手）',
+    compressRollNote: '滚动压缩：聊天楼层变深后，自动把较早的旧楼层换成单楼摘要。好处是开一次就省心，聊天自动瘦身。代价是发出去的内容老变。模型端会把发过的内容存下来，下次直接复用就能少花钱。因为内容老变，每次都得全价重新算一遍。另外预设里的摘要条目得一直开着，不然旧楼层被替换后内容就全丢了。',
+    compressGrandName: '超限压缩（快超量了再出手）',
+    compressGrandNote: '超限压缩：平时完全不动手，直到实际发送量快顶到阈值，才把旧楼层总结成压缩块长期存起来，并把它们从发送内容里去掉。好处是平时发出去的内容长期一模一样，能充分吃到缓存命中来省钱。代价是稍微麻烦点。你得自己把触发阈值调到小于模型能记住的上限。它平时不干活，想提前压得手动点一次总结。',
+    compressPickTitle: '怎么选',
+    compressPickNote: '按用量计费的渠道推荐用超限压缩；缓存命中能实打实替你省钱。按请求次数收费的渠道推荐用滚动压缩；这类渠道吃不到缓存折扣，滚动模式更省心且发送量一直很小。打算长期玩同一个会话的玩家推荐两个都开；滚动管日常，超限兜极端。',
     compressOn: '已开启',
     compressOff: '已关闭',
-    compressParamsNote: '触发阈值、保留楼层、分块大小这三个参数在 📜 压缩面板里调；面板里还能手动跑一次总结、看已经压了多少。第一次用建议先只开「滚动压缩」，觉得不够再开另一个。',
+    compressParamsNote: '触发阈值、保留楼层、分块大小这三个参数都在 📜 压缩面板里调。在面板里还能手动跑一次总结、看已经压了多少。压过的楼层在聊天界面里会变成半透明，随时可以手动解除。',
     compressOpenPanel: '打开 📜 压缩面板',
     compressDegrade: '压缩脚本没有在运行，这一页只剩说明。启用 📜 压缩 之后可以在这里开关，参数在那块面板里调。',
     completionTitle: '设置完成',
@@ -1356,16 +1360,24 @@
       panelBody.appendChild(row);
     }
 
-    /* 滚动压缩：正则不在当前预设里时（roll.ok=false）这枚开关不出现，只留超限那一枚 */
+    /* 滚动压缩：正则不在当前预设里时（roll.ok=false）这枚开关不出现，只留超限那一枚。
+       每枚开关下面跟一段这个模式的说明（何时出手 / 好处 / 代价），开关不在时说明也一起不出现。
+       文案按 2026-09-23 用户裁定重写：两种模式各自讲清 + 各自的优劣 + 怎么选（见 compressPickNote）。 */
     var rollOk = !!(stat && stat.roll && stat.roll.ok);
     if (rollOk) {
       switchRow('compressRollName',
         function () { return api.status().roll && api.status().roll.enabled; },
         function (v) { return api.setRolling(v); });
+      panelBody.appendChild(el('p', 'kami-guide-lead', copyOf('compressRollNote')));
     }
     switchRow('compressGrandName',
       function () { return api.status().grandOn; },
       function (v) { return api.setGrand(v); });
+    panelBody.appendChild(el('p', 'kami-guide-lead', copyOf('compressGrandNote')));
+
+    /* 怎么选：按计费方式与游玩时长给三条明确建议（用户裁定，不要再写回「先只开滚动」那套旧口径） */
+    panelBody.appendChild(el('span', 'kami-guide-sec', copyOf('compressPickTitle')));
+    panelBody.appendChild(el('p', 'kami-guide-lead', copyOf('compressPickNote')));
 
     panelBody.appendChild(el('p', 'kami-guide-offnote', copyOf('compressParamsNote')));
     if (typeof api.open === 'function') {
