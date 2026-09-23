@@ -68,7 +68,7 @@ function makeEnv(opts) {
   /* 假 Releases 接口：默认给一个「最新正式版 97」 */
   const RELEASE = opts.release === undefined ? [releaseOf(97, '20260922')] : opts.release;
   const PRESET_TEXT = opts.presetText !== undefined ? opts.presetText
-    : JSON.stringify({ name: '卡密预设v0.90-97-20260922', prompts: [{ identifier: 'a', name: 'x', content: 'y' }], prompt_order: [] });
+    : JSON.stringify({ name: 'kami-v0.90-97-20260922', prompts: [{ identifier: 'a', name: 'x', content: 'y' }], prompt_order: [] });
 
   const dom = Object.assign({}, opts.dom || {});
   const HDOC = {
@@ -133,10 +133,11 @@ function makeEnv(opts) {
 
 const REPO_VARS = { 'kami-update': { repo: { owner: 'kamisama', repo: 'kami-preset' } } };
 
-/* 造一个假 Release：正式分发名 卡密预设v0.90-<build>-<date>.json */
+/* 造一个假 Release：现行正式分发名 kami-v0.90-<build>-<date>.json
+   （曾用名「卡密预设v0.90-…」在 GitHub 上会被削成「v0.90-…」，所以 2026-09-23 起前缀改成 ASCII） */
 function releaseOf(build, date, extra) {
   const d = date || '20260922';
-  const name = '卡密预设v0.90-' + build + '-' + d;
+  const name = 'kami-v0.90-' + build + '-' + d;
   return Object.assign({
     tag_name: 'v0.90-' + build + '-' + d,
     name: name,
@@ -168,10 +169,10 @@ console.log('--- 有新版本 + 用户点「立即更新」 ---');
   ok(cmd.indexOf('/popup ') === 0, '用的是酒馆 /popup 命令');
   ok(cmd.indexOf('result=true') > 0, '带 result=true（能拿到用户选的是/否）');
   ok(cmd.indexOf('okButton="立即更新"') > 0 && cmd.indexOf('cancelButton="暂不更新"') > 0, '按钮是 立即更新 / 暂不更新');
-  ok(cmd.indexOf('卡密预设v0.90-97-20260922') > 0 && cmd.indexOf('v0.90-97') > 0, '弹窗里带新版本名');
+  ok(cmd.indexOf('kami-v0.90-97-20260922') > 0 && cmd.indexOf('v0.90-97') > 0, '弹窗里带新版本名');
   ok(cmd.indexOf('max-height:36vh') > 0 && cmd.indexOf('overflow-y:auto') > 0, '更新说明放在可滚动区域里（窗口不会过高）');
   ok(env.importCalls.length === 1, '调用了 importRawPreset 写入预设文件夹');
-  ok(env.importCalls[0] && env.importCalls[0].name === '卡密预设v0.90-97-20260922', '写入的预设名正确', env.importCalls[0] && env.importCalls[0].name);
+  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '写入的预设名正确', env.importCalls[0] && env.importCalls[0].name);
   ok(env.importCalls[0] && env.importCalls[0].content.indexOf('"prompts"') > 0, '写入的是下载到的预设原文');
   ok(env.scriptVars['kami-update'].imported === 'v0.90-97', '脚本变量记下 imported=v0.90-97（跟账号走，不存浏览器）');
   ok(r.action === 'imported', 'action = imported');
@@ -224,7 +225,7 @@ console.log('--- 已经是最新 ---');
 
 console.log('--- 本机已导入过该版本（只是没切换） ---');
 {
-  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', '卡密预设v0.90-97-20260922'] });
+  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', 'kami-v0.90-97-20260922'] });
   await settle();
   const r = await env.api().check(false);
   ok(r.action === 'installed', 'action = installed');
@@ -350,7 +351,7 @@ console.log('--- Releases 列表挑选规则 ---');
       Object.assign(releaseOf(97, '20260922'), {
         assets: [
           { name: 'checksums.txt', browser_download_url: 'https://example.com/dl/checksums.txt' },
-          { name: '卡密预设v0.90-97-20260922.json', browser_download_url: 'https://example.com/dl/kami.json' },
+          { name: 'kami-v0.90-97-20260922.json', browser_download_url: 'https://example.com/dl/kami.json' },
         ],
       }),
     ],
@@ -358,7 +359,23 @@ console.log('--- Releases 列表挑选规则 ---');
   await settle();
   const r = await env.api().check(false);
   ok(r.remote && r.remote.build === 97, '跳过草稿，取最新非草稿版', r.remote && r.remote.build);
-  ok(r.remote && r.remote.url === 'https://example.com/dl/kami.json', '多附件优先选 卡密预设 开头的 JSON', r.remote && r.remote.url);
+  ok(r.remote && r.remote.url === 'https://example.com/dl/kami.json', '多附件优先选 kami- 开头的 JSON', r.remote && r.remote.url);
+
+  /* GitHub 会把非 ASCII 附件名直接削掉：曾用中文名上传的附件会变成 v0.90-…json（没有前缀）。
+     这种附件也必须能挑中、并解析出版本号（否则「改名换前缀」这件事会把老 Release 变成死信）。 */
+  const envStripped = makeEnv({
+    vars: REPO_VARS, popupResult: '0',
+    release: [releaseOf(97, '20260922', {
+      assets: [
+        { name: 'checksums.txt', browser_download_url: 'https://example.com/dl/checksums.txt' },
+        { name: 'v0.90-97-20260922.json', browser_download_url: 'https://example.com/dl/stripped.json' },
+      ],
+    })],
+  });
+  await settle();
+  const rs = await envStripped.api().check(false);
+  ok(rs.remote && rs.remote.build === 97 && rs.remote.url === 'https://example.com/dl/stripped.json',
+    '附件名被 GitHub 削掉前缀时仍能挑中并解析版本', rs.remote && rs.remote.version);
 
   const env2 = makeEnv({ vars: REPO_VARS, release: [releaseOf(97, '20260922', { assets: [{ name: 'readme.txt', browser_download_url: 'x' }] })] });
   await settle();
@@ -382,7 +399,7 @@ console.log('--- 新旧命名互认 ---');
   ok(r.action === 'none', '本机旧命名 0.9-97 与仓库正式命名 v0.90-97 判为同一版本', JSON.stringify(r.action));
 
   const env2 = makeEnv({
-    vars: REPO_VARS, localPreset: '卡密预设v0.90-96-20260921', installed: ['卡密预设v0.90-96-20260921'],
+    vars: REPO_VARS, localPreset: 'kami-v0.90-96-20260921', installed: ['kami-v0.90-96-20260921'],
     release: [releaseOf(97, '20260922')],
   });
   await settle();

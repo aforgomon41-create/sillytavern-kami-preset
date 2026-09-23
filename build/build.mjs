@@ -8,12 +8,12 @@
  *   src/scripts/*.js              脚本代码（文件内容即 content 字段）
  *   src/regex/list.json           ST 原生正则列表（唯一真相来源）
  * 输出：
- *   dist/卡密预设v0.90-<N>-<日期>.json    N 自增，永不覆盖历史产物
+ *   dist/kami-v0.90-<N>-<日期>.json    N 自增，永不覆盖历史产物
  *   dist/build-manifest.json             构建台账（含每个源的 sha256）
  *
  * 用法：node build/build.mjs [--dry]
- * 命名（正式分发格式）：卡密预设v{大版本号}.{两位小版本号}-{构建号}-{日期}.json，
- *       例如 卡密预设v0.90-52-20260922.json。「两位小版本」= 版本号小数部分写两位，
+ * 命名（正式分发格式）：kami-v{大版本号}.{两位小版本号}-{构建号}-{日期}.json，
+ *       例如 kami-v0.90-113-20260923.json。「两位小版本」= 版本号小数部分写两位，
  *       当前版本 0.9 写作 0.90；日期为构建当天（8 位，年在前）。
  *       N 会从历史产物里的最大构建号继续递增（新旧命名都认），编号不断档。
  */
@@ -201,19 +201,21 @@ for (const dir of scanDirs) {
   if (!fs.existsSync(dir)) { continue; }
   for (const f of fs.readdirSync(dir)) {
     /* 三种命名都要认，否则构建号会从 1 重来：
-       · 正式  卡密预设v0.09-52-20260922.json
+       · 现行  kami-v0.90-113-20260923.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
+              因为 GitHub Releases 会把非 ASCII 附件名直接削掉）
+       · 曾用  卡密预设v0.09-52-20260922.json
        · 旧版  卡密预设0.9-52.json
        · 更旧  卡密预设0.9-260917-51.json（日期前缀 = 6 位数字 + 短横线） */
-    let m = /^卡密预设v\d+\.\d+-(\d{1,4})-\d{8}\.json$/.exec(f);
+    let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
     if (m) { N = Math.max(N, Number(m[1])); continue; }
-    m = /^卡密预设0\.9-(?:\d{6}-)?(\d{1,4})\.json$/.exec(f);
+    m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
     if (m) { N = Math.max(N, Number(m[1])); }
   }
 }
 N += 1;
 const _d = new Date();
 const dateTag = '' + _d.getFullYear() + String(_d.getMonth() + 1).padStart(2, '0') + String(_d.getDate()).padStart(2, '0');
-const outName = `卡密预设v${V_MAJOR}.${V_MINOR_STR}-${N}-${dateTag}.json`;
+const outName = `kami-v${V_MAJOR}.${V_MINOR_STR}-${N}-${dateTag}.json`;
 const outPath = path.join(DIST, outName);
 
 preset.name = outName.replace(/\.json$/, '');

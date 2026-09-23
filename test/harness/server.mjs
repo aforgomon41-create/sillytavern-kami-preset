@@ -66,14 +66,14 @@ function newestPreset() {
   if (!fs.existsSync(dir)) { return null; }
   let best = null, bestN = -1;
   for (const f of fs.readdirSync(dir)) {
-    /* 正式命名 卡密预设v0.90-52-20260922.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
-    let m = /^卡密预设v\d+\.\d+-(\d{1,4})-\d{8}\.json$/.exec(f);
+    /* 现行 kami-v0.90-113-20260923.json、曾用 卡密预设v0.90-52-20260922.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
+    let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
     if (m) {
       const n2 = Number(m[1]);
       if (n2 > bestN) { bestN = n2; best = path.join(dir, f); }
       continue;
     }
-    m = /^卡密预设0\.9-(?:\d{6}-)?(\d{1,4})\.json$/.exec(f);
+    m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
     if (!m) { continue; }
     const n = Number(m[1]);
     if (n > bestN) { bestN = n; best = path.join(dir, f); }

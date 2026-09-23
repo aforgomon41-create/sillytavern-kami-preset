@@ -253,19 +253,21 @@
     return { name: '', from: null };
   }
 
-  /* 从预设名解析版本号。认三种命名：
-   *   正式：卡密预设v0.09-97-20260922   （v大版本.两位小版本-构建号-日期）
+  /* 从预设名解析版本号。认这些命名：
+   *   现行：kami-v0.90-113-20260923   （v大版本.两位小版本-构建号-日期；2026-09-23 起改用 ASCII 前缀，
+   *          因为 GitHub Releases 会把非 ASCII 附件名直接削掉，「卡密预设v…」传上去会变成「v…」）
+   *   曾用：卡密预设v0.90-113-20260923
    *   旧版：卡密预设0.9-97 / 卡密预设0.9-260917-97
    * 返回 { major, minor, build, date, raw }；认不出来返回 null（绝不猜）。 */
   function parseVersion(name) {
     var str = cleanStr(name);
-    var m = /卡密预设v(\d+)\.(\d+)-(\d+)-(\d{8})(?:\D|$)/.exec(str);
+    var m = /(?:kami-|卡密预设)?v(\d+)\.(\d+)-(\d+)-(\d{8})(?:\D|$)/i.exec(str);
     if (m) {
       /* 正式命名的「两位小版本」按小数读：v0.90 就是 0.9，
          和旧命名 0.9-97 是同一个版本，不会误判为有更新。 */
       return { major: +m[1], minorDigits: m[2], minor: parseFloat('0.' + m[2]), build: +m[3], date: m[4], raw: str };
     }
-    m = /卡密预设0\.9-(?:\d{6}-)?(\d+)(?:\D|$)/.exec(str);
+    m = /(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d+)(?:\D|$)/i.exec(str);
     if (m) {
       return { major: 0, minorDigits: '9', minor: 0.9, build: +m[1], date: '', raw: str };
     }
@@ -496,7 +498,13 @@
         if (!assets.length) { continue; }
         var pick = null;
         for (var j = 0; j < assets.length; j++) {
-          if (/^卡密预设/i.test(assets[j].name)) { pick = assets[j]; break; }
+          if (/^(?:kami-|卡密预设)/i.test(assets[j].name)) { pick = assets[j]; break; }
+        }
+        /* 没有带前缀的（例如曾用中文名，被 GitHub 削成 v0.90-…）：挑第一个「名字里能解析出版本号」的 */
+        if (!pick) {
+          for (var j2 = 0; j2 < assets.length; j2++) {
+            if (parseVersion(assets[j2].name)) { pick = assets[j2]; break; }
+          }
         }
         if (!pick) { pick = assets[0]; }
         /* 版本号优先从附件文件名解析（正式分发名），解析不了再退回 tag / 标题 */
