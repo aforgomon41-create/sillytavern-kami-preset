@@ -565,7 +565,7 @@
           },
           "data": {
             "anti-truncation": {
-              "enabled": true
+              "enabled": false
             }
           },
           "export_with": {
