@@ -305,19 +305,152 @@
 
   /* ───────── 网络 ───────── */
 
-  function fetchText(url, ms) {
+  /* 把一条 fetch 的失败翻成人话：手机流量到 GitHub 的连通性时好时坏，
+     浏览器只会丢一句干巴巴的 TypeError（Failed to fetch），得替用户脱壳后说明。 */
+  function fetchErrText(e) {
+    var msg = (e && e.message) ? e.message : String(e);
+    var name = (e && e.name) ? String(e.name) : '';
+    if (name === 'AbortError' || /abort/i.test(msg)) { return '超时（等了 ' + Math.round(FETCH_MS / 1000) + ' 秒没回音）'; }
+    if (/failed\s+to\s+fetch/i.test(msg)) { return '网络连不上 GitHub（这个网络下访问它不通）'; }
+    return msg;
+  }
+
+  /* 下载链（本次新增）：按顺序逐条试，哪条成功就用哪条。
+     ① GitHub Release 直链 —— 发版的正路，永远在链上
+     ② GitHub API 附件接口 —— 与①最终同落一台 CDN，但入口域名不同（api.github.com），
+        多一条路；带 Accept: application/octet-stream 拿附件本体
+     ③ GitHub raw 镜像 —— 要把预设 JSON 提交进仓库才有用，默认**关**（代价见 meta.json 说明）
+     ④ jsDelivr 镜像 —— 同上，默认**关**
+     ③④ 是否把 JSON 提进仓库由派活方拍板；这里只提供开关（源码常量 + 脚本变量可覆盖）。 */
+  var RAW_DIR = 'release';            // 镜像通道假设预设 JSON 在仓库的这个目录里（可用脚本变量 rawDir 覆盖）
+  var USE_RAW_MIRROR = false;         // ① 改成 true = raw 镜像进链（同时要在仓库 rawDir 里放了这份 JSON）
+  var USE_JSD_MIRROR = false;         // ① 改成 true = jsDelivr 镜像进链
+  var MIRROR_ATTEMPTS = 2;            // 每条通道尝试的次数（手机网络抖一下的第二枪）
+  var RETRY_DELAY_MS = 1500;          // 同一条通道两次尝试之间隔多久
+
+  function assetFileName(remote) {
+    return cleanStr(remote.name) + '.json';   /* remote.name 已是去 .json 的正式分发名 */
+  }
+
+  /* 把没上链资格的通道滤掉后按序返回 */
+  function buildChain(remote, cfg) {
+    var tag = cleanStr(remote.version);
+    var dir = cleanStr((vars && vars.rawDir) || RAW_DIR);
+    var file = assetFileName(remote);
+    var useRaw = USE_RAW_MIRROR || !!(vars && vars.mirrorRaw === true);
+    var useJsd = USE_JSD_MIRROR || !!(vars && vars.mirrorJsdelivr === true);
+    var list = [
+      { id: 'github', label: 'GitHub 直链', url: remote.url,
+        ok: !!remote.url },
+      { id: 'api', label: 'GitHub API 附件',
+        url: 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
+          '/releases/assets/' + cleanStr(remote.assetId),
+        headers: { 'Accept': 'application/octet-stream' },
+        ok: !!remote.assetId },
+      { id: 'raw', label: 'GitHub raw 镜像',
+        url: 'https://raw.githubusercontent.com/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
+          '/' + encodeURIComponent(tag) + '/' + dir + '/' + encodeURIComponent(file),
+        ok: !!useRaw && !!tag },
+      { id: 'jsdelivr', label: 'jsDelivr 镜像',
+        url: 'https://cdn.jsdelivr.net/gh/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
+          '@' + encodeURIComponent(tag) + '/' + dir + '/' + encodeURIComponent(file),
+        ok: !!useJsd && !!tag },
+    ];
+    var on = [], off = [], i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i].ok) { on.push(list[i]); } else { off.push(list[i]); }
+    }
+    if (off.length) {
+      var names = [];
+      for (i = 0; i < off.length; i++) { names.push(off[i].label); }
+      log('这几条镜像通道留着没走（' + names.join(' / ') + '）：开关没开或这一版没有对应下载地址');
+    }
+    return { channels: on, skipped: off };
+  }
+
+  function fetchText(url, headers, ms) {
     var ctrl = null, timer = null;
     try { if (typeof AbortController === 'function') { ctrl = new AbortController(); } } catch (e) { }
     if (ctrl) {
       timer = hsetTimeout(function () { try { ctrl.abort(); } catch (e) { } }, ms || FETCH_MS);
     }
-    var p = fetch(url, ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' })
+    var opt = ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' };
+    if (headers) { try { opt.headers = headers; } catch (e) { } }
+    var p = fetch(url, opt)
       .then(function (res) {
-        if (!res.ok) { throw new Error('HTTP ' + res.status); }
+        if (!res.ok) { var er = new Error('HTTP ' + res.status); er.status = res.status; throw er; }
         return res.text();
       });
     if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
     return p;
+  }
+
+  /* 一条通道小重试：网络抖动通常缓一下就过，同一条通道先试第二次，而不是立刻换道。
+     延迟 ≤0 = 不等待（自测环境没有真实的时钟，靠这个能原地重试）。 */
+  function delayChainRetry(ms) {
+    var w = (ms === 0) ? 0 : (ms || RETRY_DELAY_MS);
+    if (!(w > 0)) { return Promise.resolve(); }
+    return new Promise(function (res) {
+      var t = hsetTimeout(res, w);
+      if (timers.indexOf(t) < 0) { timers.push(t); }
+    });
+  }
+
+  function downloadViaChain(remote, cfg) {
+    var chain = buildChain(remote, cfg);
+    var tried = [];
+    function tryOnce(ch, left) {
+      if (!left || left < 1) { return Promise.reject(new Error('通道尝试次数异常')); }
+      var t = MIRROR_ATTEMPTS - left + 1;
+      log('下载尝试：通道「' + ch.label + '」第 ' + t + '/' + MIRROR_ATTEMPTS + ' 次 ' + ch.url);
+      return fetchText(ch.url, ch.headers).then(function (text) {
+        log('通道「' + ch.label + '」成功（第 ' + (MIRROR_ATTEMPTS - left + 1) + ' 次尝试）');
+        return { text: text, via: ch.label };
+      })['catch'](function (e) {
+        var why = fetchErrText(e);
+        log('通道「' + ch.label + '」第 ' + t + ' 次尝试没成功：' + why);
+        if (left > 1) {
+          return delayChainRetry(RETRY_DELAY_MS).then(function () { return tryOnce(ch, left - 1); });
+        }
+        tried.push({ label: ch.label, url: ch.url, err: why });
+        return Promise.reject(e);
+      });
+    }
+
+    function go(i) {
+      if (i >= chain.channels.length) {
+        var errs = [];
+        for (var k = 0; k < tried.length; k++) { errs.push('「' + tried[k].label + '」' + tried[k].err); }
+        var friendly = '几条下载通道都试不通（' + errs.join('；') + '）。' +
+          '多半是当前网络访问不到 GitHub：可以换个 Wi-Fi 稍后再试；或者打开仓库' +
+          ' https://github.com/' + encodeURIComponent(repoConfig().owner) + '/' +
+          encodeURIComponent(repoConfig().repo) + '/releases 手动下载 ' + assetFileName(remote) + ' 导入酒馆';
+        var er2 = new Error(friendly);
+        er2.networkAll = true;
+        return Promise.reject(er2);
+      }
+      var ch = chain.channels[i];
+      log('切到下载通道「' + ch.label + '」（' + (i + 1) + '/' + chain.channels.length + '）');
+      return tryOnce(ch, MIRROR_ATTEMPTS)['catch'](function (e) {
+        if (i + 1 < chain.channels.length) {
+          log('这条走到底也没通（' + (e && e.status ? '是 HTTP ' + e.status : '网络层问题') +
+            '），回退到下一条：' + chain.channels[i + 1].label);
+        }
+        return go(i + 1);   /* 到头了 → go 会走进「全失败」分支，给出人话错误 */
+      });
+    }
+    return go(0).then(function (r) {
+      /* 把成功用的通道记进日志，回退时更要写明白 —— 用户看得懂这种说法 */
+      if (chain.channels.length > 1 && tried.length > 0) {
+        log('回退成功：用的不是首选那一条，最终走的是「' + r.via + '」（前面试过的通道：' +
+          tried.map(function (t) { return t.label; }).join(' / ') + '）');
+      }
+      tried = [];
+      return r;
+    }, function (e) {
+      tried = [];
+      throw e;
+    });
   }
 
   /* 读 GitHub API：把状态码与响应头也带出来（403 要能区分「限流」和「没权限」） */
@@ -512,11 +645,12 @@
         if (!v) { continue; }
         return {
           name: safePresetName(pick.name),
-          version: versionLabel(v),
+          version: versionLabel(v),       /* tag 的短写法：v0.90-122；同时是镜像仓库取快照用的 tag */
           major: v.major, minor: v.minor, build: v.build,
           released: cleanStr(rel.published_at).slice(0, 10),
           notes: typeof rel.body === 'string' ? rel.body : '',
-          url: cleanStr(pick.browser_download_url)
+          url: cleanStr(pick.browser_download_url),
+          assetId: pick.id || null        /* API 附件接口（下载链第②条）要用它来定位附件 */
         };
       }
       throw new Error('仓库里没有一个带预设 JSON 附件的 Release');
@@ -617,10 +751,13 @@
     });
   }
 
-  /* 用户点了「立即更新」：下载 → 写进预设文件夹 → 提醒切换 */
+  /* 用户点了「立即更新」：下载 → 写进预设文件夹 → 提醒切换。
+     下载走下载链（buildChain 里那几条，按序回退），直链走不通也有得选。 */
   function doUpdate(remote) {
+    var cfg = repoConfig();
     log('开始下载预设：' + remote.url);
-    return fetchText(remote.url).then(function (text) {
+    return downloadViaChain(remote, cfg).then(function (got) {
+      var text = got.text;
       var json = null;
       try { json = JSON.parse(text); } catch (e) { throw new Error('下载到的不是合法 JSON'); }
       if (!json || typeof json !== 'object' || !Array.isArray(json.prompts)) {
@@ -630,13 +767,16 @@
     }).then(function (r) {
       saveVars({ imported: remote.version, skipped: '' });
       last.action = 'imported';
-      log('已写入预设「' + remote.name + '」（通道 ' + r.via + '）');
+      log('已写入预设「' + remote.name + '」（写盘用的通道 ' + r.via + '；下载用的通道见上面日志）');
       toast('success', '新预设「' + remote.name + '」已写入酒馆。打开左侧抽屉的「AI 响应配置」，把预设切换成它即可生效', 15000);
       return last;
     })['catch'](function (e) {
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
-      toast('error', '更新失败：' + last.error + '（可以手动去仓库下载导入）', 10000);
+      var tip = (e && e.networkAll)
+        ? ''   /* 人话汇总里已经带了「换网络 / 手动下载」两句指引，toast 不再叠加 */
+        : '（可以手动去仓库下载导入）';
+      toast('error', '更新失败：' + last.error + tip, 12000);
       return last;
     });
   }

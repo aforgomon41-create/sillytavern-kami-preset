@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--
+  端到端验证辅助页（.audit/ 下，不进构建）：在真实浏览器里跑改好的「🔄 远程更新」脚本
+  的完整更新流程 —— 读真 Releases 接口 → 挑附件 → 弹窗确认（自动选「立即更新」）
+  → 走下载链拿真附件 → 把下载到的正文交 importRawPreset（本页的假实现记进内存）。
+  产物把 SHA-256 与字节数列出来，和本地 dist 产物对照。
+  两种模式：?mode=normal（直链正常）与 ?mode=blockdirect（拦截 github.com 直链 2 次 → 强制走回退通道）。
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>远程更新 E2E 验证</title>
+<style>
+  body { font-family: 'Cascadia Mono', Consolas, monospace; font-size: 13px; padding: 16px; background: #111; color: #ddd; }
+  pre { background: #000; padding: 10px; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #7f7; } .fail { color: #f77; } h1 { font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>远程更新端到端验证（模式：<span id="mode"></span>）</h1>
+<pre id="out">loading…</pre>
+<script>
+'use strict';
+var MODE = (location.search.match(/mode=([a-z]+)/) || [, 'normal'])[1];
+document.getElementById('mode').textContent = MODE;
+
+var imported = [];          /* importRawPreset 收到的（名字，正文） */
+var scriptVars = {};
+var slashCalls = [];
+var directBlocksLeft = (MODE === 'blockdirect') ? 2 : 0;   /* 拦截直链的次数 */
+var blockedCount = 0;
+
+/* ── 假酒馆的最小环境 ── */
+var H = { toastr: { options: {}, info: function(){}, success: function(){}, warning: function(){}, error: function(){} } };
+try { document.getElementById('send_textarea'); } catch (e) { }   /* 无操作；脚本判宿主用 querySelector('#send_textarea') */
+var ta = document.createElement('div'); ta.id = 'send_textarea'; document.body.appendChild(ta);
+
+window.SillyTavern = { getContext: function () {
+  return {
+    chatCompletionSettings: {},
+    executeSlashCommandsWithOptions: async function (cmd) { slashCalls.push(cmd); return { pipe: '1', isError: false, popupCommand: cmd }; },
+  };
+} };
+
+/* 酒馆助手脚本环境的全局注入（与真实脚本沙箱一致的那批函数名） */
+function getVariables() { return JSON.parse(JSON.stringify(scriptVars)); }
+function replaceVariables(all) { scriptVars = JSON.parse(JSON.stringify(all)); }
+function getPresetNames() { return ['卡密预设0.9-90']; }    /* 本机旧版：0.9-90，远端 122 → 必有更新 */
+function triggerSlash(cmd) { slashCalls.push(cmd); return Promise.resolve('1'); }   /* 自动选「立即更新」 */
+function importRawPreset(name, content) { imported.push([name, content]); return Promise.resolve(true); }
+
+/* ── 按模式包一层 fetch：blockdirect 模式拦截 github.com 直链 N 次 ── */
+var realFetch = window.fetch.bind(window);
+window.fetch = function (url, opt) {
+  var u = String(url);
+  if (directBlocksLeft > 0 && u.indexOf('https://github.com/') === 0 && u.indexOf('/releases/download/') > 0) {
+    directBlocksLeft--; blockedCount++;
+    return Promise.reject(new TypeError('Failed to fetch'));
+  }
+  return realFetch(url, opt);
+};
+
+/* ── 加载改好的脚本本体（开发源，与构建打包进预设的是同一份）── */
+fetch('/dev/70-' + '远程更新.js').then(r => r.text()).then(function (code) {
+  try {
+    /* 用 page 上的全局注入跑一遍 IIFE（getVariables 等在本页是 script 全局，直接可用） */
+    (new Function('window', 'document', 'console', 'fetch',
+      'getVariables', 'replaceVariables', 'getPresetNames', 'triggerSlash', 'importRawPreset',
+      code +
+      ';return { status: (typeof KamiUpdate!=="undefined") ? window.KamiUpdate : null };'))(
+      window, document, console, window.fetch,
+      getVariables, replaceVariables, getPresetNames, triggerSlash, importRawPreset);
+    go();
+  } catch (e) {
+    document.getElementById('out').textContent = '脚本加载失败: ' + e.message + '\n' + (e.stack || '');
+    document.title = 'E2E-FAIL';
+  }
+});
+
+async function sha256Hex(text) {
+  const buf = new TextEncoder().encode(text);
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function go() {
+  const out = [];
+  const t0 = performance.now();
+  try {
+    const r = await window.KamiUpdate.check(true);   /* force=true：绕过拒绝/已写记录 */
+    const ms = Math.round(performance.now() - t0) / 1000;
+    out.push('mode=' + MODE);
+    out.push('lastAction=' + (r && r.action) + '  lastError=' + (r && r.error));
+    /* 从导入内存里取出「下载后的预设正文」，算哈希 */
+    if (imported.length) {
+      const it = imported[0];
+      out.push('importedName=' + it[0]);
+      out.push('importedBytes=' + new TextEncoder().encode(it[1]).length);
+      out.push('importedSHA256=' + (await sha256Hex(it[1])));
+      out.push('uniqueSnippet=' + String(it[1]).match(/"name":"[^"]{0,40}/));
+    } else {
+      out.push('imported=[空]');
+    }
+    out.push('blockedDirect=' + blockedCount + ' 次（应=' + (MODE === 'blockdirect' ? 2 : 0) + '）');
+    out.push('slashCalls=' + slashCalls.length);
+    out.push('scriptVars=' + JSON.stringify(scriptVars));
+    out.push('耗时=' + ms + 's');
+    const kb = window.KamiUpdate.status();
+    out.push('---- 脚本日志尾部 ----');
+    (kb.logs || []).forEach(l => out.push('  ' + l));
+    document.getElementById('out').textContent = out.join('\n');
+    document.title = imported.length && imported[0][1].indexOf('"prompts"') >= 0 ? 'E2E-DONE' : 'E2E-TRY';
+  } catch (e) {
+    out.push('E2E 出错: ' + (e && e.message || e));
+    document.getElementById('out').textContent = out.join('\n');
+    document.title = 'E2E-FAIL';
+  }
+}
+</script>
+</body>
+</html>

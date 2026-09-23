@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<!--
+  排查辅助页（.audit/ 下，不进构建）：在真实浏览器页面上下文里
+  逐条实测「🔄 远程更新」候选下载通道。打开时自动跑完全部测试。
+  用法：node test/harness/server.mjs --port 8796 然后访问 /.audit/fetch-probe.html
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>fetch 通道探针</title>
+<style>
+  body { font-family: 'Cascadia Mono', Consolas, monospace; font-size: 13px; padding: 16px; background: #111; color: #ddd; }
+  h1 { font-size: 16px; } h2 { font-size: 14px; color: #9f9; margin: 18px 0 6px; }
+  table { border-collapse: collapse; margin-bottom: 12px; }
+  td, th { border: 1px solid #444; padding: 4px 8px; text-align: left; font-size: 12px; }
+  .ok { color: #7f7; } .fail { color: #f77; } .run { color: #ffd166; }
+  pre { background: #000; padding: 8px; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>fetch 通道探针（页面源：<span id="origin"></span>）</h1>
+<div id="js"></div>
+<div id="out"></div>
+<pre id="summary">running…</pre>
+<script>
+'use strict';
+document.getElementById('origin').textContent = location.origin;
+
+/* 与 70-远程更新.js 的 downloadChain() 同源的同名通道表（排查期对照，改了 Src 要同步这里） */
+var GITHUB_DL = 'https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/download/v0.90-122/kami-v0.90-122-20260923.json';
+var GITHUB_API = 'https://api.github.com/repos/aforgomon41-create/sillytavern-kami-preset/releases/assets/583032175';
+var RAW_README = 'https://raw.githubusercontent.com/aforgomon41-create/sillytavern-kami-preset/main/readme.md';
+var RAW_JSON = 'https://raw.githubusercontent.com/aforgomon41-create/sillytavern-kami-preset/v0.90-122/kami-v0.90-122-20260923.json';
+var JSD_README = 'https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@main/readme.md';
+var JSD_TAG = 'https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@v0.90-122/kami-v0.90-122-20260923.json';
+var RELEASES_API = 'https://api.github.com/repos/aforgomon41-create/sillytavern-kami-preset/releases?per_page=10';
+
+function toastOk(res) {
+  var lines = [];
+  lines.push('status=' + res.status);
+  ['access-control-allow-origin', 'access-control-expose-headers', 'content-type', 'content-length', 'cache-control'].forEach(function (h) {
+    var v = res.headers.get(h); if (v) { lines.push(h + '=' + v); }
+  });
+  return lines.join('\n');
+}
+
+async function sha256Hex(text) {
+  const buf = new TextEncoder().encode(text);
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* 每条通道：fetch → {ok, err, status, headers(raw), ms, size, sha} */
+async function probe(label, url, headers) {
+  const t0 = performance.now();
+  const out = { label: label, url: url, ok: false, err: '', status: null, headers: '', ms: 0, size: 0, sha: '' };
+  try {
+    const res = await fetch(url, { cache: 'no-store', headers: headers || undefined });
+    out.status = res.status;
+    out.headers = toastOk(res);
+    const text = await res.text();
+    out.ms = Math.round(performance.now() - t0);
+    out.size = text.length;
+    out.sha = await sha256Hex(text);
+    out.ok = res.ok;
+    if (!res.ok) { out.err = 'HTTP ' + res.status; }
+  } catch (e) {
+    out.ms = Math.round(performance.now() - t0);
+    out.ok = false;
+    out.err = (e && (e.message + (e.cause ? ' | cause=' + (e.cause.message || e.cause) : ''))) || String(e);
+    out.errCls = (e && e.constructor && e.constructor.name) || typeof e;
+  }
+  return out;
+}
+
+function row(t) {
+  var cls = t.ok ? 'ok' : 'fail';
+  return '<tr><td>' + t.label + '</td><td class="' + cls + '">' + (t.ok ? 'OK' : 'FAIL') + '</td><td>' +
+    (t.status == null ? '—' : t.status) + '</td><td>' + t.ms + 'ms</td><td>' + (t.size || '—') + 'B</td><td>' +
+    (t.sha ? t.sha.slice(0, 16) + '…' : '—') + '</td><td>' + (t.err || '—') + '</td><td><pre>' + (t.headers || '—') + '</pre></td></tr>';
+}
+
+var TESTS = [
+  ['① github 直链（当前脚本用的）', GITHUB_DL, null],
+  ['② API 附件（Accept: octet-stream）', GITHUB_API, { 'Accept': 'application/octet-stream' }],
+  ['③ raw readme（仓库通道 / main）', RAW_README, null],
+  ['③b raw 附件路径 / tag（预期 404）', RAW_JSON, null],
+  ['④ jsdelivr readme（@main）', JSD_README, null],
+  ['④b jsdelivr 附件路径 / tag（预期 404）', JSD_TAG, null],
+  ['⑤ Releases 接口（清单，healthcheck）', RELEASES_API, null],
+];
+
+(async function main() {
+  const rows = [];
+  for (const t of TESTS) {
+    const r = await probe(t[0], t[1], t[2]);
+    rows.push(r);
+    document.getElementById('out').innerHTML =
+      '<h2>结果（逐条实测）</h2><table><tr><th>通道</th><th>结果</th><th>HTTP</th><th>耗时</th><th>字节</th><th>SHA256前16</th><th>错误</th><th>响应头</th></tr>' +
+      rows.map(row).join('') + '</table>';
+  }
+  const sum = rows.map(r => (r.ok ? 'OK   ' : 'FAIL ') + r.label + (r.ok ? ' size=' + r.size + 'B sha=' + r.sha : ' err="' + r.err + ' cls=' + (r.errCls || '') + '" status=' + r.status)).join('\n');
+  document.getElementById('summary').textContent = sum;
+  document.title = 'PROBE-DONE';
+  try { console.log('PROBE-DONE\n' + sum); } catch (e) { }
+})();
+</script>
+</body>
+</html>

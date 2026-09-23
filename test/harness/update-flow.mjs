@@ -89,13 +89,26 @@ function makeEnv(opts) {
       return { pipe: opts.popupResult === undefined ? '1' : String(opts.popupResult), isError: false };
     },
   };
-  const fetchMock = (url) => {
-    fetchCalls.push(url);
+  const fetchMock = (url, opt) => {
+    fetchCalls.push({ url: String(url), headers: opt && opt.headers ? opt.headers : null });
     const headers = { get: (k) => (k === 'x-ratelimit-remaining' ? (opts.rateLimit ? '0' : '50') : null) };
     if (opts.fetchFail) { return Promise.resolve({ ok: false, status: 404, headers }); }
     if (opts.rateLimit) { return Promise.resolve({ ok: false, status: 403, headers, text: () => Promise.resolve('') }); }
-    if (String(url).indexOf('https://api.github.com/') === 0) {
+    /* 可选：下载链定向失败（模拟手机网络连不上 GitHub 那几个下载域名）。
+       failDirect   = 非 API 的一切 URL（Release 直链）抛 TypeError → 回退到 API 附件通道
+       failDownload = API 附件接口也抛 TypeError → 取「全部通道失败」的文案 */
+    const u = String(url);
+    const isApi = u.indexOf('https://api.github.com/') === 0;
+    if (opts.failDirect && !isApi) { return Promise.reject(new TypeError('Failed to fetch')); }
+    if (opts.failDownload && (!isApi || u.indexOf('/releases/assets/') >= 0)) {
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }
+    if (isApi) {
       if (!RELEASE) { return Promise.resolve({ ok: false, status: 404, headers }); }
+      /* 附件接口（/releases/assets/<id>，Accept: octet-stream）返回的是附件本体，不是清单 */
+      if (u.indexOf('/releases/assets/') >= 0) {
+        return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
+      }
       return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(JSON.stringify(RELEASE)) });
     }
     return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
@@ -131,6 +144,11 @@ function makeEnv(opts) {
   return { W, toasts, slashCalls, importCalls, fetchCalls, scriptVars, dom, pump, api: () => W.KamiUpdate };
 }
 
+/* 下载链的两条用例要「原地重试」：假定时器没有真实时钟，把通道重试延迟清成 0 */
+const CODE_NO_RETRY_DELAY = CODE
+  .replace('var RETRY_DELAY_MS = 1500;', 'var RETRY_DELAY_MS = 0;');
+if (CODE_NO_RETRY_DELAY === CODE) { throw new Error('清重试延迟失败：没找到 RETRY_DELAY_MS 的赋值'); }
+
 const REPO_VARS = { 'kami-update': { repo: { owner: 'kamisama', repo: 'kami-preset' } } };
 
 /* 造一个假 Release：现行正式分发名 kami-v0.90-<build>-<date>.json
@@ -145,7 +163,7 @@ function releaseOf(build, date, extra) {
     prerelease: false,
     published_at: d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) + 'T00:00:00Z',
     body: '· 新增远程更新脚本\n· 修了一堆bug\n· 含 | 管道 {花括号} "引号" 反斜杠\\ 与 <标签>',
-    assets: [{ name: name + '.json', browser_download_url: 'https://example.com/dl/' + name + '.json' }],
+    assets: [{ id: 580000 + build, name: name + '.json', browser_download_url: 'https://example.com/dl/' + name + '.json' }],
   }, extra || {});
 }
 
@@ -406,6 +424,42 @@ console.log('--- 新旧命名互认 ---');
   const r2 = await env2.api().check(false);
   ok(env2.slashCalls.length === 1, '本机 v0.90-96 对仓库 v0.90-97 → 弹窗');
   ok(r2.localVersion === 'v0.90-96', 'status 里带本机版本号', r2.localVersion);
+}
+
+console.log('--- 下载链：直链 TypeError 失败 → 回退 API 附件通道成功 ---');
+{
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', failDirect: true });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 1, '直链失败时回退通道仍然装上了预设');
+  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '回退写入的预设名正确');
+  ok(env.importCalls[0] && env.importCalls[0].content.indexOf('"prompts"') > 0, '回退写入的是完整预设原文');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '回退成功同样记 imported');
+  /* 下载请求顺序：直链先试（2 次），再退到 API 附件接口 */
+  const dlCalls = env.fetchCalls.filter(c => c.url.indexOf('https://api.github.com/') !== 0);
+  const apiCalls = env.fetchCalls.filter(c => c.url.indexOf('/releases/assets/') >= 0);
+  ok(dlCalls.length >= 2 && apiCalls.length >= 1, '直链试了两次、API 附件接口补上', JSON.stringify(dlCalls.length) + '/' + JSON.stringify(apiCalls.length));
+  ok(dlCalls[0].url.indexOf('https://example.com/dl/') === 0, '第一发还是走正式直链（发版的正路不变）');
+  ok(apiCalls[0] && apiCalls[0].url.indexOf('/releases/assets/580097') > 0, '回退通道用的是 API 附件接口（附件 id 定位）');
+  ok(apiCalls[0] && apiCalls[0].headers && apiCalls[0].headers['Accept'] === 'application/octet-stream', 'API 附件通道带 Accept: octet-stream');
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('回退成功') > 0 && logs.indexOf('GitHub API 附件') > 0, '回退成功时日志写明用的是哪条通道');
+  ok(env.toasts.some(t => t[0] === 'success'), '回退成功后会照常弹「已写入」提示');
+}
+
+console.log('--- 下载链全部失败 → 给出可操作错误 ---');
+{
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', failDownload: true });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 0, '全部通道失败时不写入预设');
+  ok(!env.scriptVars['kami-update'].imported, '失败不记录 imported');
+  ok(r.action !== 'imported', 'action 不是 imported');
+  ok(/几条下载通道都试不通/.test(r.error || ''), '错误文案不是干巴巴的 Failed to fetch，而是人话汇总', r.error);
+  ok(/手动下载/.test(r.error || '') && /releases/.test(r.error || ''), '错误文案给出手动去仓库下载的路径', r.error);
+  ok(/网络连不上 GitHub/.test(r.error || ''), '错误里带上「网络连不上 GitHub」的定性', r.error);
+  const t = env.toasts.filter(x => x[0] === 'error')[0];
+  ok(t && t[1].indexOf('换个 Wi-Fi') > 0 && t[1].indexOf('手动下载') > 0, '错误提示告诉用户换网络或手动下载');
 }
 
 console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');
