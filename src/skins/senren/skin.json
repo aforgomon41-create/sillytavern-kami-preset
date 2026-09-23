@@ -1,0 +1,96 @@
+{
+  "id": "senren",
+  "name": "千恋万花",
+  "button": "千恋",
+  "scheme": "light",
+  "tagline": "和风古韵与落樱飞花：温润的米白和纸、薄红樱瓣，与细腻的描金短册。",
+  "effects": [
+    {
+      "id": "sakura",
+      "label": "落樱花瓣",
+      "desc": "卡片边缘点缀飘落的薄粉樱花花瓣与柔和花晕。",
+      "default": true
+    },
+    {
+      "id": "washi",
+      "label": "和纸云纹",
+      "desc": "米白纸面上铺展细密的和纸纤维与微光云纹肌理。",
+      "default": true
+    },
+    {
+      "id": "goldleaf",
+      "label": "洒金描边",
+      "desc": "标题与卡片边缘勾勒细腻的金箔微光与细描金线。",
+      "default": true
+    },
+    {
+      "id": "tanzaku",
+      "label": "短册笺条",
+      "desc": "选项与卡片左侧装饰和风短册竖标与朱砂印记。",
+      "default": true
+    },
+    {
+      "id": "softglow",
+      "label": "神木柔光",
+      "desc": "组件周围漫射温润的淡樱暖色环境光晕。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "glow",
+      "label": "柔光半径",
+      "group": "光效",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "washi",
+      "label": "和纸浓度",
+      "group": "材质",
+      "token": "--kami-sr-washi",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 50
+    },
+    {
+      "id": "sakura",
+      "label": "落樱浓度",
+      "group": "氛围",
+      "token": "--kami-sr-sakura",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 60
+    },
+    {
+      "id": "gold",
+      "label": "描金亮度",
+      "group": "材质",
+      "token": "--kami-sr-gold",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    },
+    {
+      "id": "drift",
+      "label": "飘樱周期",
+      "group": "动效",
+      "token": "--kami-sr-drift",
+      "unit": "s",
+      "min": 2,
+      "max": 8,
+      "step": 0.5,
+      "value": 4
+    }
+  ]
+}

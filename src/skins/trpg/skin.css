@@ -583,7 +583,8 @@ html[data-kami-skin="trpg"] .kami-icon-btn {
               color var(--kami-dur-fast) var(--kami-ease), transform var(--kami-dur-fast) var(--kami-ease),
               box-shadow var(--kami-dur-fast) var(--kami-ease);
 }
-html[data-kami-skin="trpg"] .kami-btn--ghost { background-color: transparent; box-shadow: none; }
+/* 同 grokbot：底透明 + 硬投影都收掉之后，描边必须走控件那一档，否则面板里只剩一行字（2026-09-21） */
+html[data-kami-skin="trpg"] .kami-btn--ghost { background-color: transparent; border-color: var(--kami-line-strong); box-shadow: none; }
 html[data-kami-skin="trpg"] .kami-root .kami-btn--primary {
   /* 藤绿底 + 白字只有 3.9:1：把底往墨色里调一档（同一个绿，深一点），白字实测 4.8:1。
      这是「同一支笔写出来的深浅」，不是换颜色。 */
@@ -979,7 +980,7 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] select.kami-selec
   color: var(--kami-fg) !important;
   background-color: var(--kami-card-2) !important;
   border-color: var(--kami-line-strong) !important;
-  color-scheme: light;
+  color-scheme: light !important;
   box-shadow: inset 0 1px 2px var(--kami-t3);
 }
 
@@ -1255,7 +1256,7 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kam
 /* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
    有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片略高一点点，
    文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
 }
 html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
@@ -1353,4 +1354,35 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:not(.i
 html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
 html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
   border-color: var(--kami-line-strong);
+}
+
+/* ============================================================
+ * 注释标记 ⓘ 做成右上角角标 + 注释外包层的等高拉伸（2026-09-21 用户裁定）
+ * ------------------------------------------------------------
+ * 1) 条目卡里的 ⓘ 现在是**右上角角标**：构建器给它 data-kami-corner="tr"
+ *    （契约 §4.4 已登记的角标机制，与 emoji 角标同一套定位）。它不再占名字那一行的
+ *    宽度 —— 行内记号会把约 100px 宽的条目卡里的名字挤到换行，同一行卡片因此被撑高。
+ *    卡片头里的 ⓘ（卡片组标题、变量卡）没有这个属性，仍是行内记号，不受影响。
+ *    角标位置与本皮肤 emoji 角标同值；pointer-events 必须是 auto（emoji 角标是 none，
+ *    ⓘ 要能点）。上角标的内边距补偿在上面的 .kami-item:has(...) 里一起算了。
+ * 2) .kami-item-note 是网格项、会被同行最高的卡拉伸；里面的卡片不跟着伸的话，
+ *    带注释的卡就比同行其它卡矮一截（网格 stretch 只拉外包层，不拉它的子元素）。
+ *    flex:1 1 auto 让卡片撑满外包层；注释展开时外包层被内容撑高，卡片照旧拿自然高度。
+ * ============================================================ */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+  position: absolute;
+  top: 1px;
+  right: 4px;
+  left: auto;
+  z-index: 2;
+  margin-left: 0;
+  pointer-events: auto;
+}
+html[data-kami-skin="trpg"] .kami-root .kami-item-note {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+html[data-kami-skin="trpg"] .kami-root .kami-item-note > .kami-card {
+  flex: 1 1 auto;
 }

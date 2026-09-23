@@ -1,0 +1,79 @@
+{
+  "id": "crt80s",
+  "name": "扫描显示",
+  "button": "扫描",
+  "scheme": "dark",
+  "tagline": "八十年代荧光终端：整屏扫描线、磷光单色与玻璃弧面，文字像从玻璃后面亮起来。",
+  "effects": [
+    {
+      "id": "scan",
+      "label": "扫描线",
+      "desc": "整屏铺上静态的横向扫描暗线与玻璃弧面高光，复古 CRT 质感。",
+      "default": true
+    },
+    {
+      "id": "phosphor",
+      "label": "磷光辉光",
+      "desc": "文字与状态点带柔和的荧光辉光，像磷光体的余晖。",
+      "default": true
+    },
+    {
+      "id": "amber",
+      "label": "琥珀荧光",
+      "desc": "暗色方案切换为琥珀单色终端，米黄磷光替代荧光绿。",
+      "default": false
+    },
+    {
+      "id": "grid",
+      "label": "网格地平线",
+      "desc": "组件底部叠一层静态透视网格地平线，复古未来主义装饰。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "scanline",
+      "label": "扫描线距",
+      "group": "屏幕",
+      "token": "--kami-crt-scan-gap",
+      "unit": "px",
+      "min": 2,
+      "max": 8,
+      "step": 1,
+      "value": 4
+    },
+    {
+      "id": "scanalpha",
+      "label": "扫描浓度",
+      "group": "屏幕",
+      "token": "--kami-crt-scan-alpha",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 55
+    },
+    {
+      "id": "glowsize",
+      "label": "辉光半径",
+      "group": "氛围",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "value": 5
+    },
+    {
+      "id": "gridopacity",
+      "label": "地平浓度",
+      "group": "氛围",
+      "token": "--kami-crt-grid-alpha",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 45
+    }
+  ]
+}

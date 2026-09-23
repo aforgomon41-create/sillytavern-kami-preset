@@ -1,0 +1,79 @@
+{
+  "id": "isekai",
+  "name": "异世界",
+  "button": "转生",
+  "scheme": "light",
+  "tagline": "日式异世界轻小说：明亮通透晨曦、梦幻微光渐变、圆润几何卡片与动漫粗体标题。",
+  "effects": [
+    {
+      "id": "prism",
+      "label": "棱镜高光",
+      "desc": "标题栏与高亮卡边缘流转微光彩虹棱镜渐变与晶莹折射。",
+      "default": true
+    },
+    {
+      "id": "crystal",
+      "label": "通透水晶",
+      "desc": "外壳与卡片附加通透水晶微折射边框与多层通透光泽。",
+      "default": true
+    },
+    {
+      "id": "starlight",
+      "label": "星芒微粒",
+      "desc": "交互控件与卡片悬停时闪烁微光星芒粒子与魔力辉光。",
+      "default": true
+    },
+    {
+      "id": "gradient",
+      "label": "晨曦微光",
+      "desc": "容器与标题背景浮现轻柔梦幻的天蓝至薰衣草紫微光渐变。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "radius",
+      "label": "圆角弧度",
+      "group": "造型",
+      "token": "--kami-isekai-radius",
+      "unit": "px",
+      "min": 4,
+      "max": 24,
+      "step": 2,
+      "value": 14
+    },
+    {
+      "id": "gloss",
+      "label": "光泽强度",
+      "group": "光影",
+      "token": "--kami-isekai-gloss",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    },
+    {
+      "id": "glow",
+      "label": "魔法辉光",
+      "group": "氛围",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "glass",
+      "label": "毛玻璃量",
+      "group": "材质",
+      "token": "--kami-blur",
+      "unit": "px",
+      "min": 0,
+      "max": 30,
+      "step": 2,
+      "value": 16
+    }
+  ]
+}

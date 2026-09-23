@@ -492,8 +492,14 @@ html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-ic
   border-color: var(--kami-clay-line-strong);
   color: var(--kami-clay-ink);
 }
-html[data-kami-skin="grokbot"] .kami-btn--ghost { background-color: transparent; border-color: var(--kami-line); }
-html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--ghost { background-color: transparent; border-color: var(--kami-clay-line); }
+/* ghost 按钮：底透明，但**描边必须是控件那一档**（--kami-line-strong，3.1:1）。
+   ⚠️ 2026-09-21 用户报「压缩面板里摘要小总结条目的开关情况字样看不清」：
+   这里原来给的是 --kami-line（1.6:1，那是**分隔线**用的档），加上底是透明的，
+   压缩面板里那排 ghost 按钮（开启/关闭条目、存为、删除、例外楼层增删…）就只剩一行字，
+   跟旁边的字段标签长得一样、看不出是个开关。底仍保持透明（ghost 的身份），只把边界找回来。 */
+html[data-kami-skin="grokbot"] .kami-btn--ghost { background-color: transparent; border-color: var(--kami-line-strong); }
+/* 消息楼层（黏土白本体）同款：--kami-clay-line 只有 1.4:1，控件边用 --kami-clay-line-strong */
+html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--ghost { background-color: transparent; border-color: var(--kami-clay-line-strong); }
 /* 主按钮 = 一块反相墨块（炭底上给白、白底上给炭），和参考图的黑白关系一致 */
 html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn--primary {
   background-color: var(--kami-clay-choice);
@@ -1242,8 +1248,11 @@ html[data-kami-skin="grokbot"] .kami-range:focus-visible { outline-offset: 4px; 
    `.kami-number` 上，而压缩面板把同一个类名复用到 select / textarea / 文本框上，
    于是「摘要提示词」的正文与角色下拉全变成右对齐（用户真机报的）。
    现在 `.kami-number` 只给 input[type=number] 用，文本 / 多行 / 下拉各有自己的类。 */
+/* 宽度：66 → 88px（2026-09-21 用户裁定「色块皮肤下各变量输入框的宽度变大」）。
+   面板里的变量框（🌟 设置变量 / 引导变量页）原来 66px 只够四位数字，看着像个小格子；
+   88px 与滑杆（108px）在同一节奏上，五位数字也不挤。 */
 html[data-kami-skin="grokbot"] .kami-number {
-  width: 66px;
+  width: 88px;
   min-height: var(--kami-row-h);
   padding: var(--kami-pad-y) var(--kami-pad-x);
   border: var(--kami-border-w) solid var(--kami-line-strong);
@@ -1312,7 +1321,7 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] select.kami-se
   color: var(--kami-fg) !important;
   background-color: var(--kami-bg-soft) !important;
   border-color: var(--kami-line-strong) !important;
-  color-scheme: dark;
+  color-scheme: dark !important;
 }
 /* 开关：轨道 + 旋钮。关着＝钮在左、轨道是凹槽；开着＝钮移到右端、轨道变黏土白。
    2026-09-21 起轨道里那枚「小斜胶囊 / 两只黑眼睛」整段删除（用户裁定一处不留），
@@ -1624,7 +1633,7 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .
   top: auto;
   bottom: 6px;
 }
-html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"]) {
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(12px + .5em);
 }
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
@@ -1866,7 +1875,7 @@ html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-co
   color: var(--kami-fg) !important;
   background-color: var(--kami-bg-soft) !important;
   border-color: var(--kami-line-strong) !important;
-  color-scheme: light;
+  color-scheme: light !important;
 }
 html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-tab[aria-selected="true"],
 html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-seg-item.is-on,
@@ -1970,4 +1979,35 @@ html[data-kami-skin="grokbot"] .kami-shell { container-type: inline-size; contai
 @container kami-shell (max-width: 15rem) {
   html[data-kami-skin="grokbot"] .kami-root .kami-head { flex-wrap: wrap; }
   html[data-kami-skin="grokbot"] .kami-root .kami-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+/* ============================================================
+ * 注释标记 ⓘ 做成右上角角标 + 注释外包层的等高拉伸（2026-09-21 用户裁定）
+ * ------------------------------------------------------------
+ * 1) 条目卡里的 ⓘ 现在是**右上角角标**：构建器给它 data-kami-corner="tr"
+ *    （契约 §4.4 已登记的角标机制，与 emoji 角标同一套定位）。它不再占名字那一行的
+ *    宽度 —— 行内记号会把约 100px 宽的条目卡里的名字挤到换行，同一行卡片因此被撑高。
+ *    卡片头里的 ⓘ（卡片组标题、变量卡）没有这个属性，仍是行内记号，不受影响。
+ *    角标位置与本皮肤 emoji 角标同值；pointer-events 必须是 auto（emoji 角标是 none，
+ *    ⓘ 要能点）。上角标的内边距补偿在上面的 .kami-item:has(...) 里一起算了。
+ * 2) .kami-item-note 是网格项、会被同行最高的卡拉伸；里面的卡片不跟着伸的话，
+ *    带注释的卡就比同行其它卡矮一截（网格 stretch 只拉外包层，不拉它的子元素）。
+ *    flex:1 1 auto 让卡片撑满外包层；注释展开时外包层被内容撑高，卡片照旧拿自然高度。
+ * ============================================================ */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  left: auto;
+  z-index: 2;
+  margin-left: 0;
+  pointer-events: auto;
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-item-note {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+html[data-kami-skin="grokbot"] .kami-root .kami-item-note > .kami-card {
+  flex: 1 1 auto;
 }

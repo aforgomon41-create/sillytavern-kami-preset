@@ -1,0 +1,79 @@
+{
+  "id": "xianyun",
+  "name": "闲云野鹤",
+  "button": "闲云",
+  "scheme": "light",
+  "tagline": "水墨留白与闲云仙鹤：素雅宣纸、层叠水墨晕染，点缀一抹古雅朱砂印。",
+  "effects": [
+    {
+      "id": "inkwash",
+      "label": "水墨晕染",
+      "desc": "卡片边缘与容器透出层叠晕开的淡墨微痕与水墨韵味。",
+      "default": true
+    },
+    {
+      "id": "xuanzhi",
+      "label": "宣纸帘纹",
+      "desc": "纸面铺展细腻温润的生宣纸纤维与微光帘纹肌理。",
+      "default": true
+    },
+    {
+      "id": "seal",
+      "label": "朱砂印章",
+      "desc": "关键标题与选中标记呈现古雅朱砂钤印与方印红框。",
+      "default": true
+    },
+    {
+      "id": "mist",
+      "label": "云烟飘渺",
+      "desc": "外壳与浮层底部隐约透出道家闲云与淡雅云雾意象。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "ink",
+      "label": "墨晕浓度",
+      "group": "水墨",
+      "token": "--kami-xy-ink",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 50
+    },
+    {
+      "id": "xuan",
+      "label": "宣纸质感",
+      "group": "材质",
+      "token": "--kami-xy-xuan",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    },
+    {
+      "id": "seal",
+      "label": "朱砂鲜明",
+      "group": "印章",
+      "token": "--kami-xy-seal",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 70
+    },
+    {
+      "id": "glow",
+      "label": "印光半径",
+      "group": "光效",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    }
+  ]
+}

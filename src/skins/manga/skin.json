@@ -1,0 +1,79 @@
+{
+  "id": "manga",
+  "name": "漫画草稿",
+  "button": "分镜",
+  "scheme": "light",
+  "tagline": "黑白漫画与手绘分镜：硬朗粗黑线、波普网点纸与拟音特效，如翻阅原稿草案。",
+  "effects": [
+    {
+      "id": "halftone",
+      "label": "网点纸纹",
+      "desc": "在卡片与外壳底色上铺设经典 45° 漫画灰阶小圆点网点纸纹理。",
+      "default": true
+    },
+    {
+      "id": "speedline",
+      "label": "速度线效",
+      "desc": "关键操作与展开头部呈现热血漫画放射速度线与动感笔触。",
+      "default": true
+    },
+    {
+      "id": "sketch",
+      "label": "手绘草线",
+      "desc": "边框呈现手绘原稿微错位与漫画分镜墨线笔触质感。",
+      "default": true
+    },
+    {
+      "id": "screentone",
+      "label": "波普网花",
+      "desc": "选中与激活状态叠加摩尔纹波普网点与阴影交错效果。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "dot-size",
+      "label": "网点尺寸",
+      "group": "网点",
+      "token": "--kami-mg-dot-size",
+      "unit": "px",
+      "min": 2,
+      "max": 12,
+      "step": 1,
+      "value": 4
+    },
+    {
+      "id": "dot-opacity",
+      "label": "网点浓淡",
+      "group": "网点",
+      "token": "--kami-mg-dot-op",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 35
+    },
+    {
+      "id": "line-w",
+      "label": "分镜粗细",
+      "group": "线条",
+      "token": "--kami-mg-line-w",
+      "unit": "px",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "value": 2
+    },
+    {
+      "id": "glow",
+      "label": "原稿光影",
+      "group": "氛围",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 4
+    }
+  ]
+}

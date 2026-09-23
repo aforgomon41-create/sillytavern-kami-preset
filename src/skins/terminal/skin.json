@@ -1,0 +1,68 @@
+{
+  "id": "terminal",
+  "name": "终端",
+  "button": "终端",
+  "scheme": "dark",
+  "tagline": "一块深色终端窗口：等宽字体、双线外框、方括号标签，和一个一直在闪的方块光标。",
+  "effects": [
+    {
+      "id": "frame",
+      "label": "双线外框",
+      "desc": "组件外框内侧再补一道 1 像素细线，做出终端窗口的双线边框。",
+      "default": true
+    },
+    {
+      "id": "cursor",
+      "label": "方块光标",
+      "desc": "状态点与空态各有一枚实心方块光标，按固定间隔硬切换闪烁。",
+      "default": true
+    },
+    {
+      "id": "glow",
+      "label": "荧光辉光",
+      "desc": "强调色的标题、按钮与选中边带一层小半径辉光，半径可用滑杆调。",
+      "default": true
+    },
+    {
+      "id": "scanline",
+      "label": "扫描横纹",
+      "desc": "表面覆一层极淡的横向扫描纹，像老式终端的余辉；默认关闭。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "glow",
+      "label": "辉光半径",
+      "group": "光效",
+      "token": "--kami-term-glow",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "scan",
+      "label": "扫描浓度",
+      "group": "材质",
+      "token": "--kami-term-scan",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 30
+    },
+    {
+      "id": "blink",
+      "label": "光标间隔",
+      "group": "动效",
+      "token": "--kami-term-blink",
+      "unit": "s",
+      "min": 0.4,
+      "max": 2,
+      "step": 0.1,
+      "value": 1.06
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "id": "mileng",
+  "name": "军事工程",
+  "button": "军工",
+  "scheme": "dark",
+  "tagline": "军事工程装备面板：军绿沙色底、模板喷字大标题、编号刻度带与警示斜纹边条。",
+  "effects": [
+    {
+      "id": "ticks",
+      "label": "刻度带",
+      "desc": "组件头部下缘铺一道刻度尺细线，像装备标牌上的量程刻度。",
+      "default": true
+    },
+    {
+      "id": "hazard",
+      "label": "警示斜纹",
+      "desc": "脚条上缘与提示框边缘铺 45 度沙黄黑警示斜纹边条，永不铺满整屏。",
+      "default": false
+    },
+    {
+      "id": "grain",
+      "label": "喷漆颗粒",
+      "desc": "表面叠一层极淡的磨砂颗粒，像军械涂层掉漆后的底纹。",
+      "default": false
+    },
+    {
+      "id": "beacon",
+      "label": "信号灯",
+      "desc": "状态点像值班信号灯一样缓慢收放辉光，纯 CSS 循环小动画。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "hatch",
+      "label": "斜纹浓度",
+      "group": "警示",
+      "token": "--kami-mil-hatch",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 60
+    },
+    {
+      "id": "grain",
+      "label": "颗粒浓度",
+      "group": "材质",
+      "token": "--kami-mil-grain",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    },
+    {
+      "id": "lamp",
+      "label": "辉光半径",
+      "group": "氛围",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 14,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "tickgap",
+      "label": "刻度间距",
+      "group": "刻度",
+      "token": "--kami-mil-tick",
+      "unit": "px",
+      "min": 4,
+      "max": 14,
+      "step": 1,
+      "value": 7
+    }
+  ]
+}

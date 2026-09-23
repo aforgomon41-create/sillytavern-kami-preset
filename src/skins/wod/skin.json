@@ -1,0 +1,105 @@
+{
+  "id": "wod",
+  "name": "黑暗世界",
+  "button": "黑暗世界",
+  "scheme": "dark",
+  "tagline": "一册封尘的血族密契：黑羊皮书脊、骨白衬线手记与暗红封蜡。",
+  "decor": [
+    "d20"
+  ],
+  "effects": [
+    {
+      "id": "blood",
+      "label": "血契红光",
+      "desc": "状态点、主按钮与选中项透出深红封蜡光晕，选中卡泛起血契光泽。",
+      "default": true
+    },
+    {
+      "id": "rose",
+      "label": "玫瑰花窗",
+      "desc": "外壳与卡片底层隐约透出哥特尖拱与玫瑰花窗的几何暗纹。",
+      "default": true
+    },
+    {
+      "id": "mist",
+      "label": "夜雾流转",
+      "desc": "底板四周沉下一圈夜雾暗角，圣器般把面板托出页面。",
+      "default": true
+    },
+    {
+      "id": "parchment",
+      "label": "羊皮纸痕",
+      "desc": "表面叠加褪色古籍的微细噪点与泛黄斑驳质感。",
+      "default": true
+    },
+    {
+      "id": "candle",
+      "label": "烛影摇曳",
+      "desc": "状态点与标题描边带烛火般的明暗起伏，是循环动画。",
+      "default": true
+    },
+    {
+      "id": "seal",
+      "label": "封蜡印痕",
+      "desc": "选中的卡片右下角盖下一枚深红封蜡血印并落章。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "blood",
+      "label": "血光强度",
+      "group": "氛围",
+      "token": "--kami-wod-blood",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 60
+    },
+    {
+      "id": "mist",
+      "label": "夜雾浓淡",
+      "group": "氛围",
+      "token": "--kami-wod-mist",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 45
+    },
+    {
+      "id": "rose",
+      "label": "花窗明度",
+      "group": "纹样",
+      "token": "--kami-wod-rose",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 35
+    },
+    {
+      "id": "aging",
+      "label": "做旧程度",
+      "group": "纸面",
+      "token": "--kami-wod-aging",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 50
+    },
+    {
+      "id": "candle",
+      "label": "烛影起伏",
+      "group": "氛围",
+      "token": "--kami-wod-candle",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 55
+    }
+  ]
+}

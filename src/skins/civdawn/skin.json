@@ -1,0 +1,79 @@
+{
+  "id": "civdawn",
+  "name": "文明启蒙",
+  "button": "启蒙",
+  "scheme": "dark",
+  "tagline": "文明早期蒙昧时代：赭石土黄、洞穴壁画刻痕、陶纹石板与原始岩彩。",
+  "effects": [
+    {
+      "id": "rockface",
+      "label": "岩壁质感",
+      "desc": "在卡片与外壳底色上呈现原始洞穴岩壁的粗砺土石与斑驳微粒。",
+      "default": true
+    },
+    {
+      "id": "carving",
+      "label": "刻痕边纹",
+      "desc": "容器边缘与卡头呈现原始陶纹平行凹刻与石板压印线条。",
+      "default": true
+    },
+    {
+      "id": "ochre",
+      "label": "赭红岩彩",
+      "desc": "强调色与选中项带有洞窟壁画原始赭石朱砂红晕染效果。",
+      "default": true
+    },
+    {
+      "id": "ember",
+      "label": "燧石微光",
+      "desc": "关键状态点与聚焦元素散发如钻木取火般的燧石微光。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "texture-op",
+      "label": "岩壁浓淡",
+      "group": "材质",
+      "token": "--kami-cd-texture-op",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 35
+    },
+    {
+      "id": "carve-depth",
+      "label": "刻痕深浅",
+      "group": "刻痕",
+      "token": "--kami-cd-carve-depth",
+      "unit": "px",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "value": 2
+    },
+    {
+      "id": "glow",
+      "label": "微光半径",
+      "group": "光效",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "border-rough",
+      "label": "石板边宽",
+      "group": "边线",
+      "token": "--kami-cd-border-w",
+      "unit": "px",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "value": 2
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "id": "empire",
+  "name": "统御",
+  "button": "统御",
+  "scheme": "dark",
+  "tagline": "一道深紫天鹅绒上的敕令：金箔描边、庄严衬线，和一枚自绘的纹章盾徽。",
+  "effects": [
+    {
+      "id": "crest",
+      "label": "纹章亮徽",
+      "desc": "标题左侧的盾徽扫过一道金箔高光，盾缘描一层淡金辉光。",
+      "default": true
+    },
+    {
+      "id": "glow",
+      "label": "金箔辉光",
+      "desc": "标题、主按钮与选中卡片描边带一层小半径金光，半径可用滑杆调。",
+      "default": true
+    },
+    {
+      "id": "weave",
+      "label": "紫绒暗纹",
+      "desc": "表面覆一层极淡的斜向织纹，像天鹅绒的经纬；默认关闭。",
+      "default": false
+    },
+    {
+      "id": "beat",
+      "label": "王城心跳",
+      "desc": "开启状态的状态点缓慢明暗一次，间隔可用滑杆调。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "glow",
+      "label": "辉光半径",
+      "group": "光效",
+      "token": "--kami-emp-glow",
+      "unit": "px",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 6
+    },
+    {
+      "id": "weave",
+      "label": "暗纹浓度",
+      "group": "材质",
+      "token": "--kami-emp-weave",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 40
+    },
+    {
+      "id": "beat",
+      "label": "心跳间隔",
+      "group": "动效",
+      "token": "--kami-emp-beat",
+      "unit": "s",
+      "min": 0.8,
+      "max": 3,
+      "step": 0.1,
+      "value": 2
+    }
+  ]
+}

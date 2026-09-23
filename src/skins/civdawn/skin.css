@@ -1,0 +1,1460 @@
+/* ==========================================================================
+ * 卡密预设 · 文明启蒙 (Civilization Dawn Skin)  v0.1
+ * --------------------------------------------------------------------------
+ * 作用域：html[data-kami-skin="civdawn"] .kami-root
+ * 主题：文明早期蒙昧时代 —— 赭石土黄、洞穴壁画刻痕、陶纹石板与原始岩彩
+ *
+ * 设计语言：
+ *   · 原始岩壁与陶土基底：暗档深岩赭褐，亮档日晒暖陶泥；
+ *   · 陶纹与凿刻线：边框微错位双线、卡头平行凿痕、陶纹回形折角；
+ *   · 凹刻文字质感：text-shadow 凹刻阴影、内嵌凹槽阴影；
+ *   · 原始岩彩七色：靛青矿物、朱砂红、苔藓绿、绿松石、暖土黄、陶土红褐、燧石冷灰。
+ * ======================================================================== */
+
+/* ==========================================================================
+ * 1 · 令牌：暗色方案（默认 · 洞穴深岩与燧石火光）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-root {
+  /* —— 文字色彩一族 —— */
+  --kami-fg: #f0e8d5;             /* 骨白 / 浅陶泥色（主文字） */
+  --kami-fg-dim: #c4b196;         /* 赭黄浅褐（次要文字/副标题） */
+  --kami-fg-mute: #8f7d69;        /* 泥灰枯草褐（占位/计数/最弱） */
+
+  /* —— 强调色（燧石火种与赭红岩彩） —— */
+  --kami-accent: #d9653b;         /* 赭红朱砂矿物 */
+  --kami-accent-fg: #1c120c;      /* 强调底上的深岩文字 */
+  --kami-accent-soft: rgba(217, 101, 59, 0.18);
+  --kami-accent-line: rgba(217, 101, 59, 0.55);
+
+  /* —— 容器与卡片底色（深层洞窟岩壁） —— */
+  --kami-bg: rgba(35, 28, 22, 0.94);
+  --kami-bg-soft: rgba(45, 36, 28, 0.94);
+  --kami-card: #352a22;           /* 坚硬赭岩卡片底 */
+  --kami-card-2: #221a14;         /* 凹陷凿刻区底色 */
+  --kami-card-hover: #44362c;     /* 悬停微亮岩色 */
+
+  /* —— 线条与描边（凿刻石槽痕迹） —— */
+  --kami-line: rgba(196, 177, 150, 0.18);
+  --kami-line-strong: rgba(196, 177, 150, 0.42);
+
+  /* —— 三级透明叠加 —— */
+  --kami-t1: rgba(240, 232, 213, 0.04);
+  --kami-t2: rgba(240, 232, 213, 0.08);
+  --kami-t3: rgba(240, 232, 213, 0.16);
+
+  /* —— 警示、阴影与模糊 —— */
+  --kami-warn: #e05242;           /* 炽烈红 */
+  --kami-shadow: 0 10px 30px rgba(12, 9, 7, 0.70);
+  --kami-shadow-sm: 0 3px 10px rgba(12, 9, 7, 0.48);
+  --kami-blur: 0px;               /* 原始石板不使用毛玻璃 */
+
+  /* —— 尺寸、圆角与边框（手工打磨石板的微小圆角） —— */
+  --kami-r-xs: 3px;
+  --kami-r-sm: 5px;
+  --kami-r-md: 7px;
+  --kami-r-lg: 10px;
+  --kami-r-pill: 999px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 36px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 220px;
+  --kami-panel-w: 430px;
+  --kami-panel-h: 570px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+
+  /* —— 排版与字体 —— */
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * 0.75);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.15);
+  --kami-lh: 1.62;
+  --kami-ls: 0.02em;
+  --kami-ls-title: 0.08em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 600;
+  --kami-title-transform: none;
+
+  /* —— 材质与装饰 —— */
+  --kami-texture: none;
+  --kami-glow: rgba(217, 101, 59, 0.65);
+  --kami-glow-size: 6px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+
+  /* —— 动效时长与曲线 —— */
+  --kami-dur-fast: 0.12s;
+  --kami-dur: 0.22s;
+  --kami-dur-slow: 0.35s;
+  --kami-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --kami-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 20ms;
+
+  /* —— 语义色（洞窟原始天然矿物岩彩 · 暗色档） —— */
+  --kami-kind-action: #7aa5cc;   /* 靛青矿物 */
+  --kami-kind-persona: #e27866;  /* 赭红朱砂 */
+  --kami-kind-plot: #8db570;     /* 苔藓草绿 */
+  --kami-kind-info: #6db5ac;     /* 绿松石青 */
+  --kami-kind-fun: #dfa74d;      /* 暖土黄赭 */
+  --kami-kind-nsfw: #d97184;     /* 陶土红褐 */
+  --kami-kind-other: #9fa39e;    /* 燧石冷灰 */
+
+  /* —— 风格性文案槽位 —— */
+  --kami-label-think-title: "洞窟岩画";
+  --kami-label-think-title-open: "壁画释读";
+  --kami-label-options-title: "部族决断";
+
+  /* —— 皮肤私有参数默认值 —— */
+  --kami-cd-texture-op: 35%;
+  --kami-cd-carve-depth: 2px;
+  --kami-cd-border-w: 2px;
+  --kami-dim-soft: 0.60;
+  --kami-dim-lock: 0.42;
+}
+
+/* ==========================================================================
+ * 2 · 令牌：亮色方案（日晒暖陶石板）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] .kami-root {
+  /* —— 文字色彩一族 —— */
+  --kami-fg: #261a12;             /* 焦黑深褐 */
+  --kami-fg-dim: #5a4534;         /* 赭泥深褐 */
+  --kami-fg-mute: #7f6855;        /* 泥灰枯褐 */
+
+  /* —— 强调色（浓赭红朱砂） —— */
+  --kami-accent: #b54826;         /* 浓赭朱砂印记 */
+  --kami-accent-fg: #fbf5e8;      /* 浅陶白文字 */
+  --kami-accent-soft: rgba(181, 72, 38, 0.14);
+  --kami-accent-line: rgba(181, 72, 38, 0.48);
+
+  /* —— 容器与卡片底色（日晒陶板与黏土） —— */
+  --kami-bg: #ece2ce;             /* 暖黄陶土底 */
+  --kami-bg-soft: #f4ecdc;        /* 浅陶泥次底 */
+  --kami-card: #fbf5e8;           /* 洁净陶板卡片 */
+  --kami-card-2: #dfd3be;         /* 泥板凹陷刻区 */
+  --kami-card-hover: #ffffff;     /* 纯白陶土高亮 */
+
+  /* —— 线条与描边 —— */
+  --kami-line: rgba(60, 42, 28, 0.16);
+  --kami-line-strong: rgba(60, 42, 28, 0.45);
+
+  /* —— 叠色与阴影 —— */
+  --kami-t1: rgba(60, 42, 28, 0.04);
+  --kami-t2: rgba(60, 42, 28, 0.08);
+  --kami-t3: rgba(60, 42, 28, 0.15);
+  --kami-warn: #b82e20;
+  --kami-shadow: 0 8px 24px rgba(45, 32, 20, 0.20);
+  --kami-shadow-sm: 0 2px 8px rgba(45, 32, 20, 0.14);
+
+  /* —— 语义色（日晒陶板矿物色 · 亮色档） —— */
+  --kami-kind-action: #29557d;
+  --kami-kind-persona: #a63a28;
+  --kami-kind-plot: #3d6926;
+  --kami-kind-info: #26665f;
+  --kami-kind-fun: #885c10;
+  --kami-kind-nsfw: #923648;
+  --kami-kind-other: #545753;
+}
+
+/* ==========================================================================
+ * 3 · 档位响应：密度、动效与减动效
+ * ======================================================================== */
+/* 密度档位 */
+html[data-kami-skin="civdawn"][data-kami-density="compact"] .kami-root {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 10px;
+  --kami-pad-lg-y: 8px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 8px;
+  --kami-row-h: 30px;
+}
+html[data-kami-skin="civdawn"][data-kami-density="cozy"] .kami-root {
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 36px;
+}
+html[data-kami-skin="civdawn"][data-kami-density="roomy"] .kami-root {
+  --kami-pad-x: 14px;
+  --kami-pad-y: 10px;
+  --kami-pad-lg-x: 18px;
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 12px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 42px;
+}
+
+/* 动效档位 */
+html[data-kami-skin="civdawn"][data-kami-motion="full"] .kami-root {
+  --kami-dur-fast: 0.12s;
+  --kami-dur: 0.22s;
+  --kami-dur-slow: 0.35s;
+}
+html[data-kami-skin="civdawn"][data-kami-motion="calm"] .kami-root {
+  --kami-dur-fast: 0.08s;
+  --kami-dur: 0.12s;
+  --kami-dur-slow: 0.18s;
+  --kami-enter-y: 0px;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="civdawn"][data-kami-motion="off"] .kami-root {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+
+/* 循环动画在 calm / off 与 prefers-reduced-motion 下直接停用 */
+html[data-kami-skin="civdawn"][data-kami-motion="calm"] .kami-dot[data-kami-on="1"],
+html[data-kami-skin="civdawn"][data-kami-motion="calm"] .kami-empty::before,
+html[data-kami-skin="civdawn"][data-kami-motion="off"] .kami-dot[data-kami-on="1"],
+html[data-kami-skin="civdawn"][data-kami-motion="off"] .kami-empty::before {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="civdawn"] .kami-root {
+    --kami-dur-fast: 1ms;
+    --kami-dur: 1ms;
+    --kami-dur-slow: 1ms;
+    --kami-enter-y: 0px;
+    --kami-enter-scale: 1;
+    --kami-stagger: 0ms;
+  }
+  html[data-kami-skin="civdawn"] .kami-dot[data-kami-on="1"],
+  html[data-kami-skin="civdawn"] .kami-empty::before {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+ * 4 · 结构兜底与全局基础
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-collapse[data-kami-open="0"] > .kami-collapse-body { display: none; }
+html[data-kami-skin="civdawn"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body { display: block; }
+html[data-kami-skin="civdawn"] .kami-root[data-kami-view="raw"] [data-kami-view="render"] { display: none; }
+html[data-kami-skin="civdawn"] .kami-root[data-kami-view="render"] [data-kami-view="raw"] { display: none; }
+
+html[data-kami-skin="civdawn"] .kami-root {
+  box-sizing: border-box;
+  margin: 10px 0 6px;
+  text-align: left;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  word-break: break-word;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-kami-skin="civdawn"] .kami-root *,
+html[data-kami-skin="civdawn"] .kami-root *::before,
+html[data-kami-skin="civdawn"] .kami-root *::after {
+  box-sizing: border-box;
+}
+html[data-kami-skin="civdawn"] .kami-root button,
+html[data-kami-skin="civdawn"] .kami-root input,
+html[data-kami-skin="civdawn"] .kami-root select,
+html[data-kami-skin="civdawn"] .kami-root textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* 焦点样式：凹刻石槽边框与微光 */
+html[data-kami-skin="civdawn"] .kami-root :focus-visible {
+  outline: 2px solid var(--kami-accent);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-xs);
+  box-shadow: 0 0 6px var(--kami-glow);
+}
+
+/* ==========================================================================
+ * 5 · 外壳与表面（.kami-shell 与 .kami-surface）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-surface {
+  position: relative;
+  clip-path: var(--kami-surface-clip);
+}
+
+html[data-kami-skin="civdawn"] .kami-shell {
+  max-width: var(--kami-maxw);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: 4px 6px 3px 5px;
+  background-color: var(--kami-bg);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(240, 232, 213, calc(0.04 * var(--kami-cd-texture-op) / 100)) 1px, transparent 1px),
+    radial-gradient(circle at 80% 70%, rgba(0, 0, 0, calc(0.08 * var(--kami-cd-texture-op) / 100)) 1px, transparent 1px);
+  background-size: 12px 12px, 16px 16px;
+  box-shadow: var(--kami-shadow), inset 0 1px 0 rgba(240, 232, 213, 0.08);
+  overflow: hidden;
+  transition: border-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
+}
+
+/* ==========================================================================
+ * 6 · 消息楼层组件：三段结构、标题与动作区
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  min-height: var(--kami-row-h);
+  border-bottom: 1px solid var(--kami-line);
+  background-color: rgba(0, 0, 0, 0.12);
+  user-select: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-title {
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs);
+  font-weight: var(--kami-fw-title);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  color: var(--kami-fg);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 -1px 0 rgba(240, 232, 213, 0.08);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-kami-skin="civdawn"] .kami-sub {
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+  white-space: nowrap;
+}
+
+html[data-kami-skin="civdawn"] .kami-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+
+html[data-kami-skin="civdawn"] .kami-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-top: 1px solid var(--kami-line);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* 操作横条（思维链展开头部的操作行） */
+html[data-kami-skin="civdawn"] .kami-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kami-gap);
+  margin-bottom: var(--kami-gap-lg);
+  padding: 6px 10px;
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* ==========================================================================
+ * 7 · 状态点（.kami-dot）：凹刻陶印与燧石火种
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-dot {
+  position: relative;
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background-color: var(--kami-card-2);
+  border: 1.5px solid var(--kami-fg-mute);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: all var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="civdawn"] .kami-dot[data-kami-on="1"] {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  box-shadow: 0 0 6px var(--kami-glow), 0 0 12px var(--kami-glow);
+  animation: kami-cd-ember-pulse 2.2s ease-in-out infinite;
+}
+
+/* ==========================================================================
+ * 8 · 按钮与分段控件
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: calc(var(--kami-row-h) - 4px);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: 3px 5px 3px 4px;
+  border: 1px solid var(--kami-line-strong);
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  font-weight: var(--kami-fw-title);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(240, 232, 213, 0.08);
+  transition: all var(--kami-dur-fast) var(--kami-ease);
+  user-select: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-btn:hover {
+  background-color: var(--kami-card-hover);
+  border-color: var(--kami-accent);
+  transform: translateY(-1px);
+}
+
+html[data-kami-skin="civdawn"] .kami-btn:active {
+  background-color: var(--kami-card-2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  transform: translateY(1px);
+}
+
+/* 次级按钮 (ghost) */
+html[data-kami-skin="civdawn"] .kami-btn--ghost {
+  background-color: transparent;
+  border-color: var(--kami-line-strong);
+  color: var(--kami-fg-dim);
+  box-shadow: none;
+}
+html[data-kami-skin="civdawn"] .kami-btn--ghost:hover {
+  background-color: var(--kami-t1);
+  color: var(--kami-fg);
+  border-color: var(--kami-accent);
+}
+
+/* 主要按钮 (primary) */
+html[data-kami-skin="civdawn"] .kami-btn--primary {
+  background-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  border-color: var(--kami-accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 6px var(--kami-glow);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+html[data-kami-skin="civdawn"] .kami-btn--primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45), 0 0 10px var(--kami-glow);
+}
+
+/* 图标按钮 */
+html[data-kami-skin="civdawn"] .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--kami-row-h) - 4px);
+  height: calc(var(--kami-row-h) - 4px);
+  padding: 0;
+  border-radius: var(--kami-r-xs);
+  border: 1px solid var(--kami-line);
+  background-color: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-icon);
+  cursor: pointer;
+  transition: all var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="civdawn"] .kami-icon-btn:hover {
+  border-color: var(--kami-accent);
+  color: var(--kami-fg);
+  background-color: var(--kami-t1);
+}
+html[data-kami-skin="civdawn"] .kami-icon-btn:active {
+  background-color: var(--kami-card-2);
+  transform: translateY(1px);
+}
+
+/* 分段切换控件（陶板凹槽） */
+html[data-kami-skin="civdawn"] .kami-seg {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+html[data-kami-skin="civdawn"] .kami-seg-item {
+  padding: 3px 10px;
+  border-radius: 2px;
+  border: 0;
+  background-color: transparent;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-xs);
+  font-weight: var(--kami-fw-title);
+  cursor: pointer;
+  transition: all var(--kami-dur-fast) var(--kami-ease);
+}
+
+html[data-kami-skin="civdawn"] .kami-seg-item:hover {
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="civdawn"] .kami-seg-item.is-on {
+  background-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* 徽章与标签 */
+html[data-kami-skin="civdawn"] .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-size: var(--kami-fs-xs);
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="civdawn"] .kami-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: var(--kami-fs-xs);
+  font-weight: var(--kami-fw-title);
+  background-color: var(--kami-accent-soft);
+  color: var(--kami-accent);
+  border: 1px solid var(--kami-accent-line);
+}
+
+/* ==========================================================================
+ * 9 · 折叠区、箭头与文本排版（Markdown / 原文）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-collapse-head {
+  cursor: pointer;
+  user-select: none;
+}
+html[data-kami-skin="civdawn"] .kami-collapse-head:hover .kami-title {
+  color: var(--kami-accent);
+}
+
+html[data-kami-skin="civdawn"] .kami-chev {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--kami-fg-mute);
+  transition: transform var(--kami-dur) var(--kami-ease), color var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="civdawn"] .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev {
+  transform: rotate(90deg);
+  color: var(--kami-accent);
+}
+
+/* 原文等宽块（泥板凿字） */
+html[data-kami-skin="civdawn"] .kami-raw {
+  margin: 0;
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  line-height: 1.55;
+  color: var(--kami-fg-dim);
+  white-space: pre-wrap;
+  word-break: break-all;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+/* Markdown 渲染排版（石板刻印排版） */
+html[data-kami-skin="civdawn"] .kami-md {
+  color: var(--kami-fg);
+  font-size: var(--kami-fs);
+  line-height: var(--kami-lh);
+}
+html[data-kami-skin="civdawn"] .kami-md p {
+  margin: 0 0 0.85em 0;
+}
+html[data-kami-skin="civdawn"] .kami-md p:last-child {
+  margin-bottom: 0;
+}
+html[data-kami-skin="civdawn"] .kami-md h1,
+html[data-kami-skin="civdawn"] .kami-md h2,
+html[data-kami-skin="civdawn"] .kami-md h3,
+html[data-kami-skin="civdawn"] .kami-md h4 {
+  margin: 1.2em 0 0.5em 0;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+  border-bottom: 1px solid var(--kami-line);
+  padding-bottom: 0.25em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+html[data-kami-skin="civdawn"] .kami-md h1 { font-size: calc(var(--kami-fs) * 1.35); }
+html[data-kami-skin="civdawn"] .kami-md h2 { font-size: calc(var(--kami-fs) * 1.20); }
+html[data-kami-skin="civdawn"] .kami-md h3 { font-size: calc(var(--kami-fs) * 1.10); }
+
+html[data-kami-skin="civdawn"] .kami-md blockquote {
+  margin: 0.8em 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--kami-accent);
+  background-color: var(--kami-card-2);
+  border-radius: 0 var(--kami-r-xs) var(--kami-r-xs) 0;
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="civdawn"] .kami-md code {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-accent);
+}
+
+html[data-kami-skin="civdawn"] .kami-md pre {
+  margin: 0.8em 0;
+  padding: 10px 12px;
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  overflow-x: auto;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+html[data-kami-skin="civdawn"] .kami-md pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="civdawn"] .kami-md ul,
+html[data-kami-skin="civdawn"] .kami-md ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+html[data-kami-skin="civdawn"] .kami-md li {
+  margin-bottom: 0.3em;
+}
+
+html[data-kami-skin="civdawn"] .kami-md hr {
+  height: 1px;
+  border: 0;
+  background-color: var(--kami-line-strong);
+  margin: 1.2em 0;
+}
+
+html[data-kami-skin="civdawn"] .kami-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8em 0;
+  font-size: var(--kami-fs-sm);
+}
+html[data-kami-skin="civdawn"] .kami-md th,
+html[data-kami-skin="civdawn"] .kami-md td {
+  padding: 6px 10px;
+  border: 1px solid var(--kami-line);
+  text-align: left;
+}
+html[data-kami-skin="civdawn"] .kami-md th {
+  background-color: var(--kami-card-2);
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+}
+
+/* ==========================================================================
+ * 10 · 提示与空态
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-toast {
+  padding: 8px 12px;
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card);
+  border: 1px solid var(--kami-accent-line);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  box-shadow: var(--kami-shadow-sm);
+}
+html[data-kami-skin="civdawn"] .kami-toast.is-bad {
+  border-color: var(--kami-warn);
+  color: var(--kami-warn);
+}
+
+html[data-kami-skin="civdawn"] .kami-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+  text-align: center;
+  border: 1px dashed var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: rgba(0, 0, 0, 0.08);
+}
+html[data-kami-skin="civdawn"] .kami-empty::before {
+  content: "❖";
+  font-size: 20px;
+  color: var(--kami-fg-mute);
+  opacity: 0.6;
+}
+
+/* ==========================================================================
+ * 11 · 语义色体系（7 种天然矿物与岩彩）
+ * ======================================================================== */
+/* 语义色变量映射 */
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="action"]  { --kami-kind-curr: var(--kami-kind-action); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="persona"] { --kami-kind-curr: var(--kami-kind-persona); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="plot"]    { --kami-kind-curr: var(--kami-kind-plot); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="info"]    { --kami-kind-curr: var(--kami-kind-info); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="fun"]     { --kami-kind-curr: var(--kami-kind-fun); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="nsfw"]    { --kami-kind-curr: var(--kami-kind-nsfw); }
+html[data-kami-skin="civdawn"] .kami-root [data-kami-kind="other"]   { --kami-kind-curr: var(--kami-kind-other); }
+
+/* 语义徽章与标签（出现处 3） */
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="action"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="action"] {
+  border-color: var(--kami-kind-action);
+  color: var(--kami-kind-action);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="persona"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="persona"] {
+  border-color: var(--kami-kind-persona);
+  color: var(--kami-kind-persona);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="plot"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="plot"] {
+  border-color: var(--kami-kind-plot);
+  color: var(--kami-kind-plot);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="info"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="info"] {
+  border-color: var(--kami-kind-info);
+  color: var(--kami-kind-info);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="fun"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="fun"] {
+  border-color: var(--kami-kind-fun);
+  color: var(--kami-kind-fun);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="nsfw"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="nsfw"] {
+  border-color: var(--kami-kind-nsfw);
+  color: var(--kami-kind-nsfw);
+}
+html[data-kami-skin="civdawn"] .kami-badge[data-kami-kind="other"],
+html[data-kami-skin="civdawn"] .kami-chip[data-kami-kind="other"] {
+  border-color: var(--kami-kind-other);
+  color: var(--kami-kind-other);
+}
+
+/* 语义卡片左侧凿刻标记线（出现处 4） */
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="action"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="action"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-action);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="persona"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="persona"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-persona);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="plot"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="plot"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-plot);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="info"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="info"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-info);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="fun"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="fun"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-fun);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="nsfw"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="nsfw"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-nsfw);
+}
+html[data-kami-skin="civdawn"] .kami-card[data-kami-kind="other"],
+html[data-kami-skin="civdawn"] .kami-item[data-kami-kind="other"] {
+  border-left: var(--kami-accent-mark) solid var(--kami-kind-other);
+}
+
+/* ==========================================================================
+ * 12 · 列表与卡片（消息楼层与面板通用）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-item {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-radius: 3px 5px 3px 4px;
+  background-color: var(--kami-card);
+  border: 1px solid var(--kami-line-strong);
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(240, 232, 213, 0.06);
+  transition: all var(--kami-dur-fast) var(--kami-ease);
+  user-select: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-item:hover {
+  background-color: var(--kami-card-hover);
+  border-color: var(--kami-accent);
+  transform: translateY(-1px);
+}
+
+html[data-kami-skin="civdawn"] .kami-item:active {
+  background-color: var(--kami-card-2);
+  transform: translateY(1px);
+}
+
+html[data-kami-skin="civdawn"] .kami-item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html[data-kami-skin="civdawn"] .kami-item-side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 通用卡片组件 */
+html[data-kami-skin="civdawn"] .kami-card {
+  border-radius: 4px 6px 3px 5px;
+  background-color: var(--kami-card);
+  border: 1px solid var(--kami-line-strong);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  box-shadow: var(--kami-shadow-sm), inset 0 1px 0 rgba(240, 232, 213, 0.08);
+  transition: border-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="civdawn"] .kami-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kami-gap);
+  margin-bottom: var(--kami-gap);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--kami-line);
+}
+
+html[data-kami-skin="civdawn"] .kami-card-title {
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-sm);
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="civdawn"] .kami-card-note {
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-dim);
+  line-height: 1.45;
+}
+
+html[data-kami-skin="civdawn"] .kami-card-body {
+  padding-top: 4px;
+}
+
+/* ⚠️ 硬规则：.kami-item-note 等高两条必须写齐 */
+html[data-kami-skin="civdawn"] .kami-root .kami-item-note {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+html[data-kami-skin="civdawn"] .kami-root .kami-item-note > .kami-card {
+  flex: 1 1 auto;
+}
+
+/* 示例卡片与成功反馈 */
+html[data-kami-skin="civdawn"] .kami-item.is-demo {
+  border-style: dashed;
+  opacity: 0.85;
+}
+html[data-kami-skin="civdawn"] .kami-btn.is-done,
+html[data-kami-skin="civdawn"] .kami-item.is-done {
+  border-color: var(--kami-kind-plot);
+  box-shadow: 0 0 8px rgba(141, 181, 112, 0.4);
+}
+
+/* 正在处理 */
+html[data-kami-skin="civdawn"] .kami-item[data-kami-busy="1"],
+html[data-kami-skin="civdawn"] .kami-btn[data-kami-busy="1"] {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+/* ==========================================================================
+ * 13 · 面板专用规则（.kami-root[data-kami-comp="panel"] 绝不带面板 id）
+ * ======================================================================== */
+/* 面板浮动层与贴底抽屉 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop {
+  /* ⚠️ 这三条是皮肤的责任，平台几何层不给（30-皮肤管理.js:227-229 只下发位置与尺寸）：
+     面板本体必须是「flex 竖列 + 裁切」，里面的滚动区才可能被约束高度。
+     漏了的表现（用户真机报的「不能上下滑动」）：滚动区按内容撑高、没有溢出可滚，
+     超出面板的内容直接漏到面板外，拖也拖不动。其余 13 套皮肤都有，civdawn 漏了（2026-09-23 修）。 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 6px 8px 5px 7px;
+  background-color: var(--kami-bg);
+  border: var(--kami-cd-border-w, 2px) solid var(--kami-line-strong);
+  box-shadow: var(--kami-shadow), inset 0 1px 0 rgba(240, 232, 213, 0.12);
+}
+
+/* 滚动区被约束高度：头/页签/脚不参与伸缩，中间那一页吃掉剩余高度并自己滚 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop > .kami-head,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop > .kami-tabs,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop > .kami-foot {
+  flex: 0 0 auto;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop > .kami-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 响应贴底抽屉（窄屏） */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-drop[data-kami-layout="sheet"] {
+  border-radius: 12px 12px 0 0;
+  border-bottom: 0;
+  max-height: 85%;
+}
+
+/* 标题栏拖动手柄 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-head[data-kami-drag] {
+  cursor: move;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-head[data-kami-drag]:active {
+  cursor: grabbing;
+  background-color: rgba(0, 0, 0, 0.22);
+}
+
+/* 选项卡轨道与石板页签 */
+html[data-kami-skin="civdawn"] .kami-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--kami-pad-x);
+  border-bottom: 1px solid var(--kami-line);
+  background-color: rgba(0, 0, 0, 0.14);
+  overflow-x: auto;
+}
+
+html[data-kami-skin="civdawn"] .kami-tab {
+  padding: 6px 14px;
+  border-radius: 3px 3px 0 0;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  color: var(--kami-fg-mute);
+  font-family: var(--kami-font-title);
+  font-size: var(--kami-fs-sm);
+  font-weight: var(--kami-fw-title);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--kami-dur-fast) var(--kami-ease);
+}
+
+html[data-kami-skin="civdawn"] .kami-tab:hover {
+  color: var(--kami-fg);
+  background-color: var(--kami-t1);
+}
+
+html[data-kami-skin="civdawn"] .kami-tab[aria-selected="true"] {
+  color: var(--kami-accent);
+  background-color: var(--kami-card);
+  border-color: var(--kami-line-strong);
+  border-bottom: 2px solid var(--kami-accent);
+  box-shadow: inset 0 2px 0 var(--kami-accent);
+}
+
+/* ⚠️ 硬规则：密集网格的基准规则必须把列宽调小（--kami-items-min <= 200px） */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  --kami-items-min: 100px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap);
+}
+
+/* 普通面板网格 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
+  gap: var(--kami-gap);
+}
+
+/* 面板内卡片层次（未选中的卡片不能与容器同色） */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card {
+  border: 1px solid var(--kami-line-strong);
+  background-color: var(--kami-card);
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.is-on):not([aria-pressed="true"]) {
+  background-color: var(--kami-card-2);
+  border-color: var(--kami-line);
+}
+
+/* 选中态：翻转边框与光影 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card.is-on,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card[aria-pressed="true"],
+html[data-kami-skin="civdawn"] .kami-item.is-on,
+html[data-kami-skin="civdawn"] .kami-item[aria-pressed="true"] {
+  border-color: var(--kami-accent);
+  background-color: var(--kami-accent-soft);
+  color: var(--kami-fg);
+  box-shadow: inset 0 0 0 1px var(--kami-accent), 0 2px 8px rgba(217, 101, 59, 0.25);
+}
+
+/* 分组卡内部网格不叠两层内边距 */
+html[data-kami-skin="civdawn"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+html[data-kami-skin="civdawn"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-head,
+html[data-kami-skin="civdawn"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-title,
+html[data-kami-skin="civdawn"] .kami-drop .kami-card:not(.kami-item):has(> .kami-card-body > .kami-grid) > .kami-card-note {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* 面板卡头做成与卡同宽的矩形标题条 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn {
+  width: 100%;
+  min-height: 0;
+  border-radius: var(--kami-r-xs);
+  justify-content: flex-start;
+  padding: 6px 8px;
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* 面板里的条目卡 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item {
+  position: relative;
+  padding: 10px 12px;
+  min-height: 42px;
+}
+
+/* ⓘ 注释标记角标：右上角，必须能点 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  left: auto;
+  z-index: 2;
+  margin-left: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--kami-accent);
+  font-weight: bold;
+}
+
+/* emoji 角标：不占宽度、不抢点击 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  color: var(--kami-fg-mute);
+  pointer-events: none;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 5px;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 5px;
+}
+
+/* 上角标内边距补偿 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+}
+
+/* ⚠️ 硬规则①：锁死条目的外观（原生 disabled） */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  background-color: var(--kami-card);
+  border-color: var(--kami-line);
+  box-shadow: none;
+  opacity: var(--kami-dim-lock, 0.42);
+  color: var(--kami-fg-mute);
+  cursor: default;
+  pointer-events: none;
+  transform: none;
+}
+
+html[data-kami-skin="civdawn"] .kami-btn[disabled],
+html[data-kami-skin="civdawn"] .kami-icon-btn[disabled] {
+  opacity: var(--kami-dim-lock, 0.42);
+  color: var(--kami-fg-mute);
+  cursor: default;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 注释标记（行内）与注释正文 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line-strong);
+  color: var(--kami-accent);
+  cursor: pointer;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-card-2);
+  border: 1px dashed var(--kami-line);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] {
+  display: none;
+}
+
+/* 进度点容器（引导向导） */
+html[data-kami-skin="civdawn"] .kami-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+html[data-kami-skin="civdawn"] .kami-dots .kami-dot {
+  width: 7px;
+  height: 7px;
+  animation: none !important;
+}
+
+/* 滚动区 */
+/* ⚠️ 这条 overflow-y 必须由皮肤自己写：兜底皮肤 base.css 里那条
+   `html:not([data-kami-skin]) .kami-scroll{overflow-y:auto}` 被「仅无皮肤时生效」限定了，
+   真实皮肤生效时它一条都不匹配 —— 只画滚动条不声明 overflow 的话，面板内容超出屏幕后拖不动
+   （用户真机报的「不能上下滑动」，2026-09-23 修）。 */
+html[data-kami-skin="civdawn"] .kami-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+html[data-kami-skin="civdawn"] .kami-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html[data-kami-skin="civdawn"] .kami-scroll::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+html[data-kami-skin="civdawn"] .kami-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--kami-line-strong);
+  border-radius: 3px;
+}
+html[data-kami-skin="civdawn"] .kami-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--kami-accent);
+}
+
+/* 缩放把手 */
+html[data-kami-skin="civdawn"] .kami-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background-image: linear-gradient(135deg, transparent 50%, var(--kami-line-strong) 50%, var(--kami-line-strong) 65%, transparent 65%, transparent 80%, var(--kami-line-strong) 80%);
+}
+
+/* ==========================================================================
+ * 14 · 表单控件与对比度四件套
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kami-gap);
+  padding: 6px 0;
+}
+html[data-kami-skin="civdawn"] .kami-field-label {
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+  flex: 1 1 auto;
+}
+html[data-kami-skin="civdawn"] .kami-field-value {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ⚠️ 硬规则：对比度四件套三项 !important 在 panel 作用域下 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-number,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-text,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-textarea,
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-select {
+  background-color: var(--kami-card-2) !important;
+  color: var(--kami-fg) !important;
+  color-scheme: dark !important;
+  border: 1px solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  padding: 5px 8px;
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-number,
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-text,
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-textarea,
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-select {
+  background-color: var(--kami-card-2) !important;
+  color: var(--kami-fg) !important;
+  color-scheme: light !important;
+}
+
+/* ⚠️ 数字框的 text-align:right 严格只挂 input.kami-number[type="number"] */
+html[data-kami-skin="civdawn"] .kami-root input.kami-number[type="number"] {
+  text-align: right;
+  width: 5.5em;
+}
+
+/* 滑杆控件 */
+html[data-kami-skin="civdawn"] .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line);
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+html[data-kami-skin="civdawn"] .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--kami-accent);
+  border: 2px solid var(--kami-fg);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  transition: transform var(--kami-dur-fast) var(--kami-ease);
+}
+html[data-kami-skin="civdawn"] .kami-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* 开关控件 */
+html[data-kami-skin="civdawn"] .kami-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+html[data-kami-skin="civdawn"] .kami-switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+html[data-kami-skin="civdawn"] .kami-switch-track {
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: var(--kami-card-2);
+  border: 1px solid var(--kami-line-strong);
+  transition: all var(--kami-dur) var(--kami-ease);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+html[data-kami-skin="civdawn"] .kami-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--kami-fg-mute);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: all var(--kami-dur) var(--kami-ease);
+}
+html[data-kami-skin="civdawn"] .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+}
+html[data-kami-skin="civdawn"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+  transform: translateX(16px);
+  background-color: var(--kami-accent-fg);
+}
+
+/* ==========================================================================
+ * 15 · 装饰与预览（四处 pointer-events: none）
+ * ======================================================================== */
+html[data-kami-skin="civdawn"] .kami-deco {
+  display: inline-block;
+}
+
+html[data-kami-skin="civdawn"] .kami-preview {
+  border-radius: var(--kami-r-sm);
+  overflow: hidden;
+  border: 1px solid var(--kami-line);
+}
+
+html[data-kami-skin="civdawn"] .kami-pv,
+html[data-kami-skin="civdawn"] .kami-pv-frame,
+html[data-kami-skin="civdawn"] .kami-guide-pv,
+html[data-kami-skin="civdawn"] .kami-guide-pv-frame {
+  pointer-events: none;
+}
+
+/* ==========================================================================
+ * 16 · 特效规则（effects）
+ * ======================================================================== */
+/* 1. rockface：粗砺岩石质感增强 */
+html[data-kami-skin="civdawn"][data-kami-effects~="rockface"] .kami-surface {
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(240, 232, 213, calc(0.06 * var(--kami-cd-texture-op) / 100)) 1px, transparent 1px),
+    radial-gradient(circle at 70% 80%, rgba(0, 0, 0, calc(0.12 * var(--kami-cd-texture-op) / 100)) 1.5px, transparent 1.5px),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, calc(0.02 * var(--kami-cd-texture-op) / 100)) 0 1px, transparent 1px 6px);
+}
+
+/* 2. carving：卡头刻痕边纹与双线 */
+html[data-kami-skin="civdawn"][data-kami-effects~="carving"] .kami-head {
+  border-bottom: var(--kami-cd-carve-depth, 2px) double var(--kami-line-strong);
+}
+html[data-kami-skin="civdawn"][data-kami-effects~="carving"] .kami-card-head {
+  border-bottom: var(--kami-cd-carve-depth, 2px) double var(--kami-line-strong);
+}
+
+/* 3. ochre：赭红岩彩晕染 */
+html[data-kami-skin="civdawn"][data-kami-effects~="ochre"] .kami-item.is-on,
+html[data-kami-skin="civdawn"][data-kami-effects~="ochre"] .kami-item[aria-pressed="true"],
+html[data-kami-skin="civdawn"][data-kami-effects~="ochre"] .kami-root[data-kami-comp="panel"] .kami-card.is-on {
+  box-shadow: inset 0 0 0 1px var(--kami-accent), 0 0 calc(var(--kami-glow-size) * 1.5) rgba(217, 101, 59, 0.4);
+}
+
+/* 4. ember：燧石微光 */
+html[data-kami-skin="civdawn"][data-kami-effects~="ember"] .kami-dot[data-kami-on="1"] {
+  box-shadow: 0 0 var(--kami-glow-size) var(--kami-glow), 0 0 calc(var(--kami-glow-size) * 2) rgba(217, 101, 59, 0.3);
+}
+html[data-kami-skin="civdawn"][data-kami-effects~="ember"] .kami-btn--primary {
+  box-shadow: 0 0 var(--kami-glow-size) var(--kami-glow);
+}
+
+/* ==========================================================================
+ * 17 · 动画关键帧（@keyframes ≥ 3 个）
+ * ======================================================================== */
+@keyframes kami-cd-ember-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--kami-glow), 0 0 8px var(--kami-glow);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 8px var(--kami-glow), 0 0 16px var(--kami-glow);
+    transform: scale(1.12);
+  }
+}
+
+@keyframes kami-cd-carve-in {
+  0% {
+    opacity: 0;
+    transform: translateY(var(--kami-enter-y, 4px));
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kami-cd-flicker {
+  0%, 100% { opacity: 0.95; }
+  30% { opacity: 1; }
+  60% { opacity: 0.88; }
+  85% { opacity: 0.98; }
+}
+
+/* ==========================================================================
+ * 18 · 容器查询与窄屏适配（320px 必须成立）
+ * ======================================================================== */
+@container (max-width: 480px) {
+  html[data-kami-skin="civdawn"] .kami-title {
+    font-size: var(--kami-fs-sm);
+  }
+}
+
+/* ⚠️ 硬规则③：手机档适配选择器必须与基准逐字相同 */
+@media (max-width: 560px) {
+  html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+    --kami-items-min: 152px;
+  }
+  html[data-kami-skin="civdawn"] .kami-root .kami-head {
+    padding: 6px 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+    --kami-items-min: 108px;
+    --kami-row-h: 44px;
+  }
+  html[data-kami-skin="civdawn"] .kami-root .kami-bar {
+    flex-wrap: wrap;
+  }
+}
