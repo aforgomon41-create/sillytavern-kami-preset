@@ -79,7 +79,7 @@ console.log('已写回 ' + okCount + '/' + updates.length + ' 条注释 → ' + 
 if (misses.length) { console.log('未定位到的条目：' + misses.join('；')); process.exit(1); }
 
 /* 抽查 3 条：卡片注释、条目注释、replace 过的变量 */
-const checks = ['🗣️ [语言文字]', '🚫 仿全知', '🧩 推理预算 | var'];
+const checks = ['🗣️ [语言文字]', '🚫 防全知', '🧩 推理预算 | var'];
 for (const want of checks) {
   const p = (preset.prompts || []).find((x) => String(x.name || '').indexOf(want.replace(/_/g, ' ')) >= 0 || String(x.name || '') === want);
   const id = cardHead[want] || entryByName[want];

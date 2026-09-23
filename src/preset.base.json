@@ -2118,7 +2118,7 @@
       "system_prompt": false
     },
     {
-      "content": "{{//纠正 AI 常见的人设走样、说教、超游与机械化等问题，任选，默认除仿发情外全开。让角色言行更符合设定、鲜活自然。}}",
+      "content": "{{//纠正 AI 常见的人设走样、说教、超游与机械化等问题，任选，默认除防发情外全开。让角色言行更符合设定、鲜活自然。}}",
       "enabled": true,
       "forbid_overrides": false,
       "identifier": "prompt_1788268012256_g71qv8b",
@@ -2139,7 +2139,7 @@
       "injection_order": 100,
       "injection_position": 0,
       "marker": false,
-      "name": "🚫 仿全知",
+      "name": "🚫 防全知",
       "role": "system",
       "system_prompt": false
     },
@@ -2152,7 +2152,7 @@
       "injection_order": 100,
       "injection_position": 0,
       "marker": false,
-      "name": "🚫 仿绝望",
+      "name": "🚫 防绝望",
       "role": "system",
       "system_prompt": false
     },
@@ -2165,7 +2165,7 @@
       "injection_order": 100,
       "injection_position": 0,
       "marker": false,
-      "name": "🚫 仿OOC",
+      "name": "🚫 防OOC",
       "role": "system",
       "system_prompt": false
     },
@@ -2178,7 +2178,7 @@
       "injection_order": 100,
       "injection_position": 0,
       "marker": false,
-      "name": "🚫 仿发情",
+      "name": "🚫 防发情",
       "role": "system",
       "system_prompt": false
     },
@@ -2191,7 +2191,7 @@
       "injection_order": 100,
       "injection_position": 0,
       "marker": false,
-      "name": "🚫 仿冰冷",
+      "name": "🚫 防冰冷",
       "role": "system",
       "system_prompt": false
     },
