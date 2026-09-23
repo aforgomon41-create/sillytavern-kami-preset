@@ -1,18 +1,32 @@
 /* ============================================================
- * 🔄 远程更新   v1.1
+ * 🔄 远程更新   v1.3
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 纯后台脚本：**不向按钮中转站登记任何按钮**。它只在每次启动时做一件事：
- * 去看一眼指定 GitHub 仓库的 Releases 里有没有更新版本的预设。
+ * 去看一眼指定 GitHub 仓库里有没有更新版本的预设。
  *
- *   ① 读仓库的 Releases 接口（api.github.com），取最新一个非草稿 Release
- *      与它的预设 JSON 附件（附件名即正式分发名）
+ *   ① 版本发现两条路：先读仓库的 Releases 接口（api.github.com），拿最新一个
+ *      非草稿 Release 与它的预设 JSON 附件；**接口读失败时退回 jsDelivr 清单**
+ *      （仓库 mirror/manifest.json，走 cdn.jsdelivr.net，国内可达性好），照样拿
+ *      到版本号、说明与下载地址
  *   ② 和本机当前预设的版本号比大小（大版本.小版本.构建号，三级比较；
- *      认正式命名 卡密预设v0.90-97-20260922，也认旧命名 0.9-97 / 0.9-260917-97）
+ *      认正式命名 kami-v0.90-124-20260923，也认旧命名 0.9-97 / 0.9-260917-97）
  *   ③ 确实有更新、且这个版本没被用户拒绝过 → 弹**酒馆原生弹窗**问要不要更新，
- *      更新说明取 Release 的说明正文，放在弹窗内的可滚动区域里（窗口不会太高）
- *   ④ 点「立即更新」→ 下载附件 → 写进用户的预设文件夹 → 提醒用户手动切换
+ *      更新说明取 Release 正文（清单兜底时取 manifest 的 notes），
+ *      放在弹窗内的可滚动区域里（窗口不会太高）
+ *   ④ 点「立即更新」→ 走下载链 → 写进用户的预设文件夹 → 提醒用户手动切换
  *      点「暂不更新」→ 把这个版本号记下来，以后不再为它弹窗
+ *
+ * ── 下载链（v1.3 起的顺序）──
+ *   ① GitHub Release 直链 → ② jsDelivr @<tag>/mirror/<file> →
+ *   ③ jsDelivr @main/mirror/<file> → ④ GitHub API 附件 → ⑤ GitHub raw 镜像（默认关）
+ *   每条通道试 2 次、隔 1.5 秒，再换下一条；哪条成功用哪条，日志写明。
+ *   手机连不到 GitHub 的附件 CDN（release-assets.githubusercontent.com）时，
+ *   ①④ 都救不了 —— jsDelivr 那两条才是主力兜底（产物 JSON 已提交进仓库 mirror/ 目录）。
+ *
+ * ── 完整性校验（尽力而为）──
+ *   版本发现不管走哪条路，拿到 manifest 里的 sha256 且浏览器支持 crypto.subtle 时，
+ *   下载结果先算哈希对一遍：不 → 报错、不写盘；支持不了（局域网 http）就跳过并记日志。
  *
  * ── 版本信息存在哪 ──
  * 存在**脚本变量**里（getVariables / replaceVariables，type: 'script'）。
@@ -30,11 +44,18 @@
  * 把下面 REPO_OWNER / REPO_NAME 填上即可；两项留空 = 未配置：脚本只在日志里
  * 说明一句，不发起任何网络请求。也可以不重新构建，直接在酒馆助手「脚本库」
  * 的编辑界面里改本脚本的脚本变量 repo 字段（{owner, repo}）来指向仓库。
+ *
+ * ── 发版约定（v1.3 起，mirror/ 目录必做）──
+ * 发版 = ① 把产物 JSON 提交进仓库 mirror/ 目录、更新 mirror/manifest.json
+ *        （version / file / bytes / sha256 / date / notes）→ 推送；
+ *        ② purge 一下 jsDelivr 的 @main 缓存（https://purge.jsdelivr.net/gh/<o>/<r>@main/mirror/manifest.json）；
+ *        ③ 打同号 tag（如 v0.90-124）→ 发 Release、传附件（直链通道的正路）。
+ * 注意顺序：**先提交 mirror/ 再打 tag**——jsDelivr 的 @<tag> 只认 tag 提交里有的文件。
  * ============================================================ */
 (function () {
   'use strict';
 
-  var VERSION = '1.2';
+  var VERSION = '1.3';
   var API_NAME = 'KamiUpdate';
   var VARS_KEY = 'kami-update';
   /* 本实例的身份证。pagehide 可能**迟到**（酒馆助手重挂脚本 iframe 时旧实例的 pagehide
@@ -196,6 +217,17 @@
       encodeURIComponent(cfg.repo) + '/releases?per_page=10';
   }
 
+  /* jsDelivr 的两条地址（下载链与版本兜底共用）。
+     注意：data.jsdelivr.com 的版本列表接口对这个仓库返回 500（2026-09-23 实测），
+     所以版本发现一律走 @main/mirror/manifest.json，不依赖它。 */
+  function jsdUrl(cfg, ref, file) {
+    return 'https://cdn.jsdelivr.net/gh/' + encodeURIComponent(cfg.owner) + '/' +
+      encodeURIComponent(cfg.repo) + '@' + encodeURIComponent(ref) + '/mirror/' + encodeURIComponent(file);
+  }
+  function manifestUrl(cfg) {
+    return jsdUrl(cfg, 'main', 'manifest.json');
+  }
+
   /* ───────── 酒馆设置：读当前预设名 ───────── */
 
   function stCtx() {
@@ -315,16 +347,17 @@
     return msg;
   }
 
-  /* 下载链（本次新增）：按顺序逐条试，哪条成功就用哪条。
+  /* 下载链（v1.3 起的顺序）：按顺序逐条试，哪条成功就用哪条。
      ① GitHub Release 直链 —— 发版的正路，永远在链上
-     ② GitHub API 附件接口 —— 与①最终同落一台 CDN，但入口域名不同（api.github.com），
-        多一条路；带 Accept: application/octet-stream 拿附件本体
-     ③ GitHub raw 镜像 —— 要把预设 JSON 提交进仓库才有用，默认**关**（代价见 meta.json 说明）
-     ④ jsDelivr 镜像 —— 同上，默认**关**
-     ③④ 是否把 JSON 提进仓库由派活方拍板；这里只提供开关（源码常量 + 脚本变量可覆盖）。 */
-  var RAW_DIR = 'release';            // 镜像通道假设预设 JSON 在仓库的这个目录里（可用脚本变量 rawDir 覆盖）
-  var USE_RAW_MIRROR = false;         // ① 改成 true = raw 镜像进链（同时要在仓库 rawDir 里放了这份 JSON）
-  var USE_JSD_MIRROR = false;         // ① 改成 true = jsDelivr 镜像进链
+     ② jsDelivr @<tag>/mirror/<file> —— 产物 JSON 已提交进仓库 mirror/ 目录后的主力兜底
+        （用户手机连不到 GitHub 附件 CDN，①④ 最终都落在那台服务器上救不了；jsDelivr 国内可达）
+     ③ jsDelivr @main/mirror/<file> —— 防「tag 打早了、tag 提交里没有这份文件」：@main 永远有最新那份
+     ④ GitHub API 附件接口 —— 与①最终同落一台 CDN，但入口域名不同（api.github.com），多一条路；
+        带 Accept: application/octet-stream 拿附件本体
+     ⑤ GitHub raw 镜像 —— raw.githubusercontent.com 国内可达性一般，默认**关**
+     ⑤ 是否入链由源码常量 + 脚本变量共同决定；②③④ 常开。 */
+  var USE_RAW_MIRROR = false;         // 改成 true = raw 镜像进链（同时要在仓库 mirror/ 里放了这份 JSON）
+  var USE_JSD_MIRROR = true;          // jsDelivr 镜像通道：主力兜底，默认开（产物 JSON 已在仓库 mirror/ 里）
   var MIRROR_ATTEMPTS = 2;            // 每条通道尝试的次数（手机网络抖一下的第二枪）
   var RETRY_DELAY_MS = 1500;          // 同一条通道两次尝试之间隔多久
 
@@ -335,26 +368,30 @@
   /* 把没上链资格的通道滤掉后按序返回 */
   function buildChain(remote, cfg) {
     var tag = cleanStr(remote.version);
-    var dir = cleanStr((vars && vars.rawDir) || RAW_DIR);
     var file = assetFileName(remote);
     var useRaw = USE_RAW_MIRROR || !!(vars && vars.mirrorRaw === true);
-    var useJsd = USE_JSD_MIRROR || !!(vars && vars.mirrorJsdelivr === true);
+    /* 清单兜底发现的一版没有 GitHub 直链（remote.url 就是 jsDelivr 地址）——
+       别把它错当直链上链：标签会写错、还和第③条重复请求同一个地址。 */
+    var githubDirect = cleanStr(remote.url) && cleanStr(remote.url).indexOf('https://cdn.jsdelivr.net/') !== 0
+      ? cleanStr(remote.url) : '';
     var list = [
-      { id: 'github', label: 'GitHub 直链', url: remote.url,
-        ok: !!remote.url },
+      { id: 'github', label: 'GitHub 直链', url: githubDirect,
+        ok: !!githubDirect },
+      { id: 'jsd-tag', label: 'jsDelivr 镜像（按版本）',
+        url: tag ? jsdUrl(cfg, tag, file) : '',
+        ok: !!USE_JSD_MIRROR && !!tag },
+      { id: 'jsd-main', label: 'jsDelivr 镜像（最新）',
+        url: jsdUrl(cfg, 'main', file),
+        ok: !!USE_JSD_MIRROR },
       { id: 'api', label: 'GitHub API 附件',
         url: 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
           '/releases/assets/' + cleanStr(remote.assetId),
         headers: { 'Accept': 'application/octet-stream' },
         ok: !!remote.assetId },
       { id: 'raw', label: 'GitHub raw 镜像',
-        url: 'https://raw.githubusercontent.com/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
-          '/' + encodeURIComponent(tag) + '/' + dir + '/' + encodeURIComponent(file),
+        url: tag ? ('https://raw.githubusercontent.com/' + encodeURIComponent(cfg.owner) + '/' +
+          encodeURIComponent(cfg.repo) + '/' + encodeURIComponent(tag) + '/mirror/' + encodeURIComponent(file)) : '',
         ok: !!useRaw && !!tag },
-      { id: 'jsdelivr', label: 'jsDelivr 镜像',
-        url: 'https://cdn.jsdelivr.net/gh/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
-          '@' + encodeURIComponent(tag) + '/' + dir + '/' + encodeURIComponent(file),
-        ok: !!useJsd && !!tag },
     ];
     var on = [], off = [], i;
     for (i = 0; i < list.length; i++) {
@@ -474,6 +511,40 @@
       });
     if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
     return p;
+  }
+
+  /* ───────── 完整性校验（尽力而为） ───────── */
+
+  /* 浏览器环境里 crypto.subtle 只在安全上下文（https / localhost）暴露；
+     酒馆用局域网 http 打开时它不存在 —— 那就跳过校验，记一行日志，不拦安装。 */
+  function subtleAvailable() {
+    try {
+      return !!(typeof crypto !== 'undefined' && crypto && crypto.subtle &&
+        typeof crypto.subtle.digest === 'function');
+    } catch (e) { return false; }
+  }
+
+  function sha256Hex(text) {
+    var buf = new TextEncoder().encode(text);
+    return crypto.subtle.digest('SHA-256', buf).then(function (d) {
+      var u = new Uint8Array(d), out = '', i;
+      for (i = 0; i < u.length; i++) { out += (u[i] < 16 ? '0' : '') + u[i].toString(16); }
+      return out;
+    });
+  }
+
+  /* expect = manifest 里的 sha256（存在才校验）。不一致 → 报错、不写盘。 */
+  function verifySha(text, expect) {
+    var want = cleanStr(expect).toLowerCase();
+    if (!want) { log('这一版没带 SHA-256 对照值（不是清单走的版本），完整性校验跳过'); return Promise.resolve({ skipped: '清单里没有 sha256' }); }
+    if (!subtleAvailable()) {
+      log('这个环境算不了 SHA-256（非安全上下文，比如酒馆走局域网 http），完整性校验跳过');
+      return Promise.resolve({ skipped: '环境不支持' });
+    }
+    return sha256Hex(text).then(function (got) {
+      if (got === want) { log('完整性校验通过：SHA-256 与清单一致'); return { ok: true }; }
+      throw new Error('下载到的文件校验不通过（SHA-256 对不上），可能没下全；请换个网络再重试一次');
+    });
   }
 
   /* ───────── 原生弹窗（酒馆自己的 /popup 命令） ───────── */
@@ -657,6 +728,35 @@
     });
   }
 
+  /* jsDelivr 清单兜底（v1.3 起）：Releases 接口读失败时，改读仓库里的
+     mirror/manifest.json（@main 永远指向最新提交，jsDelivr 对国内可达性好）。
+     拼一个与 fetchLatestRelease 同形的 remote，让弹窗 → 下载 → 写盘照常走。
+     下载地址直接用 jsDelivr @main（ Releases 的附件直链手机多半连不到）。 */
+  function fetchManifestRemote(cfg) {
+    var url = manifestUrl(cfg);
+    log('Releases 接口没读成，改从 jsDelivr 清单找最新版本：' + url);
+    return fetchApi(url).then(function (r) {
+      if (r.status !== 200) { throw new Error('jsDelivr 清单也是 HTTP ' + r.status); }
+      var m = null;
+      try { m = JSON.parse(r.text); } catch (e) { throw new Error('jsDelivr 清单不是合法 JSON'); }
+      var file = cleanStr(m.file), ver = cleanStr(m.version);
+      if (!file || !ver) { throw new Error('jsDelivr 清单里缺 file 或 version 字段'); }
+      var v = parseVersion(file) || parseVersion(ver);
+      if (!v) { throw new Error('jsDelivr 清单里的文件名解析不出版本号（' + file + '）'); }
+      return {
+        name: file.replace(/\.json$/i, ''),
+        version: versionLabel(v),
+        major: v.major, minor: v.minor, build: v.build,
+        released: cleanStr(m.date),
+        notes: typeof m.notes === 'string' ? m.notes : '',
+        url: jsdUrl(cfg, 'main', file),
+        assetId: null,                 /* 清单路径没有 Release 附件 id，API 附件通道上不了链 */
+        sha256: cleanStr(m.sha256) || null,
+        from: 'manifest'
+      };
+    });
+  }
+
   /* force = 手动检查：忽略「已拒绝/已写入」记录，也忽略本机已安装 */
   function check(force) {
     if (disposed) { return Promise.resolve(last); }
@@ -675,7 +775,19 @@
     }
 
     log('第 ' + checks + ' 次检查：读 Releases ' + releasesApiUrl(cfg));
-    return fetchLatestRelease(cfg).then(function (remote) {
+    /* 版本发现两条路：先 Releases 接口，读失败再试 jsDelivr 清单（@main/mirror/manifest.json）。
+       日志写明这一版是从哪边发现的 —— 排障时看得懂。 */
+    return fetchLatestRelease(cfg)['catch'](function (eRel) {
+      log('读 Releases 没成功：' + ((eRel && eRel.message) || eRel));
+      return fetchManifestRemote(cfg).then(function (remote) {
+        log('这一版是从 jsDelivr 清单发现的（GitHub Releases 接口没读成，多半是网络问题）');
+        return remote;
+      })['catch'](function (eMan) {
+        /* 两条路都断：报原始的 Releases 错误为主（它才是正路），清单错误附在后面。 */
+        throw new Error(((eRel && eRel.message) || eRel) +
+          '（jsDelivr 清单兜底也没成：' + ((eMan && eMan.message) || eMan) + '）');
+      });
+    }).then(function (remote) {
       last.ok = true;
       last.error = null;
       last.remote = remote;
@@ -684,7 +796,8 @@
       last.localName = local.name || null;
       last.localBuild = localVer ? localVer.build : null;
       last.localVersion = localVer ? versionLabel(localVer) : null;
-      log('仓库最新：' + remote.version + '；本机当前预设：' +
+      log('仓库最新：' + remote.version + '（' + (remote.from === 'manifest' ? '来自 jsDelivr 清单' : '来自 GitHub Releases') +
+        '）；本机当前预设：' +
         (local.name ? ('「' + local.name + '」（' + (localVer === null ? '版本没能识别' : versionLabel(localVer)) + '，取自' + local.from + '）') : '没能识别'));
 
       /* ① 先比版本：不比你新就什么都不做（绝大多数启动都是这一种） */
@@ -751,7 +864,7 @@
     });
   }
 
-  /* 用户点了「立即更新」：下载 → 写进预设文件夹 → 提醒切换。
+  /* 用户点了「立即更新」：下载 → 校验 → 写进预设文件夹 → 提醒切换。
      下载走下载链（buildChain 里那几条，按序回退），直链走不通也有得选。 */
   function doUpdate(remote) {
     var cfg = repoConfig();
@@ -763,7 +876,11 @@
       if (!json || typeof json !== 'object' || !Array.isArray(json.prompts)) {
         throw new Error('下载到的文件不像一个预设（没有 prompts）');
       }
-      return writePreset(remote.name, json, text);
+      log('下载到 ' + new TextEncoder().encode(text).length + ' 字节的预设（' + remote.name + '）');
+      /* 尽力而为的完整性校验：清单里有 sha256 就对一遍，不一致 → 报错、不写盘。 */
+      return verifySha(text, remote.sha256).then(function () {
+        return writePreset(remote.name, json, text);
+      });
     }).then(function (r) {
       saveVars({ imported: remote.version, skipped: '' });
       last.action = 'imported';

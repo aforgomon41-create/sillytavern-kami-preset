@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<!--
+  端到端验证辅助页（.audit/ 下，不进构建）：真浏览器里跑改好的「🔄 远程更新」v1.3 完整流程。
+  两种模式：
+    ?mode=blockdirect  直链被拦（模拟手机连不到 GitHub 附件 CDN）：Releases 接口照读，
+                        直链 2 次全拦 → 应从 jsDelivr 拿到真文件（v0.90-124）。
+                        因 Release v0.90-124 还没发（线上最新是 122），本模式往真实
+                        Releases 响应里注入一条 v0.90-124 记录 —— 模拟发版后的清单。
+    ?mode=blockgithub  连 api.github.com 也全部拦掉（模拟接口也读不到）：
+                        应由 jsDelivr 清单（@main/mirror/manifest.json）兜底发现版本。
+  产物把 importRawPreset 收到的字节数 / SHA-256 列出来，与 mirror/manifest.json 对照。
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>远程更新 E2E 验证（jsDelivr 通道）</title>
+<style>
+  body { font-family: 'Cascadia Mono', Consolas, monospace; font-size: 13px; padding: 16px; background: #111; color: #ddd; }
+  pre { background: #000; padding: 10px; white-space: pre-wrap; word-break: break-all; }
+  h1 { font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>远程更新端到端验证（模式：<span id="mode"></span>）</h1>
+<p>对照目标（mirror/manifest.json）：bytes=2572791，sha256=cac13a56…cd06</p>
+<pre id="out">loading…</pre>
+<script>
+'use strict';
+var MODE = (location.search.match(/mode=([a-z]+)/) || [, 'blockdirect'])[1];
+document.getElementById('mode').textContent = MODE;
+document.title = 'E2E-' + MODE + '-LOADING';
+
+/* v0.90-124 的关键值：注入的假 Release 记录用；最后与下载结果比对 */
+var MANIFEST_TARGET = {
+  version: 'v0.90-124',
+  file: 'kami-v0.90-124-20260923.json',
+  bytes: 2572791,
+  sha256: 'cac13a56414b667d005c222172a413de56fbc9630c95e00bec4a618b1602cd06',
+  notes: '远程更新修复：下载改成顺序回退链、失败给可操作提示；反截断开关默认关闭。'
+};
+
+var imported = [];          /* importRawPreset 收到的（名字，正文） */
+var scriptVars = {};
+var slashCalls = [];
+var blockedCount = 0;
+var blockDirectLeft = (MODE === 'blockdirect') ? 99 : 0;   /* 直链拦到位（2 次尝试 × 也在意料内） */
+var blockApi = (MODE === 'blockgithub');   /* 模式 B：连 api.github.com 也整个拦掉 */
+
+/* ── 假酒馆的最小环境（与上一轮 e2e-update.html 同一套） ── */
+var ta = document.createElement('div'); ta.id = 'send_textarea'; document.body.appendChild(ta);
+
+window.SillyTavern = { getContext: function () {
+  return {
+    chatCompletionSettings: {},
+    executeSlashCommandsWithOptions: async function (cmd) { slashCalls.push(cmd); return { pipe: '1', isError: false, popupCommand: cmd }; },
+  };
+} };
+
+/* 酒馆助手脚本环境的全局注入 */
+function getVariables() { return JSON.parse(JSON.stringify(scriptVars)); }
+function replaceVariables(all) { scriptVars = JSON.parse(JSON.stringify(all)); }
+function getPresetNames() { return ['卡密预设0.9-90']; }    /* 本机旧版：0.9-90 → 远端 124 必有更新 */
+function triggerSlash(cmd) { slashCalls.push(cmd); return Promise.resolve('1'); }   /* 自动选「立即更新」 */
+function importRawPreset(name, content) { imported.push([name, content]); return Promise.resolve(true); }
+
+/* ── 按模式包一层 fetch ──
+   blockdirect：拦 GitHub download 直链（得拦够下载链的重试次数）
+   blockgithub：把 api.github.com 全拦掉（读接口 + 附件接口），逼出清单兜底 */
+var realFetch = window.fetch.bind(window);
+window.fetch = function (url, opt) {
+  var u = String(url);
+  if (u.indexOf('https://api.github.com/') === 0) {
+    if (blockApi) { blockedCount++; return Promise.reject(new TypeError('Failed to fetch')); }
+    /* 模式 A：放行真实接口，但把 v0.90-124 注入进响应（模拟该版已发 Release） */
+    if (u.indexOf('/releases?per_page=') >= 0) {
+      return realFetch(url, opt).then(function (res) {
+        return res.text().then(function (text) {
+          var list = JSON.parse(text);
+          list.unshift({
+            tag_name: MANIFEST_TARGET.version,
+            name: '卡密预设 ' + MANIFEST_TARGET.version,
+            draft: false, prerelease: false,
+            published_at: '2026-09-23T12:00:00Z',
+            body: MANIFEST_TARGET.notes,
+            assets: [{ id: 999999999, name: MANIFEST_TARGET.file,
+              browser_download_url: 'https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/download/' +
+                MANIFEST_TARGET.version + '/' + MANIFEST_TARGET.file }],
+          });
+          var headers = new Headers();
+          headers.set('x-ratelimit-remaining', '50');
+          return new Response(JSON.stringify(list), { status: 200, headers: headers });
+        });
+      });
+    }
+    return realFetch(url, opt);
+  }
+  if (blockDirectLeft > 0 && u.indexOf('https://github.com/') === 0 && u.indexOf('/releases/download/') > 0) {
+    blockDirectLeft--; blockedCount++;
+    return Promise.reject(new TypeError('Failed to fetch'));
+  }
+  return realFetch(url, opt);
+};
+
+/* ── 加载改好的脚本本体（开发源，与构建打进预设的是同一份） ── */
+fetch('/dev/70-' + '远程更新.js').then(r => r.text()).then(function (code) {
+  try {
+    (new Function('window', 'document', 'console', 'fetch',
+      'getVariables', 'replaceVariables', 'getPresetNames', 'triggerSlash', 'importRawPreset',
+      code))(
+      window, document, console, window.fetch,
+      getVariables, replaceVariables, getPresetNames, triggerSlash, importRawPreset);
+    go();
+  } catch (e) {
+    document.getElementById('out').textContent = '脚本加载失败: ' + e.message + '\n' + (e.stack || '');
+    document.title = 'E2E-FAIL';
+  }
+});
+
+async function sha256Hex(text) {
+  const buf = new TextEncoder().encode(text);
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function go() {
+  const out = [];
+  const t0 = performance.now();
+  try {
+    const r = await window.KamiUpdate.check(true);   /* force：绕开记录 */
+    const ms = Math.round(performance.now() - t0) / 1000;
+    out.push('mode=' + MODE);
+    out.push('lastAction=' + (r && r.action) + '  lastError=' + (r && r.error));
+    if (imported.length) {
+      const it = imported[0];
+      out.push('importedName=' + it[0]);
+      out.push('importedBytes=' + new TextEncoder().encode(it[1]).length + '  （应 = ' + MANIFEST_TARGET.bytes + '）');
+      const sha = await sha256Hex(it[1]);
+      out.push('importedSHA256=' + sha);
+      out.push('SHA 匹配清单=' + (sha === MANIFEST_TARGET.sha256 ? 'YES' : 'NO（应 YES）'));
+      out.push('名字应为 ' + MANIFEST_TARGET.file + ' → ' + (it[0] === MANIFEST_TARGET.file.replace(/\.json$/, '') ? '一致' : '不一致!'));
+    } else {
+      out.push('imported=[空] ← 两模式都应装上，出现这行就是失败');
+    }
+    out.push('被拦截请求数=' + blockedCount);
+    out.push('slashCalls=' + slashCalls.length);
+    out.push('scriptVars=' + JSON.stringify(scriptVars));
+    out.push('耗时=' + ms + 's');
+    const kb = window.KamiUpdate.status();
+    out.push('---- 脚本日志 ----');
+    (kb.logs || []).forEach(l => out.push('  ' + l));
+    document.getElementById('out').textContent = out.join('\n');
+    const gotOk = imported.length && imported[0][0] === MANIFEST_TARGET.file.replace(/\.json$/, '');
+    document.title = gotOk ? ('E2E-DONE-' + MODE) : 'E2E-TRY';
+  } catch (e) {
+    out.push('E2E 出错: ' + (e && e.message || e));
+    document.getElementById('out').textContent = out.join('\n');
+    document.title = 'E2E-FAIL';
+  }
+}
+</script>
+</body>
+</html>

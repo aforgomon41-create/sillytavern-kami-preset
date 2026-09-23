@@ -89,27 +89,51 @@ function makeEnv(opts) {
       return { pipe: opts.popupResult === undefined ? '1' : String(opts.popupResult), isError: false };
     },
   };
+  const optsManifest = opts.manifest === undefined
+    ? manifestOf(97, '20260922', { bytes: PRESET_TEXT.length, sha256: '' })
+    : opts.manifest;
+
   const fetchMock = (url, opt) => {
     fetchCalls.push({ url: String(url), headers: opt && opt.headers ? opt.headers : null });
     const headers = { get: (k) => (k === 'x-ratelimit-remaining' ? (opts.rateLimit ? '0' : '50') : null) };
     if (opts.fetchFail) { return Promise.resolve({ ok: false, status: 404, headers }); }
     if (opts.rateLimit) { return Promise.resolve({ ok: false, status: 403, headers, text: () => Promise.resolve('') }); }
     /* 可选：下载链定向失败（模拟手机网络连不上 GitHub 那几个下载域名）。
-       failDirect   = 非 API 的一切 URL（Release 直链）抛 TypeError → 回退到 API 附件通道
-       failDownload = API 附件接口也抛 TypeError → 取「全部通道失败」的文案 */
+       failDirect    = GitHub 直链域名（示例 example.com）抛 TypeError；jsDelivr 可达
+       failDownload  = 连 API 附件接口与 jsDelivr 也抛 TypeError → 取「全部通道失败」的文案
+       failReleases  = Releases 清单接口抛 TypeError（模拟手机连不上 api.github.com），
+                       但 jsDelivr 与附件接口正常 —— 清单兜底路径的用武之地 */
     const u = String(url);
-    const isApi = u.indexOf('https://api.github.com/') === 0;
-    if (opts.failDirect && !isApi) { return Promise.reject(new TypeError('Failed to fetch')); }
-    if (opts.failDownload && (!isApi || u.indexOf('/releases/assets/') >= 0)) {
+    const isApiList = u.indexOf('https://api.github.com/') === 0 && u.indexOf('/releases?per_page=') >= 0;
+    const isJsd = u.indexOf('https://cdn.jsdelivr.net/') === 0;
+    if (isApiList && opts.failReleases) {
       return Promise.reject(new TypeError('Failed to fetch'));
     }
-    if (isApi) {
+    if (opts.failDirect && !isJsd && u.indexOf('https://api.github.com/') !== 0) {
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }
+    if (opts.failDownload && !isApiList) {
+      return Promise.reject(new TypeError('Failed to fetch'));
+    }
+    if (u.indexOf('https://api.github.com/') === 0) {
       if (!RELEASE) { return Promise.resolve({ ok: false, status: 404, headers }); }
       /* 附件接口（/releases/assets/<id>，Accept: octet-stream）返回的是附件本体，不是清单 */
       if (u.indexOf('/releases/assets/') >= 0) {
         return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
       }
       return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(JSON.stringify(RELEASE)) });
+    }
+    if (u.indexOf('cdn.jsdelivr.net/') >= 0) {
+      /* jsDelivr：清单（版本兜底读的那份）与镜像文件（下载链 ②③ 条）按 URL 分流。
+         @<tag> 默认也 200；jsdTag404 时这条给 404（模拟「tag 打早了、里面没有这份文件」）→ 自动退 @main */
+      if (u.indexOf('@main/mirror/manifest.json') >= 0) {
+        if (optsManifest === null) { return Promise.resolve({ ok: false, status: 404, headers, text: () => Promise.resolve('') }); }
+        return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(JSON.stringify(optsManifest)) });
+      }
+      if (opts.jsdTag404 && /@v[\d.]+-\d+\//.test(u)) {
+        return Promise.resolve({ ok: false, status: 404, headers, text: () => Promise.resolve('not found') });
+      }
+      return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
     }
     return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
   };
@@ -144,10 +168,26 @@ function makeEnv(opts) {
   return { W, toasts, slashCalls, importCalls, fetchCalls, scriptVars, dom, pump, api: () => W.KamiUpdate };
 }
 
-/* 下载链的两条用例要「原地重试」：假定时器没有真实时钟，把通道重试延迟清成 0 */
+/* 下载链的几条用例要「原地重试」：假定时器没有真实时钟，把通道重试延迟清成 0 */
 const CODE_NO_RETRY_DELAY = CODE
   .replace('var RETRY_DELAY_MS = 1500;', 'var RETRY_DELAY_MS = 0;');
 if (CODE_NO_RETRY_DELAY === CODE) { throw new Error('清重试延迟失败：没找到 RETRY_DELAY_MS 的赋值'); }
+
+/* 模拟「酒馆用局域网 http 打开」：crypto.subtle 不存在（非安全上下文），
+   完整性校验必须优雅跳过而不是抛错挡安装 */
+const CODE_NO_SUBTLE = CODE
+  .replace('return !!(typeof crypto !== \'undefined\' && crypto && crypto.subtle &&',
+    'return !!(false && typeof crypto !== \'undefined\' && crypto && crypto.subtle &&');
+if (CODE_NO_SUBTLE === CODE) { throw new Error('屏蔽 crypto.subtle 失败：没找到 subtleAvailable 的判据'); }
+
+/* 专测「API 附件通道」的老用例要用：关掉 jsDelivr 两条（v1.3 起它们排在 API 附件前面） */
+const CODE_NO_JSD = CODE
+  .replace('var USE_JSD_MIRROR = true;', 'var USE_JSD_MIRROR = false;');
+if (CODE_NO_JSD === CODE) { throw new Error('关 jsDelivr 失败：没找到 USE_JSD_MIRROR 的赋值'); }
+/* 两条补丁叠加（老 API 附件用例：关 jsDelivr + 清零重试延迟） */
+const CODE_NO_JSD_NO_RETRY = CODE_NO_JSD
+  .replace('var RETRY_DELAY_MS = 1500;', 'var RETRY_DELAY_MS = 0;');
+if (CODE_NO_JSD_NO_RETRY === CODE_NO_JSD) { throw new Error('叠加清零重试延迟失败'); }
 
 const REPO_VARS = { 'kami-update': { repo: { owner: 'kamisama', repo: 'kami-preset' } } };
 
@@ -166,6 +206,10 @@ function releaseOf(build, date, extra) {
     assets: [{ id: 580000 + build, name: name + '.json', browser_download_url: 'https://example.com/dl/' + name + '.json' }],
   }, extra || {});
 }
+
+/* 夹具默认给一份清单（file 与默认 RELEASE 的附件名一致）；
+   opts.manifest = null 可以模拟「清单也拿不到」。
+   （在 makeEnv 里求值，因为默认 bytes 取 PRESET_TEXT 的长度） */
 
 console.log('--- 仓库未配置 ---');
 {
@@ -275,12 +319,23 @@ console.log('--- 引导向导占着屏幕 ---');
 
 console.log('--- 清单 404 / 下载内容不对 / 写入失败 ---');
 {
-  const env = makeEnv({ vars: REPO_VARS, release: null });
+  /* Releases 接口 404 后会先试 jsDelivr 清单兜底；两条路都断死才算「真没有」。
+     （仓库 mirror/manifest.json 现在是发版纪律的一部分，所以 404 = 仓库真不存在的形态） */
+  const envNothing = makeEnv({ vars: REPO_VARS, release: null, manifest: null });
+  await settle();
+  const rNothing = await envNothing.api().check(false);
+  ok(rNothing.ok === false && /404/.test(rNothing.error || ''), 'Releases 与清单两条路都 404：记录错误不弹窗', rNothing.error);
+  ok(envNothing.slashCalls.length === 0, '不弹窗');
+
+  const env = makeEnv({ vars: REPO_VARS, release: null, popupResult: '0' });
   await settle();
   const r = await env.api().check(false);
-  ok(r.ok === false && /404/.test(r.error || ''), '清单 404：记录错误但不弹窗', r.error);
-  ok(env.slashCalls.length === 0, '不弹窗');
+  /* Releases 是 404，但 jsDelivr 清单兜到了版本 → 不再是「检查失败」收场 */
+  ok(r.ok === true && r.remote && r.remote.from === 'manifest' && r.action === 'declined',
+    'Releases 404 但 jsDelivr 清单兜住了 → 版本发现仍然成立（弹过窗、用户选暂不）',
+    JSON.stringify(r.action));
 
+  /* 名字认不出来 → 直接报错，不弹窗也不瞎装 */
   const env2 = makeEnv({
     vars: REPO_VARS,
     release: [releaseOf(999, '20260922', { body: 'n' })],
@@ -314,7 +369,7 @@ console.log('--- reset / shutdown ---');
   await settle();
   const s = env.api().reset();
   ok(env.scriptVars['kami-update'].skipped === '' && env.scriptVars['kami-update'].imported === '', 'reset 清空版本记录');
-  ok(s.version === '1.2' && s.configured === true, 'status() 有版本与仓库配置');
+  ok(s.version === '1.3' && s.configured === true, 'status() 有版本与仓库配置');
   env.api().shutdown();
   ok(env.W.KamiUpdate === undefined, 'shutdown 收回全局 API');
   const before = env.fetchCalls.length;
@@ -395,10 +450,19 @@ console.log('--- Releases 列表挑选规则 ---');
   ok(rs.remote && rs.remote.build === 97 && rs.remote.url === 'https://example.com/dl/stripped.json',
     '附件名被 GitHub 削掉前缀时仍能挑中并解析版本', rs.remote && rs.remote.version);
 
-  const env2 = makeEnv({ vars: REPO_VARS, release: [releaseOf(97, '20260922', { assets: [{ name: 'readme.txt', browser_download_url: 'x' }] })] });
+  /* Release 存在但没有 JSON 附件 → 报原文错误，但清单兜底还能救；
+     两条路都断死（清单也 null）才真正收场，且错误里带清一边的定性 */
+  const env2 = makeEnv({ vars: REPO_VARS, release: [releaseOf(97, '20260922', { assets: [{ name: 'readme.txt', browser_download_url: 'x' }] })], popupResult: '0' });
   await settle();
   const r2 = await env2.api().check(false);
-  ok(/没有一个带预设 JSON 附件/.test(r2.error || ''), '没有 JSON 附件时明确报错', r2.error);
+  ok(r2.ok === true && r2.remote && r2.remote.from === 'manifest' && r2.action === 'declined',
+    '没有 JSON 附件的 Release → 清单兜底继续供版本', JSON.stringify(r2.action));
+
+  const envNone = makeEnv({ vars: REPO_VARS, release: [releaseOf(97, '20260922', { assets: [{ name: 'readme.txt', browser_download_url: 'x' }] })], manifest: null });
+  await settle();
+  const rNone = await envNone.api().check(false);
+  ok(rNone.ok === false && /没有一个带预设 JSON 附件/.test(rNone.error || '') && /清单兜底也没成/.test(rNone.error || ''),
+    '两条路都断死时错误里有两边的定性', rNone.error);
 
   const env3 = makeEnv({ vars: REPO_VARS, rateLimit: true });
   await settle();
@@ -426,9 +490,9 @@ console.log('--- 新旧命名互认 ---');
   ok(r2.localVersion === 'v0.90-96', 'status 里带本机版本号', r2.localVersion);
 }
 
-console.log('--- 下载链：直链 TypeError 失败 → 回退 API 附件通道成功 ---');
+console.log('--- 下载链：直链 TypeError 失败 → 回退 API 附件通道成功（本用例关掉 jsDelivr，专测第④条） ---');
 {
-  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', failDirect: true });
+  const env = makeEnv({ code: CODE_NO_JSD_NO_RETRY, vars: REPO_VARS, popupResult: '1', failDirect: true });
   await settle();
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '直链失败时回退通道仍然装上了预设');
@@ -460,6 +524,137 @@ console.log('--- 下载链全部失败 → 给出可操作错误 ---');
   ok(/网络连不上 GitHub/.test(r.error || ''), '错误里带上「网络连不上 GitHub」的定性', r.error);
   const t = env.toasts.filter(x => x[0] === 'error')[0];
   ok(t && t[1].indexOf('换个 Wi-Fi') > 0 && t[1].indexOf('手动下载') > 0, '错误提示告诉用户换网络或手动下载');
+}
+
+/* ---------- v1.3 新增：jsDelivr 清单兜底 / @main 二段兜底 / SHA-256 校验 ---------- */
+
+/* 夹具：仓库 mirror/ 目录里那份清单（与真实 mirror/manifest.json 同构）。
+   file 给 97（与本套环境的 RELEASE / PRESET_TEXT 对齐），这样清单兜底拼出的
+   下载地址正对着假 jsDelivr 上预置的预设正文。 */
+function manifestOf(build, date, extra) {
+  const d = date || '20260922';
+  const file = 'kami-v0.90-' + build + '-' + d + '.json';
+  return Object.assign({
+    version: 'v0.90-' + build,
+    file: file,
+    bytes: 0,   /* bytes 仅清单信息展示用，脚本校验只用 sha256；需要时在 extra 里给 */
+    sha256: '',
+    date: d,
+    notes: '· 清单兜底版的更新说明\n· 含 | 管道 {花括号} "引号" 反斜杠\\ 与 <标签>',
+  }, extra || {});
+}
+
+function jsdFileCalls(env) {
+  return env.fetchCalls.filter(c =>
+    c.url.indexOf('https://cdn.jsdelivr.net/') === 0 && c.url.indexOf('mirror/manifest.json') < 0);
+}
+
+console.log('--- ① Releases 接口读失败 → jsDelivr 清单兜底发现版本 → jsDelivr 下载成功 ---');
+{
+  /* failReleases = api.github.com 的 releases 清单接口抛 TypeError（模拟手机连不上）；
+     jsDelivr 一切正常 —— 用户手机的典型形态：接口偶发不通、镜像可达。 */
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', failReleases: true });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 1, '清单兜底路径成功装上了预设');
+  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '清单兜底写入的预设名正确',
+    env.importCalls[0] && env.importCalls[0].name);
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '清单兜底同样记 imported');
+  ok(r.remote && r.remote.from === 'manifest', 'remote 标记来源 = manifest', r.remote && r.remote.from);
+  ok(r.remote && r.remote.assetId === null, '清单兜底的 remote 没有 Release 附件 id');
+  const dlJsd = jsdFileCalls(env);
+  ok(dlJsd.length >= 1, '下载确实走的 jsDelivr', JSON.stringify(dlJsd.map(c => c.url)));
+  ok(dlJsd[0] && dlJsd[0].url.indexOf('/mirror/kami-v0.90-97-20260922.json') > 0,
+    '清单兜底下载的是镜像上同一份文件名', dlJsd[0] && dlJsd[0].url);
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('jsDelivr 清单') > 0 && logs.indexOf('发现的') > 0, '日志写明这一版是从 jsDelivr 清单发现的');
+  ok(logs.indexOf('SHA-256') > 0 && logs.indexOf('跳过') > 0, '清单没带哈希时日志写明跳过校验的原因');
+  ok(env.toasts.some(t => t[0] === 'success'), '清单兜底成功后照常弹「已写入」提示');
+}
+
+console.log('--- ② 下载链：直链与 jsDelivr @<tag> 都 404 → 自动落到 jsDelivr @main 成功 ---');
+{
+  /* failDirect = GitHub 直链不通（手机场景）；jsdTag404 = tag 打早了、tag 提交里没有这份文件 */
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', failDirect: true, jsdTag404: true });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 1, '@<tag> 404 后 @main 兜底仍装上了预设');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '@main 兜底同样记 imported');
+  const jsdTag = env.fetchCalls.filter(c => /cdn\.jsdelivr\.net\/.*@v0\.90-97\//.test(c.url));
+  const jsdMain = jsdFileCalls(env).filter(c => c.url.indexOf('@main/') >= 0);
+  ok(jsdTag.length >= 1, '@<tag> 那条也试过（每条通道 2 次的既有逻辑没动）', JSON.stringify(jsdTag.map(c => c.url)));
+  ok(jsdMain.length >= 1, '随后落到 @main 那条', JSON.stringify(jsdMain.map(c => c.url)));
+  ok(jsdMain[0] && jsdMain[0].url.indexOf('/mirror/kami-v0.90-97-20260922.json') > 0,
+    '@main 请求的也是同一份文件名', jsdMain[0] && jsdMain[0].url);
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('回退成功') > 0 && logs.indexOf('jsDelivr 镜像（最新）') > 0,
+    '日志写明最终走的是 jsDelivr @main 通道');
+}
+
+console.log('--- ③ 清单 sha256 与下载正文不一致 → 报错且不写盘 ---');
+{
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
+    failReleases: true,   /* 走清单路径，remote 才带 sha256 */
+    manifest: manifestOf(97, '20260922', { sha256: 'deadbeef' + '0'.repeat(56) }),
+  });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 0, '校验不一致 → 没有写盘');
+  ok(!env.scriptVars['kami-update'].imported, '校验失败不记录 imported');
+  ok(r.action !== 'imported', 'action 不是 imported');
+  ok(/校验不通过/.test(r.error || ''), '错误文案说人话（校验不通过，可能没下全）', r.error);
+  ok(/重试/.test(r.error || ''), '错误文案给出「重试」的指引', r.error);
+  const t = env.toasts.filter(x => x[0] === 'error')[0];
+  ok(t && t[1].indexOf('校验不通过') > 0, '错误提示同样说人话');
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('SHA-256') > 0 && logs.indexOf('对不上') > 0, '日志里有 SHA-256 校验失败的字样');
+}
+
+console.log('--- ④ crypto.subtle 不存在（局域网 http）→ 跳过校验照样装上 ---');
+{
+  const env = makeEnv({
+    code: CODE_NO_SUBTLE, vars: REPO_VARS, popupResult: '1',
+    failReleases: true,
+    manifest: manifestOf(97, '20260922', { sha256: 'deadbeef' + '0'.repeat(56) }),
+  });
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 1, '没有 subtle 时跳过校验、预设照常装上');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '跳过校验同样记 imported');
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('SHA-256') > 0 && logs.indexOf('跳过') > 0, '日志写明「校验跳过」及原因');
+}
+
+console.log('--- ⑤ 清单里的版本比本机旧 → 不弹窗（清单兜底同样要比版本） ---');
+{
+  const env = makeEnv({
+    vars: REPO_VARS, localPreset: 'kami-v0.90-98-20260923', installed: ['kami-v0.90-98-20260923'],
+    failReleases: true,
+    manifest: manifestOf(97, '20260922'),
+  });
+  await settle();
+  const r = await env.api().check(false);
+  ok(r.action === 'none', '清单兜底发现的是旧版本 → 不弹窗', JSON.stringify(r.action));
+  ok(env.slashCalls.length === 0, '不弹窗');
+  ok(env.importCalls.length === 0, '不写入');
+}
+
+console.log('--- ⑥ 清单文件名解析不出版本号 → 明确报错（绝不瞎猜） ---');
+{
+  const env = makeEnv({
+    vars: REPO_VARS, popupResult: '1',
+    failReleases: true,
+    manifest: {
+      version: 'v0.90-97', file: 'preset-final.json', date: '20260922',
+      bytes: 1, sha256: '', notes: 'n',
+    },
+  });
+  await settle();
+  const r = await env.api().check(false);
+  ok(r.ok === false && /清单里的文件名解析不出版本号/.test(r.error || ''),
+    '文件名解析不出版本号 → 明确报错、不弹窗', r.error);
+  ok(env.slashCalls.length === 0 && env.importCalls.length === 0, '不弹窗、不写入');
 }
 
 console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');
