@@ -284,6 +284,20 @@ function report() {
   cap = clickOne(row);
   check('串台回归：点祖先容器（文字=全体按钮拼接「串台A 关串台A长」）不许触发任何按钮',
     cap === '', '实际=' + cap);
+  /* 页面别处的第三方按钮：类名像按钮、文字也以登记名开头，但**不在按钮条里** —— 一律不许触发。
+     实测案例（2026-09-24）：插图插件 RBQ-Draw 的子插件「智能生图触发器 (Smart Draw)」往聊天页插的
+     `<button class="menu_button">🎨 生成</button>`，被皮肤管理的登记名「🎨」抢走（前缀匹配），
+     用户点插件的生图按钮却开了皮肤面板。见 .audit/RBQ按钮串台调查.md。 */
+  const outsideBtn = document.createElement('button');
+  outsideBtn.className = 'menu_button';           /* 第三方按钮的典型类名：含 button → isButtonish 命中 */
+  outsideBtn.textContent = '串台A 生成';           /* 文字以登记名开头，正是当年会被抢的形状 */
+  document.body.appendChild(outsideBtn);           /* 挂在页面里，**不在** .qr--buttons 里 */
+  await sleep(500);
+  cap = clickOne(outsideBtn);
+  check('串台回归：按钮条外的第三方按钮，文字以登记名开头也不许触发（皮肤管理那次的形状）',
+    cap === '', '实际=' + cap);
+  outsideBtn.remove();
+  await sleep(300);
   check('串台回归：登记名互为前缀要在 status().nameConflicts 里报出来',
     JSON.stringify(HOST.__hub.status().nameConflicts) === JSON.stringify(['串台A ↔ 串台A长']),
     JSON.stringify(HOST.__hub.status().nameConflicts));
@@ -356,6 +370,19 @@ function report() {
   await sleep(500);
   check('兜底回归：点祖先容器（文字=全体按钮拼接「反截断 开反截断长别的功能 开」）不许触发',
     antiOn() === b0, b0 + ' -> ' + antiOn());
+  /* 同一类收口：按钮条外的第三方按钮（文字以登记名开头）也不许触发 —— 反截断这份兜底是独立实现，
+     和中转站那份要各自堵一遍（2026-09-24 串台修复）。 */
+  const outsideAnti = document.createElement('button');
+  outsideAnti.className = 'menu_button';
+  outsideAnti.textContent = '反截断 生成';
+  document.body.appendChild(outsideAnti);
+  await sleep(500);
+  b0 = antiOn();
+  clickAt(outsideAnti);
+  await sleep(500);
+  check('兜底回归：按钮条外的第三方按钮，文字以登记名开头也不许触发',
+    antiOn() === b0, b0 + ' -> ' + antiOn());
+  outsideAnti.remove();
   /* 纯图标按钮：标签文字空掉以后，靠 data-anti-btn 标记仍要认得出来 */
   b0 = antiOn();
   try { capOwn().textContent = ''; } catch (e) { /* 忽略 */ }

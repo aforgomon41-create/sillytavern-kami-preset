@@ -532,6 +532,46 @@ function installSpresetHost(ST) {
     }, 250);
   }
   if (params.get('closed') !== '1') { try { window.KamiSkin.open(); } catch (e) { } }
+  /* ?rbq=1：排查「第三方插图插件（SillyTavern-RBQ-Draw）插进页面的文生图按钮，点了却开我们的皮肤面板」。
+     按该插件源码里的原始 markup 注入它的三种按钮（悬浮按钮 / 悬浮菜单项 / 消息内原位「生成图片」按钮），
+     再挂一个**插件自己那一侧**的冒泡监听：如果我们的按钮中转站在捕获阶段把这次点击吃掉了，
+     这里就不会有日志，同时中转站会打「点击 🎨 → …」——两边日志一对，机制就定性了。
+     ⚠️ 必须放在启动流程末尾：前面几步会重建消息楼层，提前注入会被冲掉。
+     只在带这个参数时注入，不影响日常验证。见 .audit/RBQ按钮串台调查.md。 */
+  if (params.get('rbq') === '1') {
+    step('注入RBQ按钮（排查用）');
+    (function injectRbqProbe() {
+      var host = document.getElementById('chat') || document.body;
+      var wrap = document.createElement('div');
+      wrap.id = 'rbq-probe';
+      wrap.innerHTML =
+        '<button id="st-scene-trigger-floating-toggle" class="st-scene-trigger-floating-toggle" type="button" title="RBQ生图">' +
+        '<span class="st-scene-trigger-kite-icon"><span class="st-scene-trigger-kite-core"></span>' +
+        '<span class="st-scene-trigger-kite-ring"></span><span class="st-scene-trigger-kite-tail"></span></span></button>' +
+        '<div id="st-scene-trigger-floating-menu" class="st-scene-trigger-floating-menu">' +
+        '<button class="st-scene-trigger-floating-item" data-action="quick">快速生图</button>' +
+        '<button class="st-scene-trigger-floating-item" data-action="settings">设置</button></div>' +
+        '<span class="st-scene-trigger-inline-ui">' +
+        '<button class="menu_button st-scene-trigger-generate st-scene-trigger-inline-button" type="button">生成图片</button>' +
+        '<span class="st-scene-trigger-inline-loader" style="display:none">' +
+        '<span class="st-scene-trigger-nai-spinner"></span>' +
+        '<span class="st-scene-trigger-nai-loader-title">生成中... (SYNTHESIZING)</span></span></span>' +
+        /* ⚠️ 这一枚就是真机上被串台的那一个：子插件「智能生图触发器 (Smart Draw)」v6.0.64
+           （RBQ-Draw-Plugins / plugins/smart-draw-trigger.js）插进聊天页的手动生图按钮，
+           类名 menu_button（命中 isButtonish），文字「🎨 生成」——以皮肤管理的登记名「🎨」开头，
+           于是被按钮中转站的点击兜底当成我们自己的按钮。文案与类名逐字照抄该插件源码。 */
+        '<button id="rbq-sdt-manual-submit" class="menu_button" type="button" ' +
+        'style="background:rgba(100,180,255,.2);border:1px solid rgba(100,180,255,.35);font-weight:600;">🎨 生成</button>';
+      host.appendChild(wrap);
+      /* 插件自己那一侧的监听（冒泡阶段，和真插件一样） */
+      document.addEventListener('click', function (e) {
+        var t = e.target && e.target.closest
+          ? e.target.closest('.st-scene-trigger-generate,.st-scene-trigger-floating-item,#st-scene-trigger-floating-toggle,#rbq-sdt-manual-submit') : null;
+        if (t) { console.log('RBQ探针|插件侧收到了点击：' + (t.id || t.className)); }
+      }, false);
+      console.log('RBQ探针|已注入三种按钮（悬浮 / 悬浮菜单项 / 消息内生成图片）');
+    })();
+  }
   /* ── 前端 tab：一次只看一个前端 ──
      为什么是「调 API」而不是「CSS 显隐」：四块面板都挂在 document.body 上（全屏/悬浮层），
      不是某个容器里的子节点，所以切 tab = 关掉其它三块、打开这一块。

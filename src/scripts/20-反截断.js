@@ -1242,12 +1242,23 @@
      · 带本脚本标记 OWN_TAG 的 → 就是自己画过的按钮，最可信
      · 否则要求像按钮，且内部没有别的「能对上登记名」的按钮
      找不到 → null，这次点击什么都不做 */
+  /* 「自己的按钮可能待的地方」——与中转站同一套收口（2026-09-24 串台修复）：
+     点击兜底只在按钮条里认人（或带自己标记的按钮），页面别处的第三方按钮一律不碰。
+     实测案例：插图插件 RBQ-Draw 的子插件 Smart Draw 往聊天页插的 `<button class="menu_button">🎨 生成</button>`
+     被中转站里皮肤管理的登记名 🎨 抢走；同一类风险这里也要堵上。见 .audit/RBQ按钮串台调查.md。 */
+  const OWN_SPACE = '.qr--buttons, .qr--button, #qr--bar, [data-qr-button]';
+  function ownInSpace(el) {
+    try {
+      if (el.getAttribute && el.getAttribute(OWN_TAG) !== null) { return true; }
+      return !!(el.closest && el.closest(OWN_SPACE));
+    } catch (err) { return false; }
+  }
   function ownButtonHost(el) {
     let hops = 0;
     while (el && hops < 6) {
       if (el === HOST.document.body || el === HOST.document.documentElement) { return null; }
       try { if (el.getAttribute && el.getAttribute(OWN_TAG) !== null) { return el; } } catch (err) { /* 忽略 */ }
-      if (ownIsButtonish(el) && !ownHoldsOtherButtons(el)) { return el; }
+      if (ownIsButtonish(el) && !ownHoldsOtherButtons(el) && ownInSpace(el)) { return el; }
       el = el.parentNode;
       hops += 1;
     }

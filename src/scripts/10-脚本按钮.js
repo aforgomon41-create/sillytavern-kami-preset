@@ -321,12 +321,29 @@
   }
 
   var domBound = false, clickHandler = null;
+  /* 「我们的按钮可能待的地方」——与 findNode() 的搜索空间保持一致（按钮条 / 中转站自己画过的按钮）。
+     ⚠️ 这条收口是 2026-09-24 修串台时补的：点击兜底原来从**页面任何位置**往上找按钮宿主、
+     只按「文字以登记名开头」认人，于是第三方按钮会被误认成我们的。
+     实测案例：插图插件 RBQ-Draw 的子插件「智能生图触发器 (Smart Draw)」往聊天页插了一枚
+     `<button class="menu_button">🎨 生成</button>`，而皮肤管理的登记名就是一个 🎨 ——
+     点击它会被我们捕获阶段拦下、stopImmediatePropagation，插件的按钮再也收不到点击，
+     用户看到的就是「点插件的生图按钮，开的却是皮肤管理面板」。见 .audit/RBQ按钮串台调查.md。 */
+  var HUB_SPACE = '.qr--buttons, .qr--button, #qr--bar, [data-qr-button]';
+  function inHubSpace(el) {
+    try {
+      if (el.getAttribute && el.getAttribute(TAG) !== null) { return true; }
+      return !!(el.closest && el.closest(HUB_SPACE));
+    } catch (e) { return false; }
+  }
   function bindDelegated() {
     if (domBound) { return; }
     domBound = true;
     clickHandler = function (ev) {
       var host = buttonHost(ev.target);
       if (!host) { return; }
+      /* 只认按钮条里的（或我们画过的）宿主：页面别处的第三方按钮一律不碰，
+         否则「登记名是短前缀」的按钮会把它吃掉（宁可点不动，也不许串台）。 */
+      if (!inHubSpace(host)) { return; }
       /* 只按「这一个宿主自己的标签」认；标签为空（纯图标按钮）时才退回看 TAG 点名。
          两条路都只认这个宿主自己，绝不拿祖先按钮条拼起来的文字猜。 */
       var b = matchButton(host.textContent), tag = null;
