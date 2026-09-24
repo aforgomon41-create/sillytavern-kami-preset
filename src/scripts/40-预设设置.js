@@ -1,5 +1,5 @@
 /* ============================================================
- * 🌟 预设设置   v0.5
+ * 🌟 预设设置   v0.6
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 它把「当前预设」变成一块可以点的面板：
@@ -23,22 +23,27 @@
  *   必须忽略「拒绝过 / 已写入」的记录真查一次。那个脚本没在运行时按钮照样能点，
  *   只把一句人话写进结果行（不把按钮做成点不动 —— 用户会犯懵）。
  *
- * 本轮范围（v0.4）：
- *   · 「🧩 设置变量」tab：每个变量条目一张卡（单值 → 数字卡，_min/_max 一对 → 范围卡），
- *     改完走**酒馆自己的保存通道**写回预设（见下方 commitVars 的长注释）；
- *   · 注释查看：真有注释的条目名 / 卡片名后面挂一枚 ⓘ（点它就地展开注释，再点收起）。
+ * v0.6 新增（用户裁定）：「🔄 远程更新」v1.4 的三方合并走两步裁决 ——
+ *   70 号在下载到新版预设计算出「待裁决清单」后，调本脚本的
+ *   KamiPreset.openMergeReview(plan, onApply) 打开「🔀 更新合并」页（本页排在最前，
+ *   其它 tab 照旧）。计划对象由 70 号用内联的合并引擎算好，本脚本只负责展示与选择：
+ *   每项一张卡（条目名 + 改了什么 + 二选一分段 保留我的/用新版，默认保留我的），
+ *   顶部「全部保留我的 / 全部用新版」，底部「应用并完成更新」→ onApply(plan)。
+ *   用户关掉面板 = onApply(null)（更新暂停、不落盘）；清单长时正文区自己滚。
+ *   (本脚本**不**内联合并引擎 —— 计算、备份、写盘都不在这边。)
  *
- * v0.4 修订（两处，都在本文件内）：
- *   · 修「PC 上鼠标点 tab 页没反应」：tab 行的 pointerdown 对 panelDrop 设了指针捕获，
- *     浏览器随后把 click 的 target 改到 panelDrop，click 委托再也匹配不到 data-kami-tab。
- *     现在 pointerdown 记下真正被按的那一枚，pointerup 时（按下基本没动）补一次 setTab；
- *   · 注释结构：条目名（卡本体）作为标题栏，注释正文改成标题栏**下方**的独立容器
- *     （外包一层 .kami-item-note），不再塞进开关按钮里。
+ * v0.5 → v0.6 期间的历史范围注记：
+ *   · v0.5：固定的最后一页「ℹ️ 关于」与「检查更新」按钮（见上）。
+ *   · v0.4：「🧩 设置变量」tab（单值 → 数字卡、_min/_max 一对 → 范围卡，
+ *     走安全通道写预设）；注释查看（ⓘ 就地展开）；
+ *     修「PC 鼠标点 tab 页没反应」（指针捕获吃掉 click）：pointerdown 记下真正按的
+ *     那一枚 tab，pointerup（按下基本没动）补一次切换；
+ *     注释结构：条目名是标题栏，注释正文在标题栏**下方**的独立容器（.kami-item-note）。
  * ============================================================ */
 (function () {
   'use strict';
 
-  var VERSION = '0.5';
+  var VERSION = '0.6';
   var HUB_NAME = '🌟卡密预设';
   /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
   var HUB_ORDER = 30;
@@ -144,6 +149,9 @@
   var emitCount = 0, emitSkipped = 0;   // OAI_PRESET_CHANGED_AFTER 的发出/跳过次数（排障用）
   var saveTimer = null, pingTimer = null, resizeHandler = null;
   var ownDef = null, unsubs = [];
+  /* v0.6：「🔄 远程更新」的裁决页。有值 = 面板最前多一页「🔀 更新合并」，
+     结构 = { plan, onApply }（都由 70 号传进来）；onApply(plan) 提交、onApply(null) 放弃。 */
+  var mergeCtx = null;
 
   /* ───────── 酒馆设置：读（活的设置对象） ───────── */
 
@@ -906,7 +914,16 @@
     /* 固定的最后一页：「ℹ️ 关于」（用户裁定）。它**不随预设结构变化**，永远排在最后，
        内容也与解析结果无关（版本信息 + 检查更新）。 */
     out.push(aboutTab());
+    /* v0.6：「更新合并」裁决页（远程更新开着时才出现）。要**排在最前**——
+       用户正等着完成一次更新，别让它在 tab 行最后一格里被淹没。 */
+    if (mergeCtx) { out.unshift(mergeTab()); }
     return out;
+  }
+
+  /* 「更新合并」页的定义：只在 70 号传来计划时存在（openMergeReview 建 / 关掉撤）。
+     它不依赖预设解析结果 —— 读不到预设时也要能出（裁决与解析是两回事，见 renderTabs）。 */
+  function mergeTab() {
+    return { key: 'MERGE', title: '🔀 更新合并', special: 'merge', cards: [], own: [] };
   }
 
   /* 「关于」页的定义：固定页，任何预设、任何解析结果下都在（连读不到预设时也建得出来）。 */
@@ -1100,6 +1117,11 @@
           if (t.getAttribute('data-kami-act') === 'close') { setOpen(false); return; }
           /* 「关于」页的检查更新：调 70-远程更新.js 的全局 API（用户主动点 = force 一次真查） */
           if (t.getAttribute('data-kami-act') === 'check-update') { runUpdateCheck(t); return; }
+          /* v0.6 「更新合并」页：一键选边 / 逐条选边 / 提交 */
+          if (t.getAttribute('data-kami-act') === 'merge-all-mine') { setMergeAll('mine'); return; }
+          if (t.getAttribute('data-kami-act') === 'merge-all-next') { setMergeAll('next'); return; }
+          if (t.getAttribute('data-kami-act') === 'merge-apply') { applyMergeReview(); return; }
+          if (t.getAttribute('data-kami-choice')) { setMergeChoice(t, t.getAttribute('data-kami-choice')); return; }
         }
         t = t.parentNode;
       }
@@ -1278,6 +1300,11 @@
         { key: 'ERR', title: '读不到预设', special: 'err', error: msg, cards: [], own: [] },
         aboutTab()
       ];
+      /* 「更新合并」页不依赖解析结果：正在裁决时也要在（裁决的是预设文件之间的合并，
+         不是实时面板那条读数链路） */
+      if (mergeCtx) { view.unshift(mergeTab()); }
+      /* 合并页在最前就把它选中（refresh(true) 会带着它走，这里补 tabKey 语义） */
+      if (view[0].key === 'MERGE') { tabKey = 'MERGE'; }
       for (i = 0; i < view.length; i++) { appendTab(bar, foot0, view[i]); }
       tabKey = 'ERR';
       applyTab();
@@ -1352,6 +1379,7 @@
     if (tab.special === 'model') { renderModelTab(pane, tab); return; }
     if (tab.special === 'var') { renderVarTab(pane, tab); return; }
     if (tab.special === 'about') { renderAboutTab(pane, tab); return; }
+    if (tab.special === 'merge') { renderMergeTab(pane, tab); return; }
     if (tab.special === 'err') {
       pane.appendChild(mk('div', 'kami-empty', (tab.error || '读不到当前预设') +
         '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
@@ -1520,6 +1548,192 @@
     inp.setAttribute('data-kami-old', v.value);
     inp.setAttribute('aria-label', v.name);
     return inp;
+  }
+
+  /* ───────── 「🔀 更新合并」页（v0.6；远程更新 v1.4 的三方合并裁决） ─────────
+     数据（plan）由 70 号算好带进来：{ degraded, stats, conflicts:[{key,kind,id,name,fields}] }。
+     本页只做三件事：列出待裁决项（每项一张卡）、一键选边、提交 onApply(plan)。
+     不内联合并引擎 —— 计算、备份、写盘都在 70 号那边。
+     类名只用契约已登记的（卡片 / 字段行 / 分段切换 / 按钮），不新增皮肤类名。 */
+
+  function mergeKindLabel(kind) {
+    return { prompt: '两边都改过', delete: '删除与新版改动撞了', order: '排列两边都调过',
+      regex: '正则两边都改过' }[kind] || '两边都改过';
+  }
+
+  /* 一张待裁决卡：条目名 + 「改了什么」+ 二选一分段（默认保留我的）。
+     update-plan 后只就地配料（paintMergeCard），不重画整页。 */
+  function mergeCardEl(c) {
+    var box = mk('div', 'kami-card');
+    box.setAttribute('data-kami-conflict', c.key);
+    var head = mk('div', 'kami-card-head');
+    head.appendChild(mk('span', 'kami-card-title', c.name || c.id));
+    head.appendChild(mk('span', 'kami-chip', mergeKindLabel(c.kind)));
+    box.appendChild(head);
+    var body = mk('div', 'kami-card-body');
+    var fs = (c.fields && c.fields.length) ? c.fields.join('、') : '';
+    if (fs) { body.appendChild(mk('div', 'kami-card-note', '改了：' + fs)); }
+    var seg = mk('div', 'kami-seg');
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', c.name || c.id);
+    var opts = [['mine', '保留我的'], ['next', '用新版']];
+    for (var i = 0; i < opts.length; i++) {
+      var choice = (c.choice || 'mine') === opts[i][0];
+      var btn = mk('button', 'kami-seg-item' + (choice ? ' is-on' : ''), opts[i][1]);
+      btn.type = 'button';
+      btn.setAttribute('data-kami-choice', opts[i][0]);
+      btn.setAttribute('aria-pressed', choice ? 'true' : 'false');
+      seg.appendChild(btn);
+    }
+    body.appendChild(seg);
+    box.appendChild(body);
+    return box;
+  }
+
+  function renderMergeTab(pane) {
+    var plan = mergeCtx ? mergeCtx.plan : null;
+    if (!plan) {
+      pane.appendChild(mk('div', 'kami-empty', '现在没有进行中的合并。'));
+      return;
+    }
+    /* 摘要卡：这一版从哪儿来、要裁决多少项、怎么选全说清 */
+    var box = mk('div', 'kami-card');
+    var head = mk('div', 'kami-card-head');
+    head.appendChild(mk('span', 'kami-card-title', '合并到新版本'));
+    if (plan.degraded) { head.appendChild(mk('span', 'kami-chip', '旧版认不出')); }
+    box.appendChild(head);
+    var body = mk('div', 'kami-card-body',
+      '要你裁决的差异 ' + plan.conflicts.length + ' 项。每一项二选一：保留我的 / 用新版。' +
+      '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你现在' +
+      '的预设为准，不会被新版覆盖。' + (plan.degraded ? '（你的旧版认不出来，所有差异都当成' +
+      '「两边都改过」处理，宁可少更新也不动你的东西。）' : ''));
+    box.appendChild(body);
+    pane.appendChild(box);
+    /* 顶部一键按钮 */
+    var bar = mk('div', 'kami-card');
+    var barBody = mk('div', 'kami-card-body');
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', '一键'));
+    var vals = mk('span', 'kami-field-value');
+    var bMine = mk('button', 'kami-btn', '全部保留我的');
+    bMine.type = 'button'; bMine.setAttribute('data-kami-act', 'merge-all-mine');
+    var bNext = mk('button', 'kami-btn', '全部用新版');
+    bNext.type = 'button'; bNext.setAttribute('data-kami-act', 'merge-all-next');
+    vals.appendChild(bMine);
+    vals.appendChild(bNext);
+    row.appendChild(vals);
+    barBody.appendChild(row);
+    bar.appendChild(barBody);
+    pane.appendChild(bar);
+    /* 待裁决清单（正文区自己滚，几十条也能滑） */
+    for (var i = 0; i < plan.conflicts.length; i++) { pane.appendChild(mergeCardEl(plan.conflicts[i])); }
+    if (!plan.conflicts.length) {
+      pane.appendChild(mk('div', 'kami-empty', '没有需要你裁决的差异 —— 其余全部自动按口径合并。'));
+    }
+    /* 底部提交 */
+    var foot = mk('div', 'kami-card');
+    var footBody = mk('div', 'kami-card-body');
+    var row2 = mk('div', 'kami-field');
+    var vals2 = mk('span', 'kami-field-value');
+    var bApply = mk('button', 'kami-btn kami-btn--primary', '应用并完成更新');
+    bApply.type = 'button'; bApply.setAttribute('data-kami-act', 'merge-apply');
+    vals2.appendChild(bApply);
+    row2.appendChild(mk('span', 'kami-field-label', '确认'));
+    row2.appendChild(vals2);
+    footBody.appendChild(row2);
+    foot.appendChild(footBody);
+    pane.appendChild(foot);
+  }
+
+  /* 找计划里一枚冲突项的现状（就地刷新时按 key 找） */
+  function mergePlanOf() { return mergeCtx ? mergeCtx.plan : null; }
+  function mergeConflictAt(key) {
+    var plan = mergePlanOf();
+    if (!plan) { return null; }
+    for (var i = 0; i < plan.conflicts.length; i++) {
+      if (plan.conflicts[i].key === key) { return plan.conflicts[i]; }
+    }
+    return null;
+  }
+
+  /* 点一枚分段：改 plan 里那一项的 choice → 只重画这一张卡（不重画整页，不丢滚动位置） */
+  function setMergeChoice(btn, val) {
+    var plan = mergePlanOf();
+    if (!btn) { return; }
+    var card = btn.closest ? btn.closest('[data-kami-conflict]') : null;
+    if (!card) { return; }
+    var c = mergeConflictAt(card.getAttribute('data-kami-conflict'));
+    if (!c) { return; }
+    if (mergeCtx) { c.choice = val; }
+    paintMergeCard(card);
+    log('合并裁决「' + (c.name || c.id) + '」→ ' + (val === 'next' ? '用新版' : '保留我的'));
+  }
+
+  function paintMergeCard(card) {
+    var plan = mergePlanOf();
+    if (!card || !plan) { return; }
+    var c = mergeConflictAt(card.getAttribute('data-kami-conflict'));
+    if (!c) { return; }
+    var choice = (c.choice || 'mine');
+    var items = card.querySelectorAll('[data-kami-choice]');
+    for (var i = 0; i < items.length; i++) {
+      var on = items[i].getAttribute('data-kami-choice') === choice;
+      items[i].classList.toggle('is-on', on);
+      items[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
+  function paintMergeAll() {
+    if (!panelRoot) { return; }
+    var cards = panelRoot.querySelectorAll('[data-kami-conflict]');
+    for (var i = 0; i < cards.length; i++) { paintMergeCard(cards[i]); }
+  }
+
+  /* 一键全保留 / 全覆盖：改 plan 里的 choice + 就地重画所有卡 */
+  function setMergeAll(val) {
+    var plan = mergePlanOf();
+    if (!plan) { return; }
+    for (var i = 0; i < plan.conflicts.length; i++) { plan.conflicts[i].choice = val; }
+    paintMergeAll();
+    log('一键裁决：' + (val === 'next' ? '全部用新版' : '全部保留我的') + '（' + plan.conflicts.length + ' 处）');
+  }
+
+  /* 应用并完成更新：把决定交回 70 号（合并、备份、写盘都在那边），然后收掉这一页。 */
+  function applyMergeReview() {
+    var ctxNow = mergeCtx;
+    if (!ctxNow) { return; }
+    mergeCtx = null;    // 先清：onApply 里若再开面板 / 关面板都会重画
+    try { if (typeof ctxNow.onApply === 'function') { ctxNow.onApply(ctxNow.plan); } } catch (e) {
+      log('裁决回调出错（合并流程那边的日志为准）：' + ((e && e.message) || e));
+    }
+    refresh(true);
+    setOpen(false);
+  }
+
+  /* ──────────────────────── v0.6 的 API：openMergeReview ─────────────────────
+     打开「更新合并」页。面板本来没建就建；建不好（异常）返回 false 让 70 号退化。
+     页面排在 tab 最前。裁决完成 / 应用后关闭；用户点 ✕ = 放弃（onApply(null)）。 */
+  function openMergeReview(plan, onApply) {
+    if (disposed) { return false; }
+    if (!plan || !Array.isArray(plan.conflicts) || typeof onApply !== 'function') { return false; }
+    var old = mergeCtx;
+    mergeCtx = { plan: plan, onApply: onApply };
+    try {
+      if (!panelRoot) { buildPanel(); }
+      refresh(true);
+      if (!paneEl('MERGE')) { mergeCtx = old || null; return false; }
+      tabKey = 'MERGE';
+      applyTab();
+      renderStatus();
+      setOpen(true);
+      log('「更新合并」裁决页已打开：待裁决 ' + plan.conflicts.length + ' 项' +
+        (plan.degraded ? '（旧版认不出，退化模式）' : ''));
+      return true;
+    } catch (e) {
+      log('打开裁决页失败：' + ((e && e.message) || e));
+      mergeCtx = old || null;
+      return false;
+    }
   }
 
   /* ───────── 「ℹ️ 关于」页（固定的最后一页） ─────────
@@ -1915,6 +2129,12 @@
       /* 读不到设置时，除了面板里的说明再补一次 toast：绝不静默失败 */
       if (liveData && !liveData.ok) { toast('warning', liveData.error); }
       log('面板已打开（' + (liveData && liveData.ok ? liveData.preset.name + ' · tab ' + view.length : '读不到预设') + '）');
+    } else if (mergeCtx) {
+      /* v0.6：裁决期间关掉面板 = 用户放弃这次裁决 → 通知 70 号（本次更新暂停导入） */
+      var ctxNow = mergeCtx;
+      mergeCtx = null;
+      log('面板在裁决期间被关闭 → 本次更新暂停（70 那边记 merge-cancelled）');
+      try { if (typeof ctxNow.onApply === 'function') { ctxNow.onApply(null); } } catch (e) { }
     }
   }
   function openPanel() { setOpen(true); }
@@ -2141,6 +2361,12 @@
       },
       status: status,
       inspect: inspect,
+      /* v0.6：三方合并的裁决页。70 号的合并流程在需要时调它：
+         plan = 合并引擎算好的计划（conflicts[].choice 是决策位）；
+         onApply(settledPlan) = 提交所有决策（合并、备份、写盘在 70 号那侧）；
+         onApply(null) = 用户放弃（关掉了面板）。返回 false = 面板建不出来（70 号会退化成原生弹窗）。 */
+      openMergeReview: function (plan, onApply) { return openMergeReview(plan, onApply); },
+      closeMergeReview: function () { if (mergeCtx) { setOpen(false); } return true; },
       shutdown: function () { teardown(); }
     };
     try { HOST[API_NAME] = api; } catch (e) { }
@@ -2153,6 +2379,8 @@
     if (disposed) { return; }
     disposed = true;
     log('正在注销：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局');
+    /* 裁决没完成就注销（脚本被关 / 重挂）：同样通知 70 号放弃，别让它干等回 */
+    if (mergeCtx) { var mc = mergeCtx; mergeCtx = null; try { if (typeof mc.onApply === 'function') { mc.onApply(null); } } catch (e) { } }
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } } catch (e) { }
     /* 写盘自证压上的 fetch 补丁与 6 秒兜底定时器：必须在这里收回，否则注销后最多 6 秒内

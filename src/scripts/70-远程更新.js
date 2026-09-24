@@ -1,5 +1,5 @@
 /* ============================================================
- * 🔄 远程更新   v1.3
+ * 🔄 远程更新   v1.4
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 纯后台脚本：**不向按钮中转站登记任何按钮**。它只在每次启动时做一件事：
@@ -14,8 +14,25 @@
  *   ③ 确实有更新、且这个版本没被用户拒绝过 → 弹**酒馆原生弹窗**问要不要更新，
  *      更新说明取 Release 正文（清单兜底时取 manifest 的 notes），
  *      放在弹窗内的可滚动区域里（窗口不会太高）
- *   ④ 点「立即更新」→ 走下载链 → 写进用户的预设文件夹 → 提醒用户手动切换
+ *   ④ 点「立即更新」→ 走下载链 → **三方合并**（v1.4 起）→ 写进用户的预设文件夹
+ *      → 提醒用户手动切换
  *      点「暂不更新」→ 把这个版本号记下来，以后不再为它弹窗
+ *
+ * ── 三方合并（v1.4 起，取代整份换新）──
+ *   老流程是「下载新版 → 原样导入」，用户改过的条目开关 / 采样参数 / 脚本设置 /
+ *   正则开关 / 自己改的条目全文全丢。v1.4 起改成三方合并：
+ *     base   = 用户当前这一版的原始内容（按用户版本号对应的 tag 从仓库 mirror/ 取）
+ *     theirs = 用户现在的预设（酒馆活设置 chatCompletionSettings）
+ *     next   = 刚下载到的新版预设
+ *   合并口径见 src/scripts/_preset-merge.js（内联在下方）：一律以用户为准；
+ *   条目内容只有「两边都改过」才是待裁决；先备份（theirs 另存一份），再把合并结果
+ *   导入成**新预设**，绝不覆盖原文件。
+ *   待裁决走两条路：
+ *     · 主路径：🌟 预设设置面板里那页「更新合并」（HOST.KamiPreset.openMergeReview，
+ *       该脚本没在运行时自动退化）；
+ *     · 退化：酒馆原生弹窗给摘要 + 一键「全部保留我的 / 全部用新版」。
+ *   base 取不到（认不出版本 / 版本太老 / 镜像缺失）→ 引擎的退化模式：
+ *   差异全进待裁决、默认「保留我的」，宁可少更新，也不动用户的东西。
  *
  * ── 下载链（v1.3 起的顺序）──
  *   ① GitHub Release 直链 → ② jsDelivr @<tag>/mirror/<file> →
@@ -55,7 +72,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.3';
+  var VERSION = '1.4';
   var API_NAME = 'KamiUpdate';
   var VARS_KEY = 'kami-update';
   /* 本实例的身份证。pagehide 可能**迟到**（酒馆助手重挂脚本 iframe 时旧实例的 pagehide
@@ -110,6 +127,10 @@
   var HDOC = null;
   try { HDOC = HOST.document; } catch (e) { HDOC = document; }
 
+  /* ───────── 三方合并引擎（唯一真相：src/scripts/_preset-merge.js，构建期内联） ───────── */
+
+  /* @@KAMI_PRESET_MERGE@@ */
+
   /* ───────── 日志 / 提示 ───────── */
 
   var LOGS = [];
@@ -160,7 +181,8 @@
   var last = {                    // 最近一次检查的结果（status() 用）
     at: 0, ok: false, error: null,
     localName: null, localBuild: null, localVersion: null,
-    remote: null, action: null    // action: 'none' | 'skipped' | 'imported' | 'declined'
+    remote: null, action: null,   // action: 'none' | 'skipped' | 'imported' | 'declined' | ...
+    merge: null                   // 最近一次合并的报告（人话摘要，status() 里可看）
   };
   var vars = null;                // 脚本变量 kami-update（内存副本）
 
@@ -864,8 +886,204 @@
     });
   }
 
-  /* 用户点了「立即更新」：下载 → 校验 → 写进预设文件夹 → 提醒切换。
-     下载走下载链（buildChain 里那几条，按序回退），直链走不通也有得选。 */
+  /* ───────── v1.4 起的三方合并写入（先备份，再导入合并结果，绝不覆盖原文件） ───────── */
+
+  /* 口径 B 的 theirs：用户现在的预设 = 酒馆活设置（chatCompletionSettings）的深拷贝。
+     拿不到（或没有 prompts 数组）→ 返回 null，调用方退化成老流程（原样导入，不备份）。 */
+  function currentPresetSnapshot() {
+    var ctx = stCtx();
+    var s = settingsOf(ctx);
+    if (!s || typeof s !== 'object' || !Array.isArray(s.prompts)) { return null; }
+    var snap = null;
+    try { snap = JSON.parse(JSON.stringify(s)); } catch (e) { return null; }
+    if (!snap || !Array.isArray(snap.prompts)) { return null; }
+    return snap;
+  }
+
+  /* base = 用户那一版的原始内容：按用户版本号对应的 tag 从仓库 mirror/ 取。
+     ① jsDelivr @<tag>/mirror/manifest.json → file → @<tag>/mirror/<file>。
+     取不到就返回 null（合并引擎进退化模式：「 τηrs 与 next 的差异全进待裁决」），
+     同时记一行日志说明 —— 不再走 GitHub Releases 附件那两条路（别把这块做复杂），
+     因为直链通道里手机连不上的那台 CDN 同样救不了它。 */
+  function fetchBaseSnapshot(tag, cfg) {
+    var want = cleanStr(tag);
+    if (!want) {
+      log('认不出当前预设的版本号 → 取不到用户那一版的原始内容，合并走退化模式（theirs 与 next 的差异全进待裁决）');
+      return Promise.resolve(null);
+    }
+    return fetchApi(jsdUrl(cfg, want, 'manifest.json')).then(function (r) {
+      if (r.status !== 200) { throw new Error('清单 HTTP ' + r.status); }
+      var m2 = null;
+      try { m2 = JSON.parse(r.text); } catch (e2) { throw new Error('清单不是合法 JSON'); }
+      var file = cleanStr(m2 && m2.file);
+      if (!file) { throw new Error('清单里没有 file 字段'); }
+      return file;
+    }).then(function (file) {
+      log('按版本 ' + want + ' 取用户那一版的原始内容（合并的 base）：' + jsdUrl(cfg, want, file));
+      return fetchText(jsdUrl(cfg, want, file));
+    }).then(function (text) {
+      var base = JSON.parse(text);
+      if (!base || !Array.isArray(base.prompts)) { throw new Error('内容不像一份预设'); }
+      log('base 取到了：' + base.prompts.length + ' 条条目（可以逐一判断谁改过什么）');
+      return base;
+    })['catch'](function (e) {
+      log('⚠ base 取不到（' + ((e && e.message) || e) + '）→ 合并进退化模式：差异全进待裁决、默认保留你的');
+      return null;
+    });
+  }
+
+  /* 待裁决的呈现：
+     · 主路径：🌟 面板的「更新合并」页（KamiPreset.openMergeReview，该脚本没跑时走不到）；
+     · 退化：原生弹窗给摘要 + 一键「全部保留我的 / 全部用新版」。 */
+  /* 待裁决内容在弹窗里的正文：列出每项的名字与改了什么字段。 */
+  function mergePopupHtml(plan) {
+    var h = [];
+    h.push('<div style=\'font-size:13px;line-height:1.65;text-align:left;\'>');
+    h.push('<div style=\'margin:0 0 8px;\'>合并前有 <b>' + plan.conflicts.length +
+      '</b> 处你和新版都改过的内容' +
+      (plan.degraded ? '（你的旧版本认不出来，全部按「两边都改过」处理）' : '') + '：</div>');
+    h.push('<div style=\'max-height:36vh;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+      "border:1px solid rgba(127,127,127,.4);border-radius:8px;padding:8px 10px;" +
+      "word-break:break-word;white-space:normal;\'>");
+    h.push(escText(plan.conflicts.map(function (c, i) {
+      return (i + 1) + '. ' + c.name + '：' + c.fields.join('、');
+    }).join('\n')).replace(/\r\n|\r|\n/g, '<br>'));
+    h.push('</div>');
+    h.push('<div style=\'margin:8px 0 0;opacity:.72;font-size:12px;\'>默认是「全部保留我的」（宁可少更新，' +
+      '也不动你的东西）。逐条裁决要打开「🌟 预设设置」面板的「更新合并」页。</div>');
+    h.push('</div>');
+    return h.join('');
+  }
+
+  /* 决断从哪儿来：plan.conflicts[].choice（'mine'|'next'）。
+     返回 Promise<{ plan }>；用户放弃（弹窗失败 → 保留我的继续，面板关闭 → 中止更新）时：
+     · 面板路径用户关掉 → null（本次更新不落盘，稍后可重查）；
+     · 弹窗路径失败 → 退化成「全部保留我的」继续（新增的条目照加）。 */
+  function decidePlan(plan) {
+    var i;
+    for (i = 0; i < plan.conflicts.length; i++) {
+      if (plan.conflicts[i].choice !== 'next') { plan.conflicts[i].choice = 'mine'; }
+    }
+    if (!plan.conflicts.length) { return Promise.resolve({ plan: plan, via: 'none' }); }
+    var P = null;
+    try { if (HOST.KamiPreset && typeof HOST.KamiPreset.openMergeReview === 'function') { P = HOST.KamiPreset; } } catch (e0) { }
+    if (P) {
+      log('待裁决 ' + plan.conflicts.length + ' 处 → 打开「🌟 预设设置」面板的「更新合并」页让你逐条决策');
+      return new Promise(function (resolve) {
+        var okAsk = false;
+        try {
+          okAsk = P.openMergeReview(plan, function (settledPlan) {
+            if (settledPlan === null) {
+              log('你在面板里没有完成裁决（关掉了面板），本次更新暂停导入；' +
+                '下次启动或手动检查更新可以重新来一次');
+              resolve(null);
+              return;
+            }
+            log('裁决完成（面板）：逐项开始合并写入');
+            resolve({ plan: settledPlan, via: 'panel' });
+          }) !== false;
+        } catch (e1) { okAsk = false; }
+        if (!okAsk) {
+          log('面板裁决页没打开成 → 退化成原生弹窗一键裁决');
+          askMergePopup(plan).then(function (r) { resolve(r); });
+        }
+      });
+    }
+    return askMergePopup(plan);
+  }
+
+  /* 原生弹窗一键裁决兜底（面板脚本没在运行时的路）。
+     result=true（okButton）= 全部用新版；取消 / 关窗 / Esc = 全部保留我的（宁可少更新）。 */
+  function askMergePopup(plan) {
+    var summary = plan.conflicts.map(function (c, i) { return (i + 1) + '. ' + c.name; }).join('\n');
+    var html = mergePopupHtml(plan);
+    var cmd = '/popup result=true scroll=true' +
+      ' okButton="全部用新版"' +
+      ' cancelButton="全部保留我的"' +
+      ' ' + html;
+    log('面板裁决页不可用，改用原生弹窗一键裁决（待裁决 ' + plan.conflicts.length + ' 处）');
+    return runSlash(cmd).then(function (res) {
+      var yes = String(res) === '1';
+      log('合并裁决（原生弹窗）：' + (yes ? '全部用新版' : '全部保留我的（含没答＝Esc）'));
+      for (var j = 0; j < plan.conflicts.length; j++) { plan.conflicts[j].choice = yes ? 'next' : 'mine'; }
+      return { plan: plan, via: 'popup', allOf: yes ? 'next' : 'mine', summary: summary };
+    }, function (e) {
+      warn('裁决弹窗失败：' + ((e && e.message) || e) + ' → 按「全部保留我的」继续（不落新版的内容覆盖）');
+      for (var k = 0; k < plan.conflicts.length; k++) { plan.conflicts[k].choice = 'mine'; }
+      return { plan: plan, via: 'popup-failed', allOf: 'mine', summary: summary };
+    });
+  }
+
+  /* 写盘（硬规格 D）：① 先把用户当前那份（theirs）用 importRawPreset 另存一份备份；
+     ② 再把合并结果导入成新预设。备份写不进去就报错停下 —— 备份不许跳过。 */
+  function writeMergedFiles(remote, theirs, merged) {
+    var backupText = JSON.stringify(theirs);
+    var mergedText = JSON.stringify(merged);
+    var localName = cleanStr(resolvePresetName().name);
+    if (!localName) {
+      return Promise.reject(new Error('拿不到当前预设的名字，没法先备份；本次没有写盘（先手动导入新版也行）'));
+    }
+    var backupName = safePresetName(localName + ' · 合并前备份');
+    log('第 1 步 · 先备份：把当前预设另存为「' + backupName + '」');
+    return writePreset(backupName, JSON.parse(backupText), backupText).then(function () {
+      log('第 2 步 · 导入合并结果：' + remote.name);
+      return writePreset(remote.name, merged, mergedText);
+    }).then(function (r) {
+      return { via: (r && r.via) || 'importRawPreset', backupName: backupName, backupBytes: backupText.length, mergedBytes: mergedText.length };
+    });
+  }
+
+  function mergeReportText(rep) {
+    return '合并报告：应用新版 ' + rep.applied + ' 处，保留你的 ' + rep.kept + ' 处，新增 ' + rep.added +
+      ' 条，待裁决 ' + rep.conflicts + ' 处（保留我的 ' + rep.decidedMine + ' / 用新版 ' + rep.decidedNext + '）' +
+      (rep.degraded ? '（退化模式：认不出你的旧版，全部按冲突处理）' : '');
+  }
+
+  /* 下载到 next 之后 → 合并 → 先备份 → 导入合并结果 → toast。 */
+  function mergeAndWrite(remote, nextJson, nextText) {
+    var theirs = currentPresetSnapshot();
+    if (!theirs) {
+      log('读不到当前预设的完整内容（theirs），做不了三方合并与备份 → 按老办法整份导入（不备份）');
+      return writePreset(remote.name, nextJson, nextText).then(function (r) {
+        finishImported(remote, null, (r && r.via) || 'importRawPreset');
+        return last;
+      });
+    }
+    var cfg = repoConfig();
+    return fetchBaseSnapshot(last.localVersion, cfg).then(function (base) {
+      var plan = computeMergePlan(base, theirs, nextJson);
+      log('合并计划就绪：待裁决 ' + plan.conflicts.length + ' 处 / 新版新增 ' + plan.stats.added +
+        ' 条 / 应用新版 ' + plan.stats.applied + ' 处' + (plan.degraded ? '（退化模式：base 取不到）' : ''));
+      return decidePlan(plan).then(function (chosen) {
+        if (!chosen) { last.action = 'merge-cancelled'; return last; }
+        var applied = applyMergePlan(base, theirs, nextJson, chosen.plan);
+        return writeMergedFiles(remote, theirs, applied.merged).then(function (w) {
+          finishImported(remote, applied.report, w && w.via);
+          return last;
+        });
+      });
+    })['catch'](function (e) {
+      last.error = (e && e.message) || String(e);
+      warn('更新失败：' + last.error);
+      toast('error', '更新失败：' + last.error + '（可以手动去仓库下载导入）', 12000);
+      return last;
+    });
+  }
+
+  function finishImported(remote, rep, via) {
+    saveVars({ imported: remote.version, skipped: '' });
+    last.action = 'imported';
+    var repLine = rep ? mergeReportText(rep) : null;
+    last.merge = rep ? {
+      degraded: !!rep.degraded, applied: rep.applied, kept: rep.kept, added: rep.added,
+      conflicts: rep.conflicts, decidedMine: rep.decidedMine, decidedNext: rep.decidedNext
+    } : null;
+    log('已写入预设「' + remote.name + '」' + (via ? ('（写盘用的通道 ' + via + '）') : '') +
+      (repLine ? '；' + repLine : ''));
+    toast('success', '新预设「' + remote.name + '」已写入酒馆。打开左侧抽屉的「AI 响应配置」，把预设切换成它即可生效', 15000);
+  }
+
+  /* 用户点了「立即更新」：下载 → 校验 → 合并 → 写进预设文件夹 → 提醒切换。 */
   function doUpdate(remote) {
     var cfg = repoConfig();
     log('开始下载预设：' + remote.url);
@@ -879,14 +1097,8 @@
       log('下载到 ' + new TextEncoder().encode(text).length + ' 字节的预设（' + remote.name + '）');
       /* 尽力而为的完整性校验：清单里有 sha256 就对一遍，不一致 → 报错、不写盘。 */
       return verifySha(text, remote.sha256).then(function () {
-        return writePreset(remote.name, json, text);
+        return mergeAndWrite(remote, json, text);
       });
-    }).then(function (r) {
-      saveVars({ imported: remote.version, skipped: '' });
-      last.action = 'imported';
-      log('已写入预设「' + remote.name + '」（写盘用的通道 ' + r.via + '；下载用的通道见上面日志）');
-      toast('success', '新预设「' + remote.name + '」已写入酒馆。打开左侧抽屉的「AI 响应配置」，把预设切换成它即可生效', 15000);
-      return last;
     })['catch'](function (e) {
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
@@ -917,6 +1129,7 @@
       lastAction: last.action,
       skipped: vars ? vars.skipped : '',
       imported: vars ? vars.imported : '',
+      lastMerge: last.merge,
       logs: LOGS.slice(-30)
     };
   }

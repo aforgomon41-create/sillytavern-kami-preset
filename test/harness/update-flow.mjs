@@ -26,7 +26,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CODE = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '70-远程更新.js'), 'utf8');
+/* v1.4 起脚本内联了三方合并引擎（占位符 @@KAMI_PRESET_MERGE@@ 由 build/kami-doc.mjs 的
+   expandPresetMerge 展开）——这个 harness 不走构建，所以这里照同一条内联规则
+   手动展开一次（漏了它，引擎就是 undefined，合并全部静默退回老流程的「假象」）。 */
+const MERGE_RAW = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '_preset-merge.js'), 'utf8');
+const MERGE_CODE = MERGE_RAW.split('\n').map(l => (l.slice(0, 7) === 'export ' ? l.slice(7) : l)).join('\n');
+if (MERGE_CODE === MERGE_RAW) { throw new Error('剥离 export 失败：_preset-merge.js 里没有 export 声明？'); }
+const MERGE_MARK = '/* @@KAMI_PRESET_MERGE@@ */';
+const baseCode70 = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '70-远程更新.js'), 'utf8');
+if (baseCode70.indexOf(MERGE_MARK) < 0) { throw new Error('70-远程更新.js 里没有合并引擎占位符 ' + MERGE_MARK); }
+const CODE = baseCode70.replace(MERGE_MARK, () => MERGE_CODE);
 /* 脚本现在自带仓库配置；清空常量后再加载一份，专测「未配置」分支 */
 const CODE_UNCONFIGURED = CODE
   .replace("var REPO_OWNER = 'aforgomon41-create';", "var REPO_OWNER = '';")
@@ -77,8 +86,13 @@ function makeEnv(opts) {
     defaultView: { getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) },
     addEventListener: () => { }, removeEventListener: () => { },
   };
+  /* 弹窗回执支持队列（opts.popupResults）：合并流程要弹两次（先问更新、再问裁决），
+     每次回执从队列里取；没给就沿用 popupResult。 */
+  const popupQueue = (opts.popupResults || []).slice();
+  const popupVal = () => popupQueue.length > 0 ? String(popupQueue.shift()) :
+    (opts.popupResult === undefined ? '1' : String(opts.popupResult));
   const ctx = {
-    chatCompletionSettings: { preset_settings_openai: opts.localPreset || '卡密预设0.9-96' },
+    chatCompletionSettings: Object.assign({ preset_settings_openai: opts.localPreset || '卡密预设0.9-96' }, opts.settings || {}),
     getPresetManager: () => ({
       getSelectedPresetName: () => opts.localPreset || '卡密预设0.9-96',
       getAllPresets: () => opts.installed || ['卡密预设0.9-96', 'Default'],
@@ -86,7 +100,7 @@ function makeEnv(opts) {
     getRequestHeaders: () => ({ 'Content-Type': 'application/json', 'X-CSRF-Token': 'tok' }),
     executeSlashCommandsWithOptions: async (cmd) => {
       slashCalls.push(cmd);
-      return { pipe: opts.popupResult === undefined ? '1' : String(opts.popupResult), isError: false };
+      return { pipe: popupVal(), isError: false };
     },
   };
   const optsManifest = opts.manifest === undefined
@@ -124,6 +138,15 @@ function makeEnv(opts) {
       return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(JSON.stringify(RELEASE)) });
     }
     if (u.indexOf('cdn.jsdelivr.net/') >= 0) {
+      /* v1.4 合并：用户那一版（base）按 tag 从镜像取。baseTag 给了就按这个 tag 分流：
+         manifest → baseManifest；文件 → baseText（没有就 PRESET_TEXT）。 */
+      if (opts.baseTag && u.indexOf('@' + opts.baseTag + '/') >= 0) {
+        if (u.indexOf('mirror/manifest.json') >= 0) {
+          if (opts.baseManifest === null) { return Promise.resolve({ ok: false, status: 404, headers, text: () => Promise.resolve('') }); }
+          return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(JSON.stringify(opts.baseManifest)) });
+        }
+        return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(opts.baseText === undefined ? PRESET_TEXT : opts.baseText) });
+      }
       /* jsDelivr：清单（版本兜底读的那份）与镜像文件（下载链 ②③ 条）按 URL 分流。
          @<tag> 默认也 200；jsdTag404 时这条给 404（模拟「tag 打早了、里面没有这份文件」）→ 自动退 @main */
       if (u.indexOf('@main/mirror/manifest.json') >= 0) {
@@ -157,7 +180,7 @@ function makeEnv(opts) {
     getVariables: () => JSON.parse(JSON.stringify(scriptVars)),
     replaceVariables: (all) => { Object.keys(scriptVars).forEach(k => delete scriptVars[k]); Object.assign(scriptVars, all); },
     getPresetNames: () => ['in_use'].concat(opts.installed || ['卡密预设0.9-96', 'Default']),
-    triggerSlash: async (cmd) => { slashCalls.push(cmd); return opts.popupResult === undefined ? '1' : String(opts.popupResult); },
+    triggerSlash: async (cmd) => { slashCalls.push(cmd); return popupVal(); },
     importRawPreset: (name, content) => { importCalls.push({ name, content }); return opts.importFail ? false : true; },
   };
   const names = Object.keys(injected);
@@ -369,7 +392,7 @@ console.log('--- reset / shutdown ---');
   await settle();
   const s = env.api().reset();
   ok(env.scriptVars['kami-update'].skipped === '' && env.scriptVars['kami-update'].imported === '', 'reset 清空版本记录');
-  ok(s.version === '1.3' && s.configured === true, 'status() 有版本与仓库配置');
+  ok(s.version === '1.4' && s.configured === true, 'status() 有版本与仓库配置');
   env.api().shutdown();
   ok(env.W.KamiUpdate === undefined, 'shutdown 收回全局 API');
   const before = env.fetchCalls.length;
@@ -655,6 +678,275 @@ console.log('--- ⑥ 清单文件名解析不出版本号 → 明确报错（绝
   ok(r.ok === false && /清单里的文件名解析不出版本号/.test(r.error || ''),
     '文件名解析不出版本号 → 明确报错、不弹窗', r.error);
   ok(env.slashCalls.length === 0 && env.importCalls.length === 0, '不弹窗、不写入');
+}
+
+/* ---------- v1.4 新增：三方合并（口径 A/B/C/D 的脚本侧编排） ----------
+   theirs = 活设置（opts.settings 塞进 chatCompletionSettings 的深拷贝源）；
+   base   = opts.baseTag + baseManifest + baseText（按 tag 从镜像取的那份原始预设）；
+   next   = PRESET_TEXT（下载链拿到的那份）。 */
+
+function miniPreset(buildNo, prompts, order, ext) {
+  return JSON.stringify({
+    name: 'kami-v0.90-' + buildNo + '-20260922',
+    temperature: 0.7,
+    prompts: prompts,
+    prompt_order: [{ character_id: 100001, order: order }],
+    extensions: ext || {}
+  });
+}
+function prompt(id, content, extra) {
+  return Object.assign({ identifier: id, name: id + ' 名', content: content == null ? '内容·' + id : content, enabled: true, role: 'system' }, extra || {});
+}
+
+/* 下面的每组都给用户版本号 96（baseTag=v0.90-96）与仓库最新 97：
+   base = 96 的原始预设，theirs = 用户改过的活设置，next = 下载到的 97。 */
+const MERGE_BASE = miniPreset(96, [prompt('a', 'base 版'), prompt('b'), prompt('c')],
+  [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }],
+  { regex_scripts: [{ id: 'r1', script_name: '压缩', find_regex: 'f1', replace_string: 'r', disabled: false }] });
+
+console.log('--- 合并①：没有冲突 → 先备份、再导入合并结果（几乎静默） ---');
+{
+  const theirsText = miniPreset(96, [prompt('a', '我从没动过这条'), prompt('b'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }]);
+  const nextText = miniPreset(97, [prompt('a', 'base 版'), prompt('b'), prompt('c'), prompt('new', '新版新条目')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }, { identifier: 'new', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const injection = { prompts: [prompt('a', 'base 版'), prompt('b'), prompt('c')], prompt_order: [{ character_id: 100001, order: [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }] }] };
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = JSON.parse(JSON.stringify(injection.prompts));
+  st.prompt_order = JSON.parse(JSON.stringify(injection.prompt_order));
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.slashCalls.length === 1, '先弹「要不要更新」的普通弹窗（一次）');
+  ok(env.importCalls.length === 2, '合并流程 = 两次 importRawPreset：备份 + 合并结果', env.importCalls.length);
+  ok(env.importCalls[0].name === 'kami-v0.90-96-20260921 · 合并前备份', '第 1 次写盘是「合并前备份」备份当前那份',
+    env.importCalls[0] && env.importCalls[0].name);
+  const backup = JSON.parse(env.importCalls[0].content);
+  ok(backup.prompts && backup.prompts[0].content === 'base 版', '备份里存的是用户当前预设的内容',
+    backup.prompts && backup.prompts[0]);
+  ok(env.importCalls[1].name === 'kami-v0.90-97-20260922', '第 2 次写盘 = 新版预设名',
+    env.importCalls[1].name);
+  const merged = JSON.parse(env.importCalls[1].content);
+  ok(merged.prompts[0].content === 'base 版', '无冲突条目内容（两边同文）→ 保持原样，不空穴来风',
+    merged.prompts[0]);
+  ok(merged.prompts.some(p => p.identifier === 'new'), '新版新增条目直接进入合并结果',
+    merged.prompts.map(p => p.identifier));
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '合并成功同样记 imported');
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('合并前备份') > 0, '日志写明先备份了');
+  ok(logs.indexOf('合并计划就绪') > 0 && logs.indexOf('待裁决 0') > 0, '日志写明合并计划（本组 0 处待裁决）');
+  ok(env.toasts.some(t => t[0] === 'success'), '合并成功后 toast 提醒切换');
+}
+
+console.log('--- 合并②：开关与顶层参数永远保留用户 + 用户改过的条目留他的 ---');
+{
+  const nextText = miniPreset(97,
+    [prompt('a', 'base 版', { enabled: false }), prompt('b'), prompt('c'), prompt('new', '新条目')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }, { identifier: 'new', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  const theirs = [prompt('a', '用户自己改过的 a', { enabled: false }), prompt('b'), prompt('c')];
+  st.prompts = theirs;
+  st.prompt_order = [{ character_id: 100001, order: [{ identifier: 'a', enabled: false }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }] }];
+  st.temperature = 1.05;
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 2, '有合并 + 先备份再导入（2 次写盘）', env.importCalls.map(c => c.name));
+  const merged = JSON.parse(env.importCalls[1].content);
+  const ma = merged.prompts.find(p => p.identifier === 'a');
+  ok(ma.content === '用户自己改过的 a', '用户改过的条目内容保留（不问）', ma);
+  ok(ma.enabled === false, '用户的条目开关保留（新版想改也没用）', ma);
+  ok(merged.prompts.some(p => p.identifier === 'new'), '新版新增条目照加', merged.prompts.map(p => p.identifier));
+  ok(merged.temperature === 1.05, '顶层参数（temperature）保留用户', merged.temperature);
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('待裁决 0') > 0, '只有用户改过 → 不进待裁决', logs);
+  ok(r.action === 'imported', '成功收口', r.action);
+}
+
+console.log('--- 合并③：两边都改过 → 原生弹窗兜底一键裁决（无 🌟 面板时的退化路径） ---');
+{
+  /* 用户在同一窗口没装 🌟 面板：KamiPreset 全局不存在 → 弹窗一键「全部保留我的」 */
+  const nextText = miniPreset(97, [prompt('a', '新版也改了 a'), prompt('b'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1', '0'],   /* 第一次=更新；第二次弹窗「全部保留我的」 */
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '用户改过的 a'), prompt('b'), prompt('c')];
+  st.prompt_order = [{ character_id: 100001, order: [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }] }];
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.slashCalls.length === 2, '两次弹窗：第一次问更新、第二次问合并裁决', env.slashCalls.length);
+  const mergeCmd = env.slashCalls[1] || '';
+  ok(mergeCmd.indexOf('okButton="全部用新版"') > 0 && mergeCmd.indexOf('cancelButton="全部保留我的"') > 0,
+    '合并弹窗的按钮是「全部保留我的 / 全部用新版」');
+  const htmlPart = mergeCmd.split('cancelButton="全部保留我的" ')[1] || '';
+  ok(htmlPart.indexOf('\\') < 0 && htmlPart.indexOf('"') < 0 && htmlPart.indexOf('{{') < 0,
+    '合并弹窗 HTML 同样过斜杠命令字符净化');
+  ok(htmlPart.indexOf('都改过') > 0, '弹窗里说明这是「两边都改过」的差异');
+  ok(env.importCalls.length === 2, '保留我的路径也先备份再导入', env.importCalls.map(c => c.name));
+  const merged = JSON.parse(env.importCalls[1].content);
+  ok(merged.prompts[0].content === '用户改过的 a', '一键全部保留我的 → 冲突内容留用户的',
+    merged.prompts[0]);
+  ok(env.api().status().logs.join('\n').indexOf('合并裁决') > 0, '日志写明用的是哪条裁决路径');
+  /* 同一版本已写入 → 不再弹窗（合并流程与老流程共用 imported 记录） */
+  const r2 = await env.api().check(false);
+  ok(env.slashCalls.length === 2 && r2.action === 'imported', '同一版本已导入过，不再重复弹窗');
+}
+{
+  /* 弹窗「全部用新版」：okButton 回执='1' → 冲突项全吃新版 */
+  const nextText = miniPreset(97, [prompt('a', '新版也改了 a'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS,
+    popupResults: ['1', '1'],    /* 第一次=更新；第二次合并弹窗=「全部用新版」 */
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '用户改过的 a'), prompt('b'), prompt('c')];
+  await settle();
+  await env.api().check(false);
+  const merged = JSON.parse(env.importCalls[1].content);
+  ok(merged.prompts[0].content === '新版也改了 a', '一键「全部用新版」→ 冲突项吃新版',
+    merged.prompts[0]);
+  ok(merged.prompts.some(p => p.identifier === 'b') === false, '新版删掉、用户没动过的条目跟着删',
+    merged.prompts.map(p => p.identifier));
+  const logs = env.api().status().logs.join('\n');
+  ok(/合并报告/.test(logs) && /用新版|保留我的/.test(logs), '日志里有「合并报告」的数字');
+}
+
+console.log('--- 合并④：面板路径（HOST.KamiPreset.openMergeReview 主路径） ---');
+{
+  const nextText = miniPreset(97, [prompt('a', '新版也改了 a'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1'],
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '用户改过的 a'), prompt('c')];
+  await settle();
+  const seenPlans = [], appliedByMe = [];
+  env.W.KamiPreset = {
+    openMergeReview: (plan, onApply) => {
+      seenPlans.push(JSON.parse(JSON.stringify(plan)));
+      /* 模拟用户在面板上：逐项选「保留我的」并点「应用并完成更新」 */
+      plan.conflicts.forEach(c => { c.choice = 'mine'; });
+      onApply(plan);
+      return true;
+    }
+  };
+  await settle();
+  const r = await env.api().check(false);
+  ok(seenPlans.length === 1 && seenPlans[0].conflicts.length === 1 &&
+    seenPlans[0].conflicts[0].key === 'pm:a', '面板路径：计划传进来（key/清单可读）',
+    seenPlans[0] && seenPlans[0].conflicts);
+  ok(env.importCalls.length === 2, '面板路径同样先备份再导入', env.importCalls.map(c => c.name));
+  const merged = JSON.parse(env.importCalls[1].content);
+  ok(merged.prompts[0].content === '用户改过的 a', '面板裁决「保留我的」→ 内容留用户',
+    merged.prompts[0]);
+  ok(env.slashCalls.length === 1, '面板路径不再弹合并弹窗（只有最初的更新询问）',
+    env.slashCalls.length);
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('更新合并') > 0, '日志写明走了面板的「更新合并」页');
+  /* 用户放弃（onApply(null)）→ 不写盘、不记 imported */
+  const env2 = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1'],
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st2 = env2.W.SillyTavern.getContext().chatCompletionSettings;
+  st2.prompts = [prompt('a', '用户改过的 a'), prompt('c')];
+  env2.W.KamiPreset = {
+    openMergeReview: (plan, onApply) => { onApply(null); return true; }   /* 用户关掉面板 = 放弃 */
+  };
+  await settle();
+  const r2 = await env2.api().check(false);
+  ok(env2.importCalls.length === 0, '放弃裁决 → 不写盘', env2.importCalls.map(c => c.name));
+  ok(r2.action !== 'imported' && !env2.scriptVars['kami-update'].imported, '放弃不记 imported',
+    r2.action);
+}
+
+console.log('--- 合并⑤：备份写不进去 → 同样不导入合并结果 ---');
+{
+  const nextText = miniPreset(97, [prompt('a', '新版 a'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', importFail: true,
+    localPreset: 'kami-v0.90-96-20260921',
+    presetText: nextText,
+    baseTag: 'v0.90-96',
+    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseText: MERGE_BASE,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '用户版 a'), prompt('c')];
+  await settle();
+  const r = await env.api().check(false);
+  /* importFail mock 会让每一次写入都失败：备份那次被记下并失败 → 合并结果没有导入 */
+  ok(env.importCalls.length === 1 && env.importCalls[0].name.indexOf('合并前备份') > 0,
+    '备份写不进去 → 备份也没导入成（合并结果没有写盘）',
+    env.importCalls.map(c => c.name));
+  ok(!env.scriptVars['kami-update'].imported, '失败不记录 imported');
+  ok(r.action !== 'imported', 'action 不是 imported');
+  const t = env.toasts.filter(x => x[0] === 'error')[0];
+  ok(t && /更新失败/.test(t[1]), '备份失败=更新失败，弹错误提示');
+}
+
+console.log('--- 合并⑥：base 取不到（认不出 tag / 镜像 404）→ 退化模式也能走完 ---');
+{
+  const nextText = miniPreset(97, [prompt('a', '新版的 a'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1', '0'],
+    localPreset: '我的奇怪预设',
+    presetText: nextText,
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '用户版的 a'), prompt('c')];
+  await settle();
+  const r = await env.api().check(false);
+  ok(env.importCalls.length === 2, '退化模式一样先备份再导入', env.importCalls.map(c => c.name));
+  const merged = JSON.parse(env.importCalls[1].content);
+  ok(merged.prompts[0].content === '用户版的 a', '退化默认 = 保留我的（a 的差异留在用户手里）',
+    merged.prompts[0]);
+  ok(merged.prompts.some(p => p.identifier === 'c'), '（顺带）没动过的条目不丢',
+    merged.prompts.map(p => p.identifier));
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('退化模式') > 0 || logs.indexOf('退化') > 0, '日志写明进入了退化模式');
+  /* 弹窗里也要提示「旧版认不出来」 */
+  const mergeCmd = (env.slashCalls[1] || '');
+  ok(mergeCmd.indexOf('认不出来') > 0, '弹窗里说明「旧的版本认不出来，全按两边都改过处理」');
 }
 
 console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');

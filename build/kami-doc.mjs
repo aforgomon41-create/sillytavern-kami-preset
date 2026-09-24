@@ -204,12 +204,37 @@ export function expandPresetCards(root, code) {
 /** 面板共享模块的内联入口。
  *  ⚠️ 两件事一起做，别有疑问：build/build.mjs 与 test/harness/server.mjs 都只调用
  *  **这一个**函数名（两者的调用点不在本轮文件边界内），所以后来新增的共享模块
- *  （_preset-cards.js）挂在这里一起展开；两个占位符各自独立、互不影响，
- *  重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
+ *  （_preset-cards.js / _preset-merge.js）都挂在这里一起展开；各个占位符彼此独立、
+ *  互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
 export function expandPanelGestures(root, code) {
   code = expandPresetCards(root, code);
+  code = expandPresetMerge(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 三方合并引擎（src/scripts/_preset-merge.js）：远程更新（70）合并新版预设、
+ * 预设设置（40）裁决 UI 都要用同一套「以用户为准」的合并口径，所以和卡片构建器
+ * 一样构建期内联，只有一份真相。内联规则同上：只去掉行首的 export 前缀。
+ * ──────────────────────────────────────────────────────────── */
+export const PRESET_MERGE_MARK = '/* @@KAMI_PRESET_MERGE@@ */';
+
+export function presetMergeSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_preset-merge.js'), 'utf8');
+  return inlineModuleSource(raw, '_preset-merge.js');
+}
+
+/** 把脚本源码里的合并引擎占位换成 _preset-merge.js 的源码（已去掉行首 export）。
+ *  占位不存在时原样返回（幂等）。硬检查：模块源码里若出现占位符字面量，内联会自我复制。 */
+export function expandPresetMerge(root, code) {
+  if (code.indexOf(PRESET_MERGE_MARK) < 0) { return code; }
+  const src = presetMergeSource(root);
+  if (src.indexOf(PRESET_MERGE_MARK) >= 0) {
+    throw new Error('_preset-merge.js 里出现了自己的占位符 ' + PRESET_MERGE_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(PRESET_MERGE_MARK, () => src);
 }
 
 /* ────────────────────────────────────────────────────────────

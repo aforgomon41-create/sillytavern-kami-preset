@@ -53,6 +53,7 @@
 <div id="qr-bar"></div>
 <pre id="diag" style="font-size:11px;color:#8f8fa0;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="pdiag" style="font-size:11px;color:#8fb0d0;white-space:pre-wrap;margin:0 0 8px"></pre>
+<pre id="mdiag" style="font-size:11px;color:#9fd8b0;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="gdiag" style="font-size:11px;color:#d0b08f;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="btnrepro" style="font-size:11px;color:#d8c08f;white-space:pre-wrap;margin:0 0 8px"></pre>
 <div id="chat">
@@ -119,7 +120,88 @@ function installMocks(w, scriptId) {
   w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
   w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
   w.updateVariablesWith = (fn, o) => { const v = fn(w.getVariables(o)); w.replaceVariables(v, o); return v; };
-  /* 假酒馆正则表（2026-09-23 补）：📜 压缩的「滚动压缩」开关只在读得到**酒馆自己的**正则表时
+  /* ?merge=1（仅 updater 的 iframe）：三方合并端到端探针的替身 ——
+     ① 网络分流：api.github.com 的 Releases 清单 / cdn.jsdelivr.net 的 base 清单与文件 /
+        next 的下载地址 → 本地夹具（setupMergeProbe 准备的 window.__MERGE_FIXTURE）；
+     ② importRawPreset / triggerSlash / getPresetNames 的替身：
+        importRawPreset 记下两次写盘（备份 + 合并结果）并把核对读数打进 #mdiag。 */
+  if (window.__MERGE_FIXTURE && scriptId === 'updater') {
+    const fx = window.__MERGE_FIXTURE;
+    fx.imports = fx.imports || [];
+    const baseManifest = { version: fx.localName.replace(/^kami-/, 'v'), file: fx.localName + '.json' };
+    const origFetch = w.fetch.bind(w);
+    w.fetch = function (url) {
+      const u = String(url);
+      if (u.indexOf('https://api.github.com/') === 0) {
+        return Promise.resolve(new Response(JSON.stringify([{
+          tag_name: 'v0.90-999-20260925', name: 'kami-v0.90-999-20260925', draft: false, prerelease: false,
+          published_at: '2026-09-25T00:00:00Z', body: '· 合并探针夹具：上游更新了 2 条条目，新增 1 条',
+          assets: [{ id: 900001, name: fx.nextFile, browser_download_url: 'https://dl.invalid/' + fx.nextFile }],
+        }])), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (u.indexOf('https://cdn.jsdelivr.net/') === 0 && u.indexOf('/mirror/manifest.json') >= 0) {
+        return Promise.resolve(new Response(JSON.stringify({ version: fx.localName.replace(/^kami-/, 'v'), file: fx.localName + '.json' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (u.indexOf('https://cdn.jsdelivr.net/') === 0) {
+        return Promise.resolve(new Response(fx.base, { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (u.indexOf(fx.nextFile) >= 0) {
+        return Promise.resolve(new Response(fx.next, { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+      return origFetch.apply(this, arguments);
+    };
+    w.getMpresets = undefined;
+    w.getPresetNames = function () { return [fx.localName]; };
+    w.triggerSlash = function (cmd) { fx.slashes.push(String(cmd)); return '1'; };   // 询问更新 → 立即更新
+    w.importRawPreset = function (name, content) {
+      let bytes = 0;
+      try { bytes = content.length; } catch (e) { }
+      fx.imports.push({ name: name, bytes: bytes, content: content });
+      if (fx.imports.length >= 2) { mergeProbeVerify(); }
+      return true;
+    };
+  }
+  /* 合并探针的核对（在两次写盘都发生后跑）：把「用户还在不在」与「上游吃到没有」写成结论 */
+  window.mergeProbeVerify = function () {
+    const fx = window.__MERGE_FIXTURE;
+    if (!fx || !fx.imports || fx.imports.length < 2) { return; }
+    let merged = null, backup = null;
+    try { merged = JSON.parse(fx.imports[1].content); } catch (e) { }
+    try { backup = JSON.parse(fx.imports[0].content); } catch (e) { }
+    const out = [];
+    void out;
+    const setOf = function (list) { const m = {}; (list || []).forEach(function (x) { m[x.identifier] = x; }); return m; };
+    const mergedPrompts = setOf(merged && merged.prompts);
+    const orderOfMerged = setOf(merged && merged.prompt_order && merged.prompt_order[0] && merged.prompt_order[0].order);
+    const conflictMine = !!(mergedPrompts[fx.conflictId] && String(mergedPrompts[fx.conflictId].content || '').indexOf('（用户手改）') >= 0);
+    const upstreamApplied = !!(mergedPrompts[fx.upstreamId] && String(mergedPrompts[fx.upstreamId].content || '').indexOf('（上游更新）') >= 0);
+    const userSwitchKept = fx.toggledId ? !!(orderOfMerged[fx.toggledId] && orderOfMerged[fx.toggledId].enabled === false) : true;
+    const userAddedThere = !!mergedPrompts[fx.userAddedId];
+    const nextAddedThere = !!mergedPrompts[fx.nextAddedId];
+    fx.facts = {
+      imports: fx.imports.map(function (i) { return i.name + '（' + i.bytes + 'B）'; }),
+      conflictMine: conflictMine, upstreamApplied: upstreamApplied,
+      userSwitchKept: userSwitchKept, userAddedThere: userAddedThere, nextAddedThere: nextAddedThere,
+      mergedName: merged ? merged.name : '(解析失败)',
+      conflictKeptContent: mergedPrompts[fx.conflictId] ? String(mergedPrompts[fx.conflictId].content || '').slice(-40) : '-',
+    };
+    const lines = [
+      '合并探针|写盘=[ ' + fx.imports.map(function (i) { return i.name + ' · ' + i.bytes + 'B'; }).join(' ; ') + ' ]',
+      '合并探针|备份名=' + fx.imports[0].name + ' （= <当前预设名> · 合并前备份）',
+      '合并探针|合并结果名=' + fx.facts.mergedName,
+      '合并探针|核对：你关过的开关仍关=' + userSwitchKept +
+        '；你手改的条目（冲突条目）仍是你的=' + conflictMine +
+        '（结尾 ' + JSON.stringify(fx.facts.conflictKeptContent) + '）' +
+        '；你自加条目仍在=' + userAddedThere +
+        '；上游的正文更新已应用=' + upstreamApplied +
+        '；上游新增条目已进=' + nextAddedThere,
+      '合并探针|全部通过=' + (userSwitchKept && conflictMine && userAddedThere && upstreamApplied && nextAddedThere ? '是' : '否'),
+    ];
+    const dg = document.getElementById('mdiag');
+    if (dg) { dg.textContent = lines.join('\n'); }
+    lines.forEach(function (l) { console.log(l); });
+  };  /* 假酒馆正则表（2026-09-23 补）：📜 压缩的「滚动压缩」开关只在读得到**酒馆自己的**正则表时
      才出现（roll.ok=true），它跟预设里那份正则不是一回事 —— 预览台以前没有这两个接口，
      于是那一枚开关、以及它下面那段模式说明，在预览台里根本测不到（只有真机能看）。
      这里给一份与预设 src/regex/list.json 同源的替身（同 id、同名字、minDepth 20），
@@ -194,6 +276,59 @@ async function setupSillyTavern() {
     return e ? e.enabled : undefined;
   };
   return st;
+}
+async function setupMergeProbe(ST) {
+  /* 三方合并端到端夹具（只读 src/preset.base.json，不写任何文件）：
+     · base   = src/preset.base.json 原样（= 用户那一版「导入酒馆后什么都没动」的原始内容）
+     · theirs = base + 用户改动（改一条条目正文、关一枚顺序开关、自己加一条条目）
+     · next   = base + 上游改动（改另一条条目正文、上游也改了同一条=真冲突、上游新增一条）
+     网络替身挂在 installMocks（updater 的 iframe）里：api.github.com 的 Releases、
+     cdn.jsdelivr.net 的 base 清单/文件、以及 next 的下载地址，全部本地应答。 */
+  const baseText = await (await fetch('/src/preset.base.json')).text();
+  const base = JSON.parse(baseText);
+  const fx = {
+    localName: 'kami-v0.90-100-20260925',
+    nextName: 'kami-v0.90-999-20260925',
+    nextFile: 'kami-v0.90-999-20260925.json',
+    downloads: [],   // [次序, name, bytes]：importRawPreset 的两次写盘
+    slashes: [],
+    facts: null,
+    checks: 0,
+  };
+  /* theirs：改在活的 ST.settings 上（planner 里 deep copy 的 base） */
+  const st = ST.ctx.chatCompletionSettings;
+  const orderE = (st.prompt_order && st.prompt_order.find(o => o.character_id === 100001)) || (st.prompt_order || [])[0];
+  const longPrompt = st.prompts.filter(p => typeof p.content === 'string' && p.content.length > 40)[0];
+  // ① 用户手改一条正文（真冲突：上游也改它）
+  fx.conflictId = longPrompt ? longPrompt.identifier : null;
+  if (longPrompt) { longPrompt.content += '（用户手改）'; }
+  // ② 用户关一枚顺序开关（第一条还开着的）
+  const firstOn = orderE.order.find(function (x) { return x.enabled !== false; });
+  fx.toggledId = firstOn.identifier;
+  if (firstOn) { firstOn.enabled = false; var tp = st.prompts.find(function (p) { return p.identifier === firstOn.identifier; }); if (tp) tp.enabled = false; }
+  // ③ 用户自己加条目
+  fx.userAddedId = 'kami-merge-user-added';
+  st.prompts.push({ identifier: fx.userAddedId, name: '用户自加条目', content: '我的本地内容', enabled: true, role: 'system' });
+  orderE.order.push({ identifier: fx.userAddedId, enabled: true });
+  // next = 原始 base 打上游补丁（不动用户的改动）
+  const next = JSON.parse(baseText);
+  const nextOrder = (next.prompt_order.find(function (o) { return o.character_id === 100001; })) || next.prompt_order[0];
+  const upstreamPrompt = next.prompts.filter(function (p) {
+    return typeof p.content === 'string' && p.content.length > 40 && (!longPrompt || p.identifier !== longPrompt.identifier);
+  })[0];
+  fx.upstreamId = upstreamPrompt ? upstreamPrompt.identifier : null;
+  if (upstreamPrompt) { upstreamPrompt.content += '（上游更新）'; }
+  if (longPrompt) { var cp = next.prompts.find(function (p) { return p.identifier === longPrompt.identifier; }); cp.content += '（上游也改了同一条）'; }
+  fx.nextAddedId = 'kami-merge-upstream-added';
+  next.prompts.push({ identifier: fx.nextAddedId, name: '上游新增条目', content: '上游带来的新条目', enabled: true, role: 'system' });
+  nextOrder.order.push({ identifier: fx.nextAddedId, enabled: true });
+  const nextText = JSON.stringify(next);
+  // 活设置换成用户那份 + 可解析的产物名
+  st.preset_settings_openai = fx.localName;
+  fx.base = baseText; fx.next = nextText;
+  window.__MERGE_FIXTURE = fx;   /* installMocks / 校验读这里 */
+  console.log('合并探针|夹具|冲突条目=' + (fx.conflictId || '-') + ' 关开关=' + fx.toggledId +
+    ' 用户加=' + fx.userAddedId + ' 上游新增=' + fx.nextAddedId + ' 上游改=' + fx.upstreamId);
 }
 async function loadScript(file, scriptId, seedVars) {
   const f = document.createElement('iframe');
@@ -455,6 +590,15 @@ function installSpresetHost(ST) {
   /* 预设置面板要读酒馆设置，所以先把 SillyTavern 全局准备好（真预设数据）。
      ?nocontext=1：**故意不给** SillyTavern —— 验收「拿不到设置时面板照常打开并说明原因」。 */
   var ST = (params.get('nocontext') === '1') ? { saves: 0 } : await setupSillyTavern();
+  /* ?merge=1：三方合并端到端探针（2026-09-25 加）。造一份「用户改过条目内容 + 关过开关 +
+     自己加过条目」的活设置，把远程更新的网络请求全部替成本地夹具（base = src/preset.base.json、
+     next = 打了上游补丁的副本），然后由 KamiUpdate.check(true) 走完整流程：下载 → 合并计划
+     → 🌟 面板的「更新合并」裁决页 → 人工点「应用并完成更新」→ 两次 importRawPreset
+     （备份 + 合并结果）。合并后的预设内容读出来贴在 #mdiag 里核对。 */
+  if (ST.ctx && params.get('merge') === '1') {
+    step('准备合并探针夹具');
+    await setupMergeProbe(ST);
+  }
   /* ?spreset=1：排查第三方脚本 SPreset（收到的文件/regex_bind_inject.js）与本预设前端的冲突，
      把它装进**宿主页**（与真机同层级：它就是往酒馆页面 body 挂 <script> 的那类代码）。
      只在带这个参数时启用，不影响日常预览台验证；见 .audit/SPreset冲突调查.md。 */
@@ -475,7 +619,7 @@ function installSpresetHost(ST) {
   /* ?updater=1：把「🔄 远程更新」也装进来。它是纯后台脚本，唯一产物是宿主窗口上的
      全局 KamiUpdate，「ℹ️ 关于」页的检查更新按钮靠它。默认不装：大多数皮肤/面板验证
      用不到它，而且装了它会真的去连 GitHub。 */
-  if (params.get('updater') === '1') {
+  if (params.get('updater') === '1' || params.get('merge') === '1') {
     step('装远程更新脚本');
     await loadScript('/dev/70-远程更新.js', 'updater');
     console.log('更新脚本| KamiUpdate全局=' + !!(window.KamiUpdate && window.KamiUpdate.check));
@@ -492,6 +636,14 @@ function installSpresetHost(ST) {
   step('装预设设置面板');
   await loadScript('/dev/40-预设设置.js', 'presetmgr');
   step('预设设置已装');
+  /* ?merge=1：排好夹具之后（此时 70 与 40 都在跑），真发一次 KamiUpdate.check(true)。
+     冲突项会经 KamiPreset.openMergeReview 打开「更新合并」裁决页 —— 由真人/自动化去点
+     「应用并完成更新」；点完后 importRawPreset 的替身会把核对读数打进 #mdiag。 */
+  if (params.get('merge') === '1' && window.KamiUpdate) {
+    setTimeout(function () {
+      try { window.KamiUpdate.check(true); } catch (e) { console.log('合并探针|check 失败|' + e); }
+    }, 3600);
+  }
   /* 引导面板（50）与压缩面板（60）：预览台要把**四块面板**都装出来
      （🎨 皮肤 / 🌟 预设 / 🧭 引导 / 📜 压缩），做皮肤的人才能在没真机的情况下把每一页过一遍。
      · 引导的「首次自动弹」按产物号判（构建时注入），预览台没有产物号（BUILD_N=0），
@@ -592,12 +744,15 @@ function installSpresetHost(ST) {
     });
   }, 800);
   var wantTab = params.get('tab') || String(params.get('open') || '').split(',').filter(Boolean)[0] || '';
+  /* ?merge=1：探针开着时常驻停在「🌟 预设设置」——裁决页由 70 号在需要时自己打开，
+     不让预览台的 tab 轮换把面板关掉（关掉=放弃裁决，端到端就断在那里）。 */
   /* 那些自带自检的参数（?notes / ?vars / ?check / ?about / ?single / ?gcss）依赖某一块面板，
      没显式指定 tab 时替它们选好，否则「点进去一片空白」会被误判成 bug。 */
   if (!wantTab) {
     if (params.get('single') === '1' || params.get('gcss') === '1') { wantTab = 'guide'; }
     else if (params.get('about') === '1' || params.get('vars') === '1' ||
-             params.get('check') === '1' || params.get('notes') === '1' || params.get('updater') === '1') { wantTab = 'preset'; }
+             params.get('check') === '1' || params.get('notes') === '1' ||
+             params.get('updater') === '1' || params.get('merge') === '1') { wantTab = 'preset'; }
     else { wantTab = 'skin'; }
   }
   setTimeout(function () {
