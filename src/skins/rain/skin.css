@@ -1899,12 +1899,16 @@ html[data-kami-skin="rain"] .kami-root[data-kami-comp="panel"] .kami-item > .kam
 }
 /* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
    有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片略高一点点，
-   文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
+   文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。
+   1.4em 取的是**卡片**的字号（--kami-fs-sm），ⓘ 的 1.4em 取的是它自己的 --kami-fs-xs；
+   fs-sm > fs-xs，所以这一项必然盖过角标本体的高，再加 --kami-pad-y 盖过 top 偏移。
+   旧值 calc(var(--kami-pad-lg-y) + 0.4em) 只给到 17.3px，而 rain 的 emoji 角标高 17px、
+   从 top:1.5px 起（底边 18.5px），实测还剩 5.2 × 0.9 = 4.7px²（2026-09-25 修）。 */
 html[data-kami-skin="rain"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
-  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-top: calc(var(--kami-pad-y) + 1.4em);
 }
 html[data-kami-skin="rain"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
-  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-bottom: calc(var(--kami-pad-y) + 1.4em);
 }
 
 /* ============================================================
@@ -2016,7 +2020,7 @@ html[data-kami-skin="rain"] .kami-root[data-kami-comp="panel"] .kami-item > .kam
   right: 4px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;   /* .kami-card-note 的 margin-top 会把角标整体推低，压到条目名 */
   pointer-events: auto;
 }
 html[data-kami-skin="rain"] .kami-root .kami-item-note {

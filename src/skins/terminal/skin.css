@@ -1105,24 +1105,29 @@ html[data-kami-skin="terminal"] .kami-root[data-kami-comp="panel"] .kami-item {
   min-height: 42px;
 }
 
-/* ⓘ 注释标记：右上角角标，只占高度不占宽度；必须能点 */
+/* ⓘ 注释标记：右上角角标，只占高度不占宽度；必须能点。
+   margin:0 —— .kami-card-note 的 margin-top 会把角标整体推低，压到条目名。 */
 html[data-kami-skin="terminal"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 5px;
   right: 5px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;
   pointer-events: auto;
 }
 
-/* 上角标的内边距补偿：条目卡里有 tl/tr 角标或 ⓘ 时，顶上让出一格 */
+/* 上角标的内边距补偿：条目卡里有 tl/tr 角标或 ⓘ 时，顶上让出一格。
+   1.4em 取的是**卡片**的字号（--kami-fs-sm），ⓘ 的 1.4em 取的是它自己的 --kami-fs-xs；
+   fs-sm > fs-xs，所以这一项必然盖过角标本体的高，再加 --kami-pad-y 盖过 top 偏移。
+   旧值 calc(var(--kami-pad-lg-y) + 0.4em) 只给到 17.9px，而 ⓘ 从 top:5px 起占 15.3px
+   （底边 20.3px），实测还剩 8.3 × 2.4 = 19.6px² 压在条目名上（2026-09-25 修）。 */
 html[data-kami-skin="terminal"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
-  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-top: calc(var(--kami-pad-y) + 1.4em);
 }
 
 html[data-kami-skin="terminal"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
-  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-bottom: calc(var(--kami-pad-y) + 1.4em);
 }
 
 /* emoji 角标（条目名里摘出来的那枚）：不占宽度、不抢点击 */
@@ -1519,3 +1524,14 @@ html[data-kami-skin="terminal"][data-kami-motion="off"] .kami-empty::after {
 }
 
 
+
+/* markdown：强调与插图（2026-09-24 补齐 —— 覆盖矩阵原本缺这两项） */
+html[data-kami-skin="terminal"] .kami-md em { font-style: italic; color: var(--kami-accent); }
+html[data-kami-skin="terminal"] .kami-md del { color: var(--kami-fg-mute); text-decoration-thickness: 1px; }
+html[data-kami-skin="terminal"] .kami-md img {
+  display: block;
+  max-width: 100%;
+  margin: .6em 0;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+}

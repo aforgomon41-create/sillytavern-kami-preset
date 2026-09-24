@@ -33,12 +33,22 @@
   /* ── 装饰模块（契约 §8）──
      皮肤用 skin.json 的 decor 声明「我需要哪些装饰」，本脚本负责把它们注入到
      酒馆页面与每一个消息 iframe，并在切皮肤 / 注销时**完整销毁**。
-     src/decor/d20.js 在构建期内联成下面这个字符串常量（build/kami-doc.mjs），
+     各装饰模块（src/decor/<id>.js）在构建期内联成下面的 SRC 字符串常量
+     （build/kami-doc.mjs，占位 @@KAMI_DECOR_D20@@ / @@KAMI_DECOR_D10@@），
      运行时注入成一个 <script>：每个文档各一份，各自 mount / destroy，互不干扰。 */
-  var D20_SEL = '.kami-deco[data-kami-deco="d20"]';
-  var D20_SCRIPT_ID = 'kami-d20-js';
-  var D20_STYLE_ID = 'kami-d20-css';
+  /* 注册表：id → 选择器 / 教本 Script id / 样式 id / 模块暴露的全局名；src 由构建期补上 */
+  var DECORS = [
+    { id: 'd20', sel: '.kami-deco[data-kami-deco="d20"]', scriptId: 'kami-d20-js',
+      styleId: 'kami-d20-css', global: 'KamiD20', className: 'kami-d20' },
+    { id: 'd10', sel: '.kami-deco[data-kami-deco="d10"]', scriptId: 'kami-d10-js',
+      styleId: 'kami-d10-css', global: 'KamiD10', className: 'kami-d10' }
+  ];
   /* @@KAMI_DECOR_D20@@ */
+  /* @@KAMI_DECOR_D10@@ */
+  /* 构建期把上面的占位换成 var D20_SRC = "..."; / var D10_SRC = "...";
+     未构建（源码直跑）时这两个名字不存在，injectDecor 会跳过并提示。 */
+  if (typeof D20_SRC === 'string' && D20_SRC) { DECORS[0].src = D20_SRC; }
+  if (typeof D10_SRC === 'string' && D10_SRC) { DECORS[1].src = D10_SRC; }
 
   /* 皮肤包由构建脚本注入（src/skins/<id>/） */
   /* @@KAMI_SKINS@@ */
@@ -403,55 +413,133 @@
   }
 
   /* 注入一份装饰模块到该文档，返回它暴露的 API（同一个文档只注入一次） */
-  function injectDecor(doc, win) {
+  function injectDecor(doc, win, def) {
     if (!win) { return null; }
-    if (typeof D20_SRC !== 'string' || !D20_SRC) {
-      log('装饰模块源码没有内联（未经构建？），跳过 d20');
+    if (typeof def.src !== 'string' || !def.src) {
+      log('装饰模块源码没有内联（未经构建？），跳过 ' + def.id);
       return null;
     }
     try {
       var s = doc.createElement('script');
-      s.id = D20_SCRIPT_ID;
-      s.textContent = D20_SRC;
+      s.id = def.scriptId;
+      s.textContent = def.src;
       (doc.head || doc.documentElement).appendChild(s);
-    } catch (e) { log('d20 注入失败：' + ((e && e.message) || e)); }
-    if (win.KamiD20) { return win.KamiD20; }
+    } catch (e) { log(def.id + ' 注入失败：' + ((e && e.message) || e)); }
+    if (win[def.global]) { return win[def.global]; }
     /* 兜底：内联 <script> 被 CSP 挡掉时，直接在该窗口求值（同源） */
-    try { win.eval(D20_SRC); } catch (e) { log('d20 eval 兜底失败：' + ((e && e.message) || e)); }
-    return win.KamiD20 || null;
+    try { win.eval(def.src); } catch (e) { log(def.id + ' eval 兜底失败：' + ((e && e.message) || e)); }
+    return win[def.global] || null;
+  }
+
+  function destroyOneDecor(doc, def) {
+    try {
+      var win = doc.defaultView;
+      var m = win && win[def.global];
+      if (m && typeof m.destroy === 'function') { m.destroy(doc); }
+    } catch (e) { }
+    /* 双保险：模块自己会收干净，这里再按 id 兜一次 */
+    dropStyle(doc, def.styleId);
+    dropEl(doc, def.scriptId);
   }
 
   function destroyDecor(doc) {
     if (!doc) { return; }
-    try {
-      var win = doc.defaultView;
-      if (win && win.KamiD20 && typeof win.KamiD20.destroy === 'function') { win.KamiD20.destroy(doc); }
-    } catch (e) { }
-    /* 双保险：模块自己会收干净，这里再按 id 兜一次 */
-    dropStyle(doc, D20_STYLE_ID);
-    dropEl(doc, D20_SCRIPT_ID);
+    for (var i = 0; i < DECORS.length; i++) { destroyOneDecor(doc, DECORS[i]); }
   }
 
-  /* 每个文档走一遍：当前皮肤没声明装饰、或这个文档里根本没有槽位 —— 一律零成本返回。
+  /* 每个文档 × 每个登记过的装饰模块走一遍：当前皮肤没声明该模块、
+     或这个文档里根本没有槽位 —— 一律零成本返回。
      （所以 memo / rain / nixie 三套皮肤既不会注入脚本，也不会留下任何东西。） */
-  function syncDecor(doc) {
-    if (disposed || !doc) { return; }
+  /* ── 槽位改标（契约 §8 的「槽位自身属性」允许范围）──
+     两个正则前端的槽位把 data-kami-deco 写死成 "d20"（那是 d10 出现前留下的记号）。
+     皮肤声明的是别的模块（如 wod 声明 ["d10"]）而文档里又没有它的槽时，
+     本层把槽位的 data-kami-deco 改标成声明的 id，让对应模块能认出它。
+     改标前把原值记在槽位元素上（__kamiDecoOrig），皮肤切走 / 注销时原样还原，
+     所以 trpg（声明 d20）永远拿到与改动前逐字节相同的槽位。 */
+  var RETAG_SAVE = '__kamiDecoOrig';
+
+  function retagDecor(doc) {
+    var declared = (curSkin().decor || []);
+    var want = null, i, j, d;
+    for (i = 0; i < DECORS.length; i++) {
+      d = DECORS[i];
+      for (j = 0; j < declared.length; j++) {
+        if (declared[j] === d.id) {
+          if (want && want !== d.id) { return; }   /* 声明了多个不同模块：不猜，不改标 */
+          want = d.id;
+        }
+      }
+    }
+    var wantDef = null;
+    if (want) { for (i = 0; i < DECORS.length; i++) { if (DECORS[i].id === want) { wantDef = DECORS[i]; break; } } }
+    try {
+      var els = doc.querySelectorAll('.kami-deco[data-kami-deco]'), m;
+      for (m = 0; m < els.length; m++) {
+        var el = els[m];
+        var now = el.getAttribute('data-kami-deco');
+        var defNow = null;
+        for (i = 0; i < DECORS.length; i++) { if (DECORS[i].id === now) { defNow = DECORS[i]; break; } }
+        if (!defNow) { continue; }               /* 不是登记过的模块槽：不碰 */
+        if (el[RETAG_SAVE] && defNow.id === want) { continue; }  /* 已是我们改标后的 */
+        if (!wantDef || now === wantDef.id) { restoreOneDecoEl(el); continue; }  /* 目标模块回来了：还原 */
+        /* 记录原值后改标 */
+        if (!el[RETAG_SAVE]) { el[RETAG_SAVE] = { deco: now, cls: el.getAttribute('class') }; }
+        el.setAttribute('data-kami-deco', wantDef.id);
+      }
+    } catch (e) { }
+  }
+
+  function restoreOneDecoEl(el) {
+    var old = el[RETAG_SAVE];
+    try {
+      if (old) { el.setAttribute('data-kami-deco', old.deco); el.setAttribute('class', old.cls); }
+      delete el[RETAG_SAVE];
+    } catch (e) { }
+  }
+
+  function restoreDecor(doc, keep) {
+    if (!doc) { return; }
+    try {
+      var els = doc.querySelectorAll('.kami-deco[data-kami-deco]'), m;
+      for (m = 0; m < els.length; m++) { restoreOneDecoEl(els[m]); }
+    } catch (e) { }
+  }
+
+  function syncOneDecor(doc, def) {
     var win = null;
     try { win = doc.defaultView; } catch (e) { }
     var dirty = false;
     try {
-      dirty = !!(doc.getElementById(D20_STYLE_ID) || doc.getElementById(D20_SCRIPT_ID) || doc.querySelector('.kami-d20'));
+      dirty = !!(doc.getElementById(def.styleId) || doc.getElementById(def.scriptId) || doc.querySelector('.' + def.className));
     } catch (e) { }
     var slots = 0;
-    if (decorOn('d20')) {
-      try { slots = doc.querySelectorAll(D20_SEL).length; } catch (e) { }
+    if (decorOn(def.id)) {
+      try { slots = doc.querySelectorAll(def.sel).length; } catch (e) { }
     }
-    if (!slots) { if (dirty) { destroyDecor(doc); } return; }
-    var api = win && win.KamiD20;
-    if (!api) { api = injectDecor(doc, win); }
+    if (!slots) { if (dirty) { destroyOneDecor(doc, def); } return; }
+    var api = win && win[def.global];
+    if (!api) { api = injectDecor(doc, win, def); }
     if (api && typeof api.mount === 'function') {
-      try { api.mount(doc); } catch (e) { log('d20 挂载失败：' + ((e && e.message) || e)); }
+      try { api.mount(doc); } catch (e) { log(def.id + ' 挂载失败：' + ((e && e.message) || e)); }
     }
+  }
+
+  function syncDecor(doc) {
+    if (disposed || !doc) { return; }
+    /* ① 先收掉这轮不再声明的模块（旧模块还占着槽位时，先让它还原、
+          再改标 / 挂新模块，避免旧模块的 teardown 还原把新模块刚建的 DOM 冲掉） */
+    for (var i = 0; i < DECORS.length; i++) {
+      var def = DECORS[i];
+      if (decorOn(def.id)) { continue; }
+      var dirtyDead = false;
+      try {
+        dirtyDead = !!(doc.getElementById(def.styleId) || doc.getElementById(def.scriptId) || doc.querySelector('.' + def.className));
+      } catch (e) { }
+      if (dirtyDead) { destroyOneDecor(doc, def); }
+    }
+    try { retagDecor(doc); } catch (e) { }
+    /* ② 再挂这一轮声明中的模块 */
+    for (var j = 0; j < DECORS.length; j++) { syncOneDecor(doc, DECORS[j]); }
   }
 
   /* ───────── 面板 ───────── */
@@ -1163,6 +1251,7 @@
     try { dropStyle(HDOC, STYLE_ID); } catch (e) { }
     try { dropStyle(HDOC, USER_STYLE_ID); } catch (e) { }
     try { destroyDecor(HDOC); } catch (e) { }
+    try { restoreDecor(HDOC); } catch (e) { }
     try { clearAttrs(HDOC); } catch (e) { }
     try {
       var frames = HDOC.querySelectorAll(IFRAME_SEL), k;
@@ -1171,6 +1260,7 @@
         if (!doc) { continue; }
         dropStyle(doc, STYLE_ID); dropStyle(doc, USER_STYLE_ID); clearAttrs(doc);
         destroyDecor(doc);
+        try { restoreDecor(doc); } catch (e) { }
       }
     } catch (e) { }
     /* 面板 DOM */

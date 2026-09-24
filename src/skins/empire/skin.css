@@ -940,24 +940,29 @@ html[data-kami-skin="empire"] .kami-root[data-kami-comp="panel"] .kami-item {
   min-height: 42px;
 }
 
-/* ⓘ 注释标记：右上角角标，只占高度不占宽度；必须能点 */
+/* ⓘ 注释标记：右上角角标，只占高度不占宽度；必须能点。
+   margin:0 —— .kami-card-note 的 margin-top 会把角标整体推低，压到条目名。 */
 html[data-kami-skin="empire"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 5px;
   right: 5px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;
   pointer-events: auto;
 }
 
-/* 上角标的内边距补偿：条目卡里有 tl/tr 角标或 ⓘ 时，顶上让出一格 */
+/* 上角标的内边距补偿：条目卡里有 tl/tr 角标或 ⓘ 时，顶上让出一格。
+   1.4em 取的是**卡片**的字号（--kami-fs-sm），ⓘ 的 1.4em 取的是它自己的 --kami-fs-xs；
+   fs-sm > fs-xs，所以这一项必然盖过角标本体的高，再加 --kami-pad-y 盖过 top 偏移。
+   旧值 calc(var(--kami-pad-lg-y) + 0.4em) 只给到 19.3px，而 ⓘ 从 top:5px 起占 16px
+   （底边 21px），实测还剩 9 × 1.7 = 15px² 压在条目名上（2026-09-25 修）。 */
 html[data-kami-skin="empire"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
-  padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-top: calc(var(--kami-pad-y) + 1.4em);
 }
 
 html[data-kami-skin="empire"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
-  padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
+  padding-bottom: calc(var(--kami-pad-y) + 1.4em);
 }
 
 /* emoji 角标（条目名里摘出来的那枚）：不占宽度、不抢点击 */
@@ -1192,7 +1197,10 @@ html[data-kami-skin="empire"] .kami-md p { margin: 0.5em 0; }
 
 html[data-kami-skin="empire"] .kami-md h1,
 html[data-kami-skin="empire"] .kami-md h2,
-html[data-kami-skin="empire"] .kami-md h3 {
+html[data-kami-skin="empire"] .kami-md h3,
+html[data-kami-skin="empire"] .kami-md h4,
+html[data-kami-skin="empire"] .kami-md h5,
+html[data-kami-skin="empire"] .kami-md h6 {
   margin: 0.9em 0 0.4em;
   font-family: var(--kami-font-title);
   font-weight: var(--kami-fw-title);
@@ -1200,6 +1208,11 @@ html[data-kami-skin="empire"] .kami-md h3 {
   letter-spacing: var(--kami-ls-title);
   color: var(--kami-fg);
 }
+html[data-kami-skin="empire"] .kami-md h1 { font-size: calc(var(--kami-fs) * 1.18); }
+html[data-kami-skin="empire"] .kami-md h2 { font-size: calc(var(--kami-fs) * 1.08); }
+html[data-kami-skin="empire"] .kami-md h4,
+html[data-kami-skin="empire"] .kami-md h5,
+html[data-kami-skin="empire"] .kami-md h6 { font-size: var(--kami-fs); }
 
 /* 引用块 = 诏书里引述的一段 */
 html[data-kami-skin="empire"] .kami-md blockquote {
@@ -1240,8 +1253,27 @@ html[data-kami-skin="empire"] .kami-md ol {
 }
 
 html[data-kami-skin="empire"] .kami-md li { margin: 0.18em 0; }
+/* 嵌套层级：缩进加深一档，序号压暗一档，条目行距收紧 */
+html[data-kami-skin="empire"] .kami-md li > ul,
+html[data-kami-skin="empire"] .kami-md li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0.15em;
+}
+html[data-kami-skin="empire"] .kami-md li::marker { color: var(--kami-accent); }
+html[data-kami-skin="empire"] .kami-md li li::marker { color: var(--kami-fg-mute); }
 
 html[data-kami-skin="empire"] .kami-md strong { color: var(--kami-fg); font-weight: 700; }
+
+html[data-kami-skin="empire"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="empire"] .kami-md img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--kami-r-sm);
+  border: var(--kami-border-w) solid var(--kami-line);
+}
 
 html[data-kami-skin="empire"] .kami-md a {
   color: var(--kami-accent);
@@ -1264,6 +1296,14 @@ html[data-kami-skin="empire"] .kami-md th,
 html[data-kami-skin="empire"] .kami-md td {
   border: var(--kami-border-w) solid var(--kami-line);
   padding: 4px 7px;
+}
+/* 窄屏表格不撑破：手机档把表变成可横滚的块 */
+@media (max-width: 560px) {
+  html[data-kami-skin="empire"] .kami-md table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
 }
 
 html[data-kami-skin="empire"] .kami-raw {

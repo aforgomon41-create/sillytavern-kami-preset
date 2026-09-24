@@ -534,6 +534,20 @@
     '#' + PANEL_ID + ' .kami-guide-grid{display:grid;align-items:start;',
     'grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:var(--kami-gap,8px);}',
     '#' + PANEL_ID + ' .kami-guide-grid > .kami-item{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;text-align:left;}',
+    /* 角标/注释标记的高度补偿（2026-09-25 补）。上面那条 `padding:0` 带**面板 id**，
+       特异性 (1,2,0) 高于皮肤自己的 `.kami-item:has(> .kami-badge[data-kami-corner=...])`
+       补偿 (0,6,1)—— id 永远赢。所以条目卡一旦带 emoji 角标或 ⓘ，补偿就被压掉，
+       角标直接盖在条目名上。这里补两条**同样以面板 id 开头、并带 :has()** 的规则
+       （特异性 (1,4,0)，压得过），让带角标的卡片在引导里也「只占高度不占宽度」（契约 §4.4）。
+       取值与各皮肤一致：--kami-pad-y ＋ 1.4em（卡片字号）—— 1.4em 必然盖过角标
+       自身高度（角标的 1.4em 取的是更小的 --kami-fs-xs）。
+       ⚠️ 今天不命中任何元素：引导现有的 `.kami-guide-grid > .kami-item` 全是「图版位」
+       卡片（emoji 走 .kami-guide-plate-glyph 行内排版，没有 data-kami-corner 角标），
+       `.kami-guide-skins > .kami-item` 是皮肤预览卡。所以观感零变化，纯粹是防回归：
+       实测把一张同构条目卡注入 .kami-guide-grid，修复前 ⓘ ∩ 条目名 = 268.1px²
+      （xianyun）/ 265px²（grokbot）/ emoji 224.6px²（trpg，连干净皮肤也中招）。 */
+    '#' + PANEL_ID + ' .kami-guide-grid > .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]){padding-top:calc(var(--kami-pad-y,7px) + 1.4em);}',
+    '#' + PANEL_ID + ' .kami-guide-grid > .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]){padding-bottom:calc(var(--kami-pad-y,7px) + 1.4em);}',
     /* 条目开关卡片一律排网格（2026-09-21 用户裁定，**推翻**同日「有注释的占满整行」的旧决定）：
        带注释的卡片（说明文字常展开）与普通卡片同列宽排布，不独占一行。带注释的卡片会高一截
        （多一行图片说明），同行其它卡片被网格拉伸到同一高度，视觉上仍是一整行。
@@ -576,6 +590,10 @@
     '#' + PANEL_ID + ' .kami-guide-skins{display:grid;',
     'grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:var(--kami-gap,8px);}',
     '#' + PANEL_ID + ' .kami-guide-skins > .kami-item{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden;text-align:left;}',
+    /* 同上：皮肤预览卡万一带上角标/注释标记，也别让 padding:0 把补偿压掉。
+       （今天皮肤卡没有角标，这条是纯防回归，观感零变化。） */
+    '#' + PANEL_ID + ' .kami-guide-skins > .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]){padding-top:calc(var(--kami-pad-y,7px) + 1.4em);}',
+    '#' + PANEL_ID + ' .kami-guide-skins > .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]){padding-bottom:calc(var(--kami-pad-y,7px) + 1.4em);}',
     '#' + PANEL_ID + ' .kami-guide-skins .kami-guide-cap{display:block;padding:var(--kami-pad-y,7px) var(--kami-pad-x,10px);',
     'font-size:var(--kami-fs-sm,13px);font-weight:var(--kami-fw-title,600);}',
     '#' + PANEL_ID + ' .kami-guide-skins > .kami-item.is-on{',

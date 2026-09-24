@@ -1,11 +1,11 @@
 {
   "id": "wod",
   "name": "黑暗世界",
-  "button": "黑暗世界",
+  "button": "WOD",
   "scheme": "dark",
   "tagline": "一册封尘的血族密契：黑羊皮书脊、骨白衬线手记与暗红封蜡。",
   "decor": [
-    "d20"
+    "d10"
   ],
   "effects": [
     {

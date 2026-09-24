@@ -85,17 +85,26 @@ export function expandForPreview(root, name, payload) {
  * 内联进脚本，运行时由皮肤管理用 <script> 注入到酒馆页面与每个消息 iframe。
  * ──────────────────────────────────────────────────────────── */
 export const DECOR_MARK = '/* @@KAMI_DECOR_D20@@ */';
+/* d20 / d10 的占位符各自独立；expandDecor 只对**写了占位**的脚本展开对应通道
+   （目前只有 30-皮肤管理.js 同时写两个占位 —— d10 源码只进皮肤管理脚本，不进前端）。 */
+export const DECOR_D10_MARK = '/* @@KAMI_DECOR_D10@@ */';
 
 export function decorSource(root, id) {
   return fs.readFileSync(path.join(root, 'src', 'decor', id + '.js'), 'utf8');
 }
 
-/** 把脚本源码里的装饰占位换成 var D20_SRC = "...";（没有占位就原样返回） */
+/** 把脚本源码里的装饰占位换成 var D20_SRC = "..."; / var D10_SRC = "...";（没有占位就原样返回） */
 export function expandDecor(root, code) {
-  if (code.indexOf(DECOR_MARK) < 0) { return code; }
-  const src = decorSource(root, 'd20');
-  /* 函数式替换：替换文本里的美元号不会被当成 $& / $1 之类的引用 */
-  return code.replace(DECOR_MARK, () => 'var D20_SRC = ' + JSON.stringify(src) + ';');
+  if (code.indexOf(DECOR_MARK) >= 0) {
+    const src = decorSource(root, 'd20');
+    /* 函数式替换：替换文本里的美元号不会被当成 $& / $1 之类的引用 */
+    code = code.replace(DECOR_MARK, () => 'var D20_SRC = ' + JSON.stringify(src) + ';');
+  }
+  if (code.indexOf(DECOR_D10_MARK) >= 0) {
+    const src = decorSource(root, 'd10');
+    code = code.replace(DECOR_D10_MARK, () => 'var D10_SRC = ' + JSON.stringify(src) + ';');
+  }
+  return code;
 }
 
 /* ────────────────────────────────────────────────────────────

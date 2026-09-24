@@ -1,0 +1,158 @@
+<!doctype html>
+<!-- markdown 渲染探针（临时工具）：iframe 载 /doc/think?payload=<markdown>，
+     父页沿 /vendor 拿 showdown 与 DOMPurify（与真机宿主链路同款），
+     给 iframe 挂 data-kami-skin 并注入该皮肤 CSS（与皮肤管理下发同款），
+     然后在 iframe 里量 getComputedStyle 的真实读数，写进 #out。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>markdown 探针</title>
+<style>body{margin:0;font:13px/1.5 monospace}iframe{border:1px solid #999;display:block}#out{white-space:pre-wrap;padding:8px;background:#f5f5f5}</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<iframe id="f"></iframe>
+<script>
+window.showdownImported = !!(window.showdown || window.sd);
+</script>
+<script src="/vendor/showdown.js"></script>
+<script src="/vendor/dompurify.js"></script>
+<script>
+var Q = new URLSearchParams(location.search);
+var SKIN = Q.get('skin') || 'xianyun';
+var WIDTH = Q.get('w');                       /* 例如 375 = 手机档 */
+var HEIGHT = Q.get('h');
+document.getElementById('f').style.width = (WIDTH ? WIDTH : 420) + 'px';
+document.getElementById('f').style.height = (HEIGHT ? HEIGHT : 1100) + 'px';
+
+var MD = [
+  '## 理解现状',
+  '',
+  '- 时间：深夜，约莫十一点',
+  '- 地点：卧室，床上',
+  '    - 嵌套细节一（层级区分）',
+  '    - 嵌套细节二',
+  '',
+  '1. 先确认玩家想要的方向',
+  '2. 再决定要不要把节奏推快',
+  '',
+  '**关键点**字段，*斜体强调*，~~划去旧言~~，[外部链接](https://example.com/)，`行内代码`。',
+  '',
+  '> 引用块：这里可以放任意 markdown，包括行内代码与列表。',
+  '',
+  '---',
+  '',
+  '### 对照表',
+  '',
+  '| 项目 | 数值 | 说明含一个很长不可断的英文串 keepthislongunbreakableenglishwordforeverandever |',
+  '|---|---|---|',
+  '| 一 | 12 | 备注 |',
+  '| 二 | 34 | 备注 |',
+  '',
+  '```',
+  'long code line to test horizontal scroll aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  '```',
+  '',
+  '![小图](data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAUwAOw==)'
+].join('\n');
+
+var fi = document.getElementById('f');
+var injected = false;
+function injectSkin() {
+  if (injected) { return; }
+  var doc = fi.contentDocument;
+  if (!doc || !doc.querySelector('.kami-md')) { return; }
+  injected = true;
+  /* 挂皮肤：与皮肤管理脚本「html 上设 data-kami-skin + 下发 <style>」同一件事 */
+  doc.documentElement.setAttribute('data-kami-skin', SKIN);
+  fetch('/src/skins/' + SKIN + '/skin.css').then(function (r) { return r.text(); }).then(function (css) {
+    var st = doc.createElement('style');
+    st.textContent = css;
+    doc.head.appendChild(st);
+    setTimeout(measure, 500);
+    setInterval(measure, 900);
+  }).catch(function (e) {
+    document.getElementById('out').textContent = '注入失败: ' + e;
+  });
+}
+fi.addEventListener('load', injectSkin);
+fi.src = '/doc/think?payload=' + encodeURIComponent(MD);
+setInterval(injectSkin, 250);
+
+function line(sel, pseudo, note) {
+  var doc = fi.contentDocument;
+  var el = doc.querySelector('.kami-md ' + sel);
+  if (!el) { return note + ' | 元素不存在'; }
+  var cs = doc.defaultView.getComputedStyle(el, pseudo || null);
+  var parts = [];
+  for (var i = 2; i < arguments.length; i += 3) {
+    var label = arguments[i], props = arguments[i + 1];
+    var vals = [];
+    for (var j = 0; j < props.length; j++) {
+      vals.push(props[j] + '=' + cs.getPropertyValue(props[j]));
+    }
+    parts.push(label + ': ' + vals.join(' '));
+  }
+  if (el.scrollWidth !== undefined) {
+    parts.push('scrollW=' + el.scrollWidth + ' clientW=' + el.clientWidth);
+  }
+  return note + ' | ' + parts.join(' | ');
+}
+
+function aggregate(sel, props, pseudos) {
+  var doc = fi.contentDocument;
+  var els = doc.querySelectorAll(sel);
+  var out = sel + (pseudos ? '::' + pseudos : '') + ' x' + els.length + ':';
+  if (!props) {
+    /* 未给属性清单时，报首元素的 scrollW 与 clientW */
+    if (els[0]) { out += ' scrollW=' + els[0].scrollWidth + ' clientW=' + els[0].clientWidth; }
+    return out;
+  }
+  els.forEach(function (el, k) {
+    if (k >= 3) { return; }
+    var cs = doc.defaultView.getComputedStyle(el, pseudos || null);
+    var vals = [];
+    for (var i = 0; i < props.length; i++) { vals.push(props[i] + '=' + cs.getPropertyValue(props[i])); }
+    out += ' [' + k + '] ' + vals.join(' ');
+  });
+  return out;
+}
+
+function measure() {
+  var doc = fi.contentDocument;
+  var md = doc.querySelector('.kami-md');
+  var root = doc.querySelector('.kami-root');
+  var out = [];
+  out.push('skin=' + SKIN + (WIDTH ? ' width=' + WIDTH : '') +
+    ' engine=' + (root && root.getAttribute('data-kami-md-engine') || '-') +
+    ' showdown=' + (typeof window.showdown) +
+    ' md=' + (md ? '找到' : '没有'));
+  if (!md) { document.getElementById('out').textContent = out.join('\n'); return; }
+  out.push('md overflow-x=' + doc.defaultView.getComputedStyle(md).overflowX +
+    ' mdscrollW=' + md.scrollWidth + ' mdclientW=' + md.clientWidth +
+    (md.scrollWidth <= md.clientWidth ? ' （不溢出）' : ' （横向溢出！）'));
+  out.push(aggregate('.kami-md h2', ['font-size', 'font-weight', 'color', 'border-bottom-color', 'border-bottom-width', 'padding-bottom', 'font-family']));
+  out.push(aggregate('.kami-md ul', ['margin-top', 'padding-left', 'list-style-type']));
+  out.push(aggregate('.kami-md ol', ['margin-top', 'padding-left', 'list-style-type']));
+  out.push(aggregate('.kami-md li', ['margin-top', 'padding-left']));
+  out.push(aggregate('.kami-md li', ['color'], '::marker'));
+  out.push(aggregate('.kami-md ul ul li', ['color'], '::marker'));
+  out.push(aggregate('.kami-md ol li', ['color'], '::marker'));
+  out.push(aggregate('.kami-md blockquote', ['margin-top', 'padding', 'border-left-width', 'border-left-color', 'border-left-style', 'background-color', 'color', 'font-style']));
+  out.push(aggregate('.kami-md table', ['display', 'overflow-x', 'width', 'border-collapse'], undefined));
+  out.push(aggregate('.kami-md th', ['color', 'background-color', 'font-weight', 'padding', 'font-family']));
+  out.push(aggregate('.kami-md td', ['color', 'padding', 'border-color']));
+  out.push(aggregate('.kami-md code', ['font-family', 'font-size', 'padding', 'background-color', 'color', 'border-color']));
+  out.push(aggregate('.kami-md pre', ['margin-top', 'padding', 'background-color', 'color', 'border-color', 'overflow-x']));
+  out.push(aggregate('.kami-md pre code', ['padding', 'background-color', 'color']));
+  out.push(aggregate('.kami-md hr', ['height', 'background-color', 'margin-top']));
+  out.push(aggregate('.kami-md a', ['color', 'text-decoration-line', 'text-decoration-color', 'text-underline-offset', 'font-weight']));
+  out.push(aggregate('.kami-md strong', ['color', 'font-weight']));
+  out.push(aggregate('.kami-md em', ['font-style', 'color']));
+  out.push(aggregate('.kami-md img', ['max-width', 'height', 'border-radius', 'border-color']));
+  document.getElementById('out').textContent = out.join('\n');
+}
+
+</script>
+</body>
+</html>

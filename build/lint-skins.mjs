@@ -125,7 +125,7 @@ function checkSkin(id) {
     }
   }
   /* 装饰模块（契约 §8）：由皮肤声明、由皮肤管理注入。装饰 id 由平台定义，皮肤只声明要不要 */
-  const KNOWN_DECOR = ['d20'];
+  const KNOWN_DECOR = ['d20', 'd10'];
   if (meta.decor !== undefined) {
     if (!Array.isArray(meta.decor)) { errs.push('decor 必须是数组（如 ["d20"]）'); }
     else {

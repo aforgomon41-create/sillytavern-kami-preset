@@ -131,10 +131,10 @@ html[data-kami-skin="wod"] .kami-root {
   --kami-kind-nsfw: #e0819c;     /* 夜之欢愉 · nsfw */
   --kami-kind-other: #aaa09a;    /* 骨灰沉寂 · 其他 */
 
-  /* 皮肤私有 d20 颜色 */
-  --kami-wod-d20-edge: rgba(181, 26, 43, .7);
-  --kami-wod-d20-bg: #201826;
-  --kami-wod-d20-gold: #d7b991;
+  /* 皮肤私有 d10 颜色（十面体骰子） */
+  --kami-wod-d10-edge: rgba(181, 26, 43, .7);
+  --kami-wod-d10-bg: #201826;
+  --kami-wod-d10-gold: #d7b991;
 }
 
 /* ==========================================================================
@@ -557,7 +557,9 @@ html[data-kami-skin="wod"] .kami-md p { margin: .7em 0; }
 html[data-kami-skin="wod"] .kami-md h1,
 html[data-kami-skin="wod"] .kami-md h2,
 html[data-kami-skin="wod"] .kami-md h3,
-html[data-kami-skin="wod"] .kami-md h4 {
+html[data-kami-skin="wod"] .kami-md h4,
+html[data-kami-skin="wod"] .kami-md h5,
+html[data-kami-skin="wod"] .kami-md h6 {
   font-family: var(--kami-font-title);
   font-weight: var(--kami-fw-title);
   font-size: calc(var(--kami-fs) * 1.1);
@@ -606,7 +608,18 @@ html[data-kami-skin="wod"] .kami-md ul,
 html[data-kami-skin="wod"] .kami-md ol { margin: .5em 0; padding-left: 1.35em; }
 html[data-kami-skin="wod"] .kami-md li { margin: .2em 0; }
 html[data-kami-skin="wod"] .kami-md li::marker { color: var(--kami-accent); }
+/* 嵌套层级：缩进加深一档，序号压暗一档，条目行距收紧 */
+html[data-kami-skin="wod"] .kami-md li > ul,
+html[data-kami-skin="wod"] .kami-md li > ol {
+  margin-top: .25em;
+  margin-bottom: .15em;
+}
+html[data-kami-skin="wod"] .kami-md li li::marker { color: var(--kami-fg-mute); }
 html[data-kami-skin="wod"] .kami-md strong { color: var(--kami-fg); font-weight: 700; }
+html[data-kami-skin="wod"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
 html[data-kami-skin="wod"] .kami-md a {
   color: var(--kami-fg);
   text-decoration-color: var(--kami-accent);
@@ -632,6 +645,14 @@ html[data-kami-skin="wod"] .kami-md th {
   font-family: var(--kami-font-title);
   letter-spacing: .04em;
   color: var(--kami-fg);
+}
+/* 窄屏表格不撑破：手机档把表变成可横滚的块 */
+@media (max-width: 560px) {
+  html[data-kami-skin="wod"] .kami-md table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
 }
 
 /* 原文块：羊皮纸背面 */
@@ -1527,9 +1548,11 @@ html[data-kami-skin="wod"][data-kami-motion="off"] .kami-shell::after {
 }
 
 /* ==========================================================================
- * 16 · 装饰：d20 真 3D 骰子（平台装饰模块升级出的 DOM）
+ * 16 · 装饰：d10 真 3D 十面骰（平台装饰模块升级出的 DOM，五角偏方二十四面体）
+ *      面片是风筝形（十面体的风筝面，宽高比与二十面体的三角面不同），
+ *      配色 / 描边 / 字型与原 d20 规则逐条对应。
  * ======================================================================== */
-html[data-kami-skin="wod"] .kami-deco[data-kami-deco="d20"] {
+html[data-kami-skin="wod"] .kami-deco[data-kami-deco="d10"] {
   display: inline-block;
   position: relative;
   flex: none;
@@ -1539,37 +1562,37 @@ html[data-kami-skin="wod"] .kami-deco[data-kami-deco="d20"] {
   pointer-events: auto;
   cursor: pointer;
 }
-html[data-kami-skin="wod"] .kami-deco.kami-d20::before,
-html[data-kami-skin="wod"] .kami-deco.kami-d20::after {
+html[data-kami-skin="wod"] .kami-deco.kami-d10::before,
+html[data-kami-skin="wod"] .kami-deco.kami-d10::after {
   content: none;
   animation: none !important;
 }
-html[data-kami-skin="wod"] .kami-d20-stage {
+html[data-kami-skin="wod"] .kami-d10-stage {
   display: inline-flex;
   width: 100%;
   height: 100%;
 }
-html[data-kami-skin="wod"] .kami-d20-face {
-  background-color: var(--kami-wod-d20-edge);
+html[data-kami-skin="wod"] .kami-d10-face {
+  background-color: var(--kami-wod-d10-edge);
 }
-html[data-kami-skin="wod"] .kami-d20-face > i {
-  clip-path: var(--kami-d20-clip-i);
+html[data-kami-skin="wod"] .kami-d10-face > i {
+  clip-path: var(--kami-d10-clip-i);
   background-image: linear-gradient(145deg, #2a1f2d 0%, #120e14 100%);
-  color: var(--kami-wod-d20-gold);
+  color: var(--kami-wod-d10-gold);
   font-family: var(--kami-font-title);
-  font-size: calc(var(--kami-d20-s, 32px) * .36);
+  font-size: calc(var(--kami-d10-s, 32px) * .36);
   font-weight: 700;
   text-shadow: 0 0 3px rgba(181, 26, 43, .8);
 }
-html[data-kami-skin="wod"] .kami-d20-face:nth-child(even) > i {
+html[data-kami-skin="wod"] .kami-d10-face:nth-child(even) > i {
   background-image: linear-gradient(145deg, #36151e 0%, #170d11 100%);
   color: #f2e6d0;
 }
 @media (hover: hover) {
-  html[data-kami-skin="wod"] .kami-d20-face:hover > i { filter: brightness(1.18); }
+  html[data-kami-skin="wod"] .kami-d10-face:hover > i { filter: brightness(1.18); }
 }
-html[data-kami-skin="wod"] .kami-d20[data-kami-d20-rolling="1"] { cursor: progress; }
-html[data-kami-skin="wod"] .kami-d20-sr {
+html[data-kami-skin="wod"] .kami-d10[data-kami-d10-rolling="1"] { cursor: progress; }
+html[data-kami-skin="wod"] .kami-d10-sr {
   position: absolute;
   width: 1px;
   height: 1px;

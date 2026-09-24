@@ -74,6 +74,17 @@
       "max": 100,
       "step": 5,
       "value": 45
+    },
+    {
+      "id": "hue",
+      "label": "荧光色相",
+      "group": "屏幕",
+      "token": "--kami-crt-hue",
+      "unit": "deg",
+      "min": 0,
+      "max": 360,
+      "step": 5,
+      "value": 0
     }
   ]
 }

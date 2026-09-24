@@ -1,0 +1,140 @@
+<!doctype html>
+<!-- 引导面板角标补偿 A/B 探针（临时工具，2026-09-25）
+     用法：/.audit/guide-comp-probe.html?skins=xianyun,grokbot,trpg
+     做法：在引导的某一页（有 .kami-guide-grid）里，按 src/scripts/_preset-cards.js
+     buildItemCard 的**同一套 DOM 形状**造一张带 ⓘ + emoji 角标的条目卡，塞进
+     .kami-guide-grid，然后量「角标 ∩ 条目名」的重叠面积。
+     这样能量到 GUIDE_CSS 里 `#kami-guide-panel .kami-guide-grid > .kami-item{padding:0}`
+     是否把皮肤的 :has() 补偿压掉了。用完即删。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>引导补偿 A/B 探针</title>
+<style>body{margin:0;font:12px/1.5 monospace}iframe{width:100%;height:100vh;border:0}#out{white-space:pre-wrap;padding:8px;background:#f5f5f5}</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<iframe id="f"></iframe>
+<script>
+var Q = new URLSearchParams(location.search);
+var SKINS = (Q.get('skins') || 'xianyun').split(',').filter(Boolean);
+var W = Q.get('w') || '1280';
+var H = Q.get('h') || '900';
+var LINES = [], idx = 0, tries = 0;
+var fi = document.getElementById('f');
+fi.style.width = W + 'px'; fi.style.height = H + 'px';
+
+function rectOf(el) { var r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; }
+function inter(a, b) {
+  var w = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+  var h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+  if (w <= 0 || h <= 0) return 0;
+  return w * h;
+}
+
+/* 造一张与 buildItemCard 逐属性同构的条目卡（ⓘ 占 tr，emoji 占 tl） */
+function makeCard(doc) {
+  var b = doc.createElement('button');
+  b.className = 'kami-item kami-card';
+  b.type = 'button';
+  b.setAttribute('role', 'button');
+  b.setAttribute('aria-pressed', 'true');
+  b.setAttribute('data-kami-item', '__probe__');
+  var m = doc.createElement('span');
+  m.className = 'kami-card-note';
+  m.textContent = 'ⓘ';
+  m.setAttribute('data-kami-note-mark', '1');
+  m.setAttribute('role', 'button');
+  m.setAttribute('tabindex', '0');
+  m.setAttribute('aria-expanded', 'false');
+  m.setAttribute('aria-label', '查看注释');
+  m.setAttribute('data-kami-corner', 'tr');
+  b.appendChild(m);
+  var g = doc.createElement('span');
+  g.className = 'kami-badge';
+  g.textContent = '🐋';
+  g.setAttribute('data-kami-corner', 'tl');
+  g.setAttribute('aria-hidden', 'true');
+  b.appendChild(g);
+  var h = doc.createElement('span');
+  h.className = 'kami-card-head';
+  var main = doc.createElement('span');
+  main.className = 'kami-item-main';
+  main.textContent = 'DS/GLM底部破限';
+  h.appendChild(main);
+  b.appendChild(h);
+  return b;
+}
+
+function measure(doc) {
+  var panel = doc.getElementById('kami-guide-panel');
+  var grid = panel ? panel.querySelector('.kami-guide-grid') : null;
+  if (!grid) return null;
+  var card = makeCard(doc);
+  grid.appendChild(card);
+  var out = { cardPadTop: doc.defaultView.getComputedStyle(card).paddingTop, items: [] };
+  var main = card.querySelector('.kami-item-main');
+  var mr = rectOf(main);
+  var corners = card.querySelectorAll(':scope > [data-kami-corner]');
+  for (var i = 0; i < corners.length; i++) {
+    var br = rectOf(corners[i]);
+    var a = inter(br, mr);
+    out.items.push({
+      kind: corners[i].classList.contains('kami-card-note') ? 'ⓘ' : 'emoji',
+      text: corners[i].textContent.trim(),
+      ox: +(Math.min(br.r, mr.r) - Math.max(br.l, mr.l)).toFixed(1),
+      oy: +(Math.min(br.b, mr.b) - Math.max(br.t, mr.t)).toFixed(1),
+      area: +a.toFixed(1)
+    });
+  }
+  out.max = out.items.reduce(function (m, x) { return Math.max(m, x.area); }, 0);
+  out.nameW = +mr.w.toFixed(1);
+  grid.removeChild(card);
+  return out;
+}
+
+function loadNext() {
+  if (idx >= SKINS.length) {
+    document.getElementById('out').textContent = LINES.join('\n') + '\n===END===';
+    document.title = 'DONE';
+    return;
+  }
+  LINES.push('─── ' + SKINS[idx] + ' ───');
+  fi.src = '/test/harness/preview.html?skin=' + encodeURIComponent(SKINS[idx]) + '&tab=guide';
+}
+function run() {
+  tries++;
+  var doc;
+  try { doc = fi.contentDocument; } catch (e) { }
+  if (!doc || !doc.getElementById('kami-preset-panel') || !doc.defaultView.KamiPreset) {
+    if (tries < 45) setTimeout(run, 800);
+    else { LINES.push('超时：预览台没就绪'); idx++; loadNext(); }
+    return;
+  }
+  try { var btn = doc.querySelector('#tabbar .t[data-tab="guide"]'); if (btn) btn.click(); } catch (e) { }
+  setTimeout(function () {
+    /* 翻到第一个有 .kami-guide-grid 的页（选项页） */
+    var dots = doc.querySelectorAll('#kami-guide-panel .kami-dots .kami-dot');
+    var found = false;
+    for (var i = 0; i < dots.length; i++) {
+      try { dots[i].click(); } catch (e) { }
+      if (doc.querySelector('#kami-guide-panel .kami-guide-grid')) { found = true; break; }
+    }
+    var m = found ? measure(doc) : null;
+    if (!m) { LINES.push('  找不到 .kami-guide-grid'); }
+    else {
+      LINES.push('  注入卡 padding-top=' + m.cardPadTop + ' 条目名宽=' + m.nameW + 'px');
+      m.items.forEach(function (x) {
+        LINES.push('    ' + x.kind + ' "' + x.text + '" ∩ 条目名 = ' + x.ox + '×' + x.oy + ' = ' + x.area + 'px²');
+      });
+      LINES.push('  ★最大重叠=' + m.max + 'px²');
+    }
+    idx++; tries = 0;
+    loadNext();
+  }, 1300);
+}
+fi.onload = function () { setTimeout(run, 1300); };
+loadNext();
+</script>
+</body>
+</html>

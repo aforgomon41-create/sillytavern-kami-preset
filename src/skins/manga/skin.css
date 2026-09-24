@@ -804,12 +804,21 @@ html[data-kami-skin="manga"] .kami-bar {
   border-bottom: 1px dashed var(--kami-line);
 }
 
-/* markdown 与原文 */
+/* markdown 与原文
+   ── 2026-09-25 补齐（此前只有 .kami-md / p / code 三条）──────────────────
+   按老五套样板（grokbot/skin.css:1043-1159）把标题、列表、引用、表格、
+   代码块、分隔线、链接、强调、图片全部补齐；造型走漫画草稿自己的语言：
+   Impact 标题 + 全大写、3px 粗墨分镜线、朱笔修正竖条、硬边缘投影、
+   网点纸底（--kami-card-2 自带 halftone 纹理）、墨块反白表头。 */
 html[data-kami-skin="manga"] .kami-md {
   font-size: var(--kami-fs);
   line-height: var(--kami-lh);
   color: var(--kami-fg);
+  overflow-wrap: anywhere;
 }
+
+html[data-kami-skin="manga"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="manga"] .kami-md > :last-child { margin-bottom: 0; }
 
 html[data-kami-skin="manga"] .kami-md p {
   margin: 0 0 .6em 0;
@@ -819,6 +828,116 @@ html[data-kami-skin="manga"] .kami-md p:last-child {
   margin-bottom: 0;
 }
 
+/* 标题：Impact 分镜字 + 粗墨下边线（h1/h2）/ 朱笔修正竖条（h3） */
+html[data-kami-skin="manga"] .kami-md h1,
+html[data-kami-skin="manga"] .kami-md h2,
+html[data-kami-skin="manga"] .kami-md h3,
+html[data-kami-skin="manga"] .kami-md h4,
+html[data-kami-skin="manga"] .kami-md h5,
+html[data-kami-skin="manga"] .kami-md h6 {
+  margin: 1em 0 .42em;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  color: var(--kami-fg);
+  line-height: 1.25;
+}
+
+html[data-kami-skin="manga"] .kami-md h1 {
+  font-size: calc(var(--kami-fs) * 1.3);
+}
+
+html[data-kami-skin="manga"] .kami-md h2 {
+  font-size: calc(var(--kami-fs) * 1.16);
+  padding-bottom: .24em;
+  border-bottom: var(--kami-border-w) solid var(--kami-fg);
+}
+
+html[data-kami-skin="manga"] .kami-md h3 {
+  font-size: calc(var(--kami-fs) * 1.06);
+  padding-left: .5em;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+}
+
+html[data-kami-skin="manga"] .kami-md strong {
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="manga"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="manga"] .kami-md del {
+  opacity: .6;
+  text-decoration-thickness: 1px;
+}
+
+html[data-kami-skin="manga"] .kami-md a {
+  color: var(--kami-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+/* 列表：缩进、行距、::marker 上色、嵌套层换形状 + 换色 */
+html[data-kami-skin="manga"] .kami-md ul,
+html[data-kami-skin="manga"] .kami-md ol {
+  margin: .55em 0;
+  padding-left: 1.45em;
+}
+
+html[data-kami-skin="manga"] .kami-md li {
+  margin: .22em 0;
+  line-height: var(--kami-lh);
+}
+
+html[data-kami-skin="manga"] .kami-md ul { list-style-type: disc; }
+html[data-kami-skin="manga"] .kami-md ul ul { list-style-type: circle; }
+html[data-kami-skin="manga"] .kami-md ul ul ul { list-style-type: square; }
+html[data-kami-skin="manga"] .kami-md ol { list-style-type: decimal; }
+html[data-kami-skin="manga"] .kami-md ol ol { list-style-type: lower-alpha; }
+
+html[data-kami-skin="manga"] .kami-md li::marker {
+  color: var(--kami-accent);
+  font-weight: 700;
+}
+
+/* 嵌套层再淡一档：一眼看出是子级 */
+html[data-kami-skin="manga"] .kami-md ul ul > li::marker,
+html[data-kami-skin="manga"] .kami-md ul ul ul > li::marker,
+html[data-kami-skin="manga"] .kami-md ol ol > li::marker,
+html[data-kami-skin="manga"] .kami-md ol ol ol > li::marker {
+  color: var(--kami-fg-mute);
+  font-weight: 500;
+}
+
+html[data-kami-skin="manga"] .kami-md ul ul,
+html[data-kami-skin="manga"] .kami-md ul ol,
+html[data-kami-skin="manga"] .kami-md ol ul,
+html[data-kami-skin="manga"] .kami-md ol ol {
+  margin: .18em 0;
+  padding-left: 1.2em;
+}
+
+/* 引用块：朱笔修正竖条 + 网点纸底 */
+html[data-kami-skin="manga"] .kami-md blockquote {
+  margin: .7em 0;
+  padding: .45em .9em;
+  border-left: var(--kami-accent-mark) solid var(--kami-accent);
+  border-radius: 0 var(--kami-r-xs) var(--kami-r-xs) 0;
+  background-color: var(--kami-card-2);
+  color: var(--kami-fg-dim);
+  font-style: italic;
+}
+
+html[data-kami-skin="manga"] .kami-md blockquote > :first-child { margin-top: 0; }
+html[data-kami-skin="manga"] .kami-md blockquote > :last-child { margin-bottom: 0; }
+
+/* 行内码：网点灰底 + 细墨线 */
 html[data-kami-skin="manga"] .kami-md code {
   padding: 2px 5px;
   border: 1px solid var(--kami-line);
@@ -826,6 +945,76 @@ html[data-kami-skin="manga"] .kami-md code {
   background-color: var(--kami-card-2);
   font-family: var(--kami-font-mono);
   font-size: var(--kami-fs-sm);
+  color: var(--kami-fg);
+}
+
+/* 代码块：分镜格 + 硬投影 */
+html[data-kami-skin="manga"] .kami-md pre {
+  margin: .7em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card-2);
+  box-shadow: var(--kami-shadow-sm);
+  overflow-x: auto;
+}
+
+html[data-kami-skin="manga"] .kami-md pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: var(--kami-fs-sm);
+}
+
+/* 分隔线：漫画速度线（虚线段） */
+html[data-kami-skin="manga"] .kami-md hr {
+  height: 3px;
+  margin: 1em 0;
+  border: 0;
+  background-image: linear-gradient(90deg, var(--kami-fg) 0 7px, transparent 7px 12px);
+  background-size: 12px 3px;
+  background-repeat: repeat-x;
+  opacity: .55;
+}
+
+/* 表格：漫画分镜格，表头墨块反白 */
+html[data-kami-skin="manga"] .kami-md table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: .7em 0;
+  font-size: var(--kami-fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-kami-skin="manga"] .kami-md th,
+html[data-kami-skin="manga"] .kami-md td {
+  padding: 5px 9px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  text-align: left;
+}
+
+html[data-kami-skin="manga"] .kami-md th {
+  background-color: var(--kami-fg);
+  color: var(--kami-bg);
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  letter-spacing: var(--kami-ls-title);
+}
+
+html[data-kami-skin="manga"] .kami-md tbody tr:nth-child(even) td {
+  background-color: var(--kami-t1);
+}
+
+/* 图片：贴一张分镜格 */
+html[data-kami-skin="manga"] .kami-md img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: .5em 0;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+  box-shadow: var(--kami-shadow-sm);
 }
 
 html[data-kami-skin="manga"] .kami-raw {
@@ -1114,21 +1303,65 @@ html[data-kami-skin="manga"] .kami-root .kami-item-side {
   margin-top: 4px;
 }
 
-/* 卡头与卡内元素 */
+/* 卡头与卡内元素
+   ── 2026-09-25 修「标题栏错位」────────────────────────────────────────
+   旧写法把「分组卡通栏标题条」的造型无差别套给了**所有** .kami-card-head，
+   连条目卡里那条只是「条目名」的标题栏也一起吃了一套
+   `box-sizing:content-box` + `width:100%` + `padding:8px 12px` +
+   `margin:-14px -16px 12px -16px`（靠负外边距把标题条拉成与卡同宽）。
+   预览台实测（420px 面板、卡 110.3×69.4）：
+     · 条目卡标题栏相对卡 l/t/r/b = -2.3 / -4.3 / 5.7 / 38.8 → 溢出卡外，
+       左右探出量还不相等（左探 2.3px、右边距剩 5.7px），看着就是歪的；
+     · 分组卡（内嵌网格的那张，左右内边距被下面的 :has() 规则压到 12px，
+       负外边距却还是 -16px）l/r = -2.3 / 29.7 → 同样溢出，右侧差 29.7px。
+   根因：负外边距的数值必须和卡片**实际**的内边距逐字对应，而这里写死了 16px。
+   修法：标题条造型只留给「分组卡 / 模型卡」的卡头（`.kami-card:not(.kami-item)`），
+   条目卡的卡头回归普通的通栏文字行；分组卡的内嵌网格版再补一条 -12px 的对应规则。 */
 html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 12px;
-  margin: -14px -16px 12px -16px;
-  border-bottom: var(--kami-border-w) solid var(--kami-line);
-  background-color: var(--kami-bg-soft);
-  border-radius: calc(var(--kami-r-md) - 2px) calc(var(--kami-r-md) - 2px) 0 0;
+  box-sizing: border-box;
   font-family: var(--kami-font-title);
   font-size: var(--kami-fs-sm);
   font-weight: var(--kami-fw-title);
-  box-sizing: content-box;
+}
+
+/* 分组卡的标题条：与卡同宽的矩形分镜条，不做悬空胶囊。
+   几何原理：`width: calc(100% + 2×卡内边距)` + `box-sizing:border-box` + 左右负外边距
+   → 边框盒正好等于卡片的 padding-box 宽，标题条贴到卡片描边内侧（左 0 / 右 0）。
+   （旧写法是 `width:100%` + `box-sizing:content-box`：边框盒只有「内容宽 + 自己那 24px
+   内边距」，比卡片 padding-box 窄 2×(卡内边距−12)px，于是左边贴住、右边永远差一截；
+   条目卡内边距只有 12px 时更是整条被拉到卡片外面，左右探出量还不相等。）
+   `:not(button)`：模型卡那颗卡头是 `button.kami-card-head.kami-btn`（通栏无底色，
+   由下面第 10 节那条规则管），不吃这一条的负外边距。 */
+html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item):not(button) > .kami-card-head {
+  display: flex;
+  align-items: center;
+  width: calc(100% + 2 * var(--kami-pad-lg-x));
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin: calc(-1 * var(--kami-pad-lg-y)) calc(-1 * var(--kami-pad-lg-x)) 12px;
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  background-color: var(--kami-bg-soft);
+  border-radius: calc(var(--kami-r-md) - 2px) calc(var(--kami-r-md) - 2px) 0 0;
+}
+
+/* 卡内套条目网格的分组卡：左右内边距被压到 12px，标题条的负外边距与补宽跟着换成 12px */
+html[data-kami-skin="manga"] .kami-drop .kami-card:not(.kami-item):not(button):has(> .kami-card-body > .kami-grid) > .kami-card-head {
+  margin-left: -12px;
+  margin-right: -12px;
+  width: calc(100% + 24px);
+}
+
+/* 条目卡里的「标题栏」= 条目名那一行：通栏、不凸出卡片（修复前被负外边距拉到卡外） */
+html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-head {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-sizing: border-box;
 }
 
 html[data-kami-skin="manga"] .kami-root .kami-card-title {
@@ -1227,12 +1460,43 @@ html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] [data-kami-note-
 
 html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 4px;
+  right: 4px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;   /*  .kami-card-note 的 margin-top:6px 会把角标再往下推 6px，压到条目名 */
   pointer-events: auto;
+}
+
+/* ── 2026-09-25 修「角标压住内容」────────────────────────────────────────
+   旧写法让条目卡里的 emoji 角标继续吃 `.kami-badge` 那套「小标签」造型
+   （1px 描边 + 1px/5px 内边距 + 卡片底色 + 等宽字体），再 absolute 钉在
+   `top:4px; left:4px`；而条目名从卡片的 8px/12px 内边距起排，两者矩形直接重叠。
+   预览台实测（卡 110.3×69.4、标题文字宽 42.5~82.9px）：
+     · emoji 左上角标 ∩ 标题文字 = 23.5 × 17.2 = 404px²（"DS/GLM底部破限"）
+       最狠的一例把 42.5px 宽的标题压掉 23.5px ≈ 55%；
+     · ⓘ ∩ 标题文字 = 8 × 18 = 144px²；emoji 左下角标 ∩ 标题文字 = 205px²。
+   修法（与兜底皮肤 src/skin/base.css:851-886 同一套机制）：
+     · 角标退成「一个纯字形」——去掉描边 / 内边距 / 底色，点不中的部分不接事件；
+     · 角标**只占高度不占宽度**（契约 §4.4）：有上角标就补卡片上内边距，
+       有下角标就补下内边距，条目名那一行永远拿整张卡的宽度。 */
+html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-y) + 1.15em);
+}
+
+html[data-kami-skin="manga"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-y) + 1.15em);
 }
 
 /* 设置项单行 */

@@ -762,6 +762,64 @@ html[data-kami-skin="senren"] .kami-md th {
   font-weight: var(--kami-fw-title);
 }
 
+/* ── 2026-09-25 补齐（原缺 em / img / ::marker / 嵌套列表 / 首尾边距）──────
+   造型走千恋万花自己的语言：樱色 ::marker、和纸卡底引用、描金细线表格。 */
+html[data-kami-skin="senren"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="senren"] .kami-md > :last-child { margin-bottom: 0; }
+
+html[data-kami-skin="senren"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="senren"] .kami-md del {
+  opacity: .7;
+  text-decoration-thickness: 1px;
+}
+
+/* 列表：行距、::marker 上樱色、嵌套层换形状 + 换淡墨 */
+html[data-kami-skin="senren"] .kami-md li {
+  margin: 0.28em 0;
+  line-height: var(--kami-lh);
+}
+
+html[data-kami-skin="senren"] .kami-md ul { list-style-type: disc; }
+html[data-kami-skin="senren"] .kami-md ul ul { list-style-type: circle; }
+html[data-kami-skin="senren"] .kami-md ol { list-style-type: decimal; }
+html[data-kami-skin="senren"] .kami-md ol ol { list-style-type: lower-alpha; }
+
+html[data-kami-skin="senren"] .kami-md li::marker {
+  color: var(--kami-accent);
+  font-weight: 700;
+}
+
+/* 嵌套层的记号再淡一档：子级一眼可辨 */
+html[data-kami-skin="senren"] .kami-md ul ul > li::marker,
+html[data-kami-skin="senren"] .kami-md ol ol > li::marker,
+html[data-kami-skin="senren"] .kami-md ul ul ul > li::marker,
+html[data-kami-skin="senren"] .kami-md ol ol ol > li::marker {
+  color: var(--kami-fg-mute);
+  font-weight: 400;
+}
+
+html[data-kami-skin="senren"] .kami-md ul ul,
+html[data-kami-skin="senren"] .kami-md ul ol,
+html[data-kami-skin="senren"] .kami-md ol ul,
+html[data-kami-skin="senren"] .kami-md ol ol {
+  margin: 0.2em 0;
+  padding-left: 1.25em;
+}
+
+/* 图片：描金细框 */
+html[data-kami-skin="senren"] .kami-md img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em 0;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+}
+
 html[data-kami-skin="senren"] .kami-raw {
   font-family: var(--kami-font-mono);
   font-size: var(--kami-fs-sm);
@@ -1264,8 +1322,39 @@ html[data-kami-skin="senren"] .kami-root[data-kami-comp="panel"] .kami-item > .k
   right: 6px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;   /* .kami-card-note 的 margin-top:4px 会把角标再往下推，压到条目名 */
   pointer-events: auto;
+}
+
+/* ── 2026-09-25 修「emoji 角标挡住内容」─────────────────────────────────
+   旧写法让条目卡里的 emoji 角标继续吃 `.kami-badge` 那套「小标签」造型
+   （2px 描边 + 2px/8px 内边距 + 卡内底），再 absolute 钉在 top/left 5px；
+   而条目名从卡片的 10px/12px 内边距起排，两者矩形直接重叠。
+   预览台实测（卡 108×72.5、标题文字宽 82.9px）：
+     · emoji 左上角标 ∩ 标题文字 = 26 × 13.8 = 359px²（"DS/GLM"，26/82.9 ≈ 31% 被压）
+     · emoji 右上角标 ∩ 标题文字 = 359px²；左下角标 ∩ 标题文字 = 205px²
+     · ⓘ ∩ 标题文字 = 10 × 15.9 = 159px²；全部条目卡里最大重叠 361px²。
+   修法（与兜底皮肤 src/skin/base.css:851-886 同一套机制）：
+     · 角标退成「一枚纯字形」——去掉描边 / 内边距 / 底色，点不中的部分不接事件；
+     · 角标**只占高度不占宽度**（契约 §4.4）：有上角标就补卡片上内边距，
+       有下角标就补下内边距，条目名那一行永远拿整张卡的宽度。 */
+html[data-kami-skin="senren"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+html[data-kami-skin="senren"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-y) + 1.15em);
+}
+
+html[data-kami-skin="senren"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-y) + 1.15em);
 }
 
 html[data-kami-skin="senren"] .kami-root .kami-item-note > .kami-card-note[data-kami-note] {

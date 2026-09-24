@@ -682,6 +682,135 @@ html[data-kami-skin="xianyun"] .kami-md code {
   color: var(--kami-accent);
 }
 
+/* —— markdown 全体裁（宣纸水墨排版，收齐 showdown 的真实输出） —— */
+html[data-kami-skin="xianyun"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="xianyun"] .kami-md > :last-child { margin-bottom: 0; }
+/* 标题：楷书笔意，一至六级全部收敛到同一套墨色 */
+html[data-kami-skin="xianyun"] .kami-md h1,
+html[data-kami-skin="xianyun"] .kami-md h2,
+html[data-kami-skin="xianyun"] .kami-md h3,
+html[data-kami-skin="xianyun"] .kami-md h4,
+html[data-kami-skin="xianyun"] .kami-md h5,
+html[data-kami-skin="xianyun"] .kami-md h6 {
+  margin: .9em 0 .5em;
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+  letter-spacing: .02em;
+}
+html[data-kami-skin="xianyun"] .kami-md h1 { font-size: calc(var(--kami-fs) * 1.4); }
+html[data-kami-skin="xianyun"] .kami-md h2 {
+  font-size: calc(var(--kami-fs) * 1.25);
+  border-bottom: 1px solid var(--kami-line);
+  padding-bottom: .25em;
+}
+html[data-kami-skin="xianyun"] .kami-md h3 { font-size: calc(var(--kami-fs) * 1.12); }
+html[data-kami-skin="xianyun"] .kami-md h4,
+html[data-kami-skin="xianyun"] .kami-md h5,
+html[data-kami-skin="xianyun"] .kami-md h6 { font-size: var(--kami-fs); }
+/* 强调族：浓墨加粗 / 淡墨斜体 / 划去置灰 */
+html[data-kami-skin="xianyun"] .kami-md strong {
+  font-weight: 700;
+  color: var(--kami-fg);
+}
+html[data-kami-skin="xianyun"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="xianyun"] .kami-md del {
+  color: var(--kami-fg-mute);
+  text-decoration-thickness: 1px;
+}
+/* 链接：朱砂点睛，下划线用淡墨 */
+html[data-kami-skin="xianyun"] .kami-md a {
+  color: var(--kami-accent);
+  text-decoration: underline;
+  text-decoration-color: var(--kami-line-strong);
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+/* 清单：缩进、行距、嵌套层级与朱砂墨点全部落位 */
+html[data-kami-skin="xianyun"] .kami-md ul,
+html[data-kami-skin="xianyun"] .kami-md ol {
+  margin: .55em 0;
+  padding-left: 1.5em;
+}
+html[data-kami-skin="xianyun"] .kami-md li {
+  margin: .25em 0;
+}
+html[data-kami-skin="xianyun"] .kami-md ul > li::marker { color: var(--kami-accent); }
+html[data-kami-skin="xianyun"] .kami-md ol > li::marker { color: var(--kami-fg-dim); }
+/* 嵌套层：缩进加深一档，圆点由朱砂转淡墨，层级一眼可分 */
+html[data-kami-skin="xianyun"] .kami-md li > ul,
+html[data-kami-skin="xianyun"] .kami-md li > ol {
+  margin: .25em 0 .15em;
+}
+html[data-kami-skin="xianyun"] .kami-md ul ul > li::marker {
+  color: var(--kami-fg-mute);
+}
+/* 分隔线：一道细墨痕 */
+html[data-kami-skin="xianyun"] .kami-md hr {
+  height: 1px;
+  margin: 1em 0;
+  border: 0;
+  background-color: var(--kami-line-strong);
+}
+/* 代码块：整块砚石凹底，可横滚 */
+html[data-kami-skin="xianyun"] .kami-md pre {
+  margin: .7em 0;
+  padding: 8px 10px;
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  line-height: 1.55;
+  color: var(--kami-fg-dim);
+  background-color: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  overflow-x: auto;
+}
+html[data-kami-skin="xianyun"] .kami-md pre code {
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+}
+/* 表格：细墨线格，一行可读，窄屏可横滚 */
+html[data-kami-skin="xianyun"] .kami-md table {
+  width: 100%;
+  margin: .7em 0;
+  border-collapse: collapse;
+  font-size: var(--kami-fs-sm);
+}
+html[data-kami-skin="xianyun"] .kami-md th,
+html[data-kami-skin="xianyun"] .kami-md td {
+  border: 1px solid var(--kami-line);
+  padding: 5px 8px;
+  text-align: left;
+}
+html[data-kami-skin="xianyun"] .kami-md th {
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  color: var(--kami-fg);
+  background-color: var(--kami-card-2);
+}
+html[data-kami-skin="xianyun"] .kami-md td { color: var(--kami-fg-dim); }
+/* 插图：不撑破容器，配一道墨线框 */
+html[data-kami-skin="xianyun"] .kami-md img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--kami-line);
+  border-radius: var(--kami-r-xs);
+}
+/* 手机档：整表变成可横滚的块，不撑破宣纸 */
+@media (max-width: 560px) {
+  html[data-kami-skin="xianyun"] .kami-md table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
 html[data-kami-skin="xianyun"] .kami-raw {
   font-family: var(--kami-font-mono);
   font-size: var(--kami-fs-sm);
@@ -1039,14 +1168,72 @@ html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item {
   min-height: 42px;
 }
 
+/* ⓘ 注释标记：右上角角标，只占高度不占宽度；必须能点。
+   margin:0 —— .kami-card-note 的 margin-top:4px 会把角标整体推低，压到条目名。
+   尺寸收成 1.4em 的方框（行内记号是整行 line-box，1.68 行高下会有 19.6px 高，
+   比补偿量还大，紧凑密度档会重新压住名字）。 */
 html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 6px;
   right: 6px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  line-height: 1;
+  margin: 0;
   pointer-events: auto;
+  cursor: pointer;
+}
+
+/* ── 2026-09-25 修「emoji 角标挡住条目名」─────────────────────────────────
+   旧写法：条目卡里那枚 emoji 角标继续吃 `.kami-badge` 的「朱砂小短签」造型
+   （padding:2px 7px ＋ 1px 描边 ＋ --kami-card-2 米白底），而且是**行内 flex 项**，
+   不是绝对定位 —— 它和条目名挤在同一行，把名字的可用宽度吃掉。
+   预览台实测（1280×900、面板 420×560、条目卡 112×227）：
+     · ⓘ ∩ "DS/GLM底部破限" = 11.5 × 19.6 = 226.8px²，名字只剩 13.4px 宽；
+     · ⓘ ∩ "DeepSeek强强" 等 5 例 = 5.9 × 19.6 = 116.5px²；
+     · 112 张条目卡里 39 张有重叠，最大 226.8px²（全项目唯一的重灾）。
+   修法（与兜底皮肤 src/skin/base.css:851-886 同一套机制）：
+     · 角标退成「一枚纯字形」——去掉内边距 / 描边 / 底色，并绝对定位到卡角，
+       点不中的部分不接事件；
+     · 角标**只占高度不占宽度**（契约 §4.4）：有上角标就补卡片上内边距，
+       有下角标就补下内边距，条目名那一行永远拿整张卡的宽度。 */
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  left: auto;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--kami-fs-xs);
+  line-height: 1.2;
+  color: var(--kami-fg-mute);
+  pointer-events: none;
+}
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  right: auto;
+  left: 6px;
+}
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+  top: auto;
+  bottom: 6px;
+}
+/* 让出高度：1.4em 取的是**卡片**的字号（--kami-fs-sm），ⓘ 的 1.4em 取的是它自己的
+   --kami-fs-xs；fs-sm > fs-xs，所以这一项必然盖过角标本体的高，再加 --kami-pad-y
+   盖过角标的 top 偏移 —— 紧凑密度档（pad-y 5px）下也仍然成立。 */
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+  padding-top: calc(var(--kami-pad-y) + 1.4em);
+}
+html[data-kami-skin="xianyun"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+  padding-bottom: calc(var(--kami-pad-y) + 1.4em);
 }
 
 html[data-kami-skin="xianyun"] .kami-root .kami-item-note > .kami-card-note[data-kami-note] {

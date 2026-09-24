@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<!-- d10/d20 双皮肤探针 v2：预览台是**异步重渲染**的（面板重建/皮肤同步会清空再挂），
+     所以这里反复无脑重查，把「最后一次成功读数」留在 #out；只有两套都拿到过读数才算完成。 -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font: 12px monospace; background: #111; color: #eee; }
+  .row iframe { width: 49vw; height: 92vh; border: 0; }
+  #out { white-space: pre-wrap; padding: 4px 8px; border-top: 1px solid #444; }
+</style>
+</head>
+<body>
+<div id="out">等待中…</div>
+<div class="row">
+  <iframe id="fwod" src="/test/harness/preview.html?skin=wod&probe=d10"></iframe>
+  <iframe id="ftrpg" src="/test/harness/preview.html?skin=trpg&probe=trpg"></iframe>
+</div>
+<script>
+const out = document.getElementById('out');
+const lines = [];
+function log(s) { lines.push(s); out.textContent = lines.join('\n'); document.title = 'd10探针(' + lines.length + ') ' + s.slice(0, 24); }
+function dfind(d, sel) {
+  const hits = Array.from(d.querySelectorAll(sel));
+  Array.from(d.querySelectorAll('iframe')).forEach(f => {
+    try { if (f.contentDocument) { hits.push.apply(hits, Array.from(f.contentDocument.querySelectorAll(sel))); } } catch (e) { }
+  });
+  return hits;
+}
+function expectFacesNum(kind) { return kind === 'd10' ? 10 : 20; }
+function expectClipPts(kind) { return kind === 'd10' ? 4 : (6); }  /* d20 三角=3 顶点 */
+
+function probe(frame, kind) {
+  const d = frame.contentDocument;
+  if (!d) { return null; }
+  const faces = dfind(d, '.' + kind + '-face');
+  if (!faces.length) { return null; }
+  const up = dfind(d, '.' + kind)[0];
+  const slot = dfind(d, '.kami-deco[data-kami-deco="' + kind + '"]')[0];
+  const body = dfind(d, '.' + kind + '-body')[0];
+  const rows = [];
+  rows.push('宿主html皮肤=' + d.documentElement.getAttribute('data-kami-skin'));
+  rows.push('槽位 data-kami-deco=' + (slot ? slot.getAttribute('data-kami-deco') : '无') + ' 类名=' + (slot ? slot.className : '') +
+    ' data-kami-' + kind + '=' + (up ? (up.getAttribute('data-' + kind) || '(未on)') : '否'));
+  rows.push('面片数=' + faces.length + '(期望' + expectFacesNum(kind) + ')');
+  if (body) rows.push('transition-duration=' + d.defaultView.getComputedStyle(body).transitionDuration);
+  const picks = [0, 3, 7].filter(i => i < faces.length);
+  rows.push('实测位姿：' + picks.map(i => 'n=' + faces[i].getAttribute('data-' + kind + '-n') + ' ' + faces[i].style.transform).join(' ⫽ '));
+  rows.push('clip 顶点数：' + picks.map(i => 'n=' + faces[i].getAttribute('data-' + kind + '-n') + ' →' + (faces[i].style.clipPath.match(/px\b/g) || []).length / 2).join(' ⫽ '));
+  if (up) rows.push('--' + kind + '-s=' + up.style.getPropertyValue('--' + kind + '-s') + ' --' + kind + '-r=' + up.style.getPropertyValue('--' + kind + '-r'));
+  rows.push('全貌点数=' + faces.map(f => f.getAttribute('data-' + kind + '-n')).sort((a, b) => a - b).join(','));
+  return rows.join(' ｜ ');
+}
+
+const result = { rows: {} };
+let rolled = { d10: 0, d20: 0 };
+
+function poll() {
+  const a = probe(document.getElementById('fwod'), 'd10');
+  const b = probe(document.getElementById('ftrpg'), 'd20');
+  if (a) { result.d10 = a; result.d10t = true; }
+  if (b) { result.d20 = b; result.d20t = true; }
+  if (result.d10t && result.d20t) {
+    log('== WOD(d10) 结构抽查 ==');
+    log(result.d10);
+    log('== TRPG(d20) 回归抽查 ==');
+    log(result.d20);
+    log('（以上为最后一次成功读数；预览台偶有重渲染，读数可能晚于载入）');
+    rollTest(document.getElementById('fwod'), 'd10', function () { checkDone(); });
+    rollTest(document.getElementById('ftrpg'), 'd20', function () { checkDone(); });
+  }
+}
+function checkDone() { document.title = 'd10探针 完成'; }
+
+function rollTest(frame, kind, cb) {
+  const d = frame.contentDocument;
+  const el = dfind(d, '.' + kind)[0];
+  if (!el) { log('[' + kind + '] 掷骰：iframe 里没有升级好的骰子'); cb && cb(); return; }
+  const body = dfind(d, '.' + kind + '-body')[0];
+  const before = body.style.transform;
+  const dur = d.defaultView.getComputedStyle(body).transitionDuration;
+  const valBefore = el.getAttribute('data-' + kind + '-value');
+  el.click();
+  const r0 = el.getAttribute('data-' + kind + '-rolling');
+  log('[' + kind + '] 掷骰点击：前一值=' + valBefore + ' rolling=' + (r0 || '无') + ' 容器旧pose=' + before.slice(0, 44) + '… transition=' + dur);
+  setTimeout(() => {
+    const r1 = el.getAttribute('data-' + kind + '-rolling');
+    const v1 = el.getAttribute('data-' + kind + '-value');
+    log('[' + kind + '] 滚动中(0.35s)：rolling=' + (r1 || '无') + ' value=' + v1);
+    setTimeout(() => {
+      const r2 = el.getAttribute('data-' + kind + '-rolling');
+      const v2 = el.getAttribute('data-' + kind + '-value');
+      log('[' + kind + '] 结束(2.4s)：rolling=' + (r2 || '无') + ' value=' + v2 + ' 终态容器transform=' + body.style.transform.slice(0, 60) + '…');
+      try {
+        d.documentElement.setAttribute('data-kami-motion', 'off');
+        el.click();
+        const tNow = body.style.transform;
+        log('[' + kind + '] motion=off：点击后容器transform=『' + tNow.slice(0, 56) + '…』，rolling=' + (el.getAttribute('data-' + kind + '-rolling') ? '异常(不应出现)' : '无(正确)') + ' value=' + el.getAttribute('data-' + kind + '-value'));
+        d.documentElement.setAttribute('data-kami-motion', 'full');
+      } catch (e2) { log('motion=off 测试失败: ' + e2); }
+      cb && cb();
+    }, 2400);
+  }, 350);
+}
+
+async function main() {
+  for (let i = 0; i < 160; i++) {
+    poll();
+    if (result.d10t && result.d20t) {
+      // 结构都拿到过：给掷骰与降级留时间窗口（rollTest 自己的回调会结束标题）
+      return;
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  log('超时：wod=' + !!result.d10t + ' trpg=' + !!result.d20t);
+}
+main().catch(e => log('main失败: ' + e));
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- 角标遮挡探针 v2（临时工具，2026-09-25）
+     用法：/.audit/overlap-probe.html?skin=<id>&tab=preset|guide&w=1280&h=900
+     内部 iframe 载预览台 preview.html，然后在 iframe 里把面板的每个 tab / 引导的每一页
+     都点开，量「角标矩形 ∩ 条目名矩形」的相交面积（与 .audit/卡片修复-manga-senren.md
+     同一把尺子），汇总后写进 #out。用完即删。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>角标遮挡探针</title>
+<style>body{margin:0;font:12px/1.5 monospace}iframe{width:100%;height:100vh;border:0}#out{white-space:pre-wrap;padding:8px;background:#f5f5f5}</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<iframe id="f"></iframe>
+<script>
+var Q = new URLSearchParams(location.search);
+var SKIN = Q.get('skin') || 'xianyun';
+var TAB = Q.get('tab') || 'preset';
+var W = Q.get('w') || '1280';
+var H = Q.get('h') || '900';
+document.getElementById('f').src = '/test/harness/preview.html?skin=' + encodeURIComponent(SKIN) + '&tab=' + encodeURIComponent(TAB);
+
+function rectOf(el) { var r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; }
+function inter(a, b) {
+  var w = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+  var h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+  if (w <= 0 || h <= 0) return 0;
+  return w * h;
+}
+function vis(el) { return !!(el.getClientRects && el.getClientRects().length) && el.getBoundingClientRect().width > 0; }
+
+/* 量当前可见的一屏：返回 {cards,bad,max,worst,badgeStyle,noteStyle,heights} */
+function measureVisible(doc, panelId) {
+  var panel = doc.getElementById(panelId);
+  var out = { cards: 0, bad: 0, max: 0, worst: [], badgeStyle: null, noteStyle: null, badgeGeom: null, withB: [], noB: [], parents: [] };
+  if (!panel) return out;
+  var cards = panel.querySelectorAll('button.kami-item.kami-card');
+  for (var i = 0; i < cards.length; i++) {
+    var c = cards[i];
+    if (!vis(c)) continue;
+    out.cards++;
+    var pcls = (c.parentElement && c.parentElement.className) || '(无类)';
+    if (out.parents.indexOf(pcls) < 0) out.parents.push(pcls);
+    var has = !!c.querySelector(':scope > [data-kami-corner]');
+    (has ? out.withB : out.noB).push(Math.round(c.getBoundingClientRect().height));
+    var main = c.querySelector('.kami-item-main');
+    if (!main) continue;
+    var mr = rectOf(main);
+    var corners = c.querySelectorAll(':scope > [data-kami-corner]');
+    for (var j = 0; j < corners.length; j++) {
+      var bd = corners[j];
+      var br = rectOf(bd);
+      var a = inter(br, mr);
+      if (a <= 0) continue;
+      out.bad++;
+      if (a > out.max) out.max = a;
+      out.worst.push({
+        name: (main.textContent || '').trim(),
+        badge: (bd.textContent || '').trim(),
+        kind: bd.classList.contains('kami-card-note') ? 'note' : 'emoji',
+        ox: +(Math.min(br.r, mr.r) - Math.max(br.l, mr.l)).toFixed(1),
+        oy: +(Math.min(br.b, mr.b) - Math.max(br.t, mr.t)).toFixed(1),
+        area: +a.toFixed(1),
+        bw: +br.w.toFixed(1), bh: +br.h.toFixed(1), mw: +mr.w.toFixed(1)
+      });
+    }
+    if (!out.badgeStyle) {
+      var eb = c.querySelector(':scope > .kami-badge[data-kami-corner]');
+      if (eb) {
+        var cs = doc.defaultView.getComputedStyle(eb);
+        out.badgeStyle = { padding: cs.padding, border: cs.borderWidth + ' ' + cs.borderStyle + ' ' + cs.borderColor, background: cs.backgroundColor, pe: cs.pointerEvents, w: +eb.getBoundingClientRect().width.toFixed(1), h: +eb.getBoundingClientRect().height.toFixed(1) };
+      }
+    }
+    if (!out.noteStyle) {
+      var nb = c.querySelector(':scope > .kami-card-note[data-kami-note-mark][data-kami-corner]');
+      if (nb) {
+        var c2 = doc.defaultView.getComputedStyle(nb);
+        var ccs = doc.defaultView.getComputedStyle(c);
+        out.noteStyle = {
+          margin: c2.margin, top: c2.top, right: c2.right,
+          w: +nb.getBoundingClientRect().width.toFixed(1), h: +nb.getBoundingClientRect().height.toFixed(1),
+          fs: c2.fontSize,
+          cardPadTop: ccs.paddingTop, cardPadBottom: ccs.paddingBottom,
+          padY: ccs.getPropertyValue('--kami-pad-y').trim(),
+          padLgY: ccs.getPropertyValue('--kami-pad-lg-y').trim(),
+          fsSm: ccs.getPropertyValue('--kami-fs-sm').trim(),
+          fsXs: ccs.getPropertyValue('--kami-fs-xs').trim()
+        };
+      }
+    }
+    if (!out.badgeGeom) {
+      var bg = c.querySelector(':scope > .kami-badge[data-kami-corner]');
+      if (bg) {
+        var bcs = doc.defaultView.getComputedStyle(bg);
+        var br2 = bg.getBoundingClientRect(), cr2 = c.getBoundingClientRect();
+        out.badgeGeom = { top: +(br2.top - cr2.top).toFixed(1), h: +br2.height.toFixed(1), fs: bcs.fontSize };
+      }
+    }
+  }
+  out.worst.sort(function (x, y) { return y.area - x.area; });
+  return out;
+}
+
+function merge(acc, m, tag) {
+  acc.cards += m.cards; acc.bad += m.bad;
+  if (m.max > acc.max) acc.max = m.max;
+  if (!acc.badgeStyle && m.badgeStyle) acc.badgeStyle = m.badgeStyle;
+  if (!acc.noteStyle && m.noteStyle) acc.noteStyle = m.noteStyle;
+  if (!acc.badgeGeom && m.badgeGeom) acc.badgeGeom = m.badgeGeom;
+  m.parents.forEach(function (p) { if (acc.parents.indexOf(p) < 0) acc.parents.push(p); });
+  if (m.withB.length) acc.withB = acc.withB.concat(m.withB);
+  if (m.noB.length) acc.noB = acc.noB.concat(m.noB);
+  m.worst.forEach(function (w) { w.tag = tag; acc.worst.push(w); });
+}
+
+function sweep(doc, panelId, steps) {
+  var acc = { cards: 0, bad: 0, max: 0, worst: [], badgeStyle: null, noteStyle: null, badgeGeom: null, withB: [], noB: [], tags: [], parents: [] };
+  for (var i = 0; i < steps.length; i++) {
+    try { steps[i].click(); } catch (e) { }
+    var m = measureVisible(doc, panelId);
+    merge(acc, m, steps[i].getAttribute('data-tag') || String(i));
+    acc.tags.push((steps[i].getAttribute('data-tag') || String(i)) + ':卡' + m.cards + '/坏' + m.bad + '/最大' + m.max.toFixed(1) + '/父[' + m.parents.join('+') + ']');
+  }
+  acc.worst.sort(function (x, y) { return y.area - x.area; });
+  acc.worst = acc.worst.slice(0, 8);
+  return acc;
+}
+
+function narrow(doc) {
+  var b = doc.body, de = doc.documentElement;
+  var d = doc.querySelector('.kami-drop');
+  return { bs: b.scrollWidth, bc: b.clientWidth, hs: de.scrollWidth, hc: de.clientWidth, dw: d ? Math.round(d.getBoundingClientRect().width) : null, vw: doc.defaultView.innerWidth };
+}
+
+var fi = document.getElementById('f');
+fi.style.width = W + 'px'; fi.style.height = H + 'px';
+var tried = 0;
+function run() {
+  tried++;
+  var doc;
+  try { doc = fi.contentDocument; } catch (e) { }
+  if (!doc || !doc.getElementById('kami-preset-panel') || !(doc.defaultView.KamiPreset)) {
+    if (tried < 40) setTimeout(run, 800);
+    else document.getElementById('out').textContent = '超时：预览台没就绪';
+    return;
+  }
+  try {
+    var btn = doc.querySelector('#tabbar .t[data-tab="' + TAB + '"]');
+    if (btn) btn.click();
+  } catch (e) { }
+  setTimeout(function () {
+    var lines = ['皮肤=' + SKIN + ' tab=' + TAB + ' 视口=' + W + 'x' + H];
+    var id = TAB === 'guide' ? 'kami-guide-panel' : 'kami-preset-panel';
+    var steps = [];
+    if (TAB === 'guide') {
+      var dots = doc.querySelectorAll('#' + id + ' .kami-dots .kami-dot');
+      for (var i = 0; i < dots.length; i++) { dots[i].setAttribute('data-tag', '页' + (i + 1)); steps.push(dots[i]); }
+      if (!steps.length) {
+        var nb = doc.querySelector('#' + id + ' .kami-foot .kami-btn--primary');
+        for (var k = 0; k < 12 && nb; k++) { nb.setAttribute('data-tag', '步' + (k + 1)); steps.push(nb); }
+      }
+    } else {
+      var tabs = doc.querySelectorAll('#' + id + ' .kami-tab');
+      for (var j = 0; j < tabs.length; j++) { tabs[j].setAttribute('data-tag', tabs[j].textContent.trim()); steps.push(tabs[j]); }
+    }
+    var acc = sweep(doc, id, steps);
+    lines.push('共扫 ' + steps.length + ' 个页面：' + acc.tags.join(' ｜ '));
+    lines.push('★可见条目卡=' + acc.cards + ' 有重叠的卡=' + acc.bad + ' ★最大重叠=' + acc.max.toFixed(1) + 'px²');
+    if (acc.badgeStyle) lines.push('emoji角标: padding=' + acc.badgeStyle.padding + ' ｜ border=' + acc.badgeStyle.border + ' ｜ background=' + acc.badgeStyle.background + ' ｜ pointer-events=' + acc.badgeStyle.pe + ' ｜ 尺寸=' + acc.badgeStyle.w + 'x' + acc.badgeStyle.h);
+    if (acc.noteStyle) lines.push('ⓘ角标: margin=' + acc.noteStyle.margin + ' ｜ top=' + acc.noteStyle.top + ' right=' + acc.noteStyle.right + ' ｜ 尺寸=' + acc.noteStyle.w + 'x' + acc.noteStyle.h + ' ｜ fs=' + acc.noteStyle.fs + ' ｜ 卡padding-top=' + acc.noteStyle.cardPadTop + '（bottom=' + acc.noteStyle.cardPadBottom + '）｜ 令牌 pad-y=' + acc.noteStyle.padY + ' pad-lg-y=' + acc.noteStyle.padLgY + ' fs-sm=' + acc.noteStyle.fsSm + ' fs-xs=' + acc.noteStyle.fsXs);
+    if (acc.badgeGeom) lines.push('emoji角标几何: 距卡顶=' + acc.badgeGeom.top + ' 高=' + acc.badgeGeom.h + ' fs=' + acc.badgeGeom.fs);
+    lines.push('条目卡的父层类名: ' + acc.parents.join(' ｜ '));
+    acc.worst.forEach(function (w) {
+      lines.push('  [' + w.tag + '][' + w.kind + ' "' + w.badge + '"] × "' + w.name + '" = ' + w.ox + '×' + w.oy + ' = ' + w.area + 'px²（角标' + w.bw + 'x' + w.bh + '，名' + w.mw + 'px）');
+    });
+    lines.push('卡高: 带角标=' + acc.withB.slice(0, 4).join('/') + ' 无角标=' + acc.noB.slice(0, 4).join('/'));
+    var ov = narrow(doc);
+    lines.push('溢出: body ' + ov.bs + '/' + ov.bc + ' html ' + ov.hs + '/' + ov.hc + ' drop宽=' + ov.dw + ' 视口=' + ov.vw);
+    lines.push('===END===');
+    document.getElementById('out').textContent = lines.join('\n');
+    document.title = 'DONE';
+  }, 1500);
+}
+fi.onload = function () { setTimeout(run, 1500); };
+</script>
+</body>
+</html>

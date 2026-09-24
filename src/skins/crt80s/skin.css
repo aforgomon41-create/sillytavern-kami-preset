@@ -23,13 +23,15 @@
  * 1 · 令牌全集（默认暗色：荧光绿单色终端）
  * ======================================================================== */
 html[data-kami-skin="crt80s"] .kami-root {
+  filter: hue-rotate(var(--kami-crt-hue));
   /* —— 风格性文案槽位（契约 §3.7） —— */
   --kami-label-think-title: 终端记录;
   --kami-label-think-title-open: 终端记录·展开;
   --kami-label-options-title: 指令选项;
 
   /* —— 色彩：近黑机身 + 荧光绿磷光 —— */
-  --kami-fg: #8affa9;            /* 主文字：荧光绿，对机身底 15.4:1 */
+  --kami-fg: #8affa9;
+  --kami-crt-hue: 0deg;            /* 主文字：荧光绿，对机身底 15.4:1 */
   --kami-fg-dim: #6ecf8f;        /* 次要文字：暗一档的磷光绿 */
   --kami-fg-mute: #4f8f66;       /* 最弱文字：余晖绿，4.9:1 */
   --kami-accent: #3dff7c;        /* 强调色：亮荧光绿 */
@@ -1321,4 +1323,41 @@ html[data-kami-skin="crt80s"][data-kami-scheme="light"][data-kami-effects~="grid
     repeating-linear-gradient(to top, var(--kami-line-strong) 0 1px, transparent 1px 22px),
     repeating-linear-gradient(to top, var(--kami-line-strong) 0 1px, transparent 1px 13px),
     repeating-conic-gradient(from -86deg at 50% 118%, var(--kami-line-strong) 0deg .8deg, transparent .8deg 12deg);
+}
+
+@keyframes kami-crt-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+html[data-kami-skin="crt80s"][data-kami-effects~="scan"] .kami-surface::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 15%;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
+  pointer-events: none;
+  animation: kami-crt-scan 4s linear infinite;
+  z-index: 999;
+}
+html[data-kami-skin="crt80s"][data-kami-effects~="scan"][data-kami-motion="calm"] .kami-surface::before,
+html[data-kami-skin="crt80s"][data-kami-effects~="scan"][data-kami-motion="off"] .kami-surface::before {
+  animation: none !important;
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="crt80s"][data-kami-effects~="scan"] .kami-surface::before {
+    animation: none !important;
+    display: none;
+  }
+}
+
+/* markdown：强调与插图（2026-09-24 补齐 —— 覆盖矩阵原本缺这两项） */
+html[data-kami-skin="crt80s"] .kami-md em { font-style: italic; color: var(--kami-accent); }
+html[data-kami-skin="crt80s"] .kami-md del { color: var(--kami-fg-mute); text-decoration-thickness: 1px; }
+html[data-kami-skin="crt80s"] .kami-md img {
+  display: block;
+  max-width: 100%;
+  margin: .6em 0;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-xs);
+  box-shadow: 0 0 var(--kami-glow-size) var(--kami-accent-soft);
 }

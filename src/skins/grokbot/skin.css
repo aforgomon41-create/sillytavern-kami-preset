@@ -167,6 +167,7 @@ html[data-kami-skin="grokbot"] .kami-root {
   /* —— 装饰与特效：平面皮肤没有纹理，也没有形体偏差 —— */
   --kami-gb-grain: 4;
   --kami-gb-sheen: 40;
+  --kami-gb-breathe: 55;   /* 呼吸幅度（%），与 skin.json 的 params.breathe 对应；缺了它滑杆写了也没处读 */
   --kami-texture:
     radial-gradient(circle at 22% 14%, rgba(255, 255, 255, calc(.14 * var(--kami-gb-grain) / 100)) 0 .7px, rgba(0, 0, 0, 0) 1.6px),
     radial-gradient(circle at 71% 43%, rgba(0, 0, 0, calc(.16 * var(--kami-gb-grain) / 100)) 0 .8px, rgba(0, 0, 0, 0) 1.7px),
@@ -1633,11 +1634,16 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .
   top: auto;
   bottom: 6px;
 }
+/* 让出高度：1.4em 取的是**卡片**的字号（--kami-fs-sm），ⓘ 的 1.4em 取的是它自己的
+   --kami-fs-xs；fs-sm > fs-xs，所以这一项必然盖过角标本体的高，再加 --kami-pad-y
+   盖过角标的 top 偏移 —— 紧凑密度档（pad-y 8px）下也仍然成立。
+   旧值 calc(12px + .5em) 只给到 18.75px，而 ⓘ 从 top:6px 起占 18px（底边 24px），
+   实测还剩 12 × 5.3 = 63px² 压在条目名上（2026-09-25 修）。 */
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
-  padding-top: calc(12px + .5em);
+  padding-top: calc(var(--kami-pad-y) + 1.4em);
 }
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
-  padding-bottom: calc(12px + .5em);
+  padding-bottom: calc(var(--kami-pad-y) + 1.4em);
 }
 
 /* ==========================================================================
@@ -1769,7 +1775,11 @@ html[data-kami-skin="grokbot"][data-kami-effects~="sheen"] .kami-root:not([data-
     inset 0 1px 0 rgba(255, 255, 255, calc(var(--kami-gb-sheen) / 100));
 }
 
-/* —— breathe · 团子喘气：承载面整体极慢地涨缩一点点（只动 transform） —— */
+/* —— breathe · 团子喘气：承载面整体极慢地涨缩一点点（只动 transform） ——
+   幅度走滑杆 --kami-gb-breathe（%）：0 = 不动，100 = 1.012 倍。
+   ⚠️ 这个令牌此前**只登记在 skin.json 里、CSS 既没给默认值也没消费**，滑杆拖了没反应
+   （.audit/check-skin.mjs 的 params.breathe.token 报 FAIL）。2026-09-25 补上默认值与
+   var() 消费；55（默认值）→ scale 1.0066，与原来写死的 1.006 基本一致，观感不变。 */
 html[data-kami-skin="grokbot"][data-kami-effects~="breathe"] .kami-root .kami-surface {
   transform-origin: 50% 62%;
   animation: kami-grokbot-breathe 7.4s var(--kami-ease) infinite;
@@ -1780,7 +1790,7 @@ html[data-kami-skin="grokbot"][data-kami-effects~="breathe"] .kami-root .kami-su
  * ======================================================================== */
 @keyframes kami-grokbot-breathe {
   0%, 100% { transform: scale(1); }
-  46% { transform: scale(1.006); }
+  46% { transform: scale(calc(1 + var(--kami-gb-breathe) / 100 * .012)); }
 }
 @keyframes kami-grokbot-unseal {
   from { opacity: 0; transform: translateY(calc(var(--kami-enter-y) * -1)) scale(var(--kami-enter-scale)); }
@@ -2000,7 +2010,7 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item > .
   right: 6px;
   left: auto;
   z-index: 2;
-  margin-left: 0;
+  margin: 0;   /* .kami-card-note 的 margin-top 会把角标再往下推，压到条目名 */
   pointer-events: auto;
 }
 html[data-kami-skin="grokbot"] .kami-root .kami-item-note {

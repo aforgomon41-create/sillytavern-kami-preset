@@ -853,13 +853,21 @@ html[data-kami-skin="isekai"] .kami-md p { margin: .5em 0; }
 
 html[data-kami-skin="isekai"] .kami-md h1,
 html[data-kami-skin="isekai"] .kami-md h2,
-html[data-kami-skin="isekai"] .kami-md h3 {
+html[data-kami-skin="isekai"] .kami-md h3,
+html[data-kami-skin="isekai"] .kami-md h4,
+html[data-kami-skin="isekai"] .kami-md h5,
+html[data-kami-skin="isekai"] .kami-md h6 {
   margin: .9em 0 .4em;
   font-family: var(--kami-font-title);
   font-weight: var(--kami-fw-title);
   font-size: var(--kami-fs);
   color: var(--kami-fg);
 }
+html[data-kami-skin="isekai"] .kami-md h1 { font-size: calc(var(--kami-fs) * 1.18); }
+html[data-kami-skin="isekai"] .kami-md h2 { font-size: calc(var(--kami-fs) * 1.08); }
+html[data-kami-skin="isekai"] .kami-md h4,
+html[data-kami-skin="isekai"] .kami-md h5,
+html[data-kami-skin="isekai"] .kami-md h6 { font-size: var(--kami-fs); }
 
 html[data-kami-skin="isekai"] .kami-md code {
   font-family: var(--kami-font-mono);
@@ -905,6 +913,26 @@ html[data-kami-skin="isekai"] .kami-md ol {
 html[data-kami-skin="isekai"] .kami-md li {
   margin: .2em 0;
 }
+/* 嵌套层级：缩进加深一档，圆点/序号压暗一档，条目行距收紧 */
+html[data-kami-skin="isekai"] .kami-md li > ul,
+html[data-kami-skin="isekai"] .kami-md li > ol {
+  margin-top: .25em;
+  margin-bottom: .15em;
+}
+html[data-kami-skin="isekai"] .kami-md li::marker { color: var(--kami-accent); }
+html[data-kami-skin="isekai"] .kami-md li li::marker { color: var(--kami-fg-mute); }
+
+html[data-kami-skin="isekai"] .kami-md em {
+  font-style: italic;
+  color: var(--kami-fg-dim);
+}
+html[data-kami-skin="isekai"] .kami-md img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  border-radius: var(--kami-r-sm);
+  border: var(--kami-border-w) solid var(--kami-line);
+}
 
 html[data-kami-skin="isekai"] .kami-md strong {
   color: var(--kami-fg);
@@ -934,6 +962,14 @@ html[data-kami-skin="isekai"] .kami-md th,
 html[data-kami-skin="isekai"] .kami-md td {
   border: var(--kami-border-w) solid var(--kami-line);
   padding: 5px 8px;
+}
+/* 窄屏表格不撑破：手机档把表变成可横滚的块 */
+@media (max-width: 560px) {
+  html[data-kami-skin="isekai"] .kami-md table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
 }
 
 html[data-kami-skin="isekai"] .kami-raw {
