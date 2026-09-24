@@ -10,7 +10,7 @@
  *      （仓库 mirror/manifest.json，走 cdn.jsdelivr.net，国内可达性好），照样拿
  *      到版本号、说明与下载地址
  *   ② 和本机当前预设的版本号比大小（大版本.小版本.构建号，三级比较；
- *      认正式命名 kami-v0.90-124-20260923，也认旧命名 0.9-97 / 0.9-260917-97）
+ *      认正式命名 kami-v<版本>-<构建号>-<日期>，也认旧命名 0.9-97 / 0.9-260917-97）
  *   ③ 确实有更新、且这个版本没被用户拒绝过 → 弹**酒馆原生弹窗**问要不要更新，
  *      更新说明取 Release 正文（清单兜底时取 manifest 的 notes），
  *      放在弹窗内的可滚动区域里（窗口不会太高）
@@ -66,7 +66,7 @@
  * 发版 = ① 把产物 JSON 提交进仓库 mirror/ 目录、更新 mirror/manifest.json
  *        （version / file / bytes / sha256 / date / notes）→ 推送；
  *        ② purge 一下 jsDelivr 的 @main 缓存（https://purge.jsdelivr.net/gh/<o>/<r>@main/mirror/manifest.json）；
- *        ③ 打同号 tag（如 v0.90-124）→ 发 Release、传附件（直链通道的正路）。
+ *        ③ 打同号 tag（如 v<版本>-<构建号>）→ 发 Release、传附件（直链通道的正路）。
  * 注意顺序：**先提交 mirror/ 再打 tag**——jsDelivr 的 @<tag> 只认 tag 提交里有的文件。
  * ============================================================ */
 (function () {
@@ -308,16 +308,16 @@
   }
 
   /* 从预设名解析版本号。认这些命名：
-   *   现行：kami-v0.90-113-20260923   （v大版本.两位小版本-构建号-日期；2026-09-23 起改用 ASCII 前缀，
+   *   现行：kami-v<版本>-<构建号>-<日期>（v大版本.两位小版本-构建号-日期；版本见根目录 version.json；2026-09-23 起改用 ASCII 前缀，
    *          因为 GitHub Releases 会把非 ASCII 附件名直接削掉，「卡密预设v…」传上去会变成「v…」）
-   *   曾用：卡密预设v0.90-113-20260923
+   *   曾用：卡密预设v0.90-<构建号>-<日期>
    *   旧版：卡密预设0.9-97 / 卡密预设0.9-260917-97
    * 返回 { major, minor, build, date, raw }；认不出来返回 null（绝不猜）。 */
   function parseVersion(name) {
     var str = cleanStr(name);
     var m = /(?:kami-|卡密预设)?v(\d+)\.(\d+)-(\d+)-(\d{8})(?:\D|$)/i.exec(str);
     if (m) {
-      /* 正式命名的「两位小版本」按小数读：v0.90 就是 0.9，
+      /* 正式命名的「两位小版本」按小数读：v0.91 就是 0.91（小数部分原样两位），
          和旧命名 0.9-97 是同一个版本，不会误判为有更新。 */
       return { major: +m[1], minorDigits: m[2], minor: parseFloat('0.' + m[2]), build: +m[3], date: m[4], raw: str };
     }
@@ -335,7 +335,7 @@
     return a.build - b.build;
   }
 
-  /* 版本号的展示用短串：v0.90-97 → "v0.90-97"（沿用文件名里的写法） */
+  /* 版本号的展示用短串：v0.91-97 → "v0.91-97"（沿用文件名里的写法） */
   function versionLabel(v) {
     if (!v) { return ''; }
     return 'v' + v.major + '.' + v.minorDigits + '-' + v.build;
@@ -738,7 +738,7 @@
         if (!v) { continue; }
         return {
           name: safePresetName(pick.name),
-          version: versionLabel(v),       /* tag 的短写法：v0.90-122；同时是镜像仓库取快照用的 tag */
+          version: versionLabel(v),       /* tag 的短写法：v<版本>-<构建号>；同时是镜像仓库取快照用的 tag */
           major: v.major, minor: v.minor, build: v.build,
           released: cleanStr(rel.published_at).slice(0, 10),
           notes: typeof rel.body === 'string' ? rel.body : '',
@@ -900,18 +900,24 @@
     return snap;
   }
 
-  /* base = 用户那一版的原始内容：按用户版本号对应的 tag 从仓库 mirror/ 取。
-     ① jsDelivr @<tag>/mirror/manifest.json → file → @<tag>/mirror/<file>。
-     取不到就返回 null（合并引擎进退化模式：「 τηrs 与 next 的差异全进待裁决」），
-     同时记一行日志说明 —— 不再走 GitHub Releases 附件那两条路（别把这块做复杂），
-     因为直链通道里手机连不上的那台 CDN 同样救不了它。 */
-  function fetchBaseSnapshot(tag, cfg) {
+  /* base = 用户那一版的原始内容。两条路（都不发 Release 也能用）：
+     ① jsDelivr `@<tag>/mirror/manifest.json` → file → `@<tag>/mirror/<file>`（该版本发过 Release / tag 时的正路）；
+     ② 兜底：直接按**用户本机预设名**取 `@main/mirror/<预设名>.json`。
+        为什么需要它：合并只要求「这一版的原始文件在仓库里」，不要求它发过 Release；
+        镜像目录每版都会留一份（文件名就是预设名，含构建号与日期），而 @main 下这些文件一直都在。
+        没有它的话，没发过 Release 的版本只能走退化模式（差异全进待裁决），合并质量白白打折。
+     取不到就返回 null（退化模式），并记一行日志说明。 */
+  function fetchBaseSnapshot(tag, cfg, localName) {
     var want = cleanStr(tag);
-    if (!want) {
+    var localFile = cleanStr(localName);
+    /* 镜像里的文件名是「预设名 + .json」：预设名本身不带扩展名，这里补上
+       （少了这一步，兜底那条路会去取一个不存在的名字，实测过）。 */
+    if (localFile && !/\.json$/i.test(localFile)) { localFile += '.json'; }
+    if (!want && !localFile) {
       log('认不出当前预设的版本号 → 取不到用户那一版的原始内容，合并走退化模式（theirs 与 next 的差异全进待裁决）');
       return Promise.resolve(null);
     }
-    return fetchApi(jsdUrl(cfg, want, 'manifest.json')).then(function (r) {
+    var byTag = (!want) ? Promise.reject(new Error('没有版本号')) : fetchApi(jsdUrl(cfg, want, 'manifest.json')).then(function (r) {
       if (r.status !== 200) { throw new Error('清单 HTTP ' + r.status); }
       var m2 = null;
       try { m2 = JSON.parse(r.text); } catch (e2) { throw new Error('清单不是合法 JSON'); }
@@ -921,6 +927,11 @@
     }).then(function (file) {
       log('按版本 ' + want + ' 取用户那一版的原始内容（合并的 base）：' + jsdUrl(cfg, want, file));
       return fetchText(jsdUrl(cfg, want, file));
+    });
+    return byTag['catch'](function (e1) {
+      if (!localFile) { throw e1; }
+      log('按 tag 取没成（' + ((e1 && e1.message) || e1) + '）→ 改按预设名从镜像最新提交取：' + jsdUrl(cfg, 'main', localFile));
+      return fetchText(jsdUrl(cfg, 'main', localFile));
     }).then(function (text) {
       var base = JSON.parse(text);
       if (!base || !Array.isArray(base.prompts)) { throw new Error('内容不像一份预设'); }
@@ -1050,7 +1061,7 @@
       });
     }
     var cfg = repoConfig();
-    return fetchBaseSnapshot(last.localVersion, cfg).then(function (base) {
+    return fetchBaseSnapshot(last.localVersion, cfg, last.localName).then(function (base) {
       var plan = computeMergePlan(base, theirs, nextJson);
       log('合并计划就绪：待裁决 ' + plan.conflicts.length + ' 处 / 新版新增 ' + plan.stats.added +
         ' 条 / 应用新版 ' + plan.stats.applied + ' 处' + (plan.degraded ? '（退化模式：base 取不到）' : ''));
@@ -1228,7 +1239,7 @@
    * 分发走 GitHub Releases，发新版 = 在仓库页发一个 Release：
    *   ① 附件上传正式分发文件，文件名即版本号来源：
    *      卡密预设v{大版本号}.{两位小版本号}-{构建号}-{日期}.json
-   *      例如 卡密预设v0.90-98-20260922.json（日期 8 位，年在前）
+   *      例如 卡密预设v0.90-<构建号>-<日期>.json（日期 8 位，年在前）
    *   ② Release 说明正文 = 弹窗里的更新说明（纯文本，一行一条）；
    *      不要放 | { } \ 四个字符（弹窗管道符与宏语法要用，放了会被自动换成全角）
    *   ③ 别发草稿；预发布（prerelease）算正式版，开发期可以直接发

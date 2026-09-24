@@ -43,17 +43,24 @@ function git(args, opts) {
   return String(r.stdout || '');
 }
 
-/* 1. 找产物：dist/kami-v0.90-<N>-<日期>.json */
+/* 1. 找产物：dist/kami-v<版本>-<N>-<日期>.json（版本号不写死：从产物名解析，
+      并与根目录 version.json 核对一致 —— 免得拿旧版本的产物去发新版本号） */
 const distDir = path.join(ROOT, 'dist');
+const wantVersion = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).version || '').trim();
 const hit = fs.readdirSync(distDir)
-  .filter(f => new RegExp('^kami-v0\\.90-' + N + '-\\d{8}\\.json$', 'i').test(f));
+  .filter(f => new RegExp('^kami-v(\\d+\\.\\d+)-' + N + '-\\d{8}\\.json$', 'i').test(f));
 if (hit.length !== 1) {
-  console.error('在 dist/ 里找到 ' + hit.length + ' 个匹配「kami-v0.90-' + N + '-<日期>.json」的文件，无法确定用哪个：' + hit.join(', '));
+  console.error('在 dist/ 里找到 ' + hit.length + ' 个匹配「kami-v<版本>-' + N + '-<日期>.json」的文件，无法确定用哪个：' + hit.join(', '));
   process.exit(1);
 }
 const ASSET_NAME = hit[0];
 const FILE = path.join(distDir, ASSET_NAME);
-const TAG = 'v0.90-' + N;
+const fileVersion = (ASSET_NAME.match(/^kami-v(\d+\.\d+)-/i) || [, ''])[1];
+if (wantVersion && fileVersion !== wantVersion) {
+  console.error('产物版本（' + fileVersion + '）与 version.json（' + wantVersion + '）不一致 —— 先跑 node build/build.mjs 出对应版本的产物。');
+  process.exit(1);
+}
+const TAG = 'v' + fileVersion + '-' + N;
 const TITLE = '卡密预设 ' + TAG;
 const DATE = (ASSET_NAME.match(/-(\d{8})\.json$/i) || [, ''])[1];
 

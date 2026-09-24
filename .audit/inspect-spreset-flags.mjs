@@ -5,7 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
-const dist = read(path.join(ROOT, 'dist', 'kami-v0.90-125-20260923.json'));
+/* 取 dist 里构建号最大的那份产物（别写死版本，升版本后这里不用改） */
+const NAMED = /^kami-v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i;
+const distFile = fs.readdirSync(path.join(ROOT, 'dist'))
+  .filter(f => NAMED.test(f))
+  .sort((a, b) => Number(b.match(NAMED)[1]) - Number(a.match(NAMED)[1]))[0];
+const dist = read(path.join(ROOT, 'dist', distFile));
 const base = read(path.join(ROOT, 'src', 'preset.base.json'));
 for (const [tag, j] of [['base', base], ['dist', dist]]) {
   const s = j.extensions?.SPreset;

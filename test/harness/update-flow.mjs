@@ -18,7 +18,7 @@
  *   · 同一窗口两份脚本实例只跑一份
  *   · 6 小时间隔内启动不重复连网；手动 check() 不受限
  *   · 草稿 Release 跳过；多个附件优先选 卡密预设 开头的 JSON
- *   · 新旧命名互认：本机 0.9-97 与仓库 v0.90-97 是同一版本，不弹
+ *   · 新旧命名互认：本机 0.9-97 与仓库 v<版本>-97 是同一版本，不弹
  * 不依赖浏览器。改 70-远程更新.js 后跑一遍，能挡住大部分回归。
  */
 import fs from 'node:fs';
@@ -77,7 +77,7 @@ function makeEnv(opts) {
   /* 假 Releases 接口：默认给一个「最新正式版 97」 */
   const RELEASE = opts.release === undefined ? [releaseOf(97, '20260922')] : opts.release;
   const PRESET_TEXT = opts.presetText !== undefined ? opts.presetText
-    : JSON.stringify({ name: 'kami-v0.90-97-20260922', prompts: [{ identifier: 'a', name: 'x', content: 'y' }], prompt_order: [] });
+    : JSON.stringify({ name: PN + '-97-20260922', prompts: [{ identifier: 'a', name: 'x', content: 'y' }], prompt_order: [] });
 
   const dom = Object.assign({}, opts.dom || {});
   const HDOC = {
@@ -156,6 +156,12 @@ function makeEnv(opts) {
       if (opts.jsdTag404 && /@v[\d.]+-\d+\//.test(u)) {
         return Promise.resolve({ ok: false, status: 404, headers, text: () => Promise.resolve('not found') });
       }
+      /* base 的兜底路：按**本地预设名**取 `@main/mirror/<预设名>.json`。
+         baseMain404 模拟「镜像里也没有这一版」；baseMainText 给这条路一份单独的 base 内容。 */
+      if (/@main\/mirror\/[^/]+\.json$/.test(u) && u.indexOf('manifest.json') < 0) {
+        if (opts.baseMain404) { return Promise.resolve({ ok: false, status: 404, headers, text: () => Promise.resolve('') }); }
+        return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(opts.baseMainText === undefined ? PRESET_TEXT : opts.baseMainText) });
+      }
       return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
     }
     return Promise.resolve({ ok: true, status: 200, headers, text: () => Promise.resolve(PRESET_TEXT) });
@@ -214,13 +220,30 @@ if (CODE_NO_JSD_NO_RETRY === CODE_NO_JSD) { throw new Error('叠加清零重试�
 
 const REPO_VARS = { 'kami-update': { repo: { owner: 'kamisama', repo: 'kami-preset' } } };
 
-/* 造一个假 Release：现行正式分发名 kami-v0.90-<build>-<date>.json
-   （曾用名「卡密预设v0.90-…」在 GitHub 上会被削成「v0.90-…」，所以 2026-09-23 起前缀改成 ASCII） */
+/* 当前版本从根目录 version.json 读（**别写死**）：升版本之后，「跨小版本升级要能识别」那条用例
+   会自动跟着新版本号跑，不用回来改测试。夹具里的版本号一律由这两个常量派生。 */
+const VERSION_NOW = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).version;
+const VERSION_PREV = (function () {
+  const m = /^(\d+)\.(\d{2})$/.exec(VERSION_NOW);
+  if (!m) { throw new Error('version.json 里的 version 必须是「大版本.两位小版本」：' + VERSION_NOW); }
+  const minor = Number(m[2]) - 1;
+  if (minor < 0) { throw new Error('小版本号退无可退：' + VERSION_NOW); }
+  return m[1] + '.' + String(minor).padStart(2, '0');
+})();
+
+/* 断言里一律用这两个派生常量，别写死版本号：升版本后测试自动跟上。
+   （夹具里的「仓库最新版」用 VERSION_PREV＝上一个两位小版本，所以跨小版本升级这条路每次都被测到。） */
+const PV = 'v' + VERSION_PREV;      /* 例：v0.90 */
+const PN = 'kami-' + PV;            /* 例：kami-v0.90 */
+
+/* 造一个假 Release：现行正式分发名 kami-v<版本>-<build>-<date>.json
+   （曾用名「卡密预设v…」在 GitHub 上会被削成「v…」，所以 2026-09-23 起前缀改成 ASCII） */
 function releaseOf(build, date, extra) {
   const d = date || '20260922';
-  const name = 'kami-v0.90-' + build + '-' + d;
+  const ver = (extra && extra.__version) || VERSION_PREV;
+  const name = 'kami-v' + ver + '-' + build + '-' + d;
   return Object.assign({
-    tag_name: 'v0.90-' + build + '-' + d,
+    tag_name: 'v' + ver + '-' + build + '-' + d,
     name: name,
     draft: false,
     prerelease: false,
@@ -254,12 +277,12 @@ console.log('--- 有新版本 + 用户点「立即更新」 ---');
   ok(cmd.indexOf('/popup ') === 0, '用的是酒馆 /popup 命令');
   ok(cmd.indexOf('result=true') > 0, '带 result=true（能拿到用户选的是/否）');
   ok(cmd.indexOf('okButton="立即更新"') > 0 && cmd.indexOf('cancelButton="暂不更新"') > 0, '按钮是 立即更新 / 暂不更新');
-  ok(cmd.indexOf('kami-v0.90-97-20260922') > 0 && cmd.indexOf('v0.90-97') > 0, '弹窗里带新版本名');
+  ok(cmd.indexOf(PN + '-97-20260922') > 0 && cmd.indexOf(PV + '-97') > 0, '弹窗里带新版本名');
   ok(cmd.indexOf('max-height:36vh') > 0 && cmd.indexOf('overflow-y:auto') > 0, '更新说明放在可滚动区域里（窗口不会过高）');
   ok(env.importCalls.length === 1, '调用了 importRawPreset 写入预设文件夹');
-  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '写入的预设名正确', env.importCalls[0] && env.importCalls[0].name);
+  ok(env.importCalls[0] && env.importCalls[0].name === PN + '-97-20260922', '写入的预设名正确', env.importCalls[0] && env.importCalls[0].name);
   ok(env.importCalls[0] && env.importCalls[0].content.indexOf('"prompts"') > 0, '写入的是下载到的预设原文');
-  ok(env.scriptVars['kami-update'].imported === 'v0.90-97', '脚本变量记下 imported=v0.90-97（跟账号走，不存浏览器）');
+  ok(env.scriptVars['kami-update'].imported === PV + '-97', '脚本变量记下 imported=' + PV + '-97（跟账号走，不存浏览器）');
   ok(r.action === 'imported', 'action = imported');
   ok(env.toasts.some(t => t[0] === 'success' && t[1].indexOf('切换') > 0), '写入后提醒用户切换预设');
   /* 命令串安全性：HTML 段不能带会绊倒斜杠命令解析器的字符 */
@@ -281,13 +304,13 @@ console.log('--- 用户点「暂不更新」 ---');
   await settle();
   const r = await env.api().check(false);
   ok(r.action === 'declined', 'action = declined');
-  ok(env.scriptVars['kami-update'].skipped === 'v0.90-97', '脚本变量记下 skipped=v0.90-97');
+  ok(env.scriptVars['kami-update'].skipped === PV + '-97', '脚本变量记下 skipped=' + PV + '-97');
   ok(env.importCalls.length === 0, '没有写入预设');
   const r2 = await env.api().check(false);
   ok(env.slashCalls.length === 1, '再检查不为同一版本弹窗');
   ok(r2.action === 'skipped', '第二次 action = skipped');
   const env2 = makeEnv({
-    vars: { 'kami-update': { skipped: 'v0.90-97', repo: REPO_VARS['kami-update'].repo } },
+    vars: { 'kami-update': { skipped: PV + '-97', repo: REPO_VARS['kami-update'].repo } },
     release: [releaseOf(98, '20260923')], popupResult: '0',
   });
   await settle();
@@ -310,7 +333,7 @@ console.log('--- 已经是最新 ---');
 
 console.log('--- 本机已导入过该版本（只是没切换） ---');
 {
-  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', 'kami-v0.90-97-20260922'] });
+  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', PN + '-97-20260922'] });
   await settle();
   const r = await env.api().check(false);
   ok(r.action === 'installed', 'action = installed');
@@ -379,7 +402,7 @@ console.log('--- 清单 404 / 下载内容不对 / 写入失败 ---');
 
 console.log('--- check(true) 强制重弹 ---');
 {
-  const env = makeEnv({ vars: { 'kami-update': { skipped: 'v0.90-97', repo: REPO_VARS['kami-update'].repo } }, popupResult: '0' });
+  const env = makeEnv({ vars: { 'kami-update': { skipped: PV + '-97', repo: REPO_VARS['kami-update'].repo } }, popupResult: '0' });
   await settle();
   const r = await env.api().check(true);
   ok(env.slashCalls.length === 1, 'force 时忽略 skipped 记录重新弹');
@@ -388,7 +411,7 @@ console.log('--- check(true) 强制重弹 ---');
 
 console.log('--- reset / shutdown ---');
 {
-  const env = makeEnv({ vars: { 'kami-update': { skipped: 'v0.90-97', imported: 'v0.90-97', repo: REPO_VARS['kami-update'].repo } } });
+  const env = makeEnv({ vars: { 'kami-update': { skipped: PV + '-97', imported: PV + '-97', repo: REPO_VARS['kami-update'].repo } } });
   await settle();
   const s = env.api().reset();
   ok(env.scriptVars['kami-update'].skipped === '' && env.scriptVars['kami-update'].imported === '', 'reset 清空版本记录');
@@ -409,7 +432,7 @@ console.log('--- 启动后自动检查一次 ---');
   ok(env.fetchCalls.length === 1, '3 秒后自动检查一次', 'fetchCalls=' + env.fetchCalls.length);
   await env.pump(120000);
   ok(env.fetchCalls.length === 1, '之后不再自己轮询（只认启动那一次）', 'fetchCalls=' + env.fetchCalls.length);
-  ok(env.scriptVars['kami-update'].skipped === 'v0.90-97', '自动检查也走同一条流程（记下拒绝）');
+  ok(env.scriptVars['kami-update'].skipped === PV + '-97', '自动检查也走同一条流程（记下拒绝）');
 }
 
 console.log('--- 同一窗口两份脚本实例 ---');
@@ -447,7 +470,7 @@ console.log('--- Releases 列表挑选规则 ---');
       Object.assign(releaseOf(97, '20260922'), {
         assets: [
           { name: 'checksums.txt', browser_download_url: 'https://example.com/dl/checksums.txt' },
-          { name: 'kami-v0.90-97-20260922.json', browser_download_url: 'https://example.com/dl/kami.json' },
+          { name: PN + '-97-20260922.json', browser_download_url: 'https://example.com/dl/kami.json' },
         ],
       }),
     ],
@@ -457,14 +480,14 @@ console.log('--- Releases 列表挑选规则 ---');
   ok(r.remote && r.remote.build === 97, '跳过草稿，取最新非草稿版', r.remote && r.remote.build);
   ok(r.remote && r.remote.url === 'https://example.com/dl/kami.json', '多附件优先选 kami- 开头的 JSON', r.remote && r.remote.url);
 
-  /* GitHub 会把非 ASCII 附件名直接削掉：曾用中文名上传的附件会变成 v0.90-…json（没有前缀）。
+  /* GitHub 会把非 ASCII 附件名直接削掉：曾用中文名上传的附件会变成 v<版本>-…json（没有前缀）。
      这种附件也必须能挑中、并解析出版本号（否则「改名换前缀」这件事会把老 Release 变成死信）。 */
   const envStripped = makeEnv({
     vars: REPO_VARS, popupResult: '0',
     release: [releaseOf(97, '20260922', {
       assets: [
         { name: 'checksums.txt', browser_download_url: 'https://example.com/dl/checksums.txt' },
-        { name: 'v0.90-97-20260922.json', browser_download_url: 'https://example.com/dl/stripped.json' },
+        { name: PV + '-97-20260922.json', browser_download_url: 'https://example.com/dl/stripped.json' },
       ],
     })],
   });
@@ -501,16 +524,29 @@ console.log('--- 新旧命名互认 ---');
   });
   await settle();
   const r = await env.api().check(false);
-  ok(r.action === 'none', '本机旧命名 0.9-97 与仓库正式命名 v0.90-97 判为同一版本', JSON.stringify(r.action));
+  ok(r.action === 'none', '本机旧命名 0.9-97 与仓库正式命名 ' + PV + '-97 判为同一版本', JSON.stringify(r.action));
 
   const env2 = makeEnv({
-    vars: REPO_VARS, localPreset: 'kami-v0.90-96-20260921', installed: ['kami-v0.90-96-20260921'],
+    vars: REPO_VARS, localPreset: PN + '-96-20260921', installed: [PN + '-96-20260921'],
     release: [releaseOf(97, '20260922')],
   });
   await settle();
   const r2 = await env2.api().check(false);
-  ok(env2.slashCalls.length === 1, '本机 v0.90-96 对仓库 v0.90-97 → 弹窗');
-  ok(r2.localVersion === 'v0.90-96', 'status 里带本机版本号', r2.localVersion);
+  ok(env2.slashCalls.length === 1, '本机 ' + PV + '-96 对仓库 ' + PV + '-97 → 弹窗');
+  ok(r2.localVersion === PV + '-96', 'status 里带本机版本号', r2.localVersion);
+
+  /* 跨小版本升级（2026-09-24 升 0.90 → 0.91 时补的用例）：老用户在上一个两位小版本上，
+     仓库发的是**当前版本**，必须判为「有更新」。版本号全部从 version.json 派生，
+     所以以后每次升版本它都自动测新的一跳，不用回来改测试。 */
+  const env3 = makeEnv({
+    vars: REPO_VARS, localPreset: PN + '-131-20260924', installed: [PN + '-131-20260924'],
+    release: [releaseOf(132, '20260924', { __version: VERSION_NOW })],
+  });
+  await settle();
+  const r3 = await env3.api().check(false);
+  ok(env3.slashCalls.length === 1, '跨小版本：本机 ' + VERSION_PREV + '-131 对仓库 ' + VERSION_NOW + '-132 → 弹窗');
+  ok(r3.remote && r3.remote.version === 'v' + VERSION_NOW + '-132',
+    '跨小版本：远端版本号读成 v' + VERSION_NOW + '-132', r3.remote && r3.remote.version);
 }
 
 console.log('--- 下载链：直链 TypeError 失败 → 回退 API 附件通道成功（本用例关掉 jsDelivr，专测第④条） ---');
@@ -519,9 +555,9 @@ console.log('--- 下载链：直链 TypeError 失败 → 回退 API 附件通道
   await settle();
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '直链失败时回退通道仍然装上了预设');
-  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '回退写入的预设名正确');
+  ok(env.importCalls[0] && env.importCalls[0].name === PN + '-97-20260922', '回退写入的预设名正确');
   ok(env.importCalls[0] && env.importCalls[0].content.indexOf('"prompts"') > 0, '回退写入的是完整预设原文');
-  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '回退成功同样记 imported');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '回退成功同样记 imported');
   /* 下载请求顺序：直链先试（2 次），再退到 API 附件接口 */
   const dlCalls = env.fetchCalls.filter(c => c.url.indexOf('https://api.github.com/') !== 0);
   const apiCalls = env.fetchCalls.filter(c => c.url.indexOf('/releases/assets/') >= 0);
@@ -556,9 +592,9 @@ console.log('--- 下载链全部失败 → 给出可操作错误 ---');
    下载地址正对着假 jsDelivr 上预置的预设正文。 */
 function manifestOf(build, date, extra) {
   const d = date || '20260922';
-  const file = 'kami-v0.90-' + build + '-' + d + '.json';
+  const file = PN + '-' + build + '-' + d + '.json';
   return Object.assign({
-    version: 'v0.90-' + build,
+    version: PV + '-' + build,
     file: file,
     bytes: 0,   /* bytes 仅清单信息展示用，脚本校验只用 sha256；需要时在 extra 里给 */
     sha256: '',
@@ -580,14 +616,14 @@ console.log('--- ① Releases 接口读失败 → jsDelivr 清单兜底发现版
   await settle();
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '清单兜底路径成功装上了预设');
-  ok(env.importCalls[0] && env.importCalls[0].name === 'kami-v0.90-97-20260922', '清单兜底写入的预设名正确',
+  ok(env.importCalls[0] && env.importCalls[0].name === PN + '-97-20260922', '清单兜底写入的预设名正确',
     env.importCalls[0] && env.importCalls[0].name);
-  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '清单兜底同样记 imported');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '清单兜底同样记 imported');
   ok(r.remote && r.remote.from === 'manifest', 'remote 标记来源 = manifest', r.remote && r.remote.from);
   ok(r.remote && r.remote.assetId === null, '清单兜底的 remote 没有 Release 附件 id');
   const dlJsd = jsdFileCalls(env);
   ok(dlJsd.length >= 1, '下载确实走的 jsDelivr', JSON.stringify(dlJsd.map(c => c.url)));
-  ok(dlJsd[0] && dlJsd[0].url.indexOf('/mirror/kami-v0.90-97-20260922.json') > 0,
+  ok(dlJsd[0] && dlJsd[0].url.indexOf('/mirror/' + PN + '-97-20260922.json') > 0,
     '清单兜底下载的是镜像上同一份文件名', dlJsd[0] && dlJsd[0].url);
   const logs = env.api().status().logs.join('\n');
   ok(logs.indexOf('jsDelivr 清单') > 0 && logs.indexOf('发现的') > 0, '日志写明这一版是从 jsDelivr 清单发现的');
@@ -602,12 +638,12 @@ console.log('--- ② 下载链：直链与 jsDelivr @<tag> 都 404 → 自动落
   await settle();
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '@<tag> 404 后 @main 兜底仍装上了预设');
-  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '@main 兜底同样记 imported');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '@main 兜底同样记 imported');
   const jsdTag = env.fetchCalls.filter(c => /cdn\.jsdelivr\.net\/.*@v0\.90-97\//.test(c.url));
   const jsdMain = jsdFileCalls(env).filter(c => c.url.indexOf('@main/') >= 0);
   ok(jsdTag.length >= 1, '@<tag> 那条也试过（每条通道 2 次的既有逻辑没动）', JSON.stringify(jsdTag.map(c => c.url)));
   ok(jsdMain.length >= 1, '随后落到 @main 那条', JSON.stringify(jsdMain.map(c => c.url)));
-  ok(jsdMain[0] && jsdMain[0].url.indexOf('/mirror/kami-v0.90-97-20260922.json') > 0,
+  ok(jsdMain[0] && jsdMain[0].url.indexOf('/mirror/' + PN + '-97-20260922.json') > 0,
     '@main 请求的也是同一份文件名', jsdMain[0] && jsdMain[0].url);
   const logs = env.api().status().logs.join('\n');
   ok(logs.indexOf('回退成功') > 0 && logs.indexOf('jsDelivr 镜像（最新）') > 0,
@@ -644,7 +680,7 @@ console.log('--- ④ crypto.subtle 不存在（局域网 http）→ 跳过校验
   await settle();
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '没有 subtle 时跳过校验、预设照常装上');
-  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '跳过校验同样记 imported');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '跳过校验同样记 imported');
   const logs = env.api().status().logs.join('\n');
   ok(logs.indexOf('SHA-256') > 0 && logs.indexOf('跳过') > 0, '日志写明「校验跳过」及原因');
 }
@@ -652,7 +688,7 @@ console.log('--- ④ crypto.subtle 不存在（局域网 http）→ 跳过校验
 console.log('--- ⑤ 清单里的版本比本机旧 → 不弹窗（清单兜底同样要比版本） ---');
 {
   const env = makeEnv({
-    vars: REPO_VARS, localPreset: 'kami-v0.90-98-20260923', installed: ['kami-v0.90-98-20260923'],
+    vars: REPO_VARS, localPreset: PN + '-98-20260923', installed: [PN + '-98-20260923'],
     failReleases: true,
     manifest: manifestOf(97, '20260922'),
   });
@@ -669,7 +705,7 @@ console.log('--- ⑥ 清单文件名解析不出版本号 → 明确报错（绝
     vars: REPO_VARS, popupResult: '1',
     failReleases: true,
     manifest: {
-      version: 'v0.90-97', file: 'preset-final.json', date: '20260922',
+      version: PV + '-97', file: 'preset-final.json', date: '20260922',
       bytes: 1, sha256: '', notes: 'n',
     },
   });
@@ -687,7 +723,7 @@ console.log('--- ⑥ 清单文件名解析不出版本号 → 明确报错（绝
 
 function miniPreset(buildNo, prompts, order, ext) {
   return JSON.stringify({
-    name: 'kami-v0.90-' + buildNo + '-20260922',
+    name: PN + '-' + buildNo + '-20260922',
     temperature: 0.7,
     prompts: prompts,
     prompt_order: [{ character_id: 100001, order: order }],
@@ -698,7 +734,7 @@ function prompt(id, content, extra) {
   return Object.assign({ identifier: id, name: id + ' 名', content: content == null ? '内容·' + id : content, enabled: true, role: 'system' }, extra || {});
 }
 
-/* 下面的每组都给用户版本号 96（baseTag=v0.90-96）与仓库最新 97：
+/* 下面的每组都给用户版本号 96（baseTag=<上一个两位小版本>-96）与仓库最新 97：
    base = 96 的原始预设，theirs = 用户改过的活设置，next = 下载到的 97。 */
 const MERGE_BASE = miniPreset(96, [prompt('a', 'base 版'), prompt('b'), prompt('c')],
   [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }],
@@ -712,10 +748,10 @@ console.log('--- 合并①：没有冲突 → 先备份、再导入合并结果�
     [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }, { identifier: 'new', enabled: true }]);
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const injection = { prompts: [prompt('a', 'base 版'), prompt('b'), prompt('c')], prompt_order: [{ character_id: 100001, order: [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }] }] };
@@ -726,19 +762,19 @@ console.log('--- 合并①：没有冲突 → 先备份、再导入合并结果�
   const r = await env.api().check(false);
   ok(env.slashCalls.length === 1, '先弹「要不要更新」的普通弹窗（一次）');
   ok(env.importCalls.length === 2, '合并流程 = 两次 importRawPreset：备份 + 合并结果', env.importCalls.length);
-  ok(env.importCalls[0].name === 'kami-v0.90-96-20260921 · 合并前备份', '第 1 次写盘是「合并前备份」备份当前那份',
+  ok(env.importCalls[0].name === PN + '-96-20260921 · 合并前备份', '第 1 次写盘是「合并前备份」备份当前那份',
     env.importCalls[0] && env.importCalls[0].name);
   const backup = JSON.parse(env.importCalls[0].content);
   ok(backup.prompts && backup.prompts[0].content === 'base 版', '备份里存的是用户当前预设的内容',
     backup.prompts && backup.prompts[0]);
-  ok(env.importCalls[1].name === 'kami-v0.90-97-20260922', '第 2 次写盘 = 新版预设名',
+  ok(env.importCalls[1].name === PN + '-97-20260922', '第 2 次写盘 = 新版预设名',
     env.importCalls[1].name);
   const merged = JSON.parse(env.importCalls[1].content);
   ok(merged.prompts[0].content === 'base 版', '无冲突条目内容（两边同文）→ 保持原样，不空穴来风',
     merged.prompts[0]);
   ok(merged.prompts.some(p => p.identifier === 'new'), '新版新增条目直接进入合并结果',
     merged.prompts.map(p => p.identifier));
-  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === 'v0.90-97', '合并成功同样记 imported');
+  ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '合并成功同样记 imported');
   const logs = env.api().status().logs.join('\n');
   ok(logs.indexOf('合并前备份') > 0, '日志写明先备份了');
   ok(logs.indexOf('合并计划就绪') > 0 && logs.indexOf('待裁决 0') > 0, '日志写明合并计划（本组 0 处待裁决）');
@@ -752,10 +788,10 @@ console.log('--- 合并②：开关与顶层参数永远保留用户 + 用户改
     [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }, { identifier: 'new', enabled: true }]);
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
@@ -784,10 +820,10 @@ console.log('--- 合并③：两边都改过 → 原生弹窗兜底一键裁决�
     [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }]);
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1', '0'],   /* 第一次=更新；第二次弹窗「全部保留我的」 */
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
@@ -819,10 +855,10 @@ console.log('--- 合并③：两边都改过 → 原生弹窗兜底一键裁决�
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS,
     popupResults: ['1', '1'],    /* 第一次=更新；第二次合并弹窗=「全部用新版」 */
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
@@ -844,10 +880,10 @@ console.log('--- 合并④：面板路径（HOST.KamiPreset.openMergeReview 主�
     [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1'],
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
@@ -879,10 +915,10 @@ console.log('--- 合并④：面板路径（HOST.KamiPreset.openMergeReview 主�
   /* 用户放弃（onApply(null)）→ 不写盘、不记 imported */
   const env2 = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1'],
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st2 = env2.W.SillyTavern.getContext().chatCompletionSettings;
@@ -903,10 +939,10 @@ console.log('--- 合并⑤：备份写不进去 → 同样不导入合并结果 
     [{ identifier: 'a', enabled: true }, { identifier: 'c', enabled: true }]);
   const env = makeEnv({
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1', importFail: true,
-    localPreset: 'kami-v0.90-96-20260921',
+    localPreset: PN + '-96-20260921',
     presetText: nextText,
-    baseTag: 'v0.90-96',
-    baseManifest: { version: 'v0.90-96', file: 'kami-v0.90-96-20260921.json' },
+    baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' },
     baseText: MERGE_BASE,
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
@@ -931,6 +967,8 @@ console.log('--- 合并⑥：base 取不到（认不出 tag / 镜像 404）→ �
     code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1', '0'],
     localPreset: '我的奇怪预设',
     presetText: nextText,
+    baseManifest: null,     /* 按 tag 取：清单 404 */
+    baseMain404: true,      /* 按预设名兜底取：镜像里也没有 → 两条路都断，才是真正的退化 */
   });
   const st = env.W.SillyTavern.getContext().chatCompletionSettings;
   st.prompts = [prompt('a', '用户版的 a'), prompt('c')];
@@ -949,5 +987,31 @@ console.log('--- 合并⑥：base 取不到（认不出 tag / 镜像 404）→ �
   ok(mergeCmd.indexOf('认不出来') > 0, '弹窗里说明「旧的版本认不出来，全按两边都改过处理」');
 }
 
-console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');
-process.exit(bad ? 1 : 0);
+console.log('--- 合并⑦：按 tag 取不到 base，但按**预设名**能从镜像最新提交兜到 → 不走退化 ---');
+{
+  /* 场景：用户跑的是没发过 Release 的那一版（仓库里没这个 tag），但镜像目录里留着这一版的文件。
+     此时 base 应该按「本地预设名」从 @main/mirror/<预设名>.json 兜到 —— 不发版也能享受完整合并。 */
+  const baseText = miniPreset(96, [prompt('a', '原始 a'), prompt('b')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }]);
+  const nextText = miniPreset(97, [prompt('a', '新版改过的 a'), prompt('b')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }]);
+  const env = makeEnv({
+    code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResults: ['1', '0'],
+    localPreset: PN + '-96-20260921',       /* 名字就是镜像里的文件名 */
+    presetText: nextText,
+    baseTag: PV + '-96', baseManifest: null, /* tag 那条 404 */
+    baseMainText: baseText,                  /* 兜底那条给真正的 base */
+  });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  st.prompts = [prompt('a', '原始 a'), prompt('b')];   /* 与 base 逐字一致 → 用户没动过，该吃新版 */
+  await settle();
+  await env.api().check(false);
+  const logs = env.api().status().logs.join('\n');
+  ok(logs.indexOf('改按预设名从镜像最新提交取') > 0, '日志写明走了「按预设名」的兜底路');
+  ok(logs.indexOf('退化模式') < 0, '兜到了 base → 不进退化模式');
+  const merged = env.importCalls.length ? JSON.parse(env.importCalls[env.importCalls.length - 1].content) : null;
+  ok(!!merged && merged.prompts[0].content === '新版改过的 a',
+    '用户没动过的条目吃到了新版正文（证明 base 真被用上了）', merged && merged.prompts[0]);
+}
+
+console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');process.exit(bad ? 1 : 0);

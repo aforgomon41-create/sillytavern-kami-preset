@@ -11,12 +11,13 @@ const clean = (s) => String(s == null ? '' : s).trim();
 function parseVersion(name) {
   const str = clean(name);
   let m = /(?:kami-|卡密预设)?v(\d+)\.(\d+)-(\d+)-(\d{8})(?:\D|$)/i.exec(str);
-  if (m) return { major: +m[1], minor: +('0.' + m[2]), build: +m[3], date: m[4], raw: str };
+  /* minorDigits 留着原样（'90' / '91' / '9'），展示时按它拼，别拿 0.9 这种浮点去反推 */
+  if (m) return { major: +m[1], minor: +('0.' + m[2]), minorDigits: m[2], build: +m[3], date: m[4], raw: str };
   m = /(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d+)(?:\D|$)/i.exec(str);
-  if (m) return { major: 0, minor: 0.9, build: +m[1], date: '', raw: str };
+  if (m) return { major: 0, minor: 0.9, minorDigits: '9', build: +m[1], date: '', raw: str };
   return null;
 }
-const label = (v) => v ? ('v' + v.major + '.' + (v.minor === 0.9 ? '90' : String(v.minor).slice(2)) + '-' + v.build) : '';
+const label = (v) => v ? ('v' + v.major + '.' + (v.minorDigits || String(v.minor).slice(2)) + '-' + v.build) : '';
 
 for (const rel of list) {
   if (rel.draft) continue;

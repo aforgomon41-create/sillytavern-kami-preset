@@ -66,7 +66,7 @@ function newestPreset() {
   if (!fs.existsSync(dir)) { return null; }
   let best = null, bestN = -1;
   for (const f of fs.readdirSync(dir)) {
-    /* 现行 kami-v0.90-113-20260923.json、曾用 卡密预设v0.90-52-20260922.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
+    /* 现行 kami-v<版本>-<构建号>-<日期>（版本见根目录 version.json）.json、曾用 卡密预设v0.90-<构建号>-<日期>.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
     let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
     if (m) {
       const n2 = Number(m[1]);

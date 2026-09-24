@@ -8,13 +8,13 @@
  *   src/scripts/*.js              脚本代码（文件内容即 content 字段）
  *   src/regex/list.json           ST 原生正则列表（唯一真相来源）
  * 输出：
- *   dist/kami-v0.90-<N>-<日期>.json    N 自增，永不覆盖历史产物
+ *   dist/kami-v{版本}-<N>-<日期>.json   N 自增，永不覆盖历史产物（版本见根目录 version.json）
  *   dist/build-manifest.json             构建台账（含每个源的 sha256）
  *
  * 用法：node build/build.mjs [--dry]
  * 命名（正式分发格式）：kami-v{大版本号}.{两位小版本号}-{构建号}-{日期}.json，
- *       例如 kami-v0.90-113-20260923.json。「两位小版本」= 版本号小数部分写两位，
- *       当前版本 0.9 写作 0.90；日期为构建当天（8 位，年在前）。
+ *       例如 kami-v0.91-132-20260924.json。**版本号只在根目录 version.json 里改一处**，
+ *       这里与发版工具、镜像清单都从它派生；「两位小版本」= 小数部分写两位。
  *       N 会从历史产物里的最大构建号继续递增（新旧命名都认），编号不断档。
  */
 import fs from 'node:fs';
@@ -27,10 +27,18 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const DIST = path.join(ROOT, 'dist');
 
-/* 正式分发文件名里的版本号段（升版本时改这里）。
-   当前版本 0.9，按正式格式写成两位小数：v0.90 */
-const V_MAJOR = 0;
-const V_MINOR_STR = '90';
+/* 正式分发文件名里的版本号段 —— **唯一真相是根目录的 version.json**（2026-09-24 收敛）：
+   升版本只改那一处，产物名 / 发版 tag / 镜像清单版本号全从它派生。
+   脚本与面板不读它（它们跑在酒馆里，只从预设名解析版本），所以那边本来就不需要跟着改。 */
+const VERSION_FILE = path.join(ROOT, 'version.json');
+const VERSION_INFO = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+const VERSION_M = /^(\d+)\.(\d{2})$/.exec(String(VERSION_INFO.version || '').trim());
+if (!VERSION_M) {
+  console.error('  [中止] version.json 里的 version 必须是「大版本.两位小版本」写法（例如 0.91）：' + JSON.stringify(VERSION_INFO.version));
+  process.exit(1);
+}
+const V_MAJOR = Number(VERSION_M[1]);
+const V_MINOR_STR = VERSION_M[2];
 
 const argv = process.argv.slice(2);
 const dry = argv.includes('--dry');
@@ -221,7 +229,7 @@ for (const dir of scanDirs) {
   if (!fs.existsSync(dir)) { continue; }
   for (const f of fs.readdirSync(dir)) {
     /* 三种命名都要认，否则构建号会从 1 重来：
-       · 现行  kami-v0.90-113-20260923.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
+       · 现行  kami-v<版本>-<构建号>-<日期>.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
               因为 GitHub Releases 会把非 ASCII 附件名直接削掉）
        · 曾用  卡密预设v0.09-52-20260922.json
        · 旧版  卡密预设0.9-52.json
@@ -270,6 +278,7 @@ for (const r of entry.regex) {
 }
 console.log(`  [皮肤] ${SKINS.map(k => k.id + (k.dev ? '(占位)' : '')).join(', ')} 共 ${SKINS.length} 套`);
 console.log(`  [输出] ${outName}`);
+console.log(`  [版本] ${V_MAJOR}.${V_MINOR_STR}（来自 version.json）`);
 
 if (dry) {
   console.log('  (--dry：未写盘)');
