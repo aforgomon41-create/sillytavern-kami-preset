@@ -146,7 +146,20 @@ function installMocks(w, scriptId) {
 async function setupSillyTavern() {
   const preset = await (await fetch('/src/preset.base.json')).json();
   const order = (preset.prompt_order || []).find(o => o.character_id === 100001) || (preset.prompt_order || [])[0];
-  const settings = { name: preset.name || '预览台预设', prompts: preset.prompts || [], prompt_order: [order] };
+  /* ?spreset=1 需要真实产物的扩展区（regex_scripts 与 SPreset.RegexBinding 应同步一致）。
+     src/preset.base.json 里的 SPreset 是参考预设的遗留（条目更旧），所以这里取构建产物；
+     夹具由 .audit/make-spreset-fixture.mjs 生成，读不到就留空（探针会留言）。 */
+  let extFixture = { from: '(不可用)', regex_scripts: [], SPreset: null };
+  try {
+    const fx = await (await fetch('/.audit/spreset-fixture.json')).json();
+    extFixture = {
+      regex_scripts: fx.extensions.regex_scripts || [],
+      SPreset: fx.extensions.SPreset || {},
+    };
+    console.log('SPreset探针|夹具|' + fx.from + ' regex_scripts=' + extFixture.regex_scripts.length);
+  } catch (e) { console.log('SPreset探针|夹具|读不到（' + ((e && e.message) || e) + '）'); }
+  const settings = { name: preset.name || '预览台预设', prompts: preset.prompts || [], prompt_order: [order],
+    extensions: { SPreset: extFixture.SPreset || {}, regex_scripts: extFixture.regex_scripts.slice() } };
   const st = {
     saves: 0, lastSaveAt: 0, settings: settings, order: order,
     /* ③ 的验收口径：面板写完 prompt_order.enabled 之后，必须发一次
@@ -344,6 +357,75 @@ function d20report(doc, tag) {
     ' js=' + js + ' css=' + css +
     ' tf=[' + ((el.querySelector('.kami-d20-body') || {}).style || {}).transform + ']';
 }
+/* ── ?spreset=1 专用：把第三方 SPreset 脚本装进宿主页（排查冲突用，非日常验证路径）──
+   来源与边界见 .audit/SPreset冲突调查.md。原则：
+   · 脚本本体用本地份（收到的文件/regex_bind_inject.js），**不连**它的外网域名；
+   · 上下文补齐只做到「让它在宿主页跑起来」的程度，缺的部分原地失败并留日志；
+   · 只注入、不改它任何行为，也没有任何自检参数 —— 观测全靠控制台与真点击。 */
+function installSpresetHost(ST) {
+  var log = function (t) { console.log('SPreset探针|' + t); };
+  /* ① jQuery / toastr：真酒馆页面上本来就有，本地份取自本机酒馆安装目录（.audit/lib/） */
+  var lib = function (src) {
+    return new Promise(function (res) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function () { res(true); };
+      s.onerror = function () { log('库拿不到 ' + src); res(false); };
+      document.head.appendChild(s);
+    });
+  };
+  return lib('/.audit/lib/jquery.min.js')
+    .then(function () { return lib('/.audit/lib/toastr.min.js'); })
+    .then(function () {
+      /* ② 模拟酒馆 v1.18（SPreset 启动先 fetch('/version')，预览台没有这条路，
+         不补的话 versionNumber=10000 会走它的旧版兼容分支，与真机不符） */
+      var origFetch = window.fetch.bind(window);
+      window.fetch = function (url) {
+        var u = String(url);
+        if (u.indexOf('/version') >= 0 && u.indexOf('version.png') < 0) {
+          log('替身应答 /version → 1.18.0');
+          return Promise.resolve(new Response(JSON.stringify({ pkgVersion: '1.18.0' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        if (u.indexOf('jnai2d9kgnbs6xzx5c.com') >= 0) {
+          log('拦截外网请求 ' + u);
+          return Promise.reject(new TypeError('probe blocked: offline'));
+        }
+        return origFetch.apply(null, arguments);
+      };
+      /* ③ 把 mock 的酒馆上下文补到它能跑的程度：事件源（可挂监听）、事件类型、扩展设置 */
+      var processedCount = 0;
+      var ctx = ST.ctx;
+      ctx.extensionSettings = { regex: [], preset_allowed_regex: {} };
+      var listeners = new Map();
+      var record = function (name) { ST.emits.push(name); ST.seq.push('emit:' + name); };
+      ctx.eventSource = {
+        events: {},
+        on: function (e, cb) { processedCount++; if (!listeners.has(e)) listeners.set(e, []); listeners.get(e).push(cb); return true; },
+        makeFirst: function (e, cb) { if (!listeners.has(e)) listeners.set(e, []); listeners.get(e).unshift(cb); },
+        makeLast: function (e, cb) { if (!listeners.has(e)) listeners.set(e, []); listeners.get(e).push(cb); },
+        emit: function (e) { record(e); var l = (listeners.get(e) || []).slice(); for (var i = 0; i < l.length; i++) { try { l[i](); } catch (er) { log('监听器出错 ' + e); } } return l.length > 0; },
+        removeListener: function (e, cb) { var l = listeners.get(e); if (l) { var i = l.indexOf(cb); if (i >= 0) l.splice(i, 1); } },
+      };
+      /* 事件类型用「键名小写」造一个万能替身：SPreset 用到的事件种类多，懒得全列 */
+      ctx.eventTypes = new Proxy({}, { get: function (t, k) { return typeof k === 'string' ? String(k).toLowerCase() : t[k]; } });
+      ctx.isMobile = function () { return false; };
+      ctx.uuidv4 = function () { return 'xxxxxxxx-xxxx-4xxx'.replace(/x/g, function () { return Math.floor(Math.random() * 16).toString(16); }); };
+      /* ④ 装脚本本体（宿主页内联 <script>，与真机的注入层级相同） */
+      return origFetch(encodeURI('/收到的文件/regex_bind_inject.js')).then(function (r) { return r.text(); }).then(function (code) {
+        log('脚本本体 ' + code.length + ' B，装进宿主页');
+        var s = document.createElement('script');
+        s.textContent = code;
+        document.head.appendChild(s);
+        return new Promise(function (res) { setTimeout(res, 2500); });
+      }).then(function () {
+        var ext = ctx.chatCompletionSettings.extensions || {};
+        log('注入后读数| regex_scripts=' + ((ext.regex_scripts || []).length) +
+          ' SPreset.regexes=' + (((ext.SPreset || {}).RegexBinding || {}).regexes || []).length +
+          ' 预设条目role=model残留=' + ST.settings.prompts.filter(function (p) { return p.role === 'model'; }).length +
+          ' 事件监听=' + processedCount + '条');
+      });
+    });
+}
 (async function () {
   /* 装载进度同时进控制台：页面卡在某一步时，控制台的时间线能直接看出来卡在哪
      （只更新 #hint 的话，卡住时人只能靠猜）。 */
@@ -373,6 +455,13 @@ function d20report(doc, tag) {
   /* 预设置面板要读酒馆设置，所以先把 SillyTavern 全局准备好（真预设数据）。
      ?nocontext=1：**故意不给** SillyTavern —— 验收「拿不到设置时面板照常打开并说明原因」。 */
   var ST = (params.get('nocontext') === '1') ? { saves: 0 } : await setupSillyTavern();
+  /* ?spreset=1：排查第三方脚本 SPreset（收到的文件/regex_bind_inject.js）与本预设前端的冲突，
+     把它装进**宿主页**（与真机同层级：它就是往酒馆页面 body 挂 <script> 的那类代码）。
+     只在带这个参数时启用，不影响日常预览台验证；见 .audit/SPreset冲突调查.md。 */
+  if (ST.ctx && params.get('spreset') === '1') {
+    step('装SPreset（排查用）');
+    await installSpresetHost(ST);
+  }
   step('装按钮中转站');
   await loadScript('/dev/10-脚本按钮.js', 'hub');
   await new Promise(r => setTimeout(r, 200));

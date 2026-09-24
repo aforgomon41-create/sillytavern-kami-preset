@@ -197,7 +197,14 @@ const scripts = meta.map(m => {
 preset.extensions.tavern_helper.scripts = scripts;
 if (!preset.extensions.tavern_helper.variables) preset.extensions.tavern_helper.variables = {};
 
-/* ---------- 组装正则（regex_scripts 为准，SPreset 镜像同步） ---------- */
+/* ---------- 组装正则（regex_scripts 为准，SPreset 镜像同步） ----------
+ * ⚠️ 下面这段镜像同步**不能删**（2026-09-24 SPreset 冲突调查的结论；一度删过又装回来）：
+ *   第三方 SPreset 脚本里有个处理器是 `if (SPresetSettings.RegexBinding.regexes) syncToST()`，
+ *   而**空数组在 JS 里是真值** —— 一旦不写这块（RegexBinding.regexes 变成 []），它会走
+ *   syncToST()，把 chatCompletionSettings.extensions.regex_scripts 覆盖成它在**加载时**算好的
+ *   presetRegexes（那一刻 RegexBinding 是空的 → 空表），于是本预设的 11 条正则（含两个前端载荷）
+ *   会被整表清空。块里保持与 regex_scripts 逐条一致时，那次写入是等值覆盖，等于空操作 —— 安全态。
+ *   详见 .audit/SPreset冲突调查.md 与 docs/交接.md §五。 */
 preset.extensions.regex_scripts = regexList;
 if (preset.extensions.SPreset && preset.extensions.SPreset.RegexBinding) {
   preset.extensions.SPreset.RegexBinding.regexes = regexList;

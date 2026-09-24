@@ -1,0 +1,24 @@
+// 调查探针：对比 src/preset.base.json 与最新 dist 产物里 SPreset 各模块的开关状态，
+// 以及两条前端正则的原始字段。只读不改。用法：node .audit/inspect-spreset-flags.mjs
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const dist = read(path.join(ROOT, 'dist', 'kami-v0.90-125-20260923.json'));
+const base = read(path.join(ROOT, 'src', 'preset.base.json'));
+for (const [tag, j] of [['base', base], ['dist', dist]]) {
+  const s = j.extensions?.SPreset;
+  const cnt = (o) => (!o || typeof o !== 'object') ? 0 : Object.keys(o).length;
+  console.log(`${tag}: enabled=${s?.ChatSquash?.enabled} forced=${s?.ForcedPostProcessing?.enabled}/${s?.ForcedPostProcessing?.mode} outPrep=${s?.OutputPreprocessing?.enabled} macro=${s?.MacroNest} fixedName='${s?.FixedPresetName}' tools=${cnt(s?.ToolBindings)} inj=${cnt(s?.MessageInjections)} regexes=${s?.RegexBinding?.regexes?.length}`);
+}
+for (const r of dist.extensions.regex_scripts) {
+  if (!/前端|frontend/.test(String(r.scriptName))) continue;
+  console.log(`${r.scriptName}: ${String(r.replaceString || '').length}B disabled=${r.disabled} minDepth=${r.minDepth} markdownOnly=${r.markdownOnly} promptOnly=${r.promptOnly} placement=${JSON.stringify(r.placement)} target=${r.target}`);
+}
+console.log('base 中 SPreset.RegexBinding.regexes 与 dist regex_scripts 的 id 差异：');
+const ids = (list) => (list || []).map((r) => r.id + ':' + r.scriptName);
+const a = base.extensions.SPreset.RegexBinding.regexes.map(r => r.scriptName);
+const b = dist.extensions.regex_scripts.map(r => r.scriptName);
+console.log('base:', a.join(' | '));
+console.log('dist:', b.join(' | '));
