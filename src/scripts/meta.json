@@ -114,6 +114,7 @@
                 "motion": "full",
                 "density": "cozy",
                 "bodyText": false,
+                "bodyTag": "content",
                 "effects": {},
                 "params": {},
                 "panel": {

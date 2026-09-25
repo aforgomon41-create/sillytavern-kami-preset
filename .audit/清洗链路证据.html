@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>清洗链路证据 · showdown → DOMPurify（本机酒馆自带库）</title>
+<style>
+  html,body{margin:0;padding:0;}
+  body{background:#0b0b0e;color:#cfcfd6;font-family:system-ui,"Microsoft YaHei",sans-serif;padding:14px;}
+  #out{white-space:pre-wrap;font-size:13px;color:#a8e6c0;}
+  b{color:#b07dff;}
+</style>
+</head>
+<body>
+<h3 style="font-size:15px;color:#b07dff;">酒馆渲染管线的清洗证据（复刻 public/script.js:1898-1908 + 521-530，库取自本机酒馆 node_modules）</h3>
+<pre id="out">跑不了？请先开 test/harness/server.mjs。</pre>
+<script>
+(async function () {
+  const out = [];
+  const P = (t) => { out.push(t); console.log('清洗证据|' + t); };
+  await Promise.all(['/vendor/showdown.js', '/vendor/dompurify.js'].map(u => new Promise(res => {
+    const s = document.createElement('script'); s.src = u;
+    s.onload = res; s.onerror = () => { P('!! 取不到 ' + u + '：先开 test/harness/server.mjs --port 8776'); res(); };
+    document.head.appendChild(s);
+  })));
+  const D = window.DOMPurify, S = window.showdown;
+  const lines = [];
+  lines.push('DOMPurify 版本= ' + (D ? D.version : '无'));
+  lines.push('showdown 版本= ' + (S && S.Converter ? '有' : '无'));
+  if (!D || !S) { document.getElementById('out').textContent = lines.join('\n'); return; }
+  const conv = new S.Converter({
+    emoji: true, literalMidWordUnderscores: true, parseImgDimensions: true,
+    tables: true, underline: true, simpleLineBreaks: true, strikethrough: true,
+    disableForced4SpacesIndentedSublists: true,
+  });
+  const msg = [
+    '标签外前缀（对照用）。', '',
+    '<content>', '标签内第一段。晚上十一点，卧室里只有屏幕的光。', '标签内第二段，这里是**加粗**试试。', '', '</content>', '',
+    '<正文>', '白名单外的标签正文：只用来对照清洗行为。', '</正文>', '',
+    '标签外后缀（对照用）。',
+  ].join('\n');
+  const config = { RETURN_DOM: false, RETURN_DOM_FRAGMENT: false, RETURN_TRUSTED_TYPE: false, MESSAGE_SANITIZE: true, ADD_TAGS: ['custom-style'] };
+  const html = conv.makeHtml(msg);
+  const clean = D.sanitize(html, config);
+  lines.push('');
+  lines.push('【0】hypothetical 原始消息（与 AI 输出同形）见源码；makeHtml 输出长度=' + html.length + '；DOMPurify 输出长度=' + clean.length);
+  lines.push('');
+  lines.push('【1】DOMPurify 直接测三兄弟（同样的 config）：');
+  for (const t of ['content', '正文', 'narr']) {
+    const r = D.sanitize('<' + t + '>标签内文字</' + t + '>标签外文字', config);
+    const kept = r.indexOf('</' + t.toLowerCase() + '>') >= 0 || r.indexOf('<' + t.toLowerCase()) >= 0;
+    lines.push('  <' + t + '> 保留=' + (kept ? '是' : '否（剥掉只留内容）') + '   渲染输出：' + r);
+  }
+  lines.push('');
+  lines.push('【2】整条消息过完 showdown → DOMPurify 后的 HTML：');
+  lines.push(clean.replace(/</g, '\n    <').slice(0, 3000));
+  lines.push('');
+  /* 再落到真实 DOM，看形状（content 标签以元素形态存活吗） */
+  const holder = document.createElement('div');
+  holder.innerHTML = clean;
+  const cnt = holder.querySelectorAll('content').length;
+  const cnt2 = holder.querySelectorAll('正文').length;
+  lines.push('【3】落到 DOM：content 元素个数=' + cnt + '（>0 = 标签保留，DOM 里认得出边界）；正文 元素个数=' + cnt2 + '（=0 = 已被剥掉，走指纹兜底）');
+  lines.push('    content 元素的外层标签=' + (cnt ? holder.querySelectorAll('content')[0].tagName + '，其直接子元素=' + Array.from(holder.querySelectorAll('content')[0].children).map(x => x.tagName).join(',') : '-'));
+  lines.push('    正文 内文是否仍在（剥标签留内容）=' + (holder.textContent.indexOf('白名单外的标签正文') >= 0 || holder.textContent.indexOf('标签正文') >= 0 ? '在（内容无损）' : '（详见上文渲染输出）'));
+  document.getElementById('out').textContent = lines.join('\n');
+  ['t:dompurify', 't:showdown'].forEach(() => void 0);
+})();
+</script>
+</body>
+</html>

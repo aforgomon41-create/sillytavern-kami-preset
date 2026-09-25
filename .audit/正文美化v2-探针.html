@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>正文美化 v2 · 标签收窄 / 改名 / 非法回退 · 探针</title>
+<style>
+  html,body{margin:0;padding:0;}
+  body{background:#0b0b0e;color:#cfcfd6;font-family:system-ui,"Microsoft YaHei",sans-serif;padding:12px 14px 80px;}
+  /* ── 复刻真酒馆给正文做的排版 ── */
+  #chat{max-width:900px;margin:0 auto;}
+  .mes{display:flex;align-items:flex-start;padding:10px 10px 0;position:relative;}
+  .mes_block{padding-left:10px;width:100%;overflow-x:hidden;}
+  .mes_text{font-weight:500;line-height:calc(15px + .5rem);max-width:100%;overflow-wrap:anywhere;}
+  .mes_text p{margin-top:0;margin-bottom:10px;}
+  .mes_text p:last-child{margin-bottom:0;}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;}
+  .bar button{background:#23232d;border:1px solid #3a3a48;color:#dcdce4;border-radius:7px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px;}
+  .rbq-sdt-card{border:1px dashed #79e4ff;padding:8px;margin:10px 0;}
+  .menu_button{background:#2a2a2a;border:1px solid #555;color:#dcdcd2;padding:4px 10px;border-radius:6px;cursor:pointer;}
+  .TH-render{margin:10px 0;}
+  .TH-render iframe{width:100%;border:0;display:block;height:70px;background:rgba(255,255,255,.06);}
+  .edit_textarea{width:100%;min-height:60px;}
+  #out{white-space:pre-wrap;font-size:12px;color:#9fd8b0;}
+</style>
+</head>
+<body>
+<h3 style="margin:2px 0 8px;font-size:14px;">正文美化 v2 · 探针（.audit，非生产代码）</h3>
+<div class="bar">
+  <button id="act-run">一键全流程</button>
+  <button id="act-read">只读读数</button>
+  <button id="act-btn">点插件按钮（读回调计数）</button>
+  <button id="act-edit">编辑态（应包 0）</button>
+  <button id="act-kick">逐拍打点（sync×5 记录楼层9每拍快照）</button>
+  <button id="act-close">关闭开关（逐字节还原比对）</button>
+</div>
+<pre id="out">待操作</pre>
+<div id="chat"></div>
+<iframe id="probe-runner" style="width:0;height:0;border:0;position:absolute;left:-9999px" src="about:blank"></iframe>
+<script>
+const STATE = { handlers: new Map(), clickCount: 0, rawStore: {} };
+STATE.emit = function (evt, ...a) { const m = STATE.handlers.get(evt); if (m && m.size) { for (const w of [...m.values()]) w(...a); return true; } return false; };
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
+  w.getScriptId = () => scriptId;
+  w.getScriptButtons = () => []; w.replaceScriptButtons = () => {}; w.appendInexistentScriptButtons = () => {};
+  w.getButtonEvent = (n) => 'button:' + scriptId + ':' + n;
+  w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
+  w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
+  w.eventClearAll = () => {};
+  w.getAllEnabledScriptButtons = () => ({}); w.getScriptTrees = () => [];
+  w.getTavernVersion = () => '1.18.0'; w.getTavernHelperVersion = () => '4.11.0';
+  w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+  /* v2 兜底路径依赖的酒馆助手 API：getChatMessages（按楼层号给原始文本） */
+  w.getChatMessages = (range) => {
+    const key = String(range);
+    return Object.prototype.hasOwnProperty.call(STATE.rawStore, key) ? [{ message_id: Number(key), mes: STATE.rawStore[key] }] : [];
+  };
+}
+async function loadSkinManager() {
+  const f = document.getElementById('probe-runner');
+  await new Promise(r => { f.onload = r; setTimeout(r, 500); });
+  const w = f.contentWindow;
+  installMocks(w, 'skinmgr');
+  const code = await (await fetch('/dev/30-皮肤管理.js')).text();
+  /* 仅探针调试：把指纹对位的关键数字打进控制台（不改被测逻辑，只加日志） */
+  const patched = code
+    .replace('function wrapByFingerprint(mt, innerRaw) {',
+      'function wrapByFingerprint(mt, innerRaw) { console.log("调试|wrapBy 入参 target字数=", normText(innerRaw).length, "kids=" + mt.childNodes.length);')
+    .replace('  return 0;\n  }\n  /* 一条 .mes_text 的兜底路径', '  console.log("调试|wrapBy 未命中 target字数=", target.length, " cs=[", cs.join("#"), "]"); return 0;\n  }\n  /* 一条 .mes_text 的兜底路径');
+  w.eval(patched);
+  return w;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+let M2 = null, M8 = null, M9 = null;
+function buildFixtures() {
+  const chat = document.getElementById('chat'); chat.textContent = '';
+  /* ── 楼层 2：主路径（DOM 里真有 <content> 元素）── */
+  M2 = el('div', 'mes'); M2.setAttribute('mesid', '2');
+  const mb2 = el('div', 'mes_block'); M2.appendChild(mb2);
+  const mt2 = el('div', 'mes_text'); mt2.id = 'mt2'; mb2.appendChild(mt2);
+  const cont2 = document.createElement('content'); mt2.appendChild(cont2);
+  cont2.appendChild(document.createTextNode('标签内开场白，这里是连续段一。'));
+  cont2.appendChild(el('p', null, '标签内段落一（无 class）'));
+  const ul = el('ul'); ['条目一', '条目二'].forEach(t => ul.appendChild(el('li', null, t))); cont2.appendChild(ul);
+  /* 让位对象（全都在 content 标签内） */
+  const th = el('div', 'TH-render'); const pre = el('pre'); const code = el('code'); code.textContent = '<html>…</html>'; pre.appendChild(code); th.appendChild(pre);
+  th.appendChild(Object.assign(document.createElement('iframe'), { id: 'TH-message--2--0', title: '思绪' })); cont2.appendChild(th);
+  const card = el('div', 'rbq-sdt-card');
+  const btn = el('button', 'menu_button'); btn.type = 'button'; btn.textContent = '🎨 生成';
+  btn.addEventListener('click', () => { STATE.clickCount++; }); card.appendChild(btn);
+  card.appendChild(el('span', null, '分镜卡片正文')); cont2.appendChild(card);
+  const hw = el('div'); hw.setAttribute('style', 'max-width:350px;margin:12px auto;background:#20242a;'); hw.textContent = 'HTML美化卡片'; cont2.appendChild(hw);
+  cont2.appendChild(el('span', null, '普通行内（无 class）'));
+  mt2.appendChild(document.createTextNode('标签外前置文本（对照）。'));
+  mt2.appendChild(el('p', null, '标签外前置段落（对照）。'));
+  chat.appendChild(M2);
+  /* ── 楼层 8：改名后（白名单名 section，模拟「标签名改成 section 后的 DOM」）── */
+  M8 = el('div', 'mes'); M8.setAttribute('mesid', '8');
+  const mb8 = el('div', 'mes_block'); M8.appendChild(mb8);
+  const mt8 = el('div', 'mes_text'); mt8.id = 'mt8'; mb8.appendChild(mt8);
+  mt8.appendChild(document.createTextNode('楼层8 标签外前置。'));
+  const sec8 = document.createElement('section');
+  sec8.appendChild(document.createTextNode('楼层8 标签内文本。'));
+  sec8.appendChild(el('p', null, '楼层8 标签内段落。'));
+  mt8.appendChild(sec8);
+  mt8.appendChild(document.createTextNode('楼层8 标签外后缀。'));
+  chat.appendChild(M8);
+  /* ── 楼层 9：兜底路径（标签被清洗剥掉：DOM 里没有元素，原始文本里有 <content>）── */
+  M9 = el('div', 'mes'); M9.setAttribute('mesid', '9');
+  const mb9 = el('div', 'mes_block'); M9.appendChild(mb9);
+  const mt9 = el('div', 'mes_text'); mt9.id = 'mt9'; mb9.appendChild(mt9);
+  mt9.appendChild(document.createTextNode('楼层9 标签外前缀。'));
+  mt9.appendChild(el('p', null, '楼层9 标签外前缀段落。'));
+  mt9.appendChild(document.createTextNode('楼层9 标签内第一句，这里有**加粗**效果。'));
+  mt9.appendChild(el('p', null, '楼层9 标签内第二句，被渲染成段落。'));
+  mt9.appendChild(document.createTextNode('楼层9 标签外后缀。'));
+  mt9.appendChild(el('p', null, '楼层9 标签外后缀段落。'));
+  chat.appendChild(M9);
+  const tag = 'content';
+  STATE.rawStore['9'] = [
+    '楼层9 标签外前缀。', '楼层9 标签外前缀段落。', '',
+    '<' + tag + '>', '楼层9 标签内第一句，这里有**加粗**效果。', '楼层9 标签内第二句，被渲染成段落。', '', '</' + tag + '>', '',
+    '楼层9 标签外后缀。', '楼层9 标签外后缀段落。',
+  ].join('\n');
+}
+function wrapAll(mt) { return mt.querySelectorAll('.kami-root[data-kami-comp="body"]').length; }
+function wrapDirect(mt) { return mt.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length; }
+function snap(mt) { return mt.innerHTML; }
+function mt9KidSnap(mt) {
+  const acc = [];
+  Array.from(mt.childNodes).forEach(n => {
+    const t0 = (n.nodeType === 3 ? n.nodeValue : '[' + n.tagName + (n.className ? '.' + n.className : '') + '«' + (n.textContent || '').slice(0, 6) + '»]').trim();
+    acc.push((n.nodeType === 3 ? 'T:' : '') + t0.slice(0, 14));
+  });
+  return acc.join(' | ');
+}
+function read(tag) {
+  const lines = ['=== ' + tag + ' ==='];
+  const api = window.KamiSkin;
+  const mt2 = document.getElementById('mt2'), mt8 = document.getElementById('mt8'), mt9 = document.getElementById('mt9');
+  const cont2 = mt2 ? mt2.querySelector('content') : null;
+  lines.push('当前标签名=' + (api && api.state ? api.state.bodyTag : '-') + '，开关=' + (api && api.state ? String(api.state.bodyText) : '-'));
+  lines.push('楼层2[content容器] 包裹层数=' + (cont2 ? cont2.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : '-') + '；容器外直接子级包裹数=' + (mt2 ? wrapDirect(mt2) : '-'));
+  lines.push('楼层2 TH-render被包=' + (mt2 && mt2.querySelector('.kami-root .TH-render') ? '是(错)' : '否(对)') +
+    '  pre被包=' + (mt2 && mt2.querySelector('.kami-root pre') ? '是(错)' : '否(对)') +
+    '  iframe被包=' + (mt2 && mt2.querySelector('.kami-root iframe') ? '是(错)' : '否(对)') +
+    '  插件按钮被包=' + (mt2 && mt2.querySelector('.kami-root button') ? '是(错)' : '否(对)') +
+    '  行内style卡被包=' + (mt2 && mt2.querySelector('.kami-root div[style]') ? '是(错)' : '否(对)'));
+  if (mt2 && cont2) { lines.push('楼层2 ul被包=' + (cont2.querySelector('.kami-root ul') ? '是(对)' : '否(错)') + '  纯文本被包=' + (cont2.querySelector('.kami-root > .kami-md') && Array.from(cont2.querySelectorAll('.kami-root > .kami-md')).some(md => Array.from(md.childNodes).some(n => n.nodeType === 3 && n.nodeValue.trim())) ? '是(对)' : '否(错)')); }
+  lines.push('楼层8[section容器] 包裹层数=' + (mt8 ? (mt8.querySelector('section') ? mt8.querySelector('section').querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : 0) : '-') + '；容器外包裹数=' + (mt8 ? wrapDirect(mt8) : '-'));
+  lines.push('楼层9[无容器/指纹兜底] 包裹层数=' + (mt9 ? wrapAll(mt9) : '-') + '；' + (mt9 ? '边界=' + mt9KidSnap(mt9) : '-'));
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('v2探针|' + l));
+}
+let SKW = null;
+document.getElementById('act-run').onclick = async function () {
+  const btn = document.getElementById('act-run'); btn.disabled = true;
+  buildFixtures();
+  if (!SKW) { SKW = await loadSkinManager(); }
+  window.__mtSnap0 = { 2: document.getElementById('mt2').innerHTML, 8: document.getElementById('mt8').innerHTML, 9: document.getElementById('mt9').innerHTML };
+  const api = window.KamiSkin || SKW.KamiSkin;
+  api.setFlag('bodyText', '1');
+  await new Promise(r => setTimeout(r, 250));
+  read('1 · 开启后（默认标签 content）');
+  api.setBodyTag('section');
+  await new Promise(r => setTimeout(r, 250));
+  read('2 · 标签改成 section 后（楼层2的 content 容器应一个不包，楼宇8的 section 应包）');
+  api.setBodyTag('content');
+  await new Promise(r => setTimeout(r, 250));
+  read('3 · 改回 content（楼层2与楼层9兜底应恢复）');
+  api.setBodyTag('<正文 超长字段');
+  await new Promise(r => setTimeout(r, 250));
+  read('4 · 改成非法值（应回退默认 content 且不炸）');
+  document.__base = { 2: snap(document.getElementById('mt2')), 9: snap(document.getElementById('mt9')), 8: snap(document.getElementById('mt8')) };
+  return null;
+};
+document.getElementById('act-btn').onclick = function () {
+  const mt2 = document.getElementById('mt2');
+  const btn = mt2 && mt2.querySelector('.rbq-sdt-card > button');
+  if (!btn) { document.getElementById('out').textContent = '没找到插件按钮'; return; }
+  const before = STATE.clickCount;
+  btn.click();
+  setTimeout(() => {
+    const lines = ['=== 点插件按钮 ===',
+      '按钮仍在 .rbq-sdt-card 直接子级（原位）：' + (mt2.querySelector('.rbq-sdt-card > button') === btn ? '是(对)' : '否(错)'),
+      '按钮是否被包进包裹层：' + (mt2.querySelector('.kami-root button') ? '是(错)' : '否(对)'),
+      '点击前回调计数=' + before + ' → 点击后=' + STATE.clickCount + (STATE.clickCount > before ? '（回调触发：对）' : '（没触发：错）')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('v2探针|' + l));
+  }, 60);
+};
+document.getElementById('act-kick').onclick = async function () {
+  if (!mt9) { return; }
+  const mt9 = document.getElementById('mt9');
+  const api = window.KamiSkin;
+  const lines = ['=== 逐拍打点 ==='];
+  for (let k = 1; k <= 5; k++) {
+    if (api) { api.sync(); }
+    await new Promise(r => setTimeout(r, 320));
+    lines.push('拍' + k + ' 包裹>=' + wrapAll(mt9) + ' 直接子节点=' + mt9KidSnap(mt9));
+  }
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('v2探针|' + l));
+};
+document.getElementById('act-edit').onclick = function () {
+  const mt2 = document.getElementById('mt2');
+  if (!mt2) { return; }
+  mt2.textContent = '';
+  const ta = el('textarea', 'edit_textarea'); ta.id = 'curEditTextarea'; mt2.appendChild(ta);
+  const api = window.KamiSkin; if (api) { api.sync(); }
+  setTimeout(() => {
+    const n = wrapAll(mt2);
+    const lines = ['=== 编辑态 ===', '楼层2 包裹层数=' + n + '（应为 0）', 'textarea 原对象仍在=' + (mt2.querySelector('#curEditTextarea') === ta ? '是(对)' : '否(错)')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('v2探针|' + l));
+  }, 160);
+};
+document.getElementById('act-close').onclick = async function () {
+  const api = window.KamiSkin;
+  if (!api) { return; }
+  api.setFlag('bodyText', '0');
+  await new Promise(r => setTimeout(r, 260));
+  const mt2 = document.getElementById('mt2'), mt8 = document.getElementById('mt8'), mt9 = document.getElementById('mt9');
+  const base = window.__mtSnap0 || {};
+  const g = (k, mt) => (base[k] !== undefined ? (base[k] === mt.innerHTML ? '是（与开启前逐字节一致：对）' : '否（有差异：错）') : '（没存基线）');
+  const lines = ['=== 关闭开关 ===',
+    '三条楼层包裹层数：' + wrapAll(mt2) + '/' + wrapAll(mt8) + '/' + wrapAll(mt9) + '（应全为 0）',
+    'DOM 还原：楼层2 ' + g(2, mt2) + '；楼层8 ' + g(8, mt8) + '；楼层9 ' + g(9, mt9),
+    '插件按钮回调计数=' + STATE.clickCount + '；按钮还在=' + (mt2.querySelector('.rbq-sdt-card > button') ? '是' : '否')];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('v2探针|' + l));
+};
+window.__probe = { read };
+console.log('v2探针|就绪');
+/* 常驻读数（供自动化直接读 DOM，不靠页面按钮） */
+setInterval(function () {
+  const mt2 = document.getElementById('mt2'), mt9 = document.getElementById('mt9'), mt8 = document.getElementById('mt8');
+  window.__v2 = {
+    mt2Inside: mt2 && mt2.querySelector('content') ? mt2.querySelector('content').querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : -1,
+    mt2Direct: mt2 ? wrapDirect(mt2) : -1,
+    mt8Inside: mt8 && mt8.querySelector('section') ? mt8.querySelector('section').querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : -1,
+    mt8Direct: mt8 ? wrapDirect(mt8) : -1,
+    mt9All: mt9 ? wrapAll(mt9) : -1,
+    clickCount: STATE.clickCount,
+  };
+}, 400);
+</script>
+</body>
+</html>

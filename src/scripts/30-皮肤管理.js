@@ -127,6 +127,7 @@
     motion: 'full',              // full | calm | off
     density: 'cozy',             // compact | cozy | roomy
     bodyText: false,             // 正文美化（默认关闭）：把 .mes_text 里的纯文本段包进 .kami-md 骨架
+    bodyTag: 'content',          // 正文美化的作用范围标签名（v2 新增）：只包 <bodyTag>…</bodyTag> 之内
     effects: {},                 // { effectId: true }
     params: {},                  // { paramId: number }
     panel: { x: null, y: null, w: null, h: null, open: false }
@@ -161,6 +162,8 @@
       state[k] = saved[k];
     }
     if (!findSkin(state.skinId)) { state.skinId = SKINS[0].id; }
+    /* 存档里的正文标签也要过校验（防旧档/手改坏值把 v2 判据拼坏） */
+    state.bodyTag = normalizeBodyTag(state.bodyTag) || BODY_TAG_DEF;
   }
 
   var saveTimer = null;
@@ -404,28 +407,61 @@
     if (bodyTextOn()) { syncBody(); }
   }
 
-  /* ───────── 正文美化（默认关闭；调研报告《正文美化与全局皮肤调研》§2.2 的可执行版）─────────
-     开启后把酒馆消息正文（.mes_text）里的「纯文本节点 + 无 class 无 style 的 markdown 元素」
-     原地包进 div.kami-root[data-kami-comp="body"] > div.kami-body.kami-md ——
+  /* ───────── 正文美化 v2（默认关闭）─────────
+     把酒馆消息正文里的「纯文本节点 + 无 class 无 style 的 markdown 元素」原地包进
+     div.kami-root[data-kami-comp="body"] > div.kami-body.kami-md ——
      复用 15 套皮肤里已登记的 .kami-root / .kami-body / .kami-md 规则，皮肤与令牌零改动。
-     两条铁律：
+     v2 收窄（2026-09-25）：**只包用户指定标签的内部**，标签外一个节点都不碰 ——
+       · 标签名 = 脚本变量 kami-skin.bodyTag（默认 'content'），
+         在面板「显示」卡「正文标签」文本框里改，改完就地点火（同 setFlag 的就地路径）；
+       · 判据的根基：酒馆把消息正文跑完 showdown → DOMPurify 后灌进 .mes_text
+         （酒馆 public/script.js 1898-1908 / 2637）。content 在 DOMPurify 3.4.2 的默认
+         允许标签表里（node_modules/dompurify/dist/purify.min.js 的 html 白名单字面含
+         "content"），所以 content 标签能以元素形态存活到 DOM —— 主路径：在 .mes_text
+         里直接找该标签的元素，只包它内部；
+       · 兜底路径（标签被剥掉时）：不在允许表里的自造标签名（如「正文」「narr」）会被
+         清洗剥掉只留内容，DOM 里认不出边界 —— 此时回到该楼层原始文本（酒馆助手
+         getChatMessages）里定位 <tag>…</tag> 的内文，用「只留文字/数字/emoji」的归一化
+         指纹，在 .mes_text 直接子节点的连续区间上对位；对得上才包，对不上一个节点
+         都不动（失败 = 不美化，绝不包错）。指纹按（标签名, 原文长度）记在元素上缓存，
+         避免每轮 sweep 反复做同一场对位。
+     两条铁律不变：
        ① 只在 #chat 里跑（流式打字机浮窗也挂 mes_text 类，但它在 dialog[open] 里，绝不许碰）；
        ② 「让位清单」里的元素一律原地不动 —— 包裹必须是移动原节点而不是 innerHTML 拼串，
           否则插件（如智能生图触发器）插进正文的按钮会掉监听、掉锚点。
-     让位清单（判据即代码，永不包裹）：
-       div.TH-render / pre / iframe / button / input / select / textarea / label /
-       details / summary / 带 class 的元素 / 带行内 style 的元素 / .mes_* 容器 /
-       style / script / link / custom-style 等元数据元素。
-       「带 class 就让位」同时放过了 TH-render（既有前端宿主）、插件卡片（自带 class）、
-       与酒馆自己的结构容器；「带行内 style 就让位」放过了 HTML 美化条目的卡片。
+     让位清单（判据即代码，永不包裹；标签内、标签外、指纹窗内一视同仁）：
+        div.TH-render / pre / iframe / button / input / select / textarea / label /
+        details / summary / 带 class 的元素 / 带行内 style 的元素 / .mes_* 容器 /
+        style / script / link / custom-style 等元数据元素 / 注释节点 / 纯空白文本。
+        「带 class 就让位」同时放过了 TH-render（既有前端宿主）、插件卡片（自带 class）、
+        与酒馆自己的结构容器；「带行内 style 就让位」放过了 HTML 美化条目的卡片。
      不套娃：包裹层自带 class（kami-root）+ data-kami-comp="body"，
-       isProtected 的「带 class 就让位」与 BODY_WRAP_SEL 的幂等检查双保险把它认出来跳过。 */
+        「带 class 就让位」与容器级幂等检查双保险把它认出来跳过。 */
   var BODY_MES_TEXT_SEL = '#chat .mes .mes_text';
   var BODY_WRAP_SEL = ':scope > .kami-root[data-kami-comp="body"]';
   var BODY_PROTECT_TAGS = ['IFRAME', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL',
     'DETAILS', 'SUMMARY', 'PRE', 'SCRIPT', 'STYLE', 'LINK', 'VIDEO', 'AUDIO',
     'CUSTOM-STYLE', 'DIALOG'];
   var BODY_PROTECT_CLS = 'mes_';   // .mes_buttons / .mes_media_wrapper / .mes_bias 等（以空格分词匹配）
+  var BODY_TAG_DEF = 'content';
+  var BODY_TAG_MAX = 32;
+
+  /* 标签名规范：去首尾空白；空值 / 超长 / 含尖括号·引号·斜杠·空白 → 非法（调用方回退默认）。
+     再用真实 DOM 验一道（querySelectorAll 对非法标识符会抛错），保证标签名
+     永远不会把查找路径拼坏 —— 查找用 getElementsByTagName（不做 CSS 解析），校验宁可从严。 */
+  function normalizeBodyTag(v) {
+    if (typeof v !== 'string') { return null; }
+    var t = v.trim();
+    if (!t || t.length > BODY_TAG_MAX) { return null; }
+    if (/[<>"'\s\/\\]/.test(t)) { return null; }
+    try {
+      HDOC.createElement(t);
+      var probe = HDOC.body || HDOC.documentElement;
+      if (probe) { probe.querySelectorAll(t); }
+      return t;
+    } catch (e) { return null; }
+  }
+  function bodyTag() { return normalizeBodyTag(state.bodyTag) || BODY_TAG_DEF; }
 
   function bodyProtected(el) {
     if (el.nodeType !== 1) { return false; }
@@ -443,13 +479,12 @@
     return false;
   }
 
-  /* 包一条 .mes_text：连续可包段各合成一个包裹层，返回新包的段数。
+  /* 一段「可包节点」包进包裹层：插入父元素 = host，候选节点 = kids（必须是 host 的直接子节点）。
      手法（探针实测踩坑后的定稿）：先在连续段首节点**之前**插入空包裹层，
      再把段内节点逐个 appendChild 搬进去 —— 全程保留原节点对象，
      事件监听与插件锚点都不会丢。 */
-  function wrapOneMesText(mesText) {
+  function wrapRunsIn(host, kids) {
     try {
-      var kids = Array.prototype.slice.call(mesText.childNodes);
       var runs = [], cur = [], i;
       for (i = 0; i < kids.length; i++) {
         var n = kids[i];
@@ -462,25 +497,134 @@
       }
       if (cur.length) { runs.push(cur); }
       for (i = 0; i < runs.length; i++) {
-        var root = mesText.ownerDocument.createElement('div');
+        var root = host.ownerDocument.createElement('div');
         root.className = 'kami-root';
         root.setAttribute('data-kami-comp', 'body');
         root.setAttribute('data-kami-ready', '1');
-        var body = mesText.ownerDocument.createElement('div');
+        var body = host.ownerDocument.createElement('div');
         body.className = 'kami-body kami-md';
         root.appendChild(body);
         var run = runs[i];
-        mesText.insertBefore(root, run[0]);
+        host.insertBefore(root, run[0]);
         for (var j = 0; j < run.length; j++) { body.appendChild(run[j]); }
       }
       return runs.length;
     } catch (e) { return 0; }
   }
 
-  /* 清一条 .mes_text 的包裹层（关闭开关 / 注销时）：把包裹层里搬进去的节点按原顺序放回，再删包裹层 */
+  /* .mes_text 里「最外层的」用户标签容器（嵌套同名只认最外层，内层整个被外层包裹层带走） */
+  function bodyContainers(mt) {
+    var tag = bodyTag();
+    var raw;
+    try { raw = mt.getElementsByTagName(tag); } catch (e) { return []; }
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var el = raw[i], up = el.parentNode, nested = false;
+      while (up && up !== mt) { if (up.tagName === el.tagName) { nested = true; break; } up = up.parentNode; }
+      if (!nested) { out.push(el); }
+    }
+    return out;
+  }
+  function bodyHasWrap(el) {
+    try { return !!el.querySelector(BODY_WRAP_SEL); } catch (e) { return false; }
+  }
+
+  /* ── 兜底判据：标签被酒馆清洗剥掉时走的「原始文本 → 文本指纹」对位 ──
+     归一化：只留文字/数字/注音/emoji，标点与 markdown 记号（* _ ` # > 等）全忽略 ——
+     于是「夜里**很冷**。」与渲染后的「夜里很冷。」指纹相同，空白差异也一并抹平。 */
+  function normText(s) {
+    return String(s).replace(/[^\p{L}\p{N}\p{M}\u2600-\u27BF\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}]/gu, '');
+  }
+  function readMesRaw(mesid) {
+    if (typeof getChatMessages !== 'function') { return null; }
+    try {
+      var arr = getChatMessages(String(mesid));
+      if (arr && arr.length) {
+        for (var i = 0; i < arr.length; i++) {
+          if (arr[i] && Number(arr[i].message_id) === Number(mesid) && typeof arr[i].mes === 'string') { return arr[i].mes; }
+        }
+      }
+    } catch (e) { }
+    return null;
+  }
+  /* 在原始文本里找 <tag>…</tag> 的全部内文（大小写不敏感；开标签允许带属性） */
+  function bodySectionsIn(raw, tag) {
+    var out = [];
+    try {
+      var esc = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var tok = new RegExp('<(/?)' + esc + '(?=\\s|>|/)[^>]*>', 'g');
+      var src = String(raw);
+      var m, depth = 0, start = -1;
+      tok.lastIndex = 0;
+      while ((m = tok.exec(src)) != null) {
+        if (!m[1]) {
+          if (depth === 0) { start = m.index + m[0].length; }
+          depth++;
+        } else if (depth > 0) {
+          depth--;
+          if (depth === 0 && start >= 0) { out.push(src.slice(start, m.index)); start = -1; }
+        }
+      }
+    } catch (e) { }
+    return out;
+  }
+  /* 窗口里有几个「可包」的连续段（找不到可包节点时 = 这一窗已在包裹层里、无需再包） */
+  function runsCount(kids) {
+    var cnt = 0, cur = 0;
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (bodySkippable(n)) { continue; }
+      if (n.nodeType !== 1 || !bodyProtected(n)) { cur = 1; continue; }
+      if (cur) { cnt++; cur = 0; }
+    }
+    if (cur) { cnt++; }
+    return cnt;
+  }
+  /* 在 .mes_text 的直接子节点序列上找一段连续窗口，其归一化指纹恰好等于标签内文。
+     窗口里有可包节点 → 包（返回段数）；窗口里全是让位对象/包裹层 → 已包好，返回 -1；
+     整个窗口对不上 → 返回 0（失败 = 不美化，绝不包错）。 */
+  function wrapByFingerprint(mt, innerRaw) {
+    var target = normText(innerRaw);
+    if (!target) { return 0; }
+    var kids = Array.prototype.slice.call(mt.childNodes);
+    var cs = kids.map(function (k) { return normText(k.nodeType === 3 ? k.nodeValue : k.textContent); });
+    for (var i = 0; i < kids.length; i++) {
+      var acc = '';
+      for (var j = i; j < kids.length; j++) {
+        acc += cs[j];
+        if (acc.length > target.length) { break; }
+        if (acc.length === target.length && acc === target) {
+          var win = kids.slice(i, j + 1);
+          if (runsCount(win) === 0) { return -1; }   /* 指纹对上但已在包裹层里：不是 miss，也不重复动手 */
+          return wrapRunsIn(mt, win);
+        }
+      }
+    }
+    return 0;
+  }
+  /* 一条 .mes_text 的兜底路径：只有「真对不上」才按（标签名, 原文长度）记忆、本形态不再重试
+     （原文改写会变长度，钥匙自动更换重算；「已包好」永不记忆，开关/标签一拆一重包还在）。 */
+  function wrapFromBodyRange(mt, raw, tag) {
+    var key = '__kamiBodyAt_' + tag + ':' + String(raw).length;
+    if (mt[key] === true) { return 0; }
+    var sections = bodySectionsIn(raw, tag);
+    var n = 0, anyDone = false, anyHard = false;
+    for (var i = 0; i < sections.length; i++) {
+      var w = wrapByFingerprint(mt, sections[i]);
+      if (w > 0) { n += w; anyDone = true; }
+      else if (w < 0) { anyDone = true; }
+      else { anyHard = true; log('正文标签 <' + tag + '> 的内文指纹在渲染后的 DOM 里对不上（该段保持原样、未美化）'); }
+    }
+    if (!anyDone && anyHard) { mt[key] = true; }
+    return n;
+  }
+
+  /* 清一条 .mes_text 的包裹层（关闭开关 / 注销时）：把包裹层里搬进去的节点按原顺序放回，再删包裹层。
+     v2 注意：包裹层可能在用户标签容器**内部**（主路径），也可能就在 .mes_text 直接子级（兜底路径），
+     所以用后代查询 + 逆序还原，两种位置都拆得干净。 */
   function unwrapOneMesText(mesText) {
     var roots;
-    try { roots = mesText.querySelectorAll(BODY_WRAP_SEL); } catch (e) { return; }
+    try { roots = mesText.querySelectorAll('.kami-root[data-kami-comp="body"]'); } catch (e) { return; }
     for (var i = roots.length - 1; i >= 0; i--) {
       var root = roots[i];
       var body = root.firstElementChild;
@@ -494,7 +638,9 @@
   }
 
   /* 遍历 #chat 里所有 .mes_text：开启时包裹、关闭时还原。
-     单轮最多包 12 条楼层，剩下的留给下一轮触发（防大聊天首次加载卡顿；报告 §2.4）。 */
+     单轮最多包 12 层，剩下的留给下一轮触发（防大聊天首次加载卡顿；调研 §2.4）。
+     主路径：找用户标签容器，只包容器内部；
+     兜底：容器一个都没有、但原始文本里确实出现了这个标签（多半被清洗剥掉）时，才走指纹对位。 */
   var BODY_SWEEP_CAP = 12;
   function syncBody() {
     if (disposed) { return; }
@@ -504,15 +650,24 @@
     var done = 0;
     for (var i = 0; i < list.length; i++) {
       var mt = list[i];
-      var hasWrap = false;
-      try { hasWrap = !!mt.querySelector(BODY_WRAP_SEL); } catch (e) { }
-      if (!on) {
-        if (hasWrap) { unwrapOneMesText(mt); }
-        continue;
+      if (!on) { unwrapOneMesText(mt); continue; }
+      var containers = bodyContainers(mt);
+      for (var c = 0; c < containers.length; c++) {
+        if (done >= BODY_SWEEP_CAP) { break; }
+        if (bodyHasWrap(containers[c])) { continue; }   /* 该容器已包过：跳过（幂等，不套娃） */
+        done += wrapRunsIn(containers[c], Array.prototype.slice.call(containers[c].childNodes));
       }
-      if (hasWrap) { continue; }   /* 已包过：跳过（幂等，不套娃） */
-      if (done >= BODY_SWEEP_CAP) { break; }
-      done += wrapOneMesText(mt);
+      if (!containers.length && done < BODY_SWEEP_CAP) {
+        var mes = mt.closest ? mt.closest('.mes') : null;
+        var mesid = mes ? mes.getAttribute('mesid') : null;
+        if (mesid !== null && mesid !== '') {
+          var tag = bodyTag();
+          var raw = readMesRaw(mesid);
+          if (raw && String(raw).toLowerCase().indexOf('<' + tag.toLowerCase()) >= 0) {
+            done += wrapFromBodyRange(mt, raw, tag);
+          }
+        }
+      }
     }
   }
 
@@ -796,7 +951,10 @@
     logGeom('创建');
   }
 
-  /* 面板尺寸的上下限：与拖动/缩放时的夹取共用同一组常量 */
+  /* 面板尺寸的上下限与默认值（v2，2026-09-25 用户裁定）：
+     皮肤管理面板的桌面档默认 **840×1120**（其它面板 40/60 各有自己的 PANEL_W/H 常量，不受影响）。
+     默认值只在脚本变量里**没存过** w/h 时生效（老用户拖出过自定义尺寸的，继续用他们存的那套）。 */
+  var PANEL_DEF_W = 840, PANEL_DEF_H = 1120;
   var PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   function clampNum(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
@@ -819,10 +977,15 @@
     /* 夹取一律用**当前**视口：存下来的那套几何可能是在另一个宽度下拖出来的
        （例如在 1600 的窗口里拖到 1200 宽，再缩到 1100），直接恢复就会跑到屏幕外、
        或者比视口还大 —— 这正是「有时也会失效」那一类时序问题。 */
-    var w = clampNum(p.w || 420, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24));
-    var h = clampNum(p.h || 560, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24));
+    var w = clampNum((p.w === null || p.w === undefined) ? PANEL_DEF_W : p.w, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24));
+    var h = clampNum((p.h === null || p.h === undefined) ? PANEL_DEF_H : p.h, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24));
     var x = (p.x === null || p.x === undefined) ? Math.max(12, (vw - w) / 2) : clampNum(p.x, -40, Math.max(-40, vw - 80));
     var y = (p.y === null || p.y === undefined) ? 72 : clampNum(p.y, 0, Math.max(0, vh - 48));
+    /* v2 可视区约束：放大到 840×1120 后，矮/窄视口下任何一边都不许超出可视区
+       （超出时按可视区留边收窄位置 —— 尺寸在上一行已按 vw-24 / vh-24 收窄）。
+       老用户存过的位置也吃这条兜底：之前有存档能摆出「底部出屏」的组合，现在一并收回来。 */
+    if (x + w > vw - 12) { x = Math.max(0, vw - w - 12); }
+    if (y + h > vh - 12) { y = Math.max(0, vh - h - 12); }
     panelRoot.style.setProperty('--kami-panel-w', Math.round(w) + 'px');
     panelRoot.style.setProperty('--kami-panel-h', Math.round(h) + 'px');
     panelRoot.style.setProperty('--kami-panel-x', Math.round(x) + 'px');
@@ -852,6 +1015,14 @@
         if (t.getAttribute && t.getAttribute('data-kami-act')) { ev.preventDefault(); t.click(); return; }
         t = t.parentNode;
       }
+    });
+
+    /* 正文标签文本行（v2 新增）：change（失焦 / Enter 提交）就地生效并校验，
+       非法值回退默认并回显。 */
+    panelDrop.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute || !t.getAttribute('data-kami-bodytag')) { return; }
+      setBodyTag(t.value, t);
     });
 
     /* 参数：滑杆与数字输入双向绑定 */
@@ -887,14 +1058,20 @@
       var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
       var vw = HDOC.documentElement.clientWidth, vh = HDOC.documentElement.clientHeight;
       if (drag.mode === 'move') {
-        var nx = clampNum(drag.l + dx, -40, Math.max(-40, vw - 80));
-        var ny = clampNum(drag.t + dy, 0, Math.max(0, vh - 48));
+        /* v2 可视区约束：拖动整体不能出屏（以按下瞬间的面板尺寸为准，面板内不许拖到看不见） */
+        var loX = Math.min(12, vw - drag.w - 12);
+        var loY = Math.min(12, Math.max(0, vh - drag.h - 12));
+        var nx = clampNum(drag.l + dx, Math.max(0, loX), Math.max(Math.max(0, loX), vw - drag.w - 12));
+        var ny = clampNum(drag.t + dy, loY, Math.max(loY, Math.max(0, vh - drag.h - 12)));
         panelRoot.style.setProperty('--kami-panel-x', Math.round(nx) + 'px');
         panelRoot.style.setProperty('--kami-panel-y', Math.round(ny) + 'px');
         state.panel.x = Math.round(nx); state.panel.y = Math.round(ny);
       } else {
-        var nw = clampNum(drag.w + dx, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24));
-        var nh = clampNum(drag.h + dy, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24));
+        /* v2 可视区约束：缩放同样不能把任何一边推出可视区（右/下边以 y/x 当前值为准不动） */
+        var nwHi = Math.max(PANEL_MIN_W, Math.min(vw - 24, vw - drag.l - 12));
+        var nhHi = Math.max(PANEL_MIN_H, Math.min(vh - 24, vh - drag.t - 12));
+        var nw = clampNum(drag.w + dx, PANEL_MIN_W, nwHi);
+        var nh = clampNum(drag.h + dy, PANEL_MIN_H, nhHi);
         panelRoot.style.setProperty('--kami-panel-w', Math.round(nw) + 'px');
         panelRoot.style.setProperty('--kami-panel-h', Math.round(nh) + 'px');
         state.panel.w = Math.round(nw); state.panel.h = Math.round(nh);
@@ -1056,13 +1233,14 @@
     /* 全局档位 */
     box.appendChild(sectionTitle('显示'));
     var g = mk('div', 'kami-card');
+    /* 正文美化放**第一行**（2026-09-25 用户裁定），后面明暗/动效/密度三行相对顺序不变。
+       「正文标签」文本行紧随其后（同一卡内，改标签名当场生效，见 setBodyTag）。
+       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），零新类名零新令牌。 */
+    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
+    g.appendChild(textRow('bodyTag', '正文标签'));
     g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
     g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
     g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
-    /* 正文美化（默认关闭）：复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），
-       零新类名、零新令牌。state.bodyText 存 '0'/'1' 字符串（flagRow 的选中态按字符串比较），
-       syncBody 里按 !!state.bodyText 判定，'0' 即关闭。 */
-    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
     box.appendChild(g);
   }
 
@@ -1086,6 +1264,25 @@
       seg.appendChild(b);
     });
     val.appendChild(seg);
+    row.appendChild(val);
+    return row;
+  }
+
+  /* 单行文本设置项：复用契约 §4.2 已登记的 .kami-field + .kami-text（文本框专用类），
+     零新类名。行为钩子 data-kami-bodytag 由 bindPanelEvents 的 change 委托接（v2 新增）。 */
+  function textRow(key, label) {
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', label));
+    var val = mk('span', 'kami-field-value');
+    var inp = mk('input', 'kami-text');
+    inp.type = 'text';
+    inp.value = bodyTag();
+    inp.placeholder = BODY_TAG_DEF;
+    inp.autocomplete = 'off';
+    inp.spellcheck = false;
+    inp.setAttribute('data-kami-bodytag', '1');
+    inp.setAttribute('aria-label', label);
+    val.appendChild(inp);
     row.appendChild(val);
     return row;
   }
@@ -1295,6 +1492,26 @@
       log('正文美化 → ' + (v === '1' ? '开' : '关'));
     }
   }
+  /* 正文标签（v2 新增）：与开关同样的就地点火方式 —— 改完立即「拆旧包 → 按新标签重包」。
+     非法值（空 / 尖括号 / 引号 / 空白 / 超长 / 非法标识符）拒绝并回退默认，
+     输入框当场回显生效值，绝不把查找拼坏。 */
+  function setBodyTag(v, srcNode) {
+    var tag = normalizeBodyTag(v);
+    if (!tag) {
+      toast('warning', '正文标签不合法，已回退为「' + BODY_TAG_DEF + '」');
+      tag = BODY_TAG_DEF;
+      log('正文标签「' + v + '」非法，回退默认 ' + BODY_TAG_DEF);
+    }
+    state.bodyTag = tag;
+    if (srcNode && srcNode.value !== tag) { srcNode.value = tag; }
+    saveState();
+    if (bodyTextOn()) {
+      /* 边界换了：先全部拆除，再按新标签重新包一轮 */
+      try { unwrapAllBody(); } catch (e) { }
+      try { syncBody(); } catch (e) { }
+    }
+    log('正文标签 → ' + tag);
+  }
   /* 把 #chat 里所有正文包裹层还原（关闭开关 / 注销时走这里，一条不剩） */
   function unwrapAllBody() {
     var list;
@@ -1376,6 +1593,8 @@
       },
       open: openPanel, close: closePanel, toggle: togglePanel,
       setSkin: setSkin, setParam: setParam, setFlag: function (k, v) { setFlag(k + '=' + v); },
+      /* v2：改正文标签名并就地点火（控制台/引导可调；面板输入行走同一个 setBodyTag） */
+      setBodyTag: function (v) { setBodyTag(v, null); },
       sync: syncAll, shutdown: function () { teardown(); },
       status: function () {
         return {
