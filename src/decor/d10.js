@@ -45,16 +45,16 @@
   var SIN18 = Math.sin(Math.PI / 10);   /* 18°：同环相邻（36°）的弦长一半 */
 
   /* ───────── 五角偏方二十四面体：一次性几何 ─────────
-   * 构造路径（和 d20 一样的「只算一次」思路，取的是标准形态 —— 正五边形反棱柱的对偶）：
-   *   正五边形反棱柱：上/下两个正五边形环（错开 36°、差出半个步长），上下环面距 h、
-   *   环半径 rho。取「所有 20 条棱等长」的等腰形态：
-   *     环内棱 = 2·rho·sin36，环间棱 = sqrt( (2·rho·sin18)^2 + (2h)^2 )，
-   *     两式相等 -> rho^2 (sin^2 36 - sin^2 18) = h^2；sin^2 36 - sin^2 18 = 1/4（恒等式），
-   *     所以 h = 1/sqrt(5)，rho = 2/sqrt(5)（外接半径 1）。
-   *   对偶：对偶体（五角偏方二十四面体）的每个顶点 = 反棱柱每个面的「极点」n/d
-   *   （面平面 单位法线 n、到原点距离 d），共 12 个顶点：2 个极 + 10 个环点；
-   *   反棱柱每个顶点周围 4 个相邻面的极点，连成骨架里的一只风筝面，共 10 个。
-   *   最后整体缩放：让外接半径 = 1。
+   * 构造：直接以「12 顶点 + 10 只风筝面」搭（2026-09-25 由反棱柱对偶改为近球形参数）。
+   *   顶点 = 上尖顶 (0,0,+p)、下尖顶 (0,0,-p)、上环 U_i（角 72i°）、下环 W_i（角 36°+72i·），
+   *   两环 z = ±u、半径同为 ρ（镜像对称，保证全部 10 面全等）。
+   *   风筝面 [U_i, W_i, U_(i+1), W? 的四点共面条件把 apex 高度定死为 p/u = (1+cos36°)/(1-cos36°) ≈ 9.4721
+   *   （推导：过 A、U_i、U_(i+1) 的面是 (u-p)x - (ρcos36°)z + ρcos36°·p = 0；
+   *     W_j 落在其上 ⇔ p = u(1+c36°)/(1-c36°)，与 ρ 无关 —— 所以比例只有一族自由度）。
+   *   近球形取法：让 apex 与环顶点半径几乎相等（顶点半径比 ≈ 1.006），即 u = 1/k、ρ = 1，
+   *   再统一缩放到最大顶点半径 = 1。此时三轴包围盒 ≈ 1:1:1（拉长比 1.000），
+   *   面片风筝长/短边 = 1.3342 : 0.6495 ≈ 2.05。
+   *   旧构造（反棱柱对偶）的读数是 拉长比 1.809 / 顶点半径差 1.78 —— 视觉上就是“太长、太尖”。
    *
    * 位姿公式与 d20 相同：CSS transform rotateY(ry) rotateX(rx) translateZ(R) 把面片局部 +Z
    * 映射到 (cos rx sin ry, -sin rx, cos rx cos ry)；令它等于面法线 n，解出
@@ -62,54 +62,27 @@
    * rotateZ(a) rotateX(-rx) rotateY(-ry)（a 取 360 的整数倍，数字才是正的）。
    */
   function buildGeom() {
-    var H = 1 / Math.sqrt(5);
-    var RHO = 2 / Math.sqrt(5);
-    var up = [], down = [], i, j, k;
+    var C36 = Math.cos(Math.PI / 5);
+    var K = (1 + C36) / (1 - C36);    /* p = K·u（风筝共面性的解析关系） */
+    var u = 1 / K;                    /* 近球形取法：p = 1 与环点半径 √(1+1/K²) 几乎相等 */
+    var verts = [[0, 0, 1], [0, 0, -1]];
+    var i, j, k, m;
     for (i = 0; i < 5; i++) {
-      up.push([RHO * Math.cos(2 * Math.PI * i / 5), RHO * Math.sin(2 * Math.PI * i / 5), H]);
-      down.push([RHO * Math.cos(2 * Math.PI * (i + 0.5) / 5), RHO * Math.sin(2 * Math.PI * (i + 0.5) / 5), -H]);
+      verts.push([Math.cos(2 * Math.PI * i / 5), Math.sin(2 * Math.PI * i / 5), u]);                    /* 上环 U_i = 2+2i */
+      verts.push([Math.cos(2 * Math.PI * (i + 0.5) / 5), Math.sin(2 * Math.PI * (i + 0.5) / 5), -u]);   /* 下环 W_i = 3+2i */
     }
-    /* 交錯环顶点也要过统一缩放 —— 先收集「反棱柱 + 对偶极点」全套 */
-    /* 10 个三角面：type1 = 上点 Tr_i 与下点 Bt_i、Bt_(i-1)；type2 = 下点 Bt_i 与上点 Tr_i、Tr_(i+1) */
-    function idx1(i) { return i; }                 /* up */
-    function idx2(i) { return i + 5; }             /* down */
-    var antiprismVerts = up.concat(down);
-    var tris = [];
-    for (i = 0; i < 5; i++) {
-      tris.push([idx1(i), idx2(i), idx2((i + 4) % 5)]);            /* (Tr_i, Bt_i, Bt_{i-1}) */
-      tris.push([idx2(i), idx1(i), idx1((i + 1) % 5)]);            /* (Bt_i, Tr_i, Tr_{i+1}) */
-    }
-    /* 对偶顶点：每个面的极点 n/d */
-    var dual = [];
-    var pentTopIdx = -1, pentBotIdx = -1;
-    for (i = 0; i < tris.length; i++) {
-      var A = antiprismVerts[tris[i][0]], B = antiprismVerts[tris[i][1]], C = antiprismVerts[tris[i][2]];
-      var n = unit(cross(sub(B, A), sub(C, A)));
-      var c = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3, (A[2] + B[2] + C[2]) / 3];
-      if (dot(n, c) < 0) { n = [-n[0], -n[1], -n[2]]; }
-      var dPlane = dot(n, A);      /* = dot(n, B) = dot(n, C)，三点共面 */
-      dual.push([n[0] / dPlane, n[1] / dPlane, n[2] / dPlane]);
-    }
-    pentTopIdx = dual.length;   /* 上五边形面（z = +H） */
-    dual.push([0, 0, 1 / H]);   /* 极点 (0,0,√5) —— 上尖顶 */
-    pentBotIdx = dual.length;
-    dual.push([0, 0, -1 / H]);  /* 下尖顶 */
-    /* 整体缩放：外接半径 = 1 */
+    /* 整体缩放：最大顶点半径 = 1（这里 ≈ 1/1.0056，让 12 个顶点全部贴球） */
     var maxR = 0;
-    for (i = 0; i < dual.length; i++) { maxR = Math.max(maxR, vlen(dual[i])); }
-    for (i = 0; i < dual.length; i++) { dual[i] = [dual[i][0] / maxR, dual[i][1] / maxR, dual[i][2] / maxR]; }
-    var verts = dual;
+    for (i = 0; i < verts.length; i++) { maxR = Math.max(maxR, vlen(verts[i])); }
+    for (i = 0; i < verts.length; i++) { verts[i] = [verts[i][0] / maxR, verts[i][1] / maxR, verts[i][2] / maxR]; }
+    function U(i) { return 2 + 2 * i; }
+    function W(i) { return 3 + 2 * i; }
 
-    /* 风筝面：反棱柱顶点 Tr_i 周围三个三角面极点 + 上尖顶，按环向次序连成四边形。
-       循环围绕 Tr_i 的面次序 = 五边形(上平) -> (Bt_(i-1),Tr_(i-1),Tr_i) -> (Tr_i,Bt_i,Bt_(i-1)) -> (Bt_i,Tr_i,Tr_(i+1))。
-       下面记序号：tri 数组里 type1(i) = 面表位置 2i，type2(i) = 2i+1。 */
+    /* 顶面第 i 只风筝 = [A+, U_i, W_i, U_(i+1)]（W_i 的 36°+72i 恰在 U_i(72i) 与 U_(i+1)(72i+72) 之间）；
+       底面第 j 只 = [A-, W_j, U_(j+1), W_(j+1)]（U_(j+1) 的 72j+72 在 W_j(36°+72j) 与 W_(j+1)(108°+72j) 之间） */
     var rawQuads = [];
-    for (i = 0; i < 5; i++) {
-      rawQuads.push([pentTopIdx, 2 * ((i + 4) % 5) + 1, 2 * i, 2 * i + 1]);           /* 顶面，上尖顶; type2_(i-1), type1_i, type2_i */
-    }
-    for (i = 0; i < 5; i++) {
-      rawQuads.push([pentBotIdx, 2 * ((i + 1) % 5), 2 * i + 1, 2 * i]);   /* 底面，下尖顶; type1_(i+1), type2_i, type1_i */
-    }
+    for (i = 0; i < 5; i++) { rawQuads.push([0, U(i), W(i), U((i + 1) % 5)]); }
+    for (j = 0; j < 5; j++) { rawQuads.push([1, W(j), U((j + 1) % 5), W((j + 1) % 5)]); }
     if (rawQuads.length !== 10) { throw new Error('d10: 面数不是 10'); }
 
     var edge = Infinity;
