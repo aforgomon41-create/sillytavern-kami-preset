@@ -5,11 +5,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
-/* 取 dist 里构建号最大的那份产物（别写死版本，升版本后这里不用改） */
-const NAMED = /^kami-v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i;
+/* 取 dist 里最新的一份产物（别写死版本，升版本后这里不用改）。
+   ⚠️ 构建号自 2026-09-25 起按版本各自计数（升版本重置），所以先比版本号再比构建号。 */
+const NAMED = /^kami-v(\d+\.\d+)-(\d{1,4})-\d{8}\.json$/i;
 const distFile = fs.readdirSync(path.join(ROOT, 'dist'))
   .filter(f => NAMED.test(f))
-  .sort((a, b) => Number(b.match(NAMED)[1]) - Number(a.match(NAMED)[1]))[0];
+  .sort((a, b) => {
+    const ma = NAMED.exec(a), mb = NAMED.exec(b);
+    const va = ma[1].split('.').map(Number), vb = mb[1].split('.').map(Number);
+    if (va[0] !== vb[0]) { return vb[0] - va[0]; }
+    if (va[1] !== vb[1]) { return vb[1] - va[1]; }
+    return Number(mb[2]) - Number(ma[2]);
+  })[0];
 const dist = read(path.join(ROOT, 'dist', distFile));
 const base = read(path.join(ROOT, 'src', 'preset.base.json'));
 for (const [tag, j] of [['base', base], ['dist', dist]]) {

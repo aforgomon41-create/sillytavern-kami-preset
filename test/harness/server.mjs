@@ -64,19 +64,28 @@ const DEMO = {
 function newestPreset() {
   const dir = path.join(ROOT, 'dist');
   if (!fs.existsSync(dir)) { return null; }
-  let best = null, bestN = -1;
+  /* 挑「最新产物」。⚠️ 2026-09-25 起构建号**按版本各自计数**（升版本会重置），
+     所以不能只比构建号 —— 否则 0.90-141 会压过 0.91-3。先比版本号，再比构建号。 */
+  let best = null, bestKey = null;
+  const keyOf = (ver, n) => [ver.split('.').map(Number), n];
+  const better = (a, b) => {
+    if (!b) { return true; }
+    if (a[0][0] !== b[0][0]) { return a[0][0] > b[0][0]; }
+    if (a[0][1] !== b[0][1]) { return a[0][1] > b[0][1]; }
+    return a[1] > b[1];
+  };
   for (const f of fs.readdirSync(dir)) {
     /* 现行 kami-v<版本>-<构建号>-<日期>（版本见根目录 version.json）.json、曾用 卡密预设v0.90-<构建号>-<日期>.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
-    let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
+    let m = /^(?:kami-|卡密预设)v(\d+\.\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
     if (m) {
-      const n2 = Number(m[1]);
-      if (n2 > bestN) { bestN = n2; best = path.join(dir, f); }
+      const k = keyOf(m[1], Number(m[2]));
+      if (better(k, bestKey)) { bestKey = k; best = path.join(dir, f); }
       continue;
     }
     m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
     if (!m) { continue; }
-    const n = Number(m[1]);
-    if (n > bestN) { bestN = n; best = path.join(dir, f); }
+    const k2 = keyOf('0.9', Number(m[1]));
+    if (better(k2, bestKey)) { bestKey = k2; best = path.join(dir, f); }
   }
   return best;
 }

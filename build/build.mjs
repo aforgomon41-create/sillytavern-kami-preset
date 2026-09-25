@@ -222,22 +222,26 @@ if (preset.extensions.SPreset && preset.extensions.SPreset.RegexBinding) {
 fs.mkdirSync(DIST, { recursive: true });
 
 /* 同时扫描 dist/ 与 预设JSON/（基线产物也在里面），保证“每次构建都不覆盖历史产物，
-   只在最后一个小版本号上 +1”，方便回档。 */
+   只在最后一个小版本号上 +1”，方便回档。
+   ⚠️ **构建号按当前版本各自计数**（2026-09-25 用户裁定：升了版本号，构建号要重置）：
+   只数「版本号段 == version.json 当前版本」的产物，所以 0.91 的第一个产物就是 -1，
+   不会被 0.90 的 -141 顶到 -142。旧命名（卡密预设0.9-…）只在当前版本仍是 0.90/0.9 时参与计数。 */
+const VER_PREFIX = 'v' + V_MAJOR + '.' + V_MINOR_STR;
 const scanDirs = [DIST, path.join(ROOT, '预设JSON')];
 let N = 0;
 for (const dir of scanDirs) {
   if (!fs.existsSync(dir)) { continue; }
   for (const f of fs.readdirSync(dir)) {
-    /* 三种命名都要认，否则构建号会从 1 重来：
-       · 现行  kami-v<版本>-<构建号>-<日期>.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
-              因为 GitHub Releases 会把非 ASCII 附件名直接削掉）
-       · 曾用  卡密预设v0.09-52-20260922.json
-       · 旧版  卡密预设0.9-52.json
-       · 更旧  卡密预设0.9-260917-51.json（日期前缀 = 6 位数字 + 短横线） */
-    let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
-    if (m) { N = Math.max(N, Number(m[1])); continue; }
+    /* · 现行  kami-v<版本>-<构建号>-<日期>.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
+            因为 GitHub Releases 会把非 ASCII 附件名直接削掉）—— 只认**当前版本**的
+       · 旧命名 卡密预设0.9-52.json / 卡密预设0.9-260917-51.json（当前版本是 0.90/0.9 时才算） */
+    let m = /^(?:kami-|卡密预设)v(\d+\.\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
+    if (m) {
+      if (('v' + m[1]) === VER_PREFIX) { N = Math.max(N, Number(m[2])); }
+      continue;
+    }
     m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
-    if (m) { N = Math.max(N, Number(m[1])); }
+    if (m && (VER_PREFIX === 'v0.90' || VER_PREFIX === 'v0.9')) { N = Math.max(N, Number(m[1])); }
   }
 }
 N += 1;
