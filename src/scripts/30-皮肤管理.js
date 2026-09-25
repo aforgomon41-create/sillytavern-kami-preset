@@ -126,6 +126,7 @@
     scheme: '',                  // '' = 跟随皮肤默认
     motion: 'full',              // full | calm | off
     density: 'cozy',             // compact | cozy | roomy
+    bodyText: false,             // 正文美化（默认关闭）：把 .mes_text 里的纯文本段包进 .kami-md 骨架
     effects: {},                 // { effectId: true }
     params: {},                  // { paramId: number }
     panel: { x: null, y: null, w: null, h: null, open: false }
@@ -246,6 +247,7 @@
   function skinCssText(skin) {
     return '/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
+      '\n/* ==== body wrap struct (正文美化包裹层，契约 §9.7；开关关着时页面上没有这种节点，规则空转) ==== */\n' + BODY_STRUCT_CSS +
       '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '');
   }
 
@@ -379,6 +381,9 @@
       var doc = iframeDoc(frame);
       if (doc && doc.documentElement) { applyTo(doc); }
     } catch (e) { }
+    /* 正文只存在于酒馆页面的 #chat 里（消息 iframe 是前端文档，没有 .mes_text）；
+       但 iframe 渲染结束往往意味着新楼层刚建好，这里补一次正文检查（开关开着才做事）。 */
+    syncBodyAfterIframes();
   }
 
   function syncAllIframes() {
@@ -389,15 +394,146 @@
         if (doc && doc.documentElement) { applyTo(doc); }
       }
     } catch (e) { }
+    syncBodyAfterIframes();
   }
 
   function syncAll() {
     if (disposed) { return; }
     applyTo(HDOC);
     syncAllIframes();
+    if (bodyTextOn()) { syncBody(); }
+  }
+
+  /* ───────── 正文美化（默认关闭；调研报告《正文美化与全局皮肤调研》§2.2 的可执行版）─────────
+     开启后把酒馆消息正文（.mes_text）里的「纯文本节点 + 无 class 无 style 的 markdown 元素」
+     原地包进 div.kami-root[data-kami-comp="body"] > div.kami-body.kami-md ——
+     复用 15 套皮肤里已登记的 .kami-root / .kami-body / .kami-md 规则，皮肤与令牌零改动。
+     两条铁律：
+       ① 只在 #chat 里跑（流式打字机浮窗也挂 mes_text 类，但它在 dialog[open] 里，绝不许碰）；
+       ② 「让位清单」里的元素一律原地不动 —— 包裹必须是移动原节点而不是 innerHTML 拼串，
+          否则插件（如智能生图触发器）插进正文的按钮会掉监听、掉锚点。
+     让位清单（判据即代码，永不包裹）：
+       div.TH-render / pre / iframe / button / input / select / textarea / label /
+       details / summary / 带 class 的元素 / 带行内 style 的元素 / .mes_* 容器 /
+       style / script / link / custom-style 等元数据元素。
+       「带 class 就让位」同时放过了 TH-render（既有前端宿主）、插件卡片（自带 class）、
+       与酒馆自己的结构容器；「带行内 style 就让位」放过了 HTML 美化条目的卡片。
+     不套娃：包裹层自带 class（kami-root）+ data-kami-comp="body"，
+       isProtected 的「带 class 就让位」与 BODY_WRAP_SEL 的幂等检查双保险把它认出来跳过。 */
+  var BODY_MES_TEXT_SEL = '#chat .mes .mes_text';
+  var BODY_WRAP_SEL = ':scope > .kami-root[data-kami-comp="body"]';
+  var BODY_PROTECT_TAGS = ['IFRAME', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL',
+    'DETAILS', 'SUMMARY', 'PRE', 'SCRIPT', 'STYLE', 'LINK', 'VIDEO', 'AUDIO',
+    'CUSTOM-STYLE', 'DIALOG'];
+  var BODY_PROTECT_CLS = 'mes_';   // .mes_buttons / .mes_media_wrapper / .mes_bias 等（以空格分词匹配）
+
+  function bodyProtected(el) {
+    if (el.nodeType !== 1) { return false; }
+    if (BODY_PROTECT_TAGS.indexOf(el.tagName) >= 0) { return true; }
+    if (el.hasAttribute('class')) { return true; }   /* 插件卡片 / TH-render / 包裹层本身 / 酒馆容器 */
+    if (el.hasAttribute('style')) { return true; }   /* HTML 美化条目产出的卡片（预设强制行内样式） */
+    if ((el.className || '').split(/\s+/).indexOf(BODY_PROTECT_CLS) >= 0) { return true; }
+    return false;
+  }
+  /* 注释节点与纯空白文本必须跳过：包进去会造出空 wrapper，
+     并让酒馆的 `.last_mes:has(.mes_text:empty)` 显隐判据失效（探针第一版实测踩过）。 */
+  function bodySkippable(n) {
+    if (n.nodeType === 8) { return true; }                 /* 注释 */
+    if (n.nodeType === 3) { return !n.nodeValue.trim(); }  /* 纯空白文本 */
+    return false;
+  }
+
+  /* 包一条 .mes_text：连续可包段各合成一个包裹层，返回新包的段数。
+     手法（探针实测踩坑后的定稿）：先在连续段首节点**之前**插入空包裹层，
+     再把段内节点逐个 appendChild 搬进去 —— 全程保留原节点对象，
+     事件监听与插件锚点都不会丢。 */
+  function wrapOneMesText(mesText) {
+    try {
+      var kids = Array.prototype.slice.call(mesText.childNodes);
+      var runs = [], cur = [], i;
+      for (i = 0; i < kids.length; i++) {
+        var n = kids[i];
+        if (bodySkippable(n)) { continue; }
+        if (n.nodeType === 1 && bodyProtected(n)) {
+          if (cur.length) { runs.push(cur); cur = []; }
+          continue;
+        }
+        cur.push(n);
+      }
+      if (cur.length) { runs.push(cur); }
+      for (i = 0; i < runs.length; i++) {
+        var root = mesText.ownerDocument.createElement('div');
+        root.className = 'kami-root';
+        root.setAttribute('data-kami-comp', 'body');
+        root.setAttribute('data-kami-ready', '1');
+        var body = mesText.ownerDocument.createElement('div');
+        body.className = 'kami-body kami-md';
+        root.appendChild(body);
+        var run = runs[i];
+        mesText.insertBefore(root, run[0]);
+        for (var j = 0; j < run.length; j++) { body.appendChild(run[j]); }
+      }
+      return runs.length;
+    } catch (e) { return 0; }
+  }
+
+  /* 清一条 .mes_text 的包裹层（关闭开关 / 注销时）：把包裹层里搬进去的节点按原顺序放回，再删包裹层 */
+  function unwrapOneMesText(mesText) {
+    var roots;
+    try { roots = mesText.querySelectorAll(BODY_WRAP_SEL); } catch (e) { return; }
+    for (var i = roots.length - 1; i >= 0; i--) {
+      var root = roots[i];
+      var body = root.firstElementChild;
+      var parent = root.parentNode;
+      if (!parent) { continue; }
+      try {
+        while (body && body.firstChild) { parent.insertBefore(body.firstChild, root); }
+      } catch (e) { continue; }   /* 万一搬不动（不该发生），留着包裹层总比丢内容强 */
+      parent.removeChild(root);
+    }
+  }
+
+  /* 遍历 #chat 里所有 .mes_text：开启时包裹、关闭时还原。
+     单轮最多包 12 条楼层，剩下的留给下一轮触发（防大聊天首次加载卡顿；报告 §2.4）。 */
+  var BODY_SWEEP_CAP = 12;
+  function syncBody() {
+    if (disposed) { return; }
+    var on = bodyTextOn();
+    var list;
+    try { list = HDOC.querySelectorAll(BODY_MES_TEXT_SEL); } catch (e) { return; }
+    var done = 0;
+    for (var i = 0; i < list.length; i++) {
+      var mt = list[i];
+      var hasWrap = false;
+      try { hasWrap = !!mt.querySelector(BODY_WRAP_SEL); } catch (e) { }
+      if (!on) {
+        if (hasWrap) { unwrapOneMesText(mt); }
+        continue;
+      }
+      if (hasWrap) { continue; }   /* 已包过：跳过（幂等，不套娃） */
+      if (done >= BODY_SWEEP_CAP) { break; }
+      done += wrapOneMesText(mt);
+    }
   }
 
   /* ───────── 装饰：注入 / 销毁（契约 §8）───────── */
+
+  /* 正文美化的触发点**复用**上面三条既有链（报告 §2.3 的纪律：不新增观察者）：
+     · MESSAGE_IFRAME_RENDER_ENDED / STARTED 事件 → syncIframe(id)（末尾补 syncBodyAfterIframes）；
+     · 300ms 防抖 MutationObserver → syncAllIframes()（末尾补）；
+     · 8 秒 sweep → syncAllIframes()（同上）。
+     开关关着时 syncBodyAfterIframes 第一行就返回，零成本。 */
+  function syncBodyAfterIframes() {
+    if (disposed || !bodyTextOn()) { return; }
+    try { syncBody(); } catch (e) { }
+  }
+
+  /* 正文包裹层的结构性兜底（契约 §9.7 登记的例外）：
+     只做排版归位（块级、清外边距、防横向溢出），一个颜色都不写 —— 外观仍归皮肤。
+     作用域带 .kami-root[data-kami-comp="body"]，特异性 (0,3,0) 高于 .kami-root 通用规则的
+     (0,2,0)/(0,2,1)，皮肤想接管写同名前缀的规则即可，不冲突。 */
+  var BODY_STRUCT_CSS = '.kami-root[data-kami-comp="body"]{display:block;margin:0;min-width:0;max-width:100%;overflow-wrap:anywhere;}'
+    + '.kami-root[data-kami-comp="body"]>.kami-body{padding:0;}';
 
   function decorOn(id) {
     var d = curSkin().decor;
@@ -923,6 +1059,10 @@
     g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
     g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
     g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
+    /* 正文美化（默认关闭）：复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），
+       零新类名、零新令牌。state.bodyText 存 '0'/'1' 字符串（flagRow 的选中态按字符串比较），
+       syncBody 里按 !!state.bodyText 判定，'0' 即关闭。 */
+    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
     box.appendChild(g);
   }
 
@@ -938,7 +1078,10 @@
     var val = mk('span', 'kami-field-value');
     var seg = mk('span', 'kami-seg');
     opts.forEach(function (o) {
-      var b = mk('button', 'kami-seg-item' + ((state[key] || '') === o[0] ? ' is-on' : ''), o[1]);
+      /* 布尔态（bodyText 的 false/true）与字符串档位（'0'/'1'）统一比字符串：
+         flagRow 选中态只认「当前值 == 选项值」，两边都 String() 后比较，避免类型不一致高亮错。 */
+      var now = (state[key] === true) ? '1' : (state[key] === false) ? '0' : String(state[key] === undefined || state[key] === null ? '' : state[key]);
+      var b = mk('button', 'kami-seg-item' + (now === o[0] ? ' is-on' : ''), o[1]);
       b.setAttribute('data-kami-act', 'flag:' + key + '=' + o[0]);
       seg.appendChild(b);
     });
@@ -1145,6 +1288,18 @@
     saveState();
     syncAll();
     renderPane();
+    if (k === 'bodyText') {
+      /* 正文美化开关就地点火/还原：不再等下一轮 iframe 事件或 sweep */
+      if (v === '1') { try { syncBody(); } catch (e) { } }
+      else { try { unwrapAllBody(); } catch (e) { } }
+      log('正文美化 → ' + (v === '1' ? '开' : '关'));
+    }
+  }
+  /* 把 #chat 里所有正文包裹层还原（关闭开关 / 注销时走这里，一条不剩） */
+  function unwrapAllBody() {
+    var list;
+    try { list = HDOC.querySelectorAll(BODY_MES_TEXT_SEL); } catch (e) { return; }
+    for (var i = 0; i < list.length; i++) { unwrapOneMesText(list[i]); }
   }
 
   function setOpen(open) {
@@ -1161,6 +1316,10 @@
       panelRoot.style.display = 'none';
     }
     saveState();
+  }
+  /* flagRow 的选中态按字符串比较：bodyText 用 '0'/'1' 存，读回来统一成布尔给 syncBody 用 */
+  function bodyTextOn() {
+    return state.bodyText === true || state.bodyText === '1';
   }
   function openPanel() { setOpen(true); }
   function closePanel() { setOpen(false); }
@@ -1253,6 +1412,8 @@
     try { destroyDecor(HDOC); } catch (e) { }
     try { restoreDecor(HDOC); } catch (e) { }
     try { clearAttrs(HDOC); } catch (e) { }
+    /* 正文包裹层：原样还原（原节点搬回 .mes_text 直接子级），不留残迹 */
+    try { unwrapAllBody(); } catch (e) { }
     try {
       var frames = HDOC.querySelectorAll(IFRAME_SEL), k;
       for (k = 0; k < frames.length; k++) {
@@ -1289,6 +1450,8 @@
     readState();
     expose();
     syncAll();
+    /* 首轮正文美化（开关开着时）：楼层 DOM 可能比样式下发晚建好，再补一次 */
+    setTimeout(function () { if (!disposed && bodyTextOn()) { try { syncBody(); } catch (e) { } } }, 600);
 
     /* 新楼层 / 重渲染的消息 iframe */
     try {

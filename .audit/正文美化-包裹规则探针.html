@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>正文美化 · 包裹规则探针（.audit 专用，不属生产代码）</title>
+<style>
+  /* 只复刻「真酒馆给正文做的那几件事」，用来验证包裹层不会打乱它们。
+     出处：public/style.css:1516-1529（.mes_text 排版）、:387-391（.mes_text p）、
+     用户自定义 CSS（#custom-style）里的 .mes_text{ padding: calc(var(--mainFontSize)*.8) 0 0 0 } */
+  body { background:#1b1b1b; color:#dcdcd2; font-family: system-ui, "Microsoft YaHei", sans-serif; }
+  #chat { max-width: 760px; margin: 0 auto; }
+  .mes { display:flex; align-items:flex-start; padding:10px 10px 0 10px; position:relative; }
+  .mes_block { padding-left:10px; width:100%; overflow-x:hidden; }
+  .mes_text { font-weight:500; line-height: calc(15px + .5rem); max-width:100%; overflow-wrap:anyword; overflow-wrap:anywhere; }
+  .mes_text p { margin-top:0; margin-bottom:10px; }
+  .mes_text p:last-child { margin-bottom:0; }
+  .mes_text hr { opacity:.4; }
+  /* 复刻 kami 兜底皮肤对 .kami-root 的排版（src/skin/base.css:157-168） */
+  html:not([data-kami-skin]) .kami-root {
+    margin:10px 0 6px; text-align:left; color:#e8ecf0;
+    font-family: system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    font-size:15px; line-height:1.62; letter-spacing:.01em; word-break:break-word;
+  }
+  html:not([data-kami-skin]) .kami-root * { box-sizing:border-box; }
+  html:not([data-kami-skin]) .kami-root button { font:inherit; color:inherit; }
+  .TH-render { margin:10px 0; }
+  .TH-render iframe { width:100%; border:0; display:block; height:96px; background:rgba(255,255,255,.06); }
+  .rbq-sdt-card { border:1px dashed #79e4ff; padding:8px; margin:10px 0; }
+  .menu_button { background:#2a2a2a; border:1px solid #555; color:#dcdcd2; padding:4px 10px; border-radius:6px; }
+  #out { white-space:pre-wrap; font-size:12px; color:#9fd8b0; }
+  button.run { margin:8px 0; }
+</style>
+</head>
+<body>
+<h3>正文美化 · 包裹规则探针</h3>
+<p>把下面这段「仿真 .mes_text」按提案规则包一遍，然后打印结果树与「让位清单」。
+   规则实现见页面底部脚本，与调研报告 §2.2 逐条对应。</p>
+<button class="run" id="run">跑一遍包裹</button>
+<button class="run" id="reset">重置</button>
+<div id="chat">
+  <div class="mes" mesid="2">
+    <div class="mes_block">
+      <!-- 酒馆自己的推理块：必须让位（style.css:469/485-505 靠 :has(.mes_reasoning:empty) 等结构选择器） -->
+      <details class="mes_reasoning_details" open>
+        <summary class="mes_reasoning_summary">思考完成</summary>
+        <div class="mes_reasoning">推理原文</div>
+      </details>
+      <div class="mes_text" id="mt">
+        <!-- ① 纯正文：markdown 产出的无 class 无 style 元素 → 包 -->
+        <p>幽蓝微弱的屏幕荧光将昏暗的卧室切出一角明亮。</p>
+        <p>卡密仰躺在枕头上，指尖悬在发烫的手机屏幕上方。</p>
+        <!-- ② 两个既有前端：div.TH-render + pre + iframe → 让位
+             （use_collapse_code_block.ts:26 用 $pre.parent('div.TH-render') 认亲，中间插一层会再造一个 .TH-render） -->
+        <div class="TH-render">
+          <pre><code>&lt;!DOCTYPE html&gt;&lt;html&gt;…前端文档…</code></pre>
+          <iframe id="TH-message--2--0" title="思绪"></iframe>
+        </div>
+        <!-- ③ 插件按句子锚点插进正文的按钮 → 让位
+             （smart-draw-trigger.js:11091-11097：button.menu_button.st-scene-trigger-inline-button.rbq-sdt-run-image） -->
+        <div class="rbq-sdt-card" data-rbq-sdt-key="k1">
+          <button class="menu_button st-scene-trigger-inline-button rbq-sdt-run-image" type="button">🎨 生成</button>
+          <span>分镜卡片正文</span>
+        </div>
+        <!-- ④ HTML 美化条目产出的 HTML：带行内样式 → 让位
+             （preset.base.json:3008 的 medium_task 明确要求「必须使用行内样式」） -->
+        <div style="max-width:350px;margin:12px auto;padding:16px;background:#20242a;border-radius:16px;color:#e6edf3;">
+          <div style="font-weight:600;">柚香 (妹妹)</div>
+          <div style="font-size:13px;">笨蛋哥哥，今天洗完澡把换洗衣服落在浴室门口了！</div>
+        </div>
+        <!-- ⑤ 又是纯正文 → 包 -->
+        <p>门缝下方透进来的走廊微光被一道娇小的阴影挡住。</p>
+        <blockquote>一句引用。</blockquote>
+        <!-- ⑥ 普通 ul / table / hr：无 class 无 style → 包 -->
+        <ul><li>条目一</li><li>条目二</li></ul>
+        <hr>
+        <!-- ⑦ 代码块：pre 可能被酒馆助手当前端 → 让位 -->
+        <pre><code>普通代码块</code></pre>
+        <!-- ⑧ 编辑态：textarea → 让位 -->
+        <!-- （下面这颗默认不渲染，点「模拟编辑」才插） -->
+      </div>
+    </div>
+  </div>
+</div>
+<div id="out"></div>
+
+<script>
+/* ============================================================
+ * 提案规则（调研报告 §2.2 的可执行版）
+ * 包：.mes_text 的「直接子节点」里，既不在保护标签表、也没有 class、也没有 style 的节点，
+ *     连同夹在中间的纯文本节点，连续段合成一个包裹层。
+ * 让位：其余一律原地不动。
+ * ============================================================ */
+var PROTECTED_TAGS = ['IFRAME', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL',
+  'DETAILS', 'SUMMARY', 'PRE', 'SCRIPT', 'STYLE', 'LINK', 'MEDIA', 'VIDEO', 'AUDIO',
+  'CUSTOM-STYLE', 'TABLE-FIX'];
+
+function isProtected(el) {
+  if (el.nodeType !== 1) { return false; }
+  if (PROTECTED_TAGS.indexOf(el.tagName) >= 0) { return true; }
+  if (el.hasAttribute('class')) { return true; }      // 插件卡片 / TH-render / 酒馆自己的容器
+  if (el.hasAttribute('style')) { return true; }      // HTML 美化（预设强制行内样式）
+  if (el.closest('.mes_reasoning, .mes_buttons, .mes_edit_buttons, .mes_media_wrapper')) { return true; }
+  return false;
+}
+/* 本轮实测踩到的一条：HTML 里的注释节点（nodeType 8）既不是元素也不是纯空白文本，
+   第一版规则把它们当成「可包内容」，结果每个保护元素前面都多出一个空 wrapper。
+   所以「跳过」的条件是：注释、空白文本，两者都跳过。 */
+function isSkippable(n) {
+  if (n.nodeType === 8) { return true; }                       // 注释
+  if (n.nodeType === 3) { return !n.nodeValue.trim(); }        // 纯空白文本
+  return false;
+}
+
+/* 包裹主函数。两个本轮实测复现的坑都记在注释里：
+   坑①「节点先被摘走再找位置」→ insertBefore 抛 NotFoundError。
+        可用的写法：先把空 wrapper 插到连续段第一个节点之前，再把节点逐个搬进去。
+   坑②「注释与纯空白文本没被跳过」→ 每个保护元素前多出一个空 wrapper。
+        （本文件第一版就是这么错的，控制台里能看到 ReferenceError 的历史记录） */
+function wrapBody(mesText) {
+  var kids = Array.prototype.slice.call(mesText.childNodes);
+  var runs = [], cur = [];
+  kids.forEach(function (n) {
+    if (isSkippable(n)) { return; }
+    var protect = (n.nodeType === 1) && isProtected(n);
+    if (protect) { if (cur.length) { runs.push(cur); cur = []; } return; }
+    cur.push(n);
+  });
+  if (cur.length) { runs.push(cur); }
+  runs.forEach(function (run) {
+    var first = run[0];
+    var root = document.createElement('div');
+    root.className = 'kami-root';
+    root.setAttribute('data-kami-comp', 'body');
+    root.setAttribute('data-kami-ready', '1');
+    var body = document.createElement('div');
+    body.className = 'kami-body kami-md';
+    root.appendChild(body);
+    /* ① 先把空 wrapper 插到连续段第一个节点之前（此刻 first 还在文档里） */
+    mesText.insertBefore(root, first);
+    /* ② 再把节点逐个搬进 wrapper —— root 已经在 first 前面，顺序不会乱 */
+    run.forEach(function (n) { body.appendChild(n); });
+  });
+  return runs.length;
+}
+
+function dump(node, depth, out) {
+  var pad = new Array(depth + 1).join('  ');
+  if (node.nodeType === 3) {
+    var t = node.nodeValue.trim();
+    if (t) { out.push(pad + '#text "' + t.slice(0, 18) + '"'); }
+    return;
+  }
+  if (node.nodeType !== 1) { return; }
+  var cls = node.className && typeof node.className === 'string' ? '.' + node.className.trim().split(/\s+/).join('.') : '';
+  var attr = '';
+  ['data-kami-comp', 'data-rbq-sdt-key', 'style', 'class'].forEach(function (a) {
+    if (node.hasAttribute && node.hasAttribute(a) && a !== 'class') { attr += ' ' + a + '="' + String(node.getAttribute(a)).slice(0, 28) + '"'; }
+  });
+  out.push(pad + '<' + node.tagName.toLowerCase() + cls + attr + '>');
+  Array.prototype.slice.call(node.childNodes).forEach(function (c) { dump(c, depth + 1, out); });
+}
+
+var mt = document.getElementById('mt');
+function report(label) {
+  var out = [];
+  out.push('=== ' + label + ' ===');
+  dump(mt, 0, out);
+  out.push('');
+  out.push('包裹层数量：' + mt.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length);
+  out.push('让位（仍是 .mes_text 直接子元素）：' +
+    Array.prototype.slice.call(mt.children).filter(function (c) {
+      return !(c.classList && c.classList.contains('kami-root'));
+    }).map(function (c) {
+      return c.tagName.toLowerCase() + (c.className ? '.' + String(c.className).trim().split(/\s+/)[0] : '');
+    }).join(' , '));
+  out.push('TH-render 是否被包：' + (mt.querySelector('.kami-root .TH-render') ? '是（错误！）' : '否（正确）'));
+  out.push('插件 button 是否被包：' + (mt.querySelector('.kami-root button') ? '是（错误！）' : '否（正确）'));
+  out.push('HTML美化 div 是否被包：' + (mt.querySelector('.kami-root div[style]') ? '是（错误！）' : '否（正确）'));
+  out.push('reasoning details 是否被包：' + (mt.querySelector('.kami-root details') ? '是（错误！）' : '否（正确）'));
+  document.getElementById('out').textContent = out.join('\n');
+}
+
+document.getElementById('run').onclick = function () {
+  var n = wrapBody(mt);
+  report('包裹后（' + n + ' 个连续段）');
+};
+document.getElementById('reset').onclick = function () { location.reload(); };
+report('包裹前');
+
+/* 模拟编辑态：.mes_text.empty() 后只放一个 textarea（script.js:8202-8216） */
+setTimeout(function () {
+  var b = document.createElement('button');
+  b.className = 'menu_button';
+  b.textContent = '模拟编辑态（清空 .mes_text 只留 textarea）';
+  b.onclick = function () {
+    mt.textContent = '';
+    var ta = document.createElement('textarea');
+    ta.id = 'curEditTextarea';
+    ta.className = 'edit_textarea';
+    mt.appendChild(ta);
+    var n = wrapBody(mt);
+    report('编辑态包裹后（' + n + ' 个连续段，应为 0）');
+  };
+  document.body.insertBefore(b, document.getElementById('out'));
+}, 0);
+</script>
+</body>
+</html>

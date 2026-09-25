@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>正文美化 · 预览台验收探针</title>
+<style>
+  html,body{margin:0;padding:0;}
+  body{background:#0b0b0e;color:#cfcfd6;font-family:system-ui,"Microsoft YaHei",sans-serif;padding:12px 14px 80px;}
+  /* ── 复刻真酒馆给正文做的排版（public/style.css:1516-1529 / 387-396）── */
+  #chat{max-width:820px;margin:0 auto;}
+  .mes{display:flex;align-items:flex-start;padding:10px 10px 0;position:relative;}
+  .mes_block{padding-left:10px;width:100%;overflow-x:hidden;}
+  .mes_text{font-weight:500;line-height:calc(15px + .5rem);max-width:100%;overflow-wrap:anywhere;}
+  .mes_text p{margin-top:0;margin-bottom:10px;}
+  .mes_text p:last-child{margin-bottom:0;}
+  .mes_text hr{opacity:.4;}
+  /* ── 复刻预览台的按钮条 ── */
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;}
+  .bar button{background:#23232d;border:1px solid #3a3a48;color:#dcdce4;border-radius:7px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px;}
+  #qr-bar{display:flex;gap:6px;min-height:26px;margin-bottom:10px;}
+  .qr--button{background:#23232d;border:1px solid #3a3a48;border-radius:7px;padding:4px 9px;color:#dcdce4;cursor:pointer;font:inherit;font-size:13px;}
+  #out{white-space:pre-wrap;font-size:12px;color:#9fd8b0;min-height:40px;}
+  /* 模拟插件按钮与卡片的自绘外观（与真插件同构，非 kami 类名） */
+  .rbq-sdt-card{border:1px dashed #79e4ff;padding:8px;margin:10px 0;}
+  .menu_button{background:#2a2a2a;border:1px solid #555;color:#dcdcd2;padding:4px 10px;border-radius:6px;cursor:pointer;}
+  .TH-render{margin:10px 0;}
+  .TH-render iframe{width:100%;border:0;display:block;height:96px;background:rgba(255,255,255,.06);}
+  /* 编辑态 */
+  .edit_textarea{width:100%;min-height:60px;}
+</style>
+</head>
+<body>
+<h3 style="margin:4px 0 8px;font-size:14px;">正文美化 · 预览台验收探针（.audit，非生产代码）</h3>
+<div class="bar">
+  <button id="act-open">1 · 注入仿真正文 + 模拟插件</button>
+  <button id="act-on">2 · 开正文美化</button>
+  <button id="act-verify">3 · 读数</button>
+  <button id="act-click">4 · 点插件按钮（读回调计数）</button>
+  <button id="act-again">5 · 再触发一次（幂等）</button>
+  <button id="act-off">6 · 关正文美化</button>
+  <button id="act-verify2">7 · 关闭后读数（应为 0 包裹层）</button>
+  <button id="act-edit">8 · 模拟编辑态（应包 0 个）</button>
+</div>
+<div id="qr-bar"></div>
+<pre id="out">待操作</pre>
+<pre id="geom" style="white-space:pre-wrap;font-size:12px;color:#8fb0d0;"></pre>
+<div id="chat">
+  <div class="mes" mesid="2"><div class="mes_block"><div class="mes_text" id="mt"></div></div></div>
+</div>
+<iframe id="probe-runner" style="width:0;height:0;border:0;position:absolute;left:-9999px" src="about:blank"></iframe>
+<script>
+/* ─────────── 基础：脚本装载器（与 preview.html 的 loadScript 同构）─────────── */
+const STATE = { handlers: new Map(), clickCount: 0, clicks: [] };
+STATE.emit = function (evt, ...a) { const m = STATE.handlers.get(evt); if (m && m.size) { for (const w of [...m.values()]) w(...a); return true; } return false; };
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
+  w.getScriptId = () => scriptId;
+  w.getScriptButtons = () => [];
+  w.replaceScriptButtons = () => {};
+  w.appendInexistentScriptButtons = () => {};
+  w.getButtonEvent = (n) => 'button:' + scriptId + ':' + n;
+  w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
+  w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
+  w.eventClearAll = () => {};
+  w.getAllEnabledScriptButtons = () => ({});
+  w.getScriptTrees = () => [];
+  w.getTavernVersion = () => '1.18.0';
+  w.getTavernHelperVersion = () => '4.11.0';
+  w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+}
+async function loadSkinManager() {
+  const f = document.getElementById('probe-runner');
+  await new Promise(r => { f.onload = r; setTimeout(r, 500); });
+  const w = f.contentWindow;
+  installMocks(w, 'skinmgr');
+  const code = await (await fetch('/dev/30-皮肤管理.js')).text();
+  w.eval(code);
+  return w;
+}
+/* ─────────── 夹具：仿真正文 ─────────── */
+function buildBody() {
+  const mt = document.getElementById('mt');
+  mt.textContent = '';
+  /* ① 纯文本节点 + 无 class 无 style 的 markdown 元素 → 应被包 */
+  mt.appendChild(document.createTextNode('幽蓝微弱的屏幕荧光将昏暗的卧室切出一角明亮。'));
+  const p1 = document.createElement('p'); p1.textContent = '卡密仰躺在枕头上，指尖悬在发烫的手机屏幕上方。'; mt.appendChild(p1);
+  const ul = document.createElement('ul');
+  ['条目一', '条目二'].forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+  mt.appendChild(ul);
+  const bq = document.createElement('blockquote'); bq.textContent = '一句引用。'; mt.appendChild(bq);
+  /* ② div.TH-render + pre + iframe（既有前端宿主）→ 让位 */
+  const th = document.createElement('div'); th.className = 'TH-render';
+  const pre = document.createElement('pre'); const code = document.createElement('code'); code.textContent = '<html>…前端文档…</html>'; pre.appendChild(code); th.appendChild(pre);
+  const ifr = document.createElement('iframe'); ifr.id = 'TH-message--2--0'; ifr.title = '思绪'; th.appendChild(ifr);
+  mt.appendChild(th);
+  /* ③ 模拟插件按钮（智能生图触发器的同构按钮，真监听真回调）→ 让位 */
+  const card = document.createElement('div'); card.className = 'rbq-sdt-card'; card.setAttribute('data-rbq-sdt-key', 'k1');
+  const btn = document.createElement('button');
+  btn.className = 'menu_button st-scene-trigger-inline-button rbq-sdt-run-image';
+  btn.type = 'button'; btn.textContent = '🎨 生成';
+  btn.addEventListener('click', function () { STATE.clickCount++; STATE.clicks.push(Date.now()); });
+  card.appendChild(btn);
+  const sp = document.createElement('span'); sp.textContent = '分镜卡片正文'; card.appendChild(sp);
+  mt.appendChild(card);
+  /* ④ HTML 美化产出的裸 HTML（带行内 style）→ 让位 */
+  const hw = document.createElement('div');
+  hw.setAttribute('style', 'max-width:350px;margin:12px auto;padding:16px;background:#20242a;border-radius:16px;color:#e6edf3;');
+  hw.textContent = '柚香 (妹妹)：笨蛋哥哥，今天洗完澡把换洗衣服落在浴室门口了！';
+  mt.appendChild(hw);
+  /* ⑤ 又一段纯文本 → 应被包 */
+  const p2 = document.createElement('p'); p2.textContent = '门缝下方透进来的走廊微光被一道娇小的阴影挡住。'; mt.appendChild(p2);
+  const hr = document.createElement('hr'); mt.appendChild(hr);
+  /* ⑥ 普通代码块 pre → 让位 */
+  const pre2 = document.createElement('pre'); const code2 = document.createElement('code'); code2.textContent = '普通代码块'; pre2.appendChild(code2); mt.appendChild(pre2);
+  /* ⑦ 带行内 style 的行内元素（不该被包，也不能破坏它） */
+  const span = document.createElement('span'); span.setAttribute('style', 'color:#79e4ff;'); span.textContent = '一行带色文字。'; mt.appendChild(span);
+}
+/* ─────────── 读数 ─────────── */
+function wrapCount() {
+  const mt = document.getElementById('mt');
+  return mt.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length;
+}
+/* 开关前的正文快照：关闭后逐字节比对（包裹只搬节点，序列化必须与开启前一致） */
+document.__mtBaseline = null;
+function snapshot() { return document.getElementById('mt').innerHTML; }
+function report(tag) {
+  const mt = document.getElementById('mt');
+  const lines = [];
+  lines.push('=== ' + tag + ' ===');
+  lines.push('包裹层数量（.mes_text 直接子级）：' + wrapCount());
+  lines.push('TH-render 被包：' + (mt.querySelector('.kami-root .TH-render') ? '是（错）' : '否（对）'));
+  lines.push('pre 被包：' + (mt.querySelector('.kami-root pre') ? '是（错）' : '否（对）'));
+  lines.push('iframe 被包：' + (mt.querySelector('.kami-root iframe') ? '是（错）' : '否（对）'));
+  lines.push('插件按钮被包：' + (mt.querySelector('.kami-root button') ? '是（错）' : '否（对）'));
+  lines.push('HTML美化卡片被包：' + (mt.querySelector('.kami-root div[style]') ? '是（错）' : '否（对）'));
+  lines.push('span[style] 被包：' + (mt.querySelector('.kami-root span[style]') ? '是（错）' : '否（对）'));
+  lines.push('ul 被包：' + (mt.querySelector('.kami-root ul') ? '是（对）' : '否（错）'));
+  /* 纯文本在包裹层的第二层（.kami-body.kami-md）里，要往下看一层 */
+  lines.push('纯文本被包：' + (mt.querySelector('.kami-root > .kami-md') && [...mt.querySelectorAll('.kami-root > .kami-md')].some(md => [...md.childNodes].some(n => n.nodeType === 3 && n.nodeValue.trim())) ? '是（对）' : '否（错）'));
+  lines.push('插件按钮点击回调计数：' + STATE.clickCount);
+  lines.push('iframe 仍在原位（.mes_text 直接子级 .TH-render 内）：' + (mt.querySelector(':scope > .TH-render > iframe') ? '是（对）' : '否（错）'));
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('正文探针|' + l));
+}
+/* ─────────── 动作 ─────────── */
+let SKW = null;
+document.getElementById('act-open').onclick = async function () {
+  buildBody();
+  if (!SKW) { SKW = await loadSkinManager(); }
+  /* 模拟酒馆助手的 iframe 渲染结束事件（预览台同款触发链） */
+  STATE.emit('message_iframe_render_ended', 'TH-message--2--0');
+  document.__mtBaseline = snapshot();
+  report('1 · 注入后（未开开关）');
+};
+document.getElementById('act-on').onclick = function () {
+  if (!SKW) { report('先点第 1 步'); return; }
+  /* HOST 探测会选中带 #chat 的宿主页：API 挂在 window.KamiSkin（父窗口），不在 iframe 里 */
+  const api = window.KamiSkin || SKW.KamiSkin;
+  api.setFlag('bodyText', '1');
+  setTimeout(() => report('2 · 开启正文美化后'), 80);
+};
+document.getElementById('act-verify').onclick = function () { report('3 · 读数'); };
+document.getElementById('act-click').onclick = function () {
+  const mt = document.getElementById('mt');
+  const btn = mt.querySelector(':scope > .rbq-sdt-card > button');
+  if (!btn) { report('按钮不在原位？先点第 1 步'); return; }
+  const before = STATE.clickCount;
+  btn.click();
+  setTimeout(() => {
+    const mt2 = document.getElementById('mt');
+    const lines = ['=== 4 · 点插件按钮 ===',
+      '按钮仍是 .mes_text 直接子级 .rbq-sdt-card 的孩子：' + (mt2.querySelector(':scope > .rbq-sdt-card > button') ? '是（对）' : '否（错）'),
+      '点击前回调计数=' + before + ' → 点击后=' + STATE.clickCount + (STATE.clickCount > before ? '（回调被触发：对）' : '（没触发：错）')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('正文探针|' + l));
+  }, 60);
+};
+document.getElementById('act-again').onclick = function () {
+  if (!SKW) { report('先点第 1 步'); return; }
+  /* 连续触发两次同步（复用脚本内部链路）：包裹层数量必须不涨 */
+  STATE.emit('message_iframe_render_ended', 'TH-message--2--0');
+  STATE.emit('message_iframe_render_ended', 'TH-message--2--0');
+  setTimeout(() => report('5 · 再触发一次（幂等）'), 120);
+};
+document.getElementById('act-off').onclick = function () {
+  if (!SKW) { report('先点第 1 步'); return; }
+  const api = window.KamiSkin || SKW.KamiSkin;
+  api.setFlag('bodyText', '0');
+  setTimeout(() => report('6 · 关闭后'), 80);
+};
+document.getElementById('act-verify2').onclick = function () {
+  const mt = document.getElementById('mt');
+  const lines = ['=== 7 · 关闭后读数 ===', '包裹层数量：' + wrapCount() + '（应为 0）',
+    'DOM 与开启前逐字节一致：' + (document.__mtBaseline === snapshot() ? '是（对）' : '否（错，需查）')];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('正文探针|' + l));
+};
+console.log('正文探针|就绪');
+/* 第 8 步：复刻 script.js:8202-8216 的编辑态（.mes_text 清空只留 textarea），再触发一次包裹。
+   开关起着也不该包出任何东西（textarea 在让位清单里）。 */
+document.getElementById('act-edit').onclick = function () {
+  if (!SKW) { report('先点第 1 步'); return; }
+  const mt = document.getElementById('mt');
+  mt.textContent = '';
+  const ta = document.createElement('textarea');
+  ta.id = 'curEditTextarea';
+  ta.className = 'edit_textarea';
+  mt.appendChild(ta);
+  const api = window.KamiSkin || SKW.KamiSkin;
+  api.sync();
+  setTimeout(() => {
+    const lines = ['=== 8 · 编辑态（.mes_text 里只有 textarea）+ 再触发 ===',
+      '包裹层数量：' + wrapCount() + '（应为 0）',
+      'textarea 未被动过：' + (mt.querySelector('#curEditTextarea') === ta ? '是（对）' : '否（错）')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('正文探针|' + l));
+  }, 120);
+};
+/* 探针自带 API（不稳进程，仅供读数）： */
+window.__probe = { clickCount: () => STATE.clickCount, wrapCount };
+/* 常驻几何读数：横向溢出检查（375px 验收用）。
+   溢出判定：文档横向没有额外可滚空间，且 .mes_text 内没有任何元素超出视口右边。 */
+setInterval(function () {
+  const mt = document.getElementById('mt');
+  const vw = window.innerWidth;
+  const docOverflow = document.documentElement.scrollWidth > vw + 1;
+  let worst = '';
+  let worstRight = -1;
+  if (mt) {
+    mt.querySelectorAll('*').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.right > worstRight) { worstRight = r.right; worst = el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.split(/\s+/)[0] : ''); }
+    });
+  }
+  document.getElementById('geom').textContent =
+    '几何|视口=' + vw + 'x' + window.innerHeight +
+    ' 文档横向可滚宽-' + vw + '=' + (document.documentElement.scrollWidth - vw) +
+    '（0=无溢出' + (docOverflow ? '，但实测有溢出' : '，实测无溢出') + '）' +
+    ' 正文最右元素=' + worst + ' @' + Math.round(worstRight) +
+    ' 包裹层数=' + (mt ? wrapCount() : '-');
+}, 500);
+</script>
+</body>
+</html>
