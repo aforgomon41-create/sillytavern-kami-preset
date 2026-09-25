@@ -45,44 +45,96 @@
   var SIN18 = Math.sin(Math.PI / 10);   /* 18°：同环相邻（36°）的弦长一半 */
 
   /* ───────── 五角偏方二十四面体：一次性几何 ─────────
-   * 构造：直接以「12 顶点 + 10 只风筝面」搭（2026-09-25 由反棱柱对偶改为近球形参数）。
-   *   顶点 = 上尖顶 (0,0,+p)、下尖顶 (0,0,-p)、上环 U_i（角 72i°）、下环 W_i（角 36°+72i·），
-   *   两环 z = ±u、半径同为 ρ（镜像对称，保证全部 10 面全等）。
-   *   风筝面 [U_i, W_i, U_(i+1), W? 的四点共面条件把 apex 高度定死为 p/u = (1+cos36°)/(1-cos36°) ≈ 9.4721
-   *   （推导：过 A、U_i、U_(i+1) 的面是 (u-p)x - (ρcos36°)z + ρcos36°·p = 0；
-   *     W_j 落在其上 ⇔ p = u(1+c36°)/(1-c36°)，与 ρ 无关 —— 所以比例只有一族自由度）。
-   *   近球形取法：让 apex 与环顶点半径几乎相等（顶点半径比 ≈ 1.006），即 u = 1/k、ρ = 1，
-   *   再统一缩放到最大顶点半径 = 1。此时三轴包围盒 ≈ 1:1:1（拉长比 1.000），
-   *   面片风筝长/短边 = 1.3342 : 0.6495 ≈ 2.05。
-   *   旧构造（反棱柱对偶）的读数是 拉长比 1.809 / 顶点半径差 1.78 —— 视觉上就是“太长、太尖”。
+   * 构造（2026-09-25 「比例修正」第三轮后定稿）：回到【正五边形反棱柱的对偶】这条
+   * 已被验证能闭合渲染的管线（对偶体天然保证 10 只风筝面全等、逐棱共享）——但反棱柱
+   * 不再取「等棱」形态，改取【内切球形态】：所有 12 个面（2 个正五边形 + 10 个三角形）
+   * 到球心的距离相同。这样对偶体的 12 个顶点（= 反棱柱各面极点 n/d）半径就全部相等
+   * （= 1/d），整个十面骰贴在一个球上 —— 近球形，且全等风筝、闭合。
+   *
+   *   反棱柱：上/下两个正五边形环错开 36°，环 z = ±h、环半径 ρ（两个自由度）。
+   *   「内切球相切」的方程：三角形面的面心距 d_tri(h, ρ) = h（正五边形面心距就是 h）。
+   *   对 dTri 建模后用二分法解 h（固定 ρ = 1，再整体归一）。一眼可查：等棱解
+   *   （h=1/√5）的对偶体拉长比 1.809——那是上一版纺锤形的来源；内切球解接近 1.0。
    *
    * 位姿公式与 d20 相同：CSS transform rotateY(ry) rotateX(rx) translateZ(R) 把面片局部 +Z
    * 映射到 (cos rx sin ry, -sin rx, cos rx cos ry)；令它等于面法线 n，解出
    * rx = -asin(ny)，ry = atan2(nx, nz)。把第 k 面转到正对镜头，容器写
    * rotateZ(a) rotateX(-rx) rotateY(-ry)（a 取 360 的整数倍，数字才是正的）。
-   */
+   * ============================================================ */
   function buildGeom() {
     var C36 = Math.cos(Math.PI / 5);
-    var K = (1 + C36) / (1 - C36);    /* p = K·u（风筝共面性的解析关系） */
-    var u = 1 / K;                    /* 近球形取法：p = 1 与环点半径 √(1+1/K²) 几乎相等 */
-    var verts = [[0, 0, 1], [0, 0, -1]];
-    var i, j, k, m;
-    for (i = 0; i < 5; i++) {
-      verts.push([Math.cos(2 * Math.PI * i / 5), Math.sin(2 * Math.PI * i / 5), u]);                    /* 上环 U_i = 2+2i */
-      verts.push([Math.cos(2 * Math.PI * (i + 0.5) / 5), Math.sin(2 * Math.PI * (i + 0.5) / 5), -u]);   /* 下环 W_i = 3+2i */
+    /* 解 d_tri(h) = h（三角面面心距 = 正五边形面心距），ρ 固定 = 1（先随意定型再整体归一） */
+    function dTri(h, rho) {
+      var up = [], down = [], i;
+      for (var i2 = 0; i2 < 5; i2++) {
+        up.push([rho * Math.cos(2 * Math.PI * i2 / 5), rho * Math.sin(2 * Math.PI * i2 / 5), h]);
+        down.push([rho * Math.cos(2 * Math.PI * (i2 + 0.5) / 5), rho * Math.sin(2 * Math.PI * (i2 + 0.5) / 5), -h]);
+      }
+      var A = up[0], B = down[0], C = down[4];              /* 三角 (U_0, W_0, W_{-1}) */
+      var n = unit(cross(sub(B, A), sub(C, A)));
+      var cen = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3, (A[2] + B[2] + C[2]) / 3];
+      if (dot(n, cen) < 0) { n = [-n[0], -n[1], -n[2]]; }
+      return dot(n, A);
     }
-    /* 整体缩放：最大顶点半径 = 1（这里 ≈ 1/1.0056，让 12 个顶点全部贴球） */
-    var maxR = 0;
-    for (i = 0; i < verts.length; i++) { maxR = Math.max(maxR, vlen(verts[i])); }
-    for (i = 0; i < verts.length; i++) { verts[i] = [verts[i][0] / maxR, verts[i][1] / maxR, verts[i][2] / maxR]; }
-    function U(i) { return 2 + 2 * i; }
-    function W(i) { return 3 + 2 * i; }
+    function solveH() {
+      var lo = 0.2, hi = 1.4, a = lo, b = hi, m2, i3;
+      for (i3 = 0; i3 < 64; i3++) {
+        m2 = (a + b) / 2;
+        var t = dTri(m2, 1) - m2;      /* >0：还能更胖；<0 → 太瘦 */
+        if (t > 0) { a = m2; } else { b = m2; }
+      }
+      return (a + b) / 2;
+    }
+    var H = solveH();          /* 反棱柱的面心距 h（上下两个六边形面共用） */
+    var RHO = 1;
 
-    /* 顶面第 i 只风筝 = [A+, U_i, W_i, U_(i+1)]（W_i 的 36°+72i 恰在 U_i(72i) 与 U_(i+1)(72i+72) 之间）；
-       底面第 j 只 = [A-, W_j, U_(j+1), W_(j+1)]（U_(j+1) 的 72j+72 在 W_j(36°+72j) 与 W_(j+1)(108°+72j) 之间） */
+    var verts = [];
+    var up = [], down = [], i, j, k, m;
+    for (i = 0; i < 5; i++) {
+      up.push([RHO * Math.cos(2 * Math.PI * i / 5), RHO * Math.sin(2 * Math.PI * i / 5), H]);
+      down.push([RHO * Math.cos(2 * Math.PI * (i + 0.5) / 5), RHO * Math.sin(2 * Math.PI * (i + 0.5) / 5), -H]);
+    }
+    /* 10 个三角面：type1 = (U_i, W_i, W_(i-1))、type2 = (W_i, U_i, U_(i+1)) —— 各 5 个、互镜像全等 */
+    function idx1(i) { return i; }                 /* up */
+    function idx2(i) { return i + 5; }             /* down */
+    var antiprismVerts = up.concat(down);
+    var tris = [];
+    for (i = 0; i < 5; i++) {
+      tris.push([idx1(i), idx2(i), idx2((i + 4) % 5)]);
+      tris.push([idx2(i), idx1(i), idx1((i + 1) % 5)]);
+    }
+    /* 对偶顶点：每个反棱柱面的极点 n/d（= 1/d，单位法线×距离倒数） */
+    var dual = [];
+    for (i = 0; i < tris.length; i++) {
+      var A = antiprismVerts[tris[i][0]], B = antiprismVerts[tris[i][1]], C = antiprismVerts[tris[i][2]];
+      var n = unit(cross(sub(B, A), sub(C, A)));
+      var cen = [(A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3, (A[2] + B[2] + C[2]) / 3];
+      if (dot(n, cen) < 0) { n = [-n[0], -n[1], -n[2]]; }
+      var dPlane = dot(n, A);
+      dual.push([n[0] / dPlane, n[1] / dPlane, n[2] / dPlane]);
+    }
+    var pentTopIdx = dual.length;   /* 上五边形面（z = +H）的极点 = (0,0,+1/H) */
+    dual.push([0, 0, 1 / H]);
+    var pentBotIdx = dual.length;
+    dual.push([0, 0, -1 / H]);
+    /* 内切球条件已经在 solveH 里满足：d_tri = H → 全部 12 个对偶顶点半径相同（= 1/H）。
+       统一再缩放到外接半径 = 1 */
+    var maxR = 0;
+    for (i = 0; i < dual.length; i++) { maxR = Math.max(maxR, vlen(dual[i])); }
+    for (i = 0; i < dual.length; i++) { dual[i] = [dual[i][0] / maxR, dual[i][1] / maxR, dual[i][2] / maxR]; }
+    var verts = dual;
+
+    /* 风筝面：反棱柱顶点 U_i 周围三个三角面极点 + 上尖顶，按环向次序连成四边形
+       （这正是第一版里「闭合渲染验证通过」的那套拓扑，type1(i) = index 2i、type2(i) = 2i+1）。
+       顶面第 i 只 = [pentTop, type2_(i-1), type1_i, type2_i]；
+       由横穿对称可得底面第 i 只 = [pentBot, type1_(i+1), type2_i, type1_i]。 */
     var rawQuads = [];
-    for (i = 0; i < 5; i++) { rawQuads.push([0, U(i), W(i), U((i + 1) % 5)]); }
-    for (j = 0; j < 5; j++) { rawQuads.push([1, W(j), U((j + 1) % 5), W((j + 1) % 5)]); }
+    for (i = 0; i < 5; i++) {
+      rawQuads.push([pentTopIdx, 2 * ((i + 4) % 5) + 1, 2 * i, 2 * i + 1]);
+    }
+    for (i = 0; i < 5; i++) {
+      rawQuads.push([pentBotIdx, 2 * ((i + 1) % 5), 2 * i + 1, 2 * i]);
+    }
     if (rawQuads.length !== 10) { throw new Error('d10: 面数不是 10'); }
 
     var edge = Infinity;
@@ -95,7 +147,8 @@
         edge = Math.min(edge, e);
       }
       quadEdges.push(qe);
-      /* 风筝校验：首尾两条（尖顶-环点）边相等、中间两条（环-环）边相等 */
+      /* 风筝校验：首尾两条（尖顶-环点）边相等、中间两条（环-环）边相等。
+         全等性（顶/底两族互为镜像）由「内切球反棱柱」的对偶保证 */
       if (Math.abs(qe[0] - qe[3]) > 1e-6 || Math.abs(qe[1] - qe[2]) > 1e-6) {
         throw new Error('d10: 风筝面两边不对等');
       }
@@ -116,8 +169,15 @@
       var ry = Math.atan2(n[0], n[2]);
       var u = [Math.cos(ry), 0, -Math.sin(ry)];
       var v = [Math.sin(rx) * Math.sin(ry), Math.cos(rx), Math.sin(rx) * Math.cos(ry)];
+      /* pts 的原点 = 面平面与内切球的【切点】(rIn·n)，不是质心！
+         这是和 d20 隐含约定完全一致的一段：等边三角形质心=切点（两者恰好重合），
+         而风筝面质心 ≠ 切点 —— 以切点为原点时，绘制矩阵 (translateZ(R), 尺度 λ=R/rIn)
+         才能把整片面完整地映射回 λ·真多面体的骨架上（面与面共享棱、闭合无缝）；
+         以质心为原点会把每片面朝自己的质心各自错开 —— 面与面之间就撕裂了
+         （2026-09-25「闭合性修复」的根因，就是在这里沿用了质心）。 */
+      var foot = [rIn * n[0], rIn * n[1], rIn * n[2]];
       var pts = P.map(function (p) {
-        var w = sub(p, cen);
+        var w = sub(p, foot);
         return [dot(w, u) / rIn, dot(w, v) / rIn];
       });
       for (var q2 = 0; q2 < 4; q2++) {
@@ -231,7 +291,11 @@
     if (box === rec.box) { return; }
     rec.box = box;
     STATS.layouts++;
-    var R = (box * 0.98 / 2) / GEOM.silR;
+    /* 外接半径：让「画出来的轮廓」正好填到 0.49·槽位（与 d20 的 0.98 步进一致）。
+       关键关系：绘制尺度 λ = R/rIn（面片 pts 已按各自 rIn 归一），画面轮廓半径 = λ·silR。
+       所以 R = 0.49·slot·rIn/silR —— d20 的 silR/rIn ≈ 1.24,靠旧式摊销溢出也能看；
+       d10 近球形几何的这个比值要除回来，否则骰子放大 1.48 倍、溢出槽位（2026-09-25 修正）。 */
+    var R = (box * 0.98 / 2) * (GEOM.rIn / GEOM.silR);
     var S = GEOM.box * R;
     try {
       rec.el.style.setProperty('--kami-d10-s', fmt(S) + 'px');

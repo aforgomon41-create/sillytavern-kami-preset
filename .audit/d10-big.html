@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- d10 大图审查台：直接装载 src/decor/d10.js（构建前的模块原文件，同 origin 静态读），
+     用 300px 槽位把十面骰放大，分别把 1..10 面转到镜头前，供截图肉眼查：闭合、无缝、可见面数、棱线不交叉。 -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: #141019; color: #ddd; font: 13px monospace; padding: 12px 16px; }
+  .kit { position: relative; width: 300px; height: 300px; }
+  .row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+  .cell { width: 300px; }
+  .cap { margin: 4px 0; }
+</style>
+<script src="/src/decor/d10.js"></script>
+</head>
+<body>
+<h3>d10 大图审查（每格一角=一面正对镜头；看：闭合无缝 / 无交叉棱线 / 同屏面数 4~6）</h3>
+<div class="row" id="row"></div>
+<div id="msg"></div>
+<script>
+const row = document.getElementById('row');
+function slot(value, label) {
+  const cell = document.createElement('div'); cell.className = 'cell';
+  cell.innerHTML = '<div class="cap">' + label + '</div>';
+  const el = document.createElement('span');
+  el.className = 'kami-deco'; el.setAttribute('data-kami-deco', 'd10');
+  el.setAttribute('aria-hidden', 'true');
+  el.style.cssText = 'position:relative;display:inline-block;width:280px;height:280px;';
+  const box = document.createElement('div'); box.className = 'kit';
+  box.appendChild(el); cell.appendChild(box); row.appendChild(cell);
+  return { el, box };
+}
+const items = [];
+for (let v = 1; v <= 10; v++) items.push(slot(null, '面 ' + v));
+function boot() {
+  if (!window.KamiD10) { document.getElementById('msg').textContent = 'KamiD10 未加载'; return; }
+  items.forEach(function (it, i) {
+    const v = i + 1;
+    const el = it.el;
+    KamiD10.mount(document);
+    // 探针着色：把每片面的「棱边色」涂成自己的单色（盖掉默认渐变），核实相邻面之间的贴合度
+    const faces = el.querySelectorAll('.kami-d10-face');
+    const colors = ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#16a085', '#2980b9', '#8e44ad', '#d35400', '#7f8c8d', '#2c3e50'];
+    faces.forEach(function (f, i) {
+      f.style.background = colors[i];                                  /* 外层（棱边）= 单色 */
+      const inner = f.firstElementChild;
+      if (inner) { inner.style.clipPath = 'none'; inner.style.background = 'transparent'; inner.style.color = '#fff'; }
+    });
+    KamiD10.roll(el, v);
+  });
+  setTimeout(function () { document.getElementById('msg').textContent = 'OK：10 个姿态就绪（滚动 1.05s 后截图即可看到终态）'; }, 1400);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+</script>
+</body>
+</html>
