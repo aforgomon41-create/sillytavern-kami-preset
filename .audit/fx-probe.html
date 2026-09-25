@@ -1,0 +1,119 @@
+<!doctype html>
+<!-- 特效页说明换行探针（临时工具，.audit 下）：
+     精确复刻 30-皮肤管理.js renderFxPane() 的 DOM：
+       .kami-field > .kami-field-label > (label div + .kami-sub 说明 div) + .kami-field-value(开关)
+     外包 .kami-root[data-kami-comp="panel"] > .kami-drop > .kami-body[data-kami-pane="fx"]。
+     逐套注入皮肤 CSS（base 用 base.css 且不挂 data-kami-skin，即兜底皮肤），
+     在 375px 宽下量 .kami-sub 说明框：白空间策略、行数、盒高、是否被截断（scrollW>clientW）。
+     写进 #out。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>特效说明换行探针</title>
+<style>html,body{margin:0}
+#out{white-space:pre-wrap;padding:8px;background:#f4f4f4;font:12px/1.5 monospace}
+/* 探针级几何覆盖：把所有套的面板舞台/本体强制成 375px 相对定位容器，
+   只量「说明在 375px 下是否换行」，不受各套自己的 position:fixed / 抽屉几何干扰 */
+#stage{width:375px;border:1px solid #999}
+#stage .kami-root{position:relative!important;inset:auto!important;width:375px!important;height:auto!important;min-height:0!important;margin:0!important;pointer-events:auto!important}
+#stage .kami-drop{position:relative!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:375px!important;max-width:375px!important;height:auto!important;max-height:none!important}
+</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<div id="stage"></div>
+<script>
+var Q = new URLSearchParams(location.search);
+var SKINS = (Q.get('skins') || 'grokbot,manga,memo,nixie,rain,senren,base').split(',');
+var DESC = Q.get('desc') || '开启后画面会叠上一层细腻的胶片颗粒，让纯色块带上轻微的印刷质感；强度可以在右侧参数里继续调整，关闭之后完全不影响性能。';
+
+function buildPane() {
+  var stage = document.getElementById('stage');
+  stage.innerHTML = '';
+  var root = document.createElement('div');
+  root.className = 'kami-root';
+  root.setAttribute('data-kami-comp', 'panel');
+  var drop = document.createElement('div');
+  drop.className = 'kami-drop kami-surface';
+  drop.setAttribute('data-kami-open', '1');
+  drop.setAttribute('data-kami-layout', 'sheet');
+  var body = document.createElement('div');
+  body.className = 'kami-body kami-scroll';
+  body.setAttribute('data-kami-pane', 'fx');
+  var field = document.createElement('div');
+  field.className = 'kami-field';
+  var lab = document.createElement('span');
+  lab.className = 'kami-field-label';
+  var t = document.createElement('div'); t.textContent = '胶片颗粒';
+  var sub = document.createElement('div'); sub.className = 'kami-sub'; sub.textContent = DESC;
+  lab.appendChild(t); lab.appendChild(sub);
+  field.appendChild(lab);
+  var val = document.createElement('span'); val.className = 'kami-field-value';
+  var sw = document.createElement('label'); sw.className = 'kami-switch';
+  var inp = document.createElement('input'); inp.className = 'kami-switch-input'; inp.type = 'checkbox'; inp.checked = true;
+  var tr = document.createElement('span'); tr.className = 'kami-switch-track';
+  var kb = document.createElement('span'); kb.className = 'kami-switch-knob'; tr.appendChild(kb);
+  sw.appendChild(inp); sw.appendChild(tr); val.appendChild(sw);
+  field.appendChild(val);
+  body.appendChild(field);
+  drop.appendChild(body);
+  root.appendChild(drop);
+  stage.appendChild(root);
+  return { root: root, sub: sub, field: field };
+}
+
+function loadCss(skin) {
+  var path = (skin === 'base') ? '/src/skin/base.css' : ('/src/skins/' + skin + '/skin.css');
+  return fetch(path).then(function (r) { return r.text(); });
+}
+
+function measure(skin, css, built) {
+  return new Promise(function (resolve) {
+    var root = built.root, sub = built.sub;
+    /* 皮肤 CSS 作用域是 html[data-kami-skin="X"]，属性必须挂在文档 <html> 上（与皮肤管理/预览台一致）。
+       base（兜底）用 :not([data-kami-skin])，所以那一套不挂属性。 */
+    if (skin === 'base') {
+      document.documentElement.removeAttribute('data-kami-skin');
+    } else {
+      document.documentElement.setAttribute('data-kami-skin', skin);
+    }
+    var st = document.createElement('style');
+    st.setAttribute('data-fx', skin);
+    st.textContent = css;
+    document.head.appendChild(st);
+    setTimeout(function () {
+      var cs = getComputedStyle(sub);
+      var lh = parseFloat(cs.lineHeight) || 18;
+      var h = sub.getBoundingClientRect().height;
+      var lines = Math.round(h / lh);
+      var truncated = (sub.scrollWidth > sub.clientWidth + 1);
+      var fieldCS = getComputedStyle(built.field);
+      var L = [];
+      L.push('### ' + skin);
+      L.push('  white-space=' + cs.whiteSpace + '  overflow=' + cs.overflow + '  text-overflow=' + cs.textOverflow + '  overflow-wrap=' + cs.overflowWrap);
+      L.push('  盒高=' + h.toFixed(1) + 'px  scrollH=' + sub.scrollHeight + '  clientW=' + sub.clientWidth + '  scrollW=' + sub.scrollWidth + '  行数≈' + lines);
+      L.push('  截断(横向溢出)=' + (truncated ? 'YES' : 'no') + '   field align-items=' + fieldCS.alignItems);
+      /* 清理：移除本套注入的 style 与 html 属性，避免串味 */
+      document.head.removeChild(st);
+      document.documentElement.removeAttribute('data-kami-skin');
+      resolve(L.join('\n'));
+    }, 250);
+  });
+}
+
+(async function () {
+  var out = ['desc="' + DESC.slice(0, 18) + '…"  width=375'];
+  for (var i = 0; i < SKINS.length; i++) {
+    var skin = SKINS[i].trim();
+    var built = buildPane();
+    var css = await loadCss(skin);
+    out.push(await measure(skin, css, built));
+    /* 清理这一套注入的 style，避免串味 */
+    var styles = document.head.querySelectorAll('style[data-fx]');
+    /* 重新构建会重置 DOM，但 style 会累积；直接清掉非探针自身 style */
+  }
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script>
+</body>
+</html>

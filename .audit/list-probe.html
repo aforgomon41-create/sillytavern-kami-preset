@@ -1,0 +1,119 @@
+<!doctype html>
+<!-- 列表符号探针（临时工具，.audit 下）：
+     iframe 载 /doc/think?payload=<含嵌套列表的 markdown>，
+     父页经 /vendor 拿 showdown + DOMPurify（与真机宿主链同款），
+     给 iframe 挂 data-kami-skin 并注入该皮肤 CSS（与皮肤管理下发同款）。
+     ?reset=1 时，在皮肤 CSS 之前额外注入一条「全局列表重置」
+       ul,ol{list-style:none;margin:0;padding:0}（模拟外层重置，验证皮肤能否压住）。
+     逐套读：ul/ul ul/ol/ol ol 的 list-style-type、li 的 ::before 字形（content/几何/颜色），
+     以及 ::marker 颜色。写进 #out。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>列表符号探针</title>
+<style>body{margin:0;font:12px/1.5 monospace}iframe{border:1px solid #999;display:none}#out{white-space:pre-wrap;padding:8px;background:#f4f4f4}</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<iframe id="f"></iframe>
+<script src="/vendor/showdown.js"></script>
+<script src="/vendor/dompurify.js"></script>
+<script>
+var Q = new URLSearchParams(location.search);
+var RESET = Q.get('reset') === '1';
+var SKINS = (Q.get('skins') || 'grokbot,manga,memo,nixie,rain,senren').split(',');
+var WIDTH = Q.get('w') || 375;
+
+var MD = [
+  '## 列表与层级',
+  '',
+  '- 甲项：无序一级',
+  '- 乙项：无序一级',
+  '    - 嵌套无序二级',
+  '    - 嵌套无序二级二',
+  '',
+  '1. 有序一级',
+  '2. 有序一级二',
+  '    1. 嵌套有序二级',
+  ''
+].join('\n');
+
+var fi = document.getElementById('f');
+fi.style.width = WIDTH + 'px';
+fi.style.height = 1400 + 'px';
+
+var RESET_CSS = 'ul,ol{list-style:none;margin:0;padding:0}';
+
+function loadSkin(skin) {
+  return new Promise(function (resolve) {
+    var done = false;
+    function finish() {
+      if (done) { return; } done = true;
+      var doc = fi.contentDocument;
+      if (!doc || !doc.querySelector('.kami-md')) { resolve('md 未就绪'); return; }
+      doc.documentElement.setAttribute('data-kami-skin', skin);
+      var head = doc.head;
+      if (RESET) { var rs = doc.createElement('style'); rs.textContent = RESET_CSS; head.appendChild(rs); }
+      fetch('/src/skins/' + skin + '/skin.css').then(function (r) { return r.text(); }).then(function (css) {
+        var st = doc.createElement('style'); st.textContent = css; head.appendChild(st);
+        setTimeout(function () { resolve(measure(skin)); }, 350);
+      }).catch(function (e) { resolve('注入失败 ' + e); });
+    }
+    fi.addEventListener('load', finish);
+    fi.src = '/doc/think?payload=' + encodeURIComponent(MD);
+    setTimeout(finish, 1500);
+  });
+}
+
+function g(doc, sel, pseudo, prop) {
+  var el = doc.querySelector(sel);
+  if (!el) { return '∅'; }
+  try { return doc.defaultView.getComputedStyle(el, pseudo || null).getPropertyValue(prop); } catch (e) { return 'err'; }
+}
+function gAll(doc, sel, pseudo, prop) {
+  var els = doc.querySelectorAll(sel);
+  var v = [];
+  for (var i = 0; i < els.length && i < 4; i++) {
+    try { v.push(doc.defaultView.getComputedStyle(els[i], pseudo || null).getPropertyValue(prop)); } catch (e) { v.push('err'); }
+  }
+  return v.join('/') || '∅';
+}
+
+function measure(skin) {
+  var doc = fi.contentDocument;
+  var root = doc.querySelector('.kami-root');
+  var L = [];
+  L.push('### ' + skin + '  engine=' + (root && root.getAttribute('data-kami-md-engine') || '-') + (RESET ? '  [RESET 注入]' : '  [无重置]'));
+  L.push('  ul[0] list-style-type=' + g(doc, '.kami-md ul', null, 'list-style-type') +
+         '  position=' + g(doc, '.kami-md ul', null, 'list-style-position') +
+         '  padding-left=' + g(doc, '.kami-md ul', null, 'padding-left'));
+  L.push('  ul ul list-style-type=' + g(doc, '.kami-md ul ul', null, 'list-style-type') +
+         '  padding-left=' + g(doc, '.kami-md ul ul', null, 'padding-left'));
+  L.push('  ol[0] list-style-type=' + g(doc, '.kami-md ol', null, 'list-style-type') +
+         '  ol ol=' + g(doc, '.kami-md ol ol', null, 'list-style-type'));
+  L.push('  li::marker color (all) = ' + gAll(doc, '.kami-md ul li', '::marker', 'color') +
+         '  |  ul ul li::marker = ' + gAll(doc, '.kami-md ul ul li', '::marker', 'color'));
+  /* ::before 自定义字形（grokbot/memo/nixie 靠它当点） */
+  L.push('  ul>li::before content=' + g(doc, '.kami-md ul > li', '::before', 'content') +
+         '  display=' + g(doc, '.kami-md ul > li', '::before', 'display') +
+         '  w=' + g(doc, '.kami-md ul > li', '::before', 'width') +
+         '  h=' + g(doc, '.kami-md ul > li', '::before', 'height') +
+         '  bg=' + g(doc, '.kami-md ul > li', '::before', 'background-color'));
+  L.push('  ul>li padding-left=' + g(doc, '.kami-md ul > li', null, 'padding-left') +
+         '  position=' + g(doc, '.kami-md ul > li', null, 'position'));
+  L.push('  ul ul>li::before content=' + g(doc, '.kami-md ul ul > li', '::before', 'content') +
+         '  w=' + g(doc, '.kami-md ul ul > li', '::before', 'width') +
+         '  bg=' + g(doc, '.kami-md ul ul > li', '::before', 'background-color'));
+  return L.join('\n');
+}
+
+(async function () {
+  var out = ['reset=' + (RESET ? 'ON (ul,ol{list-style:none})' : 'OFF') + '  width=' + WIDTH];
+  for (var i = 0; i < SKINS.length; i++) {
+    out.push(await loadSkin(SKINS[i].trim()));
+  }
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script>
+</body>
+</html>

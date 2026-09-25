@@ -1506,3 +1506,24 @@ html[data-kami-skin="civdawn"][data-kami-effects~="ember"] .kami-btn--primary {
     flex-wrap: wrap;
   }
 }
+
+
+/* 列表符号：显式声明，不依赖环境继承（酒馆楼层的列表样式可能被整链重置成 none，
+   皮肤只给 ::marker 上色是不够的，符号必须自己声明、自己真的画出来）。
+   无序：一级 disc / 二级 circle / 三级起 square；有序：decimal → lower-alpha → lower-roman */
+html[data-kami-skin="civdawn"] .kami-md ul { list-style-type: disc; }
+html[data-kami-skin="civdawn"] .kami-md ul ul { list-style-type: circle; }
+html[data-kami-skin="civdawn"] .kami-md ul ul ul { list-style-type: square; }
+html[data-kami-skin="civdawn"] .kami-md ol { list-style-type: decimal; }
+html[data-kami-skin="civdawn"] .kami-md ol ol { list-style-type: lower-alpha; }
+html[data-kami-skin="civdawn"] .kami-md ol ol ol { list-style-type: lower-roman; }
+
+/* 特效页说明（.kami-field 里的那枚 .kami-sub）：375px 窄屏必须能换行读全。
+   结构层的 .kami-sub 是 white-space:nowrap（标题栏计数确实要单行），
+   这里只对「字段标签里的说明」这一处放开，不碰标题栏 / 页脚的。 */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  min-width: 0;
+}

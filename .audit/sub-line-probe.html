@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- 单行 .kami-sub 保留探针（临时工具，.audit 下）：
+     验证「字段说明换行」的修复没有误伤其它需要单行的 .kami-sub：
+       · 标题栏 .kami-head > .kami-sub（计数/副信息）
+       · 页脚   .kami-foot > .kami-sub（提示）
+       · 参数单位 .kami-field > .kami-field-value > .kami-sub（px 等单位）
+     逐套注入皮肤 CSS（base 用 base.css 且不挂 data-kami-skin），读每个 .kami-sub 的
+     white-space 与行数，确认仍是单行、没有横向溢出。写进 #out。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>单行 sub 保留探针</title>
+<style>html,body{margin:0}
+#out{white-space:pre-wrap;padding:8px;background:#f4f4f4;font:12px/1.5 monospace}
+#stage{width:375px;border:1px solid #999}
+#stage .kami-root{position:relative!important;inset:auto!important;width:375px!important;height:auto!important;min-height:0!important;margin:0!important;pointer-events:auto!important}
+#stage .kami-drop{position:relative!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;width:375px!important;max-width:375px!important;height:auto!important;max-height:none!important}
+</style>
+</head>
+<body>
+<div id="out">载入中…</div>
+<div id="stage"></div>
+<script>
+var Q = new URLSearchParams(location.search);
+var SKINS = (Q.get('skins') || 'grokbot,manga,memo,nixie,rain,senren,base').split(',');
+
+function build() {
+  var stage = document.getElementById('stage');
+  stage.innerHTML = '';
+  var root = document.createElement('div'); root.className = 'kami-root'; root.setAttribute('data-kami-comp', 'panel');
+  var drop = document.createElement('div'); drop.className = 'kami-drop kami-surface'; drop.setAttribute('data-kami-open','1'); drop.setAttribute('data-kami-layout','sheet');
+  /* 标题栏：一个偏长的副信息，压力测试是否被误改成换行 */
+  var head = document.createElement('div'); head.className = 'kami-head';
+  var title = document.createElement('span'); title.className = 'kami-title'; title.textContent = '皮肤管理';
+  var headSub = document.createElement('span'); headSub.className = 'kami-sub'; headSub.textContent = '当前 3 项 · 已开启 2 项 · 密度适中';
+  var acts = document.createElement('span'); acts.className = 'kami-actions';
+  head.appendChild(title); head.appendChild(headSub); head.appendChild(acts);
+  /* 参数行：单位 .kami-sub（在 .kami-field-value 里，不是 field-label） */
+  var field = document.createElement('div'); field.className = 'kami-field';
+  var lab = document.createElement('span'); lab.className = 'kami-field-label'; lab.textContent = '辉光强度';
+  var val = document.createElement('span'); val.className = 'kami-field-value';
+  var unit = document.createElement('span'); unit.className = 'kami-sub'; unit.textContent = 'px';
+  val.appendChild(unit); field.appendChild(lab); field.appendChild(val);
+  /* 页脚提示 */
+  var foot = document.createElement('div'); foot.className = 'kami-foot';
+  var footSub = document.createElement('span'); footSub.className = 'kami-sub'; footSub.textContent = '轻点卡片即可生效，右侧可调强度';
+  foot.appendChild(footSub);
+  drop.appendChild(head); drop.appendChild(field); drop.appendChild(foot);
+  root.appendChild(drop); stage.appendChild(root);
+  return { headSub: headSub, unit: unit, footSub: footSub };
+}
+
+function loadCss(skin) {
+  var path = (skin === 'base') ? '/src/skin/base.css' : ('/src/skins/' + skin + '/skin.css');
+  return fetch(path).then(function (r) { return r.text(); });
+}
+function one(el) {
+  var cs = getComputedStyle(el);
+  var lh = parseFloat(cs.lineHeight) || 16;
+  var h = el.getBoundingClientRect().height;
+  return 'ws=' + cs.whiteSpace + ' 行数≈' + Math.round(h / lh) + ' 高=' + h.toFixed(0) + ' 溢出=' + (el.scrollWidth > el.clientWidth + 1 ? 'YES' : 'no');
+}
+function measure(skin, css, b) {
+  return new Promise(function (resolve) {
+    if (skin === 'base') { document.documentElement.removeAttribute('data-kami-skin'); }
+    else { document.documentElement.setAttribute('data-kami-skin', skin); }
+    var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+    setTimeout(function () {
+      var L = ['### ' + skin];
+      L.push('  标题栏.head>.kami-sub : ' + one(b.headSub));
+      L.push('  参数单位.field-value>.kami-sub : ' + one(b.unit));
+      L.push('  页脚.foot>.kami-sub : ' + one(b.footSub));
+      document.head.removeChild(st); document.documentElement.removeAttribute('data-kami-skin');
+      resolve(L.join('\n'));
+    }, 220);
+  });
+}
+(async function () {
+  var out = ['单行 .kami-sub 保留检查  width=375'];
+  for (var i = 0; i < SKINS.length; i++) {
+    var skin = SKINS[i].trim();
+    out.push(await measure(skin, await loadCss(skin), build()));
+  }
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script>
+</body>
+</html>

@@ -1126,6 +1126,21 @@ html[data-kami-skin="memo"] .kami-field-value {
   align-items: center;
   gap: 6px;
 }
+/* 特效页 / 参数说明：整段长文，375px 窄屏必须换行显示完整。
+   基础 .kami-sub 规则是 nowrap + overflow:hidden + text-overflow:ellipsis（给页眉计数、单位这类单行短文本用），
+   「字段标签下的说明」挤一行会被截断（真机报过：特效说明过长时手机只显示一行、显示不全）。
+   只覆盖 .kami-field-label 下的这一处；页眉计数与参数单位仍保持单行省略，不受影响。
+   带说明时开关顶到左上与标签首行对齐。 */
+html[data-kami-skin="memo"] .kami-field:has(.kami-sub) { align-items: flex-start; }
+html[data-kami-skin="memo"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+}
 
 /* 滑杆：轨道是一条印刷基线，滑块是一枚可以推着走的铅字块 */
 html[data-kami-skin="memo"] .kami-range {

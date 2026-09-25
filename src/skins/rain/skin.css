@@ -1061,10 +1061,15 @@ html[data-kami-skin="rain"] .kami-md hr {
 }
 html[data-kami-skin="rain"] .kami-md ul,
 html[data-kami-skin="rain"] .kami-md ol { margin: .5em 0; padding-left: 1.4em; }
-html[data-kami-skin="rain"] .kami-md ul { list-style: square; }
-html[data-kami-skin="rain"] .kami-md ol { list-style: decimal; }
+html[data-kami-skin="rain"] .kami-md ul { list-style-type: square; }
+html[data-kami-skin="rain"] .kami-md ol { list-style-type: decimal; }
+/* 嵌套层级区分：二级无序换空心圆、二级有序换字母，marker 压淡一档（与首层方形分开） */
+html[data-kami-skin="rain"] .kami-md ul ul { list-style-type: circle; }
+html[data-kami-skin="rain"] .kami-md ol ol { list-style-type: lower-alpha; }
 html[data-kami-skin="rain"] .kami-md li { margin: .2em 0; }
 html[data-kami-skin="rain"] .kami-md li::marker { color: var(--kami-accent); font-size: .82em; }
+html[data-kami-skin="rain"] .kami-md ul ul > li::marker,
+html[data-kami-skin="rain"] .kami-md ol ol > li::marker { color: var(--kami-fg-mute); }
 html[data-kami-skin="rain"] .kami-md a { color: var(--kami-accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 html[data-kami-skin="rain"] .kami-md img { max-width: 100%; border-radius: var(--kami-r-sm); }
 html[data-kami-skin="rain"] .kami-md table { width: 100%; border-collapse: collapse; font-size: var(--kami-fs-xs); }
@@ -1255,6 +1260,17 @@ html[data-kami-skin="rain"] .kami-field-value {
 /* 带说明的设置项：说明在左，开关顶到上面去 */
 html[data-kami-skin="rain"] .kami-field:has(.kami-sub) { align-items: flex-start; }
 html[data-kami-skin="rain"] .kami-field:has(.kami-sub) .kami-field-value { padding-top: 2px; }
+/* 特效页 / 参数说明：整段长文，375px 窄屏必须换行显示完整。
+   基础 .kami-sub 规则是 nowrap（给页眉计数、单位这类单行短文本用），
+   「字段标签下的说明」挤一行会被截断（真机报过：特效说明过长时手机只显示一行、显示不全）。
+   只覆盖 .kami-field-label 下的这一处；页眉计数与参数单位仍保持单行，不受影响。 */
+html[data-kami-skin="rain"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* 滑杆：一根挂着水珠的线 */
 html[data-kami-skin="rain"] .kami-range {

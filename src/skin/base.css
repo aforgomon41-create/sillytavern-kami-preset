@@ -505,6 +505,19 @@ html:not([data-kami-skin]) .kami-field {
 }
 html:not([data-kami-skin]) .kami-field-label { flex: 1 1 auto; min-width: 0; font-size: var(--kami-fs-sm); }
 html:not([data-kami-skin]) .kami-field-value { flex: none; display: flex; align-items: center; gap: 6px; }
+/* 面板字段里的「说明」文字（特效页 / 参数说明）是整段长文，375px 窄屏必须能换行显示完整。
+   基础 .kami-sub 规则是 nowrap —— 那是给标题栏计数、页脚提示、参数单位这类「单行短文本」用的；
+   「字段标签下的说明」挤一行会被截断（真机报过：特效说明过长时手机只显示一行）。
+   这里只放开 .kami-field-label 下的这一处：标题栏 / 页脚 / 参数单位的 .kami-sub 仍保持单行，不受影响。
+   带说明时开关顶到左上与标签首行对齐（长文换行后不被坠到行中间）。 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-field:has(.kami-sub) { align-items: flex-start; }
+html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 html:not([data-kami-skin]) .kami-range {
   -webkit-appearance: none;
   appearance: none;
