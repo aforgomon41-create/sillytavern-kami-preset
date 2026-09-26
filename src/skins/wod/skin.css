@@ -1765,3 +1765,185 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field .kami-
   text-overflow: clip;
   min-width: 0;
 }
+
+
+/* ============================================================
+ * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
+ *   容器外观照思维链外壳的古卷气质走：黑夜羊皮正文底 + 描金骨线 +
+ *   手抄卷软影。§9.7 禁令遵守（无 overflow/position/pointer-events/
+ *   z-index）。对比度见 .audit/正文容器美化.md。
+ * ============================================================ */
+html[data-kami-skin="wod"] .kami-root[data-kami-comp="body"] {
+  margin: 10px 0;
+  background-color: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-md);
+  box-shadow: var(--kami-shadow-sm);
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="wod"] .kami-root[data-kami-comp="body"] > .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  color: var(--kami-fg);
+}
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="wod"] {
+  --kami-label-think-title: 密契手记;
+  --kami-label-think-title-open: 密契解封;
+  --kami-label-options-title: 宿命抉择;
+  --kami-fg: #ece4d8;
+  --kami-fg-dim: #c3b6a4;
+  --kami-fg-mute: #93857a;
+  --kami-accent: #b02233;
+  --kami-accent-fg: #fcf6ec;
+  --kami-accent-soft: rgba(181, 26, 43, .17);
+  --kami-accent-line: rgba(200, 42, 58, .55);
+  --kami-bg: #141019;
+  --kami-bg-soft: #1b1520;
+  --kami-card: #201826;
+  --kami-card-2: #171118;
+  --kami-card-hover: #2b2030;
+  --kami-line: rgba(216, 186, 148, .16);
+  --kami-line-strong: rgba(232, 204, 164, .42);
+  --kami-t1: rgba(236, 228, 216, .04);
+  --kami-t2: rgba(236, 228, 216, .08);
+  --kami-t3: rgba(236, 228, 216, .16);
+  --kami-warn: #e6556a;
+  --kami-shadow: 0 14px 38px rgba(4, 2, 7, .72), 0 0 1px rgba(200, 42, 58, .3);
+  --kami-shadow-sm: 0 4px 14px rgba(4, 2, 7, .5);
+  --kami-blur: 0px;
+  --kami-r-xs: 2px;
+  --kami-r-sm: 4px;
+  --kami-r-md: 7px;
+  --kami-r-lg: 10px;
+  --kami-r-pill: 6px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 40px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 240px;
+  --kami-panel-w: 420px;
+  --kami-panel-h: 560px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .78);
+  --kami-fs-sm: calc(var(--kami-fs) * .9);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.18);
+  --kami-lh: 1.66;
+  --kami-ls: .02em;
+  --kami-ls-title: .08em;
+  --kami-font: Georgia, "Times New Roman", "Palatino Linotype", "Songti SC", "STSong", "SimSun", "宋体", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+  --kami-font-title: "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", "Songti SC", "STSong", "SimSun", "宋体", "Noto Serif CJK SC", serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 700;
+  --kami-title-transform: none;
+  --kami-wod-blood: 60;
+  --kami-wod-mist: 45;
+  --kami-wod-rose: 35;
+  --kami-wod-aging: 50;
+  --kami-wod-candle: 55;
+  --kami-glow: rgba(200, 42, 58, .6);
+  --kami-glow-size: 0px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dim-soft: .58;
+  --kami-dim-lock: .42;
+  --kami-wod-rose-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23d7b991' stroke-opacity='.25' stroke-width='1'%3E%3Ccircle cx='80' cy='80' r='72'/%3E%3Ccircle cx='80' cy='80' r='52' stroke-dasharray='3 3'/%3E%3Ccircle cx='80' cy='80' r='32'/%3E%3Cpath d='M80 8v144M8 80h144M29 29l102 102M29 131L131 29' stroke-opacity='.18'/%3E%3Cpath d='M80 28a52 52 0 0 1 52 52 52 52 0 0 1-52 52 52 52 0 0 1-52-52 52 52 0 0 1 52-52z' stroke-opacity='.2'/%3E%3Ccircle cx='80' cy='48' r='12'/%3E%3Ccircle cx='80' cy='112' r='12'/%3E%3Ccircle cx='48' cy='80' r='12'/%3E%3Ccircle cx='112' cy='80' r='12'/%3E%3C/svg%3E");
+  --kami-texture: radial-gradient(circle at 50% 0%, rgba(181, 26, 43, calc(.08 * var(--kami-wod-blood) / 100)) 0%, transparent 62%),
+    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, calc(.5 * var(--kami-wod-mist) / 100)) 0%, transparent 70%),
+    repeating-linear-gradient(45deg, rgba(220, 190, 150, calc(.02 * var(--kami-wod-aging) / 100)) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, calc(.03 * var(--kami-wod-aging) / 100)) 0 1px, transparent 1px 9px);
+  --kami-dur-fast: .13s;
+  --kami-dur: .22s;
+  --kami-dur-slow: .34s;
+  --kami-ease: cubic-bezier(.25, .8, .25, 1);
+  --kami-ease-out: cubic-bezier(.16, 1, .3, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: .985;
+  --kami-stagger: 26ms;
+  --kami-kind-action: #e07a82;
+  --kami-kind-persona: #c98fe0;
+  --kami-kind-plot: #dcb267;
+  --kami-kind-info: #8fbcae;
+  --kami-kind-fun: #e3c088;
+  --kami-kind-nsfw: #e0819c;
+  --kami-kind-other: #aaa09a;
+  --kami-wod-d10-edge: rgba(181, 26, 43, .7);
+  --kami-wod-d10-bg: #201826;
+  --kami-wod-d10-gold: #d7b991;
+}
+html[data-kami-skin="wod"][data-kami-scheme="light"] {
+  --kami-fg: #241a16;
+  --kami-fg-dim: #57473d;
+  --kami-fg-mute: #7d6c60;
+  --kami-accent: #9a1b2c;
+  --kami-accent-fg: #fff8ef;
+  --kami-accent-soft: rgba(148, 21, 35, .13);
+  --kami-accent-line: rgba(148, 21, 35, .5);
+  --kami-bg: #f2ead8;
+  --kami-bg-soft: #e7dcc6;
+  --kami-card: #ece1cb;
+  --kami-card-2: #f6efdf;
+  --kami-card-hover: #f8f2e6;
+  --kami-line: rgba(56, 40, 28, .2);
+  --kami-line-strong: rgba(56, 40, 28, .55);
+  --kami-t1: rgba(56, 40, 28, .05);
+  --kami-t2: rgba(56, 40, 28, .09);
+  --kami-t3: rgba(56, 40, 28, .17);
+  --kami-warn: #b8233a;
+  --kami-shadow: 0 10px 26px rgba(48, 30, 18, .25), 0 1px 0 rgba(148, 21, 35, .18);
+  --kami-shadow-sm: 0 3px 10px rgba(48, 30, 18, .16);
+  --kami-wod-rose-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%23503828' stroke-opacity='.18' stroke-width='1'%3E%3Ccircle cx='80' cy='80' r='72'/%3E%3Ccircle cx='80' cy='80' r='52' stroke-dasharray='3 3'/%3E%3Ccircle cx='80' cy='80' r='32'/%3E%3Cpath d='M80 8v144M8 80h144M29 29l102 102M29 131L131 29' stroke-opacity='.12'/%3E%3Ccircle cx='80' cy='48' r='12'/%3E%3Ccircle cx='80' cy='112' r='12'/%3E%3Ccircle cx='48' cy='80' r='12'/%3E%3Ccircle cx='112' cy='80' r='12'/%3E%3C/svg%3E");
+  --kami-texture: repeating-linear-gradient(45deg, rgba(80, 56, 40, calc(.03 * var(--kami-wod-aging) / 100)) 0 1px, transparent 1px 8px),
+    radial-gradient(circle at 50% 0%, rgba(148, 21, 35, calc(.05 * var(--kami-wod-blood) / 100)) 0%, transparent 60%);
+  --kami-kind-action: #a33440;
+  --kami-kind-persona: #8a4a9e;
+  --kami-kind-plot: #8a641c;
+  --kami-kind-info: #3f6e5c;
+  --kami-kind-fun: #8a5f1e;
+  --kami-kind-nsfw: #a33460;
+  --kami-kind-other: #6a5c52;
+}
+html[data-kami-skin="wod"][data-kami-density="compact"] {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 10px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 9px;
+  --kami-row-h: 34px;
+}
+html[data-kami-skin="wod"][data-kami-density="roomy"] {
+  --kami-pad-x: 14px;
+  --kami-pad-y: 10px;
+  --kami-pad-lg-x: 20px;
+  --kami-pad-lg-y: 17px;
+  --kami-gap: 10px;
+  --kami-gap-lg: 15px;
+  --kami-row-h: 44px;
+}
+html[data-kami-skin="wod"][data-kami-motion="calm"] {
+  --kami-dur-fast: .1s;
+  --kami-dur: .16s;
+  --kami-dur-slow: .24s;
+  --kami-stagger: 0ms;
+  --kami-enter-y: 2px;
+}
+html[data-kami-skin="wod"][data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* ==== END 全局层令牌上提 ==== */

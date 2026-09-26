@@ -1527,3 +1527,186 @@ html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="panel"] .kami-field .k
   text-overflow: clip;
   min-width: 0;
 }
+
+/* ============================================================
+ * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
+ *   容器外观照思维链外壳的凿刻气质走：凹陷刻槽底（card-2）+ 石槽描边 +
+ *   手工打磨的四角不等值圆角（照抄外壳 4px 6px 3px 5px）。§9.7 禁令遵守。
+ *   对比度见 .audit/正文容器美化.md。
+ * ============================================================ */
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="body"] {
+  margin: 10px 0;
+  background-color: var(--kami-card-2);
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: 4px 6px 3px 5px;
+  box-shadow: var(--kami-shadow-sm), inset 0 1px 0 rgba(240, 232, 213, 0.08);
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="civdawn"] .kami-root[data-kami-comp="body"] > .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  color: var(--kami-fg);
+}
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="civdawn"] {
+  --kami-fg: #f0e8d5;
+  --kami-fg-dim: #c4b196;
+  --kami-fg-mute: #8f7d69;
+  --kami-accent: #d9653b;
+  --kami-accent-fg: #1c120c;
+  --kami-accent-soft: rgba(217, 101, 59, 0.18);
+  --kami-accent-line: rgba(217, 101, 59, 0.55);
+  --kami-bg: rgba(35, 28, 22, 0.94);
+  --kami-bg-soft: rgba(45, 36, 28, 0.94);
+  --kami-card: #352a22;
+  --kami-card-2: #221a14;
+  --kami-card-hover: #44362c;
+  --kami-line: rgba(196, 177, 150, 0.18);
+  --kami-line-strong: rgba(196, 177, 150, 0.42);
+  --kami-t1: rgba(240, 232, 213, 0.04);
+  --kami-t2: rgba(240, 232, 213, 0.08);
+  --kami-t3: rgba(240, 232, 213, 0.16);
+  --kami-warn: #e05242;
+  --kami-shadow: 0 10px 30px rgba(12, 9, 7, 0.70);
+  --kami-shadow-sm: 0 3px 10px rgba(12, 9, 7, 0.48);
+  --kami-blur: 0px;
+  --kami-r-xs: 3px;
+  --kami-r-sm: 5px;
+  --kami-r-md: 7px;
+  --kami-r-lg: 10px;
+  --kami-r-pill: 999px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 36px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 220px;
+  --kami-panel-w: 430px;
+  --kami-panel-h: 570px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * 0.75);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.15);
+  --kami-lh: 1.62;
+  --kami-ls: 0.02em;
+  --kami-ls-title: 0.08em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 600;
+  --kami-title-transform: none;
+  --kami-texture: none;
+  --kami-glow: rgba(217, 101, 59, 0.65);
+  --kami-glow-size: 6px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dur-fast: 0.12s;
+  --kami-dur: 0.22s;
+  --kami-dur-slow: 0.35s;
+  --kami-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --kami-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 20ms;
+  --kami-kind-action: #7aa5cc;
+  --kami-kind-persona: #e27866;
+  --kami-kind-plot: #8db570;
+  --kami-kind-info: #6db5ac;
+  --kami-kind-fun: #dfa74d;
+  --kami-kind-nsfw: #d97184;
+  --kami-kind-other: #9fa39e;
+  --kami-label-think-title: "洞窟岩画";
+  --kami-label-think-title-open: "壁画释读";
+  --kami-label-options-title: "部族决断";
+  --kami-cd-texture-op: 35%;
+  --kami-cd-carve-depth: 2px;
+  --kami-cd-border-w: 2px;
+  --kami-dim-soft: 0.60;
+  --kami-dim-lock: 0.42;
+}
+html[data-kami-skin="civdawn"][data-kami-scheme="light"] {
+  --kami-fg: #261a12;
+  --kami-fg-dim: #5a4534;
+  --kami-fg-mute: #7f6855;
+  --kami-accent: #b54826;
+  --kami-accent-fg: #fbf5e8;
+  --kami-accent-soft: rgba(181, 72, 38, 0.14);
+  --kami-accent-line: rgba(181, 72, 38, 0.48);
+  --kami-bg: #ece2ce;
+  --kami-bg-soft: #f4ecdc;
+  --kami-card: #fbf5e8;
+  --kami-card-2: #dfd3be;
+  --kami-card-hover: #ffffff;
+  --kami-line: rgba(60, 42, 28, 0.16);
+  --kami-line-strong: rgba(60, 42, 28, 0.45);
+  --kami-t1: rgba(60, 42, 28, 0.04);
+  --kami-t2: rgba(60, 42, 28, 0.08);
+  --kami-t3: rgba(60, 42, 28, 0.15);
+  --kami-warn: #b82e20;
+  --kami-shadow: 0 8px 24px rgba(45, 32, 20, 0.20);
+  --kami-shadow-sm: 0 2px 8px rgba(45, 32, 20, 0.14);
+  --kami-kind-action: #29557d;
+  --kami-kind-persona: #a63a28;
+  --kami-kind-plot: #3d6926;
+  --kami-kind-info: #26665f;
+  --kami-kind-fun: #885c10;
+  --kami-kind-nsfw: #923648;
+  --kami-kind-other: #545753;
+}
+html[data-kami-skin="civdawn"][data-kami-density="compact"] {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 10px;
+  --kami-pad-lg-y: 8px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 8px;
+  --kami-row-h: 30px;
+}
+html[data-kami-skin="civdawn"][data-kami-density="cozy"] {
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 14px;
+  --kami-pad-lg-y: 12px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 36px;
+}
+html[data-kami-skin="civdawn"][data-kami-density="roomy"] {
+  --kami-pad-x: 14px;
+  --kami-pad-y: 10px;
+  --kami-pad-lg-x: 18px;
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 12px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 42px;
+}
+html[data-kami-skin="civdawn"][data-kami-motion="full"] {
+  --kami-dur-fast: 0.12s;
+  --kami-dur: 0.22s;
+  --kami-dur-slow: 0.35s;
+}
+html[data-kami-skin="civdawn"][data-kami-motion="calm"] {
+  --kami-dur-fast: 0.08s;
+  --kami-dur: 0.12s;
+  --kami-dur-slow: 0.18s;
+  --kami-enter-y: 0px;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="civdawn"][data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* ==== END 全局层令牌上提 ==== */

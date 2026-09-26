@@ -89,7 +89,11 @@ function checkSkin(id) {
       if (t.indexOf('kami') < 0) { badSel.push(t); }
     }
   }
-  /* 每条选择器必须以该皮肤的作用域前缀原样开头（面板要做机械替换生成预览副本） */
+  /* 每条选择器必须以该皮肤的作用域前缀原样开头（面板要做机械替换生成预览副本）
+     ⚠️ 全局层豁免（契约 §2.1 开口子 + §3）：build/sync-tavern.mjs 会把 --kami-* 令牌
+     同时上提一份到 <html> 作用域（选择器恰为 PREFIX 本身、或 PREFIX + 档位属性），
+     供 src/skin/tavern.css 的全局层在 #chat/.mes 上继承。它们既含 kami 又以皮肤前缀开头，
+     下面两条检查天然放行；这里显式登记，别让以后「收紧成必须落 .kami-root」的改动误伤它。 */
   const PREFIX = "html[data-kami-skin=\"" + id + "\"]";
   const badPrefix = [];
   for (const m of cssNoAt.matchAll(/(^|[}])\s*([^{}@]+)\{/g)) {
@@ -97,6 +101,7 @@ function checkSkin(id) {
     if (!sel || sel.startsWith("from") || sel.startsWith("to") || /^[0-9.]+%$/.test(sel)) { continue; }
     for (const t of splitSelectors(sel)) {
       if (t.indexOf("kami") < 0) { continue; }
+      if (t === PREFIX) { continue; }   // 全局层 <html> 令牌作用域：合法，不按组件选择器要求
       if (t.indexOf(PREFIX) !== 0) { badPrefix.push(t); }
     }
   }
@@ -108,6 +113,13 @@ function checkSkin(id) {
   const defined = new Set([...code.matchAll(/(--kami-[a-z0-9-]+)\s*:/g)].map(m => m[1]));
   const missing = MUST.filter(t => !defined.has(t));
   if (missing.length) { errs.push('缺少令牌（' + missing.length + ' 个）：' + missing.join(' ')); }
+  /* 全局层（契约 §3）：--kami-* 令牌必须**同时**定义在 <html> 作用域上（build/sync-tavern.mjs
+     生成的那块），否则 src/skin/tavern.css 的全局层规则在 #chat/.mes 上继承不到令牌、整块失效。
+     抓「漏跑同步脚本 / 手删了生成块」的真问题：html[data-kami-skin="<id>"] { … } 里必须看得到 --kami-fg。
+     （只认 <html> 作用域那一块：`]` 后紧跟 `{`，`.kami-root {` 那种不算。） */
+  if (!new RegExp('html\\[data-kami-skin="' + id + '"\\]\\s*\\{[^}]*--kami-fg\\s*:').test(code)) {
+    errs.push('基础令牌未上提到 <html>（全局层读不到）：跑 node build/sync-tavern.mjs');
+  }
   const missingLabel = REQUIRED_LABEL_TOKENS.filter(t => !defined.has(t));
   if (missingLabel.length) { warns.push('没有提供文案令牌：' + missingLabel.join(' ') + '（皮肤会失去品牌化标题）'); }
 

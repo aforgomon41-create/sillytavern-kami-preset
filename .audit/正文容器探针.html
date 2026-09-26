@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>正文美化 · 容器外观探针（.audit，非生产代码）</title>
+<style>
+  html,body{margin:0;padding:0;}
+  body{background:#14181c;color:#cfcfd6;font-family:system-ui,"Microsoft YaHei",sans-serif;padding:12px 14px 80px;}
+  #chat{max-width:900px;margin:0 auto;}
+  .mes{display:flex;align-items:flex-start;padding:10px 10px 0;position:relative;}
+  .mes_block{padding-left:10px;width:100%;overflow-x:hidden;}
+  .mes_text{font-weight:500;line-height:calc(15px + .5rem);max-width:100%;overflow-wrap:anywhere;}
+  .mes_text p{margin-top:0;margin-bottom:10px;}
+  .mes_text p:last-child{margin-bottom:0;}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;}
+  .bar button{background:#23232d;border:1px solid #3a3a48;color:#dcdce4;border-radius:7px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px;}
+  .rbq-sdt-card{border:1px dashed #79e4ff;padding:8px;margin:10px 0;}
+  .menu_button{background:#2a2a2a;border:1px solid #555;color:#dcdcd2;padding:4px 10px;border-radius:6px;cursor:pointer;}
+  .TH-render{margin:10px 0;}
+  .TH-render iframe{width:100%;border:0;display:block;height:70px;background:rgba(255,255,255,.06);}
+  .menu_title{font-size:13px;margin:8px 0 4px;color:#9fd8b0;}
+  select{background:#23232d;color:#dcdce4;border:1px solid #3a3a48;border-radius:6px;padding:4px 8px;font:inherit;font-size:12px;}
+  #out{white-space:pre-wrap;font-size:12px;color:#9fd8b0;margin-top:10px;}
+</style>
+</head>
+<body>
+<h3 style="margin:2px 0 8px;font-size:14px;">正文美化 · 容器外观探针（皮肤切换 + 读数 + 红线复测）</h3>
+<div class="bar">
+  <button id="act-boot">1 启动并开启正文美化</button>
+  <select id="skin-pick">
+    <option>xianyun</option><option>terminal</option><option>manga</option>
+    <option>senren</option><option>wod</option><option>empire</option><option>civdawn</option>
+    <option>isekai</option><option>mileng</option><option>trpg</option><option>grokbot</option>
+    <option>memo</option><option>nixie</option><option>rain</option><option>crt80s</option>
+  </select>
+  <button id="act-switch">2 切到所选皮肤并读容器读数</button>
+  <button id="act-btn">3 点插件按钮（回调计数）</button>
+  <button id="act-edit">4 编辑态（应包 0）</button>
+  <button id="act-kick">5 逐拍打点（sync×5）</button>
+  <button id="act-close">6 关闭开关（逐字节还原）</button>
+  <button id="act-375">7 375px 窄屏溢出读数</button>
+</div>
+<pre id="out">待操作</pre>
+<div id="chat"></div>
+<iframe id="probe-runner" style="width:0;height:0;border:0;position:absolute;left:-9999px" src="about:blank"></iframe>
+<script>
+const STATE = { handlers: new Map(), clickCount: 0, rawStore: {} };
+STATE.emit = function (evt, ...a) { const m = STATE.handlers.get(evt); if (m && m.size) { for (const w of [...m.values()]) w(...a); return true; } return false; };
+function installMocks(w, scriptId) {
+  w.__scriptVars = {};
+  w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
+  w.getScriptId = () => scriptId;
+  w.getScriptButtons = () => []; w.replaceScriptButtons = () => {}; w.appendInexistentScriptButtons = () => {};
+  w.getButtonEvent = (n) => 'button:' + scriptId + ':' + n;
+  w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
+  w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
+  w.eventClearAll = () => {};
+  w.getAllEnabledScriptButtons = () => ({}); w.getScriptTrees = () => [];
+  w.getTavernVersion = () => '1.18.0'; w.getTavernHelperVersion = () => '4.11.0';
+  w.getVariables = (o) => (o && o.type === 'script') ? w.__scriptVars : {};
+  w.replaceVariables = (v, o) => { if (o && o.type === 'script') w.__scriptVars = JSON.parse(JSON.stringify(v)); };
+  w.getChatMessages = (range) => {
+    const key = String(range);
+    return Object.prototype.hasOwnProperty.call(STATE.rawStore, key) ? [{ message_id: Number(key), mes: STATE.rawStore[key] }] : [];
+  };
+}
+async function loadSkinManager() {
+  const f = document.getElementById('probe-runner');
+  await new Promise(r => { f.onload = r; setTimeout(r, 500); });
+  const w = f.contentWindow;
+  installMocks(w, 'skinmgr');
+  const code = await (await fetch('/dev/30-皮肤管理.js')).text();
+  w.eval(code);
+  return w;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+/* ── 夹具：与 v2 探针同形（让位清单要素齐全） ── */
+function buildFixtures() {
+  const chat = document.getElementById('chat'); chat.textContent = '';
+  const M2 = el('div', 'mes'); M2.setAttribute('mesid', '2');
+  const mb2 = el('div', 'mes_block'); M2.appendChild(mb2);
+  const mt2 = el('div', 'mes_text'); mt2.id = 'mt2'; mb2.appendChild(mt2);
+  const cont2 = document.createElement('content'); mt2.appendChild(cont2);
+  cont2.appendChild(document.createTextNode('标签内开场白，这里是连续段一。'));
+  cont2.appendChild(el('p', null, '标签内段落一（无 class）'));
+  const ul = el('ul'); ['条目一', '条目二'].forEach(t => ul.appendChild(el('li', null, t))); cont2.appendChild(ul);
+  const th = el('div', 'TH-render'); const pre = el('pre'); const code = el('code'); code.textContent = '<html>…</html>'; pre.appendChild(code); th.appendChild(pre);
+  th.appendChild(Object.assign(document.createElement('iframe'), { id: 'TH-message--2--0', title: '思绪' })); cont2.appendChild(th);
+  const card = el('div', 'rbq-sdt-card');
+  const btn = el('button', 'menu_button'); btn.type = 'button'; btn.textContent = '🎨 生成';
+  btn.addEventListener('click', () => { STATE.clickCount++; }); card.appendChild(btn);
+  card.appendChild(el('span', null, '分镜卡片正文')); cont2.appendChild(card);
+  const hw = el('div'); hw.setAttribute('style', 'max-width:350px;margin:12px auto;background:#20242a;'); hw.textContent = 'HTML美化卡片'; cont2.appendChild(hw);
+  cont2.appendChild(el('span', null, '普通行内（无 class）'));
+  mt2.appendChild(document.createTextNode('标签外前置文本（对照）。'));
+  mt2.appendChild(el('p', null, '标签外前置段落（对照）。'));
+  chat.appendChild(M2);
+  const M9 = el('div', 'mes'); M9.setAttribute('mesid', '9');
+  const mb9 = el('div', 'mes_block'); M9.appendChild(mb9);
+  const mt9 = el('div', 'mes_text'); mt9.id = 'mt9'; mb2.appendChild(mb9); mb2.appendChild(mt9);
+  mt9.appendChild(document.createTextNode('楼层9 标签外前缀。'));
+  mt9.appendChild(document.createTextNode('楼层9 标签内第一句，这里有**加粗**效果。'));
+  mt9.appendChild(el('p', null, '楼层9 标签内第二句，被渲染成段落。'));
+  chat.appendChild(M9);
+  STATE.rawStore['9'] = [
+    '楼层9 标签外前缀。', '',
+    '<content>', '楼层9 标签内第一句，这里有**加粗**效果。', '楼层9 标签内第二句，被渲染成段落。', '', '</content>', '',
+  ].join('\n');
+}
+/* ── 颜色合成与对比度（WCAG 2.1）── */
+function parseColor(v) {
+  if (!v) return null;
+  let m = /^#([0-9a-f]{3,8})$/i.exec(v);
+  if (m) {
+    let h = m[1]; if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    return { r: parseInt(h.slice(0,2),16), g: parseInt(h.slice(2,4),16), b: parseInt(h.slice(4,6),16), a: h.length >= 8 ? parseInt(h.slice(6,8),16)/255 : 1 };
+  }
+  m = /^rgba?\(([^)]+)\)$/i.exec(v);
+  if (m) { const p = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; }
+  return null; /* 渐变等透明/复杂值：拿不到就如实为 null */
+}
+const lum = c => { const f = x => { const s = x/255; return s <= 0.03928 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4); }; return 0.2126*f(c.r) + 0.7152*f(c.g) + 0.0722*f(c.b); };
+function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); }
+function mix(top, under) { return { r: top.r*top.a + under.r*(1-top.a), g: top.g*top.a + under.g*(1-top.a), b: top.b*top.a + under.b*(1-top.a), a: 1 }; }
+/* 沿祖先链把半透明底一路合成到页面底，得「真实合成底色」 */
+function realBg(el0, page) {
+  let cur = mix(parseColor(getComputedStyle(el0).backgroundColor) || { r: 0, g: 0, b: 0, a: 0 }, page);
+  let node = el0.parentElement;
+  while (node) {
+    const parsed = parseColor(getComputedStyle(node).backgroundColor);
+    if (parsed && parsed.a >= 0.02) cur = mix(parsed, cur);
+    if (parsed && parsed.a >= 0.99) break;
+    node = node.parentElement;
+  }
+  return cur;
+}
+function wrapRead() {
+  const root = document.querySelector('#chat .mes .mes_text .kami-root[data-kami-comp="body"]');
+  if (!root) { return '（没有包裹层）'; }
+  const rs = getComputedStyle(root);
+  const body = root.firstChild;
+  const bs = getComputedStyle(body);
+  const page = { r: 20, g: 24, b: 28, a: 1 }; /* 本探针页底 #14181c */
+  const bg = realBg(root, page);
+  const tc = parseColor(getComputedStyle(body, null).getPropertyValue('color')) || parseColor(getComputedStyle(root).color);
+  const ratio = contrast(tc, bg);
+  const rect = root.getBoundingClientRect();
+  const docW = document.documentElement.scrollWidth;
+  const innerW = window.innerWidth;
+  return [
+    '当前皮肤=' + (window.KamiSkin && window.KamiSkin.state ? KamiSkin.state.skinId : '?') + '  开关=' + (KamiSkin && KamiSkin.state ? KamiSkin.state.bodyText : '?'),
+    '包裹层 background-color = ' + rs.backgroundColor + '（合成到页面底 = rgb(' + Math.round(bg.r) + ',' + Math.round(bg.g) + ',' + Math.round(bg.b) + ')）',
+    '包裹层 border = ' + rs.borderTopWidth + ' ' + rs.borderTopStyle + ' ' + rs.borderTopColor + '（上）；' + rs.borderLeftStyle + ' ' + rs.borderLeftColor + '（左）',
+    '包裹层 border-radius = ' + rs.borderTopLeftRadius + ' / ' + rs.borderTopRightRadius + ' / ' + rs.borderBottomRightRadius + ' / ' + rs.borderBottomLeftRadius,
+    '包裹层 margin = ' + rs.marginTop + ' / ' + rs.marginBottom + '；box-shadow = ' + rs.boxShadow.slice(0, 60),
+    '.kami-body padding = ' + bs.padding,
+    '文字 color = ' + getComputedStyle(body).color + '；文字 × 合成底 对比度 = ' + ratio.toFixed(2) + ':1' + (ratio >= 4.5 ? '（≥4.5 通过）' : '（<4.5 不通过！）'),
+    'geo：包裹层宽 ' + Math.round(rect.width) + 'px｜页面 scrollWidth ' + docW + ' vs innerWidth ' + innerW + '（' + (docW <= innerW ? '无横向溢出' : '溢出 ' + (docW - innerW) + 'px！') + '）'
+  ].join('\n');
+}
+function wrapAll(mt) { return mt.querySelectorAll('.kami-root[data-kami-comp="body"]').length; }
+function mt2KidSnap(mt) {
+  const cont = mt.querySelector('content');
+  const acc = [];
+  Array.from((cont || mt).childNodes).forEach(n => {
+    const t0 = (n.nodeType === 3 ? n.nodeValue : '[' + n.tagName + (n.className ? '.' + n.className : '') + '«' + (n.textContent || '').slice(0, 6) + '»]').trim();
+    acc.push((n.nodeType === 3 ? 'T:' : '') + t0.slice(0, 12));
+  });
+  return acc.join(' | ');
+}
+function red(tag) {
+  const mt2 = document.getElementById('mt2');
+  const cont2 = mt2 ? mt2.querySelector('content') : null;
+  const lines = ['=== ' + tag + ' ==='];
+  lines.push('楼层2[content容器] 包裹层数=' + (cont2 ? cont2.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : '-') + '；容器外直接子级包裹数=' + (mt2 ? mt2.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : '-'));
+  lines.push('让位：TH-render被包=' + (mt2 && mt2.querySelector('.kami-root .TH-render') ? '是(错)' : '否(对)') +
+    ' pre被包=' + (mt2 && mt2.querySelector('.kami-root pre') ? '是(错)' : '否(对)') +
+    ' iframe被包=' + (mt2 && mt2.querySelector('.kami-root iframe') ? '是(错)' : '否(对)') +
+    ' 插件按钮被包=' + (mt2 && mt2.querySelector('.kami-root button') ? '是(错)' : '否(对)') +
+    ' 行内style卡被包=' + (mt2 && mt2.querySelector('.kami-root div[style]') ? '是(错)' : '否(对)'));
+  const mt9 = document.getElementById('mt9');
+  lines.push('楼层9[指纹兜底] 包裹层数=' + (mt9 ? wrapAll(mt9) : '-') + '；内容=' + (mt9 ? mt9.querySelector('.kami-md') ? '已包进包裹层' : '未包' : '-'));
+  return lines.join('\n');
+}
+/* ── 按钮 ── */
+document.getElementById('act-boot').onclick = async function () {
+  buildFixtures();
+  if (!STATE.w) {
+    await loadSkinManager();
+    const w = document.getElementById('probe-runner').contentWindow;
+    STATE.w = w;
+    const api = w.KamiSkin;
+    api.setFlag('bodyText', '1');
+    await new Promise(r => setTimeout(r, 300));
+  }
+  const lines = [red('启动 · 开启正文美化'), wrapRead()];
+  document.getElementById('out').textContent = lines.join('\n\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+};
+document.getElementById('act-switch').onclick = async function () {
+  const api = STATE.w && STATE.w.KamiSkin;
+  if (!api) { document.getElementById('out').textContent = '先点「启动」'; return; }
+  const id = document.getElementById('skin-pick').value;
+  api.setSkin(id);
+  await new Promise(r => setTimeout(r, 420));
+  const lines = [wrapRead()];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+};
+document.getElementById('act-btn').onclick = function () {
+  const mt2 = document.getElementById('mt2');
+  const btn = mt2 && mt2.querySelector('.rbq-sdt-card > button');
+  if (!btn) { document.getElementById('out').textContent = '没找到插件按钮'; return; }
+  const before = STATE.clickCount;
+  btn.click();
+  setTimeout(() => {
+    const lines = ['=== 点插件按钮 ===',
+      '按钮仍在 .rbq-sdt-card 直接子级（原位）：' + (mt2.querySelector('.rbq-sdt-card > button') === btn ? '是(对)' : '否(错)'),
+      '按钮是否被包进包裹层：' + (mt2.querySelector('.kami-root button') ? '是(错)' : '否(对)'),
+      '点击前回调计数=' + before + ' → 点击后=' + STATE.clickCount + (STATE.clickCount > before ? '（回调触发：对）' : '（没触发：错）')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('容器探针|' + l));
+  }, 60);
+};
+document.getElementById('act-edit').onclick = function () {
+  const mt2 = document.getElementById('mt2'); if (!mt2) { return; }
+  if (!STATE.editSnap) { STATE.editSnap = mt2.innerHTML; }
+  mt2.textContent = '';
+  const ta = el('textarea', 'edit_textarea'); ta.id = 'curEditTextarea'; mt2.appendChild(ta);
+  const api = STATE.w && STATE.w.KamiSkin; if (api) { api.sync(); }
+  setTimeout(() => {
+    const n = wrapAll(mt2);
+    const lines = ['=== 编辑态 ===', '楼层2 包裹层数=' + n + '（应为 0）', 'textarea 原对象仍在=' + (mt2.querySelector('#curEditTextarea') === ta ? '是(对)' : '否(错)')];
+    document.getElementById('out').textContent = lines.join('\n');
+    lines.forEach(l => console.log('容器探针|' + l));
+  }, 180);
+};
+document.getElementById('act-kick').onclick = async function () {
+  const api = STATE.w && STATE.w.KamiSkin; if (!api) { return; }
+  const mt9 = document.getElementById('mt9');
+  const lines = ['=== 逐拍打点（楼层2[content容器内] 包裹层数，应恒 1 不套娃） ==='];
+  for (let k = 1; k <= 5; k++) {
+    api.sync();
+    await new Promise(r => setTimeout(r, 340));
+    const cont2 = document.getElementById('mt2').querySelector('content');
+    lines.push('拍' + k + ' 包裹层数=' + (cont2 ? cont2.querySelectorAll(':scope > .kami-root[data-kami-comp="body"]').length : '-'));
+  }
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+};
+document.getElementById('act-close').onclick = async function () {
+  const api = STATE.w && STATE.w.KamiSkin; if (!api) { return; }
+  if (!STATE.baseSnap) { STATE.baseSnap = document.getElementById('mt2').innerHTML; }
+  api.setFlag('bodyText', '0');
+  await new Promise(r => setTimeout(r, 320));
+  const mt2 = document.getElementById('mt2');
+  const same = STATE.baseSnap === mt2.innerHTML;
+  const lines = ['=== 关闭开关 ===',
+    '楼层2 包裹层数=' + wrapAll(mt2) + '（应为 0）',
+    'DOM 还原：' + (same ? '与开启前逐字节一致：是（对）' : '有差异：否（错）'),
+    '插件按钮回调计数=' + STATE.clickCount + '；按钮还在=' + (mt2.querySelector('.rbq-sdt-card > button') ? '是' : '否')];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+  /* 复原：重新打开开关供后续读数 */
+  api.setFlag('bodyText', '1');
+};
+document.getElementById('act-375').onclick = function () {
+  const lines = ['=== 当前视口几何 ===',
+    'innerWidth=' + window.innerWidth + '｜scrollWidth=' + document.documentElement.scrollWidth + '（' + (document.documentElement.scrollWidth <= window.innerWidth ? '无横向溢出' : '溢出！') + '）',
+    wrapRead()];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+};
+/* 375px：由浏览器侧把窗口调窄后点本按钮读取 */
+window.addEventListener('resize', () => {
+  const lines = ['=== 当前视口几何 ===',
+    'innerWidth=' + window.innerWidth + '｜scrollWidth=' + document.documentElement.scrollWidth + '（' + (document.documentElement.scrollWidth <= window.innerWidth ? '无横向溢出' : '溢出！') + '）',
+    wrapRead()];
+  document.getElementById('out').textContent = lines.join('\n');
+  lines.forEach(l => console.log('容器探针|' + l));
+});
+console.log('容器探针|就绪');
+</script>
+</body>
+</html>

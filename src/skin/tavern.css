@@ -1,0 +1,63 @@
+/* ============================================================
+ * 卡密预设 · 酒馆「聊天消息区」皮肤化（全局层 / tavern global layer）
+ * ------------------------------------------------------------
+ * 定位：一份**不属于任何皮肤包**的共享规则，由 30-皮肤管理.js 注入到**酒馆页面**
+ *   （不同步到消息 iframe —— 那里没有 #chat/.mes），注销时收回。
+ *   它是契约 §1 登记的「第三种作用域」：html[data-kami-skin] 层，只作用于酒馆自身 UI。
+ *
+ * 铁律（契约 §2.1 为全局层开的口子）：
+ *   1. 规则**只读 --kami-* 令牌**，不写死任何颜色/字号/圆角 —— 于是 15 套皮肤
+ *      （以及将来的第 16 套）自动跟随，零皮肤改动。令牌由 build/sync-tavern.mjs
+ *      上提到 <html>（契约 §3），全局层才读得到（否则令牌只在 .kami-root 上，
+ *      而 #chat/.mes 不在任何 .kami-root 里，继承不到）。
+ *   2. 作用域**只限聊天消息区**：#sheld / #chat / .mes / .mes_block / .mes_text，
+ *      只碰 底色 / 描边 / 圆角 / 内外间距 / 字体 五类（外加 §9.7 要求的配套字色，见下）。
+ *   3. **明确不碰**（调研 §3.3「明确不该碰」清单，逐条对应）：
+ *      · .mes_text 内部排版（行距 / max-width / overflow-wrap / padding / 子元素边距）
+ *        —— 归正文美化脚本层（另一个 agent）；
+ *      · 控件几何 / z-index / pointer-events / overflow / flex 布局（display/flex-direction/
+ *        align-items/gap/width/position 一律不碰，#sheld 的高度 calc 与 #chat 的 overflow-y:scroll
+ *        都是酒馆算死的，动它们就是二次踩契约 §9.2 的坑）；
+ *      · .qr--buttons 排布 / 原生弹窗定位 / input·select·textarea 可用性。
+ *
+ * 与用户自定义 CSS（#custom-style）的关系（调研点名的最大风险）：
+ *   同特异性下**后注入者赢**，而用户的 power-user.js 在运行时把 #custom-style 追加到
+ *   document.head，可能排在我们的 #kami-tavern 之后。所以本文件刻意**只挑用户通常不设的
+ *   属性**（圆角 / 间距 / 字体 / 描边）先落地；底色是唯一大概率与用户撞车的一格，
+ *   冲突明细见 .audit/酒馆消息区美化.md。我们**不打 !important 战争**。
+ * ============================================================ */
+
+/* ① 聊天外壳底色：只上色，绝不碰 #sheld / #chat 的 flex / overflow-y / 高度几何。
+      这两层只是「卡与卡之间的间隙背板」—— 所有正文都在 .mes 的卡上，不与这两层直接相邻，
+      故给它们上色没有「浅字浅底」的对比度风险（对比度由 .mes 的卡底+字色成对保证，见 ③）。
+      #chat 另加左右内边距，实现「消息与左右边缘有间距」：.mes 自己是 width:100%，
+      不能给它加横向 margin（会横向溢出），所以间距加在 flex 竖列容器 #chat 上。 */
+html[data-kami-skin] #sheld { background-color: var(--kami-bg-soft); }
+html[data-kami-skin] #chat {
+  background-color: var(--kami-card-2);
+  padding-left: var(--kami-gap);
+  padding-right: var(--kami-gap);
+}
+
+/* ③ 每条消息 = 一张跟随皮肤的卡。
+      谁改色谁配底（契约 §9.7-4）：**背景与字色一起给**，于是「皮肤的字 × 皮肤的卡底」
+      在任意酒馆明暗下都保证对比度 —— 浅色皮肤（宣纸 / 樱色）也不会出现「白卡配酒馆浅字」，
+      深色皮肤（终端）同样是「浅字配深卡」。
+      只加 background-color / color / border / border-radius / padding-bottom / margin-bottom；
+      **不碰** .mes 的 display:flex / align-items / width / position（那头是头像列与 swipe 的几何）。
+      酒馆全局 * { box-sizing:border-box }（public/style.css:132），加边框只吃进原有内边距、
+      不改变外宽；padding-bottom / margin-bottom 都是竖向，不碰 width:100% 的横向布局。
+      选中态 #chat .mes.selected 特异性 (1,2,0) 高于本条 (0,2,0)，酒馆的选中高亮仍然赢，不受影响。 */
+html[data-kami-skin] .mes {
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  padding-bottom: var(--kami-gap);
+  margin-bottom: var(--kami-gap);
+}
+
+/* ④ 正文文字跟随皮肤字体：只设 font-family 一类（契约 §3.3 的 --kami-font）。
+      line-height / max-width / overflow-wrap / padding / 子元素边距 是「内部排版」，
+      归正文美化脚本层，本文件一律不碰。 */
+html[data-kami-skin] .mes_text { font-family: var(--kami-font); }

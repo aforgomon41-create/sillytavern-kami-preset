@@ -1409,3 +1409,225 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-field .kami
   text-overflow: clip;
   min-width: 0;
 }
+
+/* ============================================================
+ * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
+ *   容器外观照思维链的稿纸正文块气质走：纸白卡底（card-2）+ 藤绿墨线 +
+ *   左缘竖贯的稿纸批注线（margin-line 渐变，随内边距定位，和 .kami-md 同值）。
+ *   §9.7 禁令遵守（无 overflow/position/pointer-events/z-index）。
+ *   对比度见 .audit/正文容器美化.md。
+ * ============================================================ */
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="body"] {
+  margin: 10px 0;
+  background-color: var(--kami-card-2);
+  background-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0 calc(var(--kami-pad-lg-x) * .62), var(--kami-trpg-margin-line) calc(var(--kami-pad-lg-x) * .62) calc(var(--kami-pad-lg-x) * .62 + 1px), rgba(0, 0, 0, 0) calc(var(--kami-pad-lg-x) * .62 + 1px));
+  border: 1px solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  box-shadow: 0 1px 0 var(--kami-t2);
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="trpg"] .kami-root[data-kami-comp="body"] > .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x) var(--kami-pad-lg-y) calc(var(--kami-pad-lg-x) + 12px);
+  color: var(--kami-fg-dim);
+  /* 内层 .kami-md 原来自绘的稿纸盒（底/批注线/描边/影）收掉，
+     让「一张稿纸」的容器感整块落在包裹层上，不再盒子套盒子。 */
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="trpg"] {
+  --kami-label-think-title: 手稿;
+  --kami-label-think-title-open: 手稿正文;
+  --kami-label-options-title: 手牌;
+  --kami-fg: #2c3444;
+  --kami-fg-dim: #4f586a;
+  --kami-fg-mute: #5f6877;
+  --kami-accent: #2f8f7a;
+  --kami-accent-fg: #ffffff;
+  --kami-accent-soft: rgba(47, 143, 122, .13);
+  --kami-accent-line: rgba(47, 143, 122, .42);
+  --kami-bg: #faf7ef;
+  --kami-bg-soft: #f3eee1;
+  --kami-card: #f4ecda;
+  --kami-card-2: #fffdf7;
+  --kami-card-hover: #fdf6e4;
+  --kami-line: rgba(44, 52, 68, .16);
+  --kami-line-strong: rgba(44, 52, 68, .60);
+  --kami-t1: rgba(44, 52, 68, .045);
+  --kami-t2: rgba(44, 52, 68, .09);
+  --kami-t3: rgba(44, 52, 68, .18);
+  --kami-warn: #c0503c;
+  --kami-shadow: 0 12px 26px -16px rgba(74, 60, 34, .55), 0 2px 0 rgba(126, 108, 74, .18);
+  --kami-shadow-sm: 0 2px 6px -3px rgba(74, 60, 34, .35);
+  --kami-blur: 0px;
+  --kami-r-xs: 2px;
+  --kami-r-sm: 3px;
+  --kami-r-md: 5px;
+  --kami-r-lg: 8px;
+  --kami-r-pill: 4px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 11px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 15px;
+  --kami-pad-lg-y: 13px;
+  --kami-gap: 9px;
+  --kami-gap-lg: 13px;
+  --kami-row-h: 38px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 15.5rem;
+  --kami-panel-w: 430px;
+  --kami-panel-h: 570px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .76);
+  --kami-fs-sm: calc(var(--kami-fs) * .88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.14);
+  --kami-lh: 1.7;
+  --kami-ls: .012em;
+  --kami-ls-title: .04em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-title: "Kaiti SC", "STKaiti", "KaiTi", "Kaiti TC", "Xingkai SC", "LiSu", "Hiragino Mincho ProN", "Songti SC", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 700;
+  --kami-title-transform: none;
+  --kami-texture: repeating-linear-gradient(112deg, rgba(122, 108, 78, .035) 0 1px, rgba(122, 108, 78, 0) 1px 4px);
+  --kami-glow: rgba(47, 143, 122, 0);
+  --kami-glow-size: 0px;
+  --kami-accent-mark: 2px;
+  --kami-surface-clip: polygon(0 0, 6% calc(var(--kami-trpg-jag) * .8), 14% 0, 23% calc(var(--kami-trpg-jag) * .45), 31% calc(var(--kami-trpg-jag)), 40% 0, 49% calc(var(--kami-trpg-jag) * .6), 58% calc(var(--kami-trpg-jag) * .15), 67% calc(var(--kami-trpg-jag) * .9), 76% 0, 85% calc(var(--kami-trpg-jag) * .5), 93% calc(var(--kami-trpg-jag) * .2), 100% calc(var(--kami-trpg-jag) * .7), calc(100% - var(--kami-trpg-jag) * .8) 12%, 100% 24%, calc(100% - var(--kami-trpg-jag) * .45) 36%, calc(100% - var(--kami-trpg-jag)) 48%, calc(100% - var(--kami-trpg-jag) * .3) 60%, calc(100% - var(--kami-trpg-jag) * .9) 72%, 100% 84%, calc(100% - var(--kami-trpg-jag) * .55) 100%, 88% calc(100% - var(--kami-trpg-jag)), 79% 100%, 70% calc(100% - var(--kami-trpg-jag) * .5), 60% calc(100% - var(--kami-trpg-jag) * .85), 50% calc(100% - var(--kami-trpg-jag) * .25), 40% 100%, 30% calc(100% - var(--kami-trpg-jag) * .7), 20% calc(100% - var(--kami-trpg-jag) * .35), 10% calc(100% - var(--kami-trpg-jag)), 4% calc(100% - var(--kami-trpg-jag) * .5), 0 calc(100% - var(--kami-trpg-jag) * .85), calc(var(--kami-trpg-jag) * .7) 86%, 0 74%, calc(var(--kami-trpg-jag) * .5) 62%, calc(var(--kami-trpg-jag)) 50%, calc(var(--kami-trpg-jag) * .3) 38%, calc(var(--kami-trpg-jag) * .85) 26%, 0 14%, calc(var(--kami-trpg-jag) * .45) 6%);
+  --kami-dur-fast: .12s;
+  --kami-dur: .2s;
+  --kami-dur-slow: .32s;
+  --kami-ease: cubic-bezier(.3, .7, .3, 1);
+  --kami-ease-out: cubic-bezier(.18, .9, .3, 1);
+  --kami-enter-y: 5px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 30ms;
+  --kami-kind-action: #2f6fb5;
+  --kami-kind-persona: #c8538f;
+  --kami-kind-plot: #2f8f6a;
+  --kami-kind-info: #3a86a8;
+  --kami-kind-fun: #c08420;
+  --kami-kind-nsfw: #c04a5c;
+  --kami-kind-other: #6d7488;
+  --kami-trpg-die: 1;
+  --kami-trpg-jag: 3px;
+  --kami-trpg-board: 3px;
+  --kami-trpg-grid-size: 22px;
+  --kami-trpg-sheet: rgba(104, 90, 62, .22);
+  --kami-trpg-grid-ink: rgba(58, 74, 62, .13);
+  --kami-trpg-tape: rgba(255, 255, 255, .48);
+  --kami-trpg-margin-line: rgba(198, 92, 68, .30);
+  --kami-trpg-die-f1: #4aa88d;
+  --kami-trpg-die-f2: #358a72;
+  --kami-trpg-die-f3: #1f6653;
+  --kami-trpg-die-f4: #2a7863;
+  --kami-trpg-die-f5: #429c81;
+  --kami-trpg-die-f6: #5cb79b;
+  --kami-trpg-die-face-hi: #83d2b6;
+  --kami-trpg-die-face-lo: #4fae90;
+  --kami-trpg-die-edge: rgba(16, 56, 46, .55);
+  --kami-trpg-die-ink: #f4fdf9;
+  --kami-trpg-die-num: rgba(9, 46, 37, .55);
+  --kami-trpg-die-dur: 17s;
+  --kami-trpg-art: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='460' height='340' viewBox='0 0 460 340' fill='none' stroke='%236f7a72' stroke-opacity='.42' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M56 24 l26 -14 26 14 v38 l-26 20 -26 -20 z'/><path d='M56 24 l26 20 26 -20 M82 44 v38 M56 62 l26 -18 26 18' stroke-width='1.4'/><path d='M140 64 q44 -30 92 -22'/><path d='M222 32 l12 10 -14 8'/><ellipse cx='330' cy='52' rx='42' ry='21'/><path d='M288 52 a42 21 0 1 0 62 22' stroke-width='1.3' stroke-dasharray='28 11 16 9'/><path d='M150 108 q14 -8 28 2' stroke-width='1.5'/><path d='M34 126 h74 v46 h-74 z'/><path d='M104 131 l9 6 -8 7'/><path d='M160 152 q16 -11 32 0 t32 0 t32 0 t32 0 t32 0'/><circle cx='392' cy='152' r='32' stroke-opacity='.3' stroke-width='2.6'/><circle cx='392' cy='152' r='25' stroke-opacity='.16' stroke-width='1.4'/><path d='M36 296 l20 -20 M50 302 l20 -20 M64 308 l20 -20'/><rect x='30' y='200' width='46' height='46' rx='6'/><circle cx='43' cy='213' r='3' fill='%236f7a72' stroke='none'/><circle cx='63' cy='233' r='3' fill='%236f7a72' stroke='none'/><circle cx='53' cy='223' r='3' fill='%236f7a72' stroke='none'/><path d='M132 282 v22 M121 287 l22 12 M143 287 l-22 12' stroke-width='1.7'/><path d='M200 286 h34 M200 294 h22 M200 302 h28' stroke-width='1.5'/><path d='M125 199 q0 -6 7 -6 q7 0 7 6 q0 6 -7 6 q-6 0 -7 -4'/><path d='M132 206 q1 11 0 22' stroke-width='2.3'/><path d='M132 212 l-9 8 M132 211 l9 -3' stroke-width='1.6'/><path d='M140 207 l15 -15'/><path d='M140 201 l6 6'/><path d='M140 207 l-3 3'/><path d='M132 228 l-7 14 M132 228 l8 13' stroke-width='1.5'/><path d='M244 203 q0 -5 6 -5 q6 0 6 5 q0 5 -6 5 q-5 0 -6 -4'/><path d='M235 200 q15 -3 30 0' stroke-width='2.2'/><path d='M241 199 q0 -11 9 -11 q9 0 9 11' stroke-width='2.2'/><path d='M250 210 q-1 11 0 22' stroke-width='2.3'/><path d='M250 216 l-10 8 M250 216 l12 2'/><path d='M261 219 l20 -2'/><path d='M265 219 l1 7'/><path d='M250 232 l-7 15 M250 232 l8 14' stroke-width='1.5'/><ellipse cx='380' cy='240' rx='34' ry='24'/><path d='M352 228 q10 -9 22 -9' stroke-width='1.3'/><path d='M362 218 l-3 -12 M378 216 l1 -13 M394 219 l6 -11' stroke-width='1.6'/><circle cx='368' cy='234' r='2.6' fill='%236f7a72' stroke='none'/><circle cx='380' cy='232' r='2.6' fill='%236f7a72' stroke='none'/><circle cx='392' cy='235' r='2.6' fill='%236f7a72' stroke='none'/><path d='M362 252 l6 -4 6 4 6 -4 6 4 6 -4 6 4' stroke-width='1.4'/><path d='M424 54 q0 -6 6 -6 q6 0 6 6 q0 6 -6 6 q-6 0 -6 -4'/><path d='M416 46 q14 4 28 0' stroke-width='2.2'/><path d='M421 46 q-1 -17 9 -17 q10 0 9 17' stroke-width='2.2'/><path d='M430 60 q1 12 0 24' stroke-width='2.3'/><path d='M430 66 l11 6 M430 68 l-10 8'/><path d='M437 73 h9 v10 h-9 z' stroke-width='1.4'/><path d='M438 73 q4 -5 8 0' stroke-width='1.4'/><path d='M448 75 l5 -3 M448 81 l5 3' stroke-width='1.4'/><path d='M430 84 l-6 14 M430 84 l7 13' stroke-width='1.5'/></svg>");
+  --kami-trpg-doodle: none;
+  --kami-trpg-grid: none;
+  --kami-trpg-blend: multiply;
+}
+html[data-kami-skin="trpg"][data-kami-scheme="dark"] {
+  --kami-fg: #e2dbc9;
+  --kami-fg-dim: #b4ac99;
+  --kami-fg-mute: #948c7c;
+  --kami-accent: #4fb79a;
+  --kami-accent-fg: #10201c;
+  --kami-accent-soft: rgba(79, 183, 154, .16);
+  --kami-accent-line: rgba(79, 183, 154, .44);
+  --kami-bg: #23262c;
+  --kami-bg-soft: #1b1e23;
+  --kami-card: #2d313a;
+  --kami-card-2: #1a1d22;
+  --kami-card-hover: #363b46;
+  --kami-line: rgba(232, 226, 208, .13);
+  --kami-line-strong: rgba(232, 226, 208, .42);
+  --kami-t1: rgba(232, 226, 208, .05);
+  --kami-t2: rgba(232, 226, 208, .10);
+  --kami-t3: rgba(232, 226, 208, .18);
+  --kami-warn: #e4796a;
+  --kami-shadow: 0 14px 30px -18px rgba(0, 0, 0, .8), 0 2px 0 rgba(0, 0, 0, .35);
+  --kami-shadow-sm: 0 3px 8px -4px rgba(0, 0, 0, .6);
+  --kami-texture: repeating-linear-gradient(112deg, rgba(255, 248, 228, .025) 0 1px, rgba(255, 248, 228, 0) 1px 4px);
+  --kami-kind-action: #6ba7e8;
+  --kami-kind-persona: #e884b4;
+  --kami-kind-plot: #5cc596;
+  --kami-kind-info: #6db6d4;
+  --kami-kind-fun: #e0b054;
+  --kami-kind-nsfw: #e0788c;
+  --kami-kind-other: #9aa0b2;
+  --kami-trpg-sheet: rgba(0, 0, 0, .40);
+  --kami-trpg-grid-ink: rgba(232, 226, 208, .09);
+  --kami-trpg-tape: rgba(255, 250, 232, .10);
+  --kami-trpg-margin-line: rgba(224, 120, 96, .28);
+  --kami-trpg-die-f1: #5cc2a4;
+  --kami-trpg-die-f2: #46a88c;
+  --kami-trpg-die-f3: #2f8a6f;
+  --kami-trpg-die-f4: #3a997c;
+  --kami-trpg-die-f5: #52b699;
+  --kami-trpg-die-f6: #6ed0b1;
+  --kami-trpg-die-face-hi: #9ce4c9;
+  --kami-trpg-die-face-lo: #63c8a6;
+  --kami-trpg-die-edge: rgba(4, 26, 20, .6);
+  --kami-trpg-die-ink: #06251e;
+  --kami-trpg-die-num: rgba(255, 255, 255, .45);
+  --kami-trpg-blend: screen;
+}
+html[data-kami-skin="trpg"][data-kami-density="compact"] {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 10px;
+  --kami-gap: 7px;
+  --kami-gap-lg: 10px;
+  --kami-row-h: 34px;
+  --kami-lh: 1.6;
+}
+html[data-kami-skin="trpg"][data-kami-density="roomy"] {
+  --kami-pad-x: 13px;
+  --kami-pad-y: 9px;
+  --kami-pad-lg-x: 18px;
+  --kami-pad-lg-y: 16px;
+  --kami-gap: 11px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 42px;
+  --kami-lh: 1.78;
+}
+html[data-kami-skin="trpg"][data-kami-motion="calm"] {
+  --kami-dur-fast: .1s;
+  --kami-dur: .16s;
+  --kami-dur-slow: .24s;
+  --kami-stagger: 0ms;
+  --kami-enter-y: 3px;
+}
+html[data-kami-skin="trpg"][data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="trpg"][data-kami-effects~="grid"] {
+  --kami-trpg-grid: radial-gradient(circle at 50% 50%, var(--kami-trpg-grid-ink) 0 1.1px, rgba(0, 0, 0, 0) 1.6px);
+}
+html[data-kami-skin="trpg"][data-kami-effects~="doodle"] {
+  --kami-trpg-doodle: var(--kami-trpg-art);
+}
+/* ==== END 全局层令牌上提 ==== */

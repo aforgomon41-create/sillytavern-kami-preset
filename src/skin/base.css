@@ -429,6 +429,28 @@ html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-body {
   to { opacity: 1; transform: none; }
 }
 
+/* ============================================================
+ * 30 · 正文美化包裹层（契约 §4.2 + §9.7；颜色归皮肤，本节只调结构）
+ * ------------------------------------------------------------
+ * 由 30-皮肤管理.js 包出来的 div.kami-root[data-kami-comp="body"]：
+ * 结构属性 = 外部呼吸、内侧留白（跟随皮肤自己的 --kami-pad-lg-* 与
+ * --kami-r-md）、overflow-wrap:anywhere 防 URL 撑破楼层。§9.7-3 的禁令照抄：
+ * 不写 overflow（除 overflow-wrap）/ position / pointer-events / z-index，
+ * 本节也不写任何 color/background/border——外观全部归 15 套皮肤。
+ * ============================================================ */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="body"]{
+  display: block;
+  margin: 10px 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="body"] > .kami-body{
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  border-radius: var(--kami-r-md);
+  overflow-wrap: anywhere;
+}
+
 /* ---------- 正文 / markdown / 原文 ---------- */
 html:not([data-kami-skin]) .kami-md {
   padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);

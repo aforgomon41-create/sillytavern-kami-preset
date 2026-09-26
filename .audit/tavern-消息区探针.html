@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>tavern 全局层探针（.audit）</title>
+<style>
+/* ===== 复刻酒馆 public/style.css 里「聊天消息区」的相关基础样式（只贴与本探针有关的）=====
+   来源：D:/SillyTavern/SillyTavern/public/style.css
+     L132  * { box-sizing:border-box }
+     L896  #chat { display:flex; flex-direction:column; overflow-y:scroll; ... }
+     L1220 .mes  { display:flex; align-items:flex-start; padding:10px 10px 0 10px; width:100%; position:relative }
+     L1469 .mes_block { padding-top:0; padding-left:10px; width:100%; overflow-x:hidden; overflow-y:clip }
+     L1485 .mes_text  { padding-left:0; padding-top:5px; padding-bottom:5px; padding-right:16px; ... }
+     L383  .mes_text p { margin-top:0; margin-bottom:10px }
+   酒馆主题变量按本机实测（暗主题、浅字）给一份，仅供「未美化」基线读数。 */
+:root{ --SmartThemeBodyColor: rgba(220,220,210,1); --SmartThemeChatTintColor: rgba(23,23,23,1);
+       --mainFontSize:15px; --mainFontFamily:"Noto Sans SC",system-ui,sans-serif; --mes-right-spacing:16px; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+#sheld{ display:flex; flex-direction:column; }
+#chat{ display:flex; flex-direction:column; overflow-y:scroll; overflow-x:hidden;
+       background-color: var(--SmartThemeChatTintColor); padding-bottom:0; }
+.mes{ display:flex; align-items:flex-start; padding:10px 10px 0 10px; width:100%;
+      color: var(--SmartThemeBodyColor); position:relative; margin-top:0; }
+.mesAvatarWrapper{ flex:0 0 auto; width:40px; }
+.mes_block{ padding-top:0; padding-left:10px; width:100%; overflow-x:hidden; overflow-y:clip; }
+.mes_text{ font-weight:500; line-height:calc(var(--mainFontSize) + .5rem); max-width:100%;
+           overflow-wrap:anywhere; padding-left:0; padding-top:5px; padding-bottom:5px;
+           padding-right:var(--mes-right-spacing); }
+.mes_text p{ margin-top:0; margin-bottom:10px; }
+.mes_text p:last-child{ margin-bottom:0; }
+</style>
+</head>
+<body>
+<div id="sheld"><div id="chat">
+  <div class="mes" id="mes1">
+    <div class="mesAvatarWrapper"><div class="avatar">A</div></div>
+    <div class="mes_block">
+      <div class="ch_name">角色名 · 时间</div>
+      <div class="mes_text" id="mestext1"><p>第一段正文，用来看字体与底色。</p><p>第二段正文。</p></div>
+    </div>
+  </div>
+</div></div>
+<script>
+/* 复刻用户那套 25KB 自定义 CSS 里「与聊天消息区相关、且带 !important」的代表性几条
+   （来源：.audit/正文美化与全局皮肤调研.md §1.3 / §3.2 —— 真机 settings.json 的 custom_css，
+    本机当前为空，故按调研对它的描述复刻来做「谁赢」机制验证）。 */
+var USER_CSS = [
+  '#chat{ background-color:#1b1b22 !important; }',
+  '.mes{ background-color:#241a12 !important; padding:14px !important; }',
+  '.mes_text{ color:#ffe9c9 !important; font-family:"Courier New",monospace !important; }'
+].join('\n');
+
+function cs(el, props){ var s=getComputedStyle(el); var o={}; props.forEach(function(p){ o[p]=s.getPropertyValue(p); }); return o; }
+function line(tag, o){ return tag+' | '+Object.keys(o).map(function(k){ return k+'='+o[k]; }).join('  '); }
+
+async function run(){
+  var q = new URLSearchParams(location.search);
+  var skin = q.get('skin') || 'terminal';
+  var withUser = q.get('user') === '1';
+  document.documentElement.setAttribute('data-kami-skin', skin);
+  document.documentElement.setAttribute('data-kami-scheme', q.get('scheme') || (skin==='terminal'?'dark':'light'));
+
+  var skinCss = await (await fetch('/src/skins/'+skin+'/skin.css')).text();
+  var tavernCss = await (await fetch('/src/skin/tavern.css')).text();
+
+  function inject(id, text){ var st=document.getElementById(id); if(!st){ st=document.createElement('style'); st.id=id; document.head.appendChild(st); } st.textContent=text; }
+  function drop(id){ var st=document.getElementById(id); if(st) st.remove(); }
+
+  var mes=document.getElementById('mes1'), block=mes.querySelector('.mes_block'),
+      mt=document.getElementById('mestext1'), p=mt.querySelector('p'), chat=document.getElementById('chat');
+  var READ = ['background-color','border-radius','padding','margin','font-family','color',
+              'border-top-width','border-top-style','border-top-color','display','flex-direction',
+              'align-items','overflow-y','overflow-x','line-height','max-width'];
+
+  inject('skin', skinCss);
+
+  /* 手机档确定性测量：?w=375 时把 #sheld 固定成该宽度（与浏览器窗口大小无关），
+     再量 #chat/.mes 是否横向溢出 —— 复现「375px 下消息区不溢出、不压扁」。 */
+  var w = q.get('w');
+  if (w) { document.getElementById('sheld').style.width = w + 'px'; }
+
+  /* ---- BEFORE：只有皮肤令牌（在 <html> 上）+ 无 tavern.css ---- */
+  drop('tavern'); drop('user');
+  var before = {
+    mes: cs(mes, READ), block: cs(block, READ), mestext: cs(mt, READ), p: cs(p, READ), chat: cs(chat, READ)
+  };
+
+  /* ---- AFTER：加上全局层 tavern.css ---- */
+  inject('tavern', tavernCss);
+  var after = {
+    mes: cs(mes, READ), block: cs(block, READ), mestext: cs(mt, READ), p: cs(p, READ), chat: cs(chat, READ)
+  };
+
+  /* ---- 令牌真值（从 <html> 读，证明全局层读到的就是这套皮肤的值）---- */
+  var root = getComputedStyle(document.documentElement);
+  var TOK = ['--kami-card','--kami-card-2','--kami-bg-soft','--kami-fg','--kami-r-md','--kami-gap','--kami-line','--kami-font'];
+  var toks = {}; TOK.forEach(function(t){ toks[t]=root.getPropertyValue(t).trim(); });
+
+  console.log('PROBE|skin='+skin+' user='+withUser);
+  console.log('TOKENS|'+TOK.map(function(t){return t+'='+toks[t];}).join('  '));
+  ['mes','block','mestext','p','chat'].forEach(function(k){
+    console.log('BEFORE '+k+'| '+Object.keys(before[k]).map(function(pp){return pp+'='+before[k][pp];}).join('  '));
+  });
+  ['mes','block','mestext','p','chat'].forEach(function(k){
+    console.log('AFTER  '+k+'| '+Object.keys(after[k]).map(function(pp){return pp+'='+after[k][pp];}).join('  '));
+  });
+
+  /* ---- 横向溢出检查（手机档 375px 用）---- */
+  var de=document.documentElement, cr=mes.getBoundingClientRect(), chr=chat.getBoundingClientRect();
+  console.log('OVERFLOW| page scrollW='+de.scrollWidth+' clientW='+de.clientWidth+
+    ' | #chat scrollW='+chat.scrollWidth+' clientW='+chat.clientWidth+
+    ' | .mes rect.w='+cr.width.toFixed(1)+' right='+cr.right.toFixed(1)+
+    ' | #chat rect.w='+chr.width.toFixed(1)+
+    ' | pageOverflow='+(de.scrollWidth>de.clientWidth)+' chatOverflow='+(chat.scrollWidth>chat.clientWidth));
+
+  /* ---- 谁赢：再加一层「用户自定义 CSS」（同特异性、后注入）---- */
+  if(withUser){
+    inject('user', USER_CSS);   // 追加在 tavern 之后（模拟 power-user.js 运行时后置）
+    var vs = { mes: cs(mes, READ), mestext: cs(mt, READ), chat: cs(chat, READ) };
+    console.log('USER-WINS mes| bg='+vs.mes['background-color']+' pad='+vs.mes['padding']);
+    console.log('USER-WINS mestext| color='+vs.mestext['color']+' font='+vs.mestext['font-family']);
+    console.log('USER-WINS chat| bg='+vs.chat['background-color']);
+    /* 用户没设的属性（圆角/间距/字体栈外的）应仍是我们生效的那份 */
+    console.log('USER-MISS mes| radius='+vs.mes['border-radius']+' margin='+vs.mes['margin']);
+    drop('user');
+  }
+  document.title = 'PROBE-DONE '+skin;
+}
+run().catch(function(e){ console.log('PROBE-ERROR|'+e); });
+</script>
+</body>
+</html>

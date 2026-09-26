@@ -1875,3 +1875,200 @@ html[data-kami-skin="nixie"] .kami-root .kami-item-note {
 html[data-kami-skin="nixie"] .kami-root .kami-item-note > .kami-card {
   flex: 1 1 auto;
 }
+
+
+/* ============================================================
+ * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
+ *   容器外观照思维链读数块的辉光管气质走：读数底（card-2）+ 细线边 +
+ *   左缘竖贯的辉光橙条（accent-line 渐变，size 用 accent-mark，与 .kami-md
+ *   同法同值）+ 内壁一处暗蚀（box-shadow inset，只引用既有 rgba 内衬值）。
+ *   §9.7 禁令遵守（无 overflow/position/pointer-events/z-index）。
+ *   对比度见 .audit/正文容器美化.md。
+ * ============================================================ */
+html[data-kami-skin="nixie"] .kami-root[data-kami-comp="body"] {
+  margin: 10px 0;
+  background-color: var(--kami-card-2);
+  background-image: linear-gradient(180deg, var(--kami-accent-line) 0, rgba(232, 134, 44, .10) 38%, rgba(232, 134, 44, 0) 78%);
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: var(--kami-accent-mark) 100%;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, .55), inset 0 0 24px -18px rgba(255, 138, 32, .5);
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="nixie"] .kami-root[data-kami-comp="body"] > .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  color: var(--kami-fg);
+  /* 内层 .kami-md 原来自绘的读数小盒收掉（底/橙条/边/蚀刻），容器整块归包裹层。 */
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="nixie"] {
+  --kami-label-think-title: 演算;
+  --kami-label-think-title-open: 演算明细;
+  --kami-label-options-title: 指令;
+  --kami-fg: #d9d2c4;
+  --kami-fg-dim: #a49c8e;
+  --kami-fg-mute: #9c9384;
+  --kami-accent: #e8862c;
+  --kami-accent-fg: #1b1105;
+  --kami-accent-soft: rgba(232, 134, 44, .13);
+  --kami-accent-line: rgba(232, 134, 44, .42);
+  --kami-bg: #191612;
+  --kami-bg-soft: #120f0c;
+  --kami-card: #1f1b15;
+  --kami-card-2: #13100d;
+  --kami-card-hover: #272119;
+  --kami-line: rgba(255, 228, 196, .10);
+  --kami-line-strong: rgba(255, 186, 112, .46);
+  --kami-t1: rgba(255, 235, 210, .035);
+  --kami-t2: rgba(255, 235, 210, .075);
+  --kami-t3: rgba(255, 235, 210, .145);
+  --kami-warn: #e2705c;
+  --kami-shadow: 0 14px 30px -18px rgba(0, 0, 0, .9), 0 2px 6px -2px rgba(0, 0, 0, .55);
+  --kami-shadow-sm: 0 3px 8px -4px rgba(0, 0, 0, .75);
+  --kami-blur: 0px;
+  --kami-r-xs: 2px;
+  --kami-r-sm: 3px;
+  --kami-r-md: 4px;
+  --kami-r-lg: 6px;
+  --kami-r-pill: 2px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 10px;
+  --kami-pad-y: 7px;
+  --kami-pad-lg-x: 13px;
+  --kami-pad-lg-y: 11px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 40px;
+  --kami-icon: 15px;
+  --kami-maxw: none;
+  --kami-items-min: 15.5rem;
+  --kami-panel-w: 420px;
+  --kami-panel-h: 560px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * .78);
+  --kami-fs-sm: calc(var(--kami-fs) * .88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.12);
+  --kami-lh: 1.68;
+  --kami-ls: .012em;
+  --kami-ls-title: .18em;
+  --kami-font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-title: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Roboto Mono", "DejaVu Sans Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 600;
+  --kami-title-transform: uppercase;
+  --kami-nixie-mesh: 100;
+  --kami-nixie-stack: 4px;
+  --kami-nixie-halo: 55;
+  --kami-nixie-halo-cap: 1;
+  --kami-nixie-glow-cap: 1;
+  --kami-nixie-halo-r: calc(var(--kami-glow-size) * var(--kami-nixie-glow-cap));
+  --kami-texture: repeating-linear-gradient(0deg, rgba(255, 255, 255, calc(.010 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 232, 204, calc(.022 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, rgba(255, 232, 204, calc(.030 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 24px),
+    radial-gradient(140% 100% at 50% -10%, rgba(255, 138, 32, calc(.055 * var(--kami-nixie-halo) / 100 * var(--kami-nixie-halo-cap))), transparent 62%);
+  --kami-glow: #ff8a20;
+  --kami-glow-size: 9px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dur-fast: .09s;
+  --kami-dur: .17s;
+  --kami-dur-slow: .34s;
+  --kami-ease: cubic-bezier(.2, .72, .24, 1);
+  --kami-ease-out: cubic-bezier(.4, 0, .1, 1);
+  --kami-enter-y: 2px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 32ms;
+  --kami-kind-action: #e8862c;
+  --kami-kind-persona: #a685d8;
+  --kami-kind-plot: #6fb98a;
+  --kami-kind-info: #63b9c9;
+  --kami-kind-fun: #d9b23f;
+  --kami-kind-nsfw: #d9637f;
+  --kami-kind-other: #9a9186;
+}
+html[data-kami-skin="nixie"][data-kami-density="compact"] {
+  --kami-pad-x: 8px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 10px;
+  --kami-pad-lg-y: 8px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 9px;
+  --kami-row-h: 36px;
+  --kami-ls-title: .12em;
+  --kami-items-min: 13.5rem;
+}
+html[data-kami-skin="nixie"][data-kami-density="roomy"] {
+  --kami-pad-x: 13px;
+  --kami-pad-y: 9px;
+  --kami-pad-lg-x: 17px;
+  --kami-pad-lg-y: 15px;
+  --kami-gap: 11px;
+  --kami-gap-lg: 16px;
+  --kami-row-h: 44px;
+  --kami-ls-title: .22em;
+  --kami-items-min: 18rem;
+}
+html[data-kami-skin="nixie"][data-kami-scheme="light"] {
+  --kami-fg: #2b261d;
+  --kami-fg-dim: #57503f;
+  --kami-fg-mute: #6a6353;
+  --kami-accent: #9b4210;
+  --kami-accent-fg: #fffaf2;
+  --kami-accent-soft: rgba(155, 66, 16, .10);
+  --kami-accent-line: rgba(155, 66, 16, .38);
+  --kami-bg: #e8e2d6;
+  --kami-bg-soft: #ded7c8;
+  --kami-card: #f0ebe0;
+  --kami-card-2: #e2dbcc;
+  --kami-card-hover: #f7f2e8;
+  --kami-line: rgba(60, 48, 30, .16);
+  --kami-line-strong: rgba(60, 48, 30, .62);
+  --kami-t1: rgba(60, 48, 30, .045);
+  --kami-t2: rgba(60, 48, 30, .075);
+  --kami-t3: rgba(60, 48, 30, .14);
+  --kami-warn: #a33a24;
+  --kami-shadow: 0 12px 28px -18px rgba(60, 40, 20, .45), 0 2px 5px -2px rgba(60, 40, 20, .25);
+  --kami-shadow-sm: 0 3px 8px -4px rgba(60, 40, 20, .30);
+  --kami-glow: #b8531a;
+  --kami-nixie-glow-cap: .22;
+  --kami-nixie-halo-cap: .42;
+  --kami-texture: repeating-linear-gradient(0deg, rgba(90, 70, 40, calc(.028 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(90, 70, 40, calc(.030 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(0deg, rgba(90, 70, 40, calc(.040 * var(--kami-nixie-mesh) / 100)) 0 1px, transparent 1px 24px),
+    radial-gradient(140% 100% at 50% -10%, rgba(184, 83, 26, calc(.05 * var(--kami-nixie-halo) / 100 * var(--kami-nixie-halo-cap))), transparent 62%);
+  --kami-kind-action: #9b4210;
+  --kami-kind-persona: #6b4a9c;
+  --kami-kind-plot: #2f7a52;
+  --kami-kind-info: #26687a;
+  --kami-kind-fun: #8a6410;
+  --kami-kind-nsfw: #9c3355;
+  --kami-kind-other: #6a6353;
+}
+html[data-kami-skin="nixie"][data-kami-motion="calm"] {
+  --kami-dur-fast: .15s;
+  --kami-dur: .28s;
+  --kami-dur-slow: .52s;
+  --kami-enter-y: 0px;
+  --kami-stagger: 0ms;
+}
+html[data-kami-skin="nixie"][data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* ==== END 全局层令牌上提 ==== */

@@ -1844,3 +1844,198 @@ html[data-kami-skin="empire"] .kami-root[data-kami-comp="panel"] .kami-field .ka
   text-overflow: clip;
   min-width: 0;
 }
+
+
+/* ============================================================
+ * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
+ *   容器外观照思维链外壳的天鹅绒气质走：暗紫面板底 + 金线卸边 +
+ *   顶部一线金光（background-image 渐变，不用伪元素、不用定位）。
+ *   §9.7 禁令遵守（无 overflow/position/pointer-events/z-index）。
+ *   对比度见 .audit/正文容器美化.md。
+ * ============================================================ */
+html[data-kami-skin="empire"] .kami-root[data-kami-comp="body"] {
+  margin: 10px 0;
+  background-color: var(--kami-bg-soft);
+  background-image: linear-gradient(180deg, var(--kami-accent-line) 0, transparent calc(var(--kami-accent-mark) * 4));
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+  border-radius: var(--kami-r-md);
+  box-shadow: var(--kami-shadow-sm);
+  overflow-wrap: anywhere;
+}
+html[data-kami-skin="empire"] .kami-root[data-kami-comp="body"] > .kami-body {
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+  color: var(--kami-fg);
+}
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="empire"] {
+  --kami-label-think-title: 敕令思潮;
+  --kami-label-think-title-open: 思潮全文;
+  --kami-label-options-title: 征伐选项;
+  --kami-fg: #ece7f3;
+  --kami-fg-dim: #bfb6cf;
+  --kami-fg-mute: #9a90ad;
+  --kami-accent: #d8b45f;
+  --kami-accent-fg: #1b1226;
+  --kami-accent-soft: rgba(216, 180, 95, 0.14);
+  --kami-accent-line: rgba(216, 180, 95, 0.52);
+  --kami-bg: #16101f;
+  --kami-bg-soft: #1d1529;
+  --kami-card: #221833;
+  --kami-card-2: #191223;
+  --kami-card-hover: #2b1f3d;
+  --kami-line: rgba(236, 231, 243, 0.13);
+  --kami-line-strong: rgba(216, 180, 95, 0.55);
+  --kami-t1: rgba(236, 231, 243, 0.05);
+  --kami-t2: rgba(236, 231, 243, 0.09);
+  --kami-t3: rgba(236, 231, 243, 0.16);
+  --kami-warn: #e8604a;
+  --kami-shadow: 0 10px 30px rgba(6, 3, 12, 0.62);
+  --kami-shadow-sm: 0 2px 8px rgba(6, 3, 12, 0.45);
+  --kami-blur: 0px;
+  --kami-r-xs: 2px;
+  --kami-r-sm: 3px;
+  --kami-r-md: 5px;
+  --kami-r-lg: 8px;
+  --kami-r-pill: 4px;
+  --kami-border-w: 1px;
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 40px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 15.5rem;
+  --kami-panel-w: 430px;
+  --kami-panel-h: 570px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * 0.76);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.88);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.15);
+  --kami-lh: 1.68;
+  --kami-ls: 0.02em;
+  --kami-ls-title: 0.1em;
+  --kami-font: "Songti SC", "STSong", "宋体", "Noto Serif CJK SC", Georgia, "Times New Roman", serif;
+  --kami-font-title: "Times New Roman", "Songti SC", "STSong", "宋体", Georgia, "Noto Serif CJK SC", serif;
+  --kami-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 700;
+  --kami-title-transform: none;
+  --kami-texture: radial-gradient(120% 80% at 50% -10%, rgba(216, 180, 95, 0.07), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(126, 84, 172, 0.12), transparent 65%),
+    repeating-linear-gradient(45deg, rgba(216, 180, 95, 0.018) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.028) 0 1px, transparent 1px 7px);
+  --kami-glow: rgba(216, 180, 95, 0.5);
+  --kami-glow-size: 0px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dur-fast: 0.12s;
+  --kami-dur: 0.2s;
+  --kami-dur-slow: 0.34s;
+  --kami-ease: cubic-bezier(0.25, 0.8, 0.25, 1);
+  --kami-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --kami-enter-y: 5px;
+  --kami-enter-scale: 0.985;
+  --kami-stagger: 26ms;
+  --kami-kind-action: #7fb3ea;
+  --kami-kind-persona: #e9a3c0;
+  --kami-kind-plot: #8fc97f;
+  --kami-kind-info: #7cc4c4;
+  --kami-kind-fun: #e8a35c;
+  --kami-kind-nsfw: #dd6f96;
+  --kami-kind-other: #a8a1b6;
+  --kami-dim-soft: 0.58;
+  --kami-dim-lock: 0.42;
+  --kami-emp-gold-2: #a8842f;
+  --kami-emp-glow: 6;
+  --kami-emp-weave: 40;
+  --kami-emp-beat: 2;
+}
+html[data-kami-skin="empire"] {
+  --kami-glow-size: calc(var(--kami-emp-glow) * 1px);
+}
+html[data-kami-skin="empire"][data-kami-scheme="light"] {
+  --kami-fg: #241a30;
+  --kami-fg-dim: #4e4259;
+  --kami-fg-mute: #6b6078;
+  --kami-accent: #7a5c10;
+  --kami-accent-fg: #fdf8ec;
+  --kami-accent-soft: rgba(122, 92, 16, 0.12);
+  --kami-accent-line: rgba(122, 92, 16, 0.52);
+  --kami-bg: #f3eef7;
+  --kami-bg-soft: #eae3f1;
+  --kami-card: #ffffff;
+  --kami-card-2: #ece5f3;
+  --kami-card-hover: #f7f3fa;
+  --kami-line: rgba(36, 26, 48, 0.14);
+  --kami-line-strong: rgba(36, 26, 48, 0.55);
+  --kami-t1: rgba(36, 26, 48, 0.045);
+  --kami-t2: rgba(36, 26, 48, 0.075);
+  --kami-t3: rgba(36, 26, 48, 0.14);
+  --kami-warn: #b3261e;
+  --kami-shadow: 0 10px 26px rgba(36, 26, 48, 0.16);
+  --kami-shadow-sm: 0 2px 8px rgba(36, 26, 48, 0.12);
+  --kami-texture: radial-gradient(120% 80% at 50% -10%, rgba(122, 92, 16, 0.06), transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(126, 84, 172, 0.07), transparent 65%),
+    repeating-linear-gradient(45deg, rgba(122, 92, 16, 0.02) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(36, 26, 48, 0.022) 0 1px, transparent 1px 7px);
+  --kami-glow: rgba(122, 92, 16, 0.32);
+  --kami-emp-gold-2: #c9a84a;
+  --kami-kind-action: #1f5f9e;
+  --kami-kind-persona: #a03a68;
+  --kami-kind-plot: #2f6b34;
+  --kami-kind-info: #1f6a6a;
+  --kami-kind-fun: #9a5a12;
+  --kami-kind-nsfw: #a83060;
+  --kami-kind-other: #544c62;
+}
+html[data-kami-skin="empire"][data-kami-density="compact"] {
+  --kami-pad-x: 9px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 9px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 9px;
+  --kami-row-h: 32px;
+}
+html[data-kami-skin="empire"][data-kami-density="cozy"] {
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 40px;
+}
+html[data-kami-skin="empire"][data-kami-density="roomy"] {
+  --kami-pad-x: 15px;
+  --kami-pad-y: 10px;
+  --kami-pad-lg-x: 20px;
+  --kami-pad-lg-y: 18px;
+  --kami-gap: 10px;
+  --kami-gap-lg: 15px;
+  --kami-row-h: 46px;
+}
+html[data-kami-skin="empire"][data-kami-motion="calm"] {
+  --kami-dur-fast: 0.07s;
+  --kami-dur: 0.11s;
+  --kami-dur-slow: 0.16s;
+  --kami-enter-y: 2px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 8ms;
+}
+html[data-kami-skin="empire"][data-kami-motion="off"] {
+  --kami-dur-fast: 1ms;
+  --kami-dur: 1ms;
+  --kami-dur-slow: 1ms;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* ==== END 全局层令牌上提 ==== */

@@ -15,6 +15,9 @@
  *   · 作用域：html[data-kami-skin="<id>"] .kami-root { … }
  *             兜底皮肤 html:not([data-kami-skin]) .kami-root { … }
  *   · 用户参数写在**后置**的 <style id="kami-skin-user"> 里，靠文档顺序覆盖皮肤默认值
+ *   · 全局层（tavern.css，契约 §1 第三种作用域）：把聊天消息区（#sheld/#chat/.mes/.mes_text）
+ *     按当前皮肤令牌上色，注入到**酒馆页面**（不同步到消息 iframe），注销时收回。
+ *     令牌由 build/sync-tavern.mjs 上提到 <html>，全局层才读得到。
  * ============================================================ */
 (function () {
   'use strict';
@@ -23,6 +26,7 @@
   var TAG = 'data-kami-skin';
   var STYLE_ID = 'kami-skin';
   var USER_STYLE_ID = 'kami-skin-user';
+  var TAVERN_STYLE_ID = 'kami-tavern';   // 全局层（src/skin/tavern.css）：只注入酒馆页面
   var PREVIEW_STYLE_ID = 'kami-skin-preview';
   var PANEL_ID = 'kami-skin-panel';
   var API_NAME = 'KamiSkin';
@@ -247,6 +251,14 @@
     '@media (max-width:768px){.kami-root[data-kami-comp="panel"] .kami-drop.kami-drop{' + SHEET_BODY + '}}'
   ].join('');
 
+  /* ── 全局层（tavern.css，契约 §1 第三种作用域）──
+     把「聊天消息区」按当前皮肤令牌上色的一份共享规则：不属于任何皮肤包、15 套共用。
+     源码在 src/skin/tavern.css，由 build/sync-tavern.mjs 同步进下面这段占位区（勿手改中间行）。
+     只注入酒馆页面（HDOC），不同步到消息 iframe —— 那里没有 #chat/.mes，规则空转还白占体积。 */
+  /* @@KAMI_TAVERN_CSS_BEGIN@@ */
+  var TAVERN_CSS = "/* ============================================================\n * 卡密预设 · 酒馆「聊天消息区」皮肤化（全局层 / tavern global layer）\n * ------------------------------------------------------------\n * 定位：一份**不属于任何皮肤包**的共享规则，由 30-皮肤管理.js 注入到**酒馆页面**\n *   （不同步到消息 iframe —— 那里没有 #chat/.mes），注销时收回。\n *   它是契约 §1 登记的「第三种作用域」：html[data-kami-skin] 层，只作用于酒馆自身 UI。\n *\n * 铁律（契约 §2.1 为全局层开的口子）：\n *   1. 规则**只读 --kami-* 令牌**，不写死任何颜色/字号/圆角 —— 于是 15 套皮肤\n *      （以及将来的第 16 套）自动跟随，零皮肤改动。令牌由 build/sync-tavern.mjs\n *      上提到 <html>（契约 §3），全局层才读得到（否则令牌只在 .kami-root 上，\n *      而 #chat/.mes 不在任何 .kami-root 里，继承不到）。\n *   2. 作用域**只限聊天消息区**：#sheld / #chat / .mes / .mes_block / .mes_text，\n *      只碰 底色 / 描边 / 圆角 / 内外间距 / 字体 五类（外加 §9.7 要求的配套字色，见下）。\n *   3. **明确不碰**（调研 §3.3「明确不该碰」清单，逐条对应）：\n *      · .mes_text 内部排版（行距 / max-width / overflow-wrap / padding / 子元素边距）\n *        —— 归正文美化脚本层（另一个 agent）；\n *      · 控件几何 / z-index / pointer-events / overflow / flex 布局（display/flex-direction/\n *        align-items/gap/width/position 一律不碰，#sheld 的高度 calc 与 #chat 的 overflow-y:scroll\n *        都是酒馆算死的，动它们就是二次踩契约 §9.2 的坑）；\n *      · .qr--buttons 排布 / 原生弹窗定位 / input·select·textarea 可用性。\n *\n * 与用户自定义 CSS（#custom-style）的关系（调研点名的最大风险）：\n *   同特异性下**后注入者赢**，而用户的 power-user.js 在运行时把 #custom-style 追加到\n *   document.head，可能排在我们的 #kami-tavern 之后。所以本文件刻意**只挑用户通常不设的\n *   属性**（圆角 / 间距 / 字体 / 描边）先落地；底色是唯一大概率与用户撞车的一格，\n *   冲突明细见 .audit/酒馆消息区美化.md。我们**不打 !important 战争**。\n * ============================================================ */\n\n/* ① 聊天外壳底色：只上色，绝不碰 #sheld / #chat 的 flex / overflow-y / 高度几何。\n      这两层只是「卡与卡之间的间隙背板」—— 所有正文都在 .mes 的卡上，不与这两层直接相邻，\n      故给它们上色没有「浅字浅底」的对比度风险（对比度由 .mes 的卡底+字色成对保证，见 ③）。\n      #chat 另加左右内边距，实现「消息与左右边缘有间距」：.mes 自己是 width:100%，\n      不能给它加横向 margin（会横向溢出），所以间距加在 flex 竖列容器 #chat 上。 */\nhtml[data-kami-skin] #sheld { background-color: var(--kami-bg-soft); }\nhtml[data-kami-skin] #chat {\n  background-color: var(--kami-card-2);\n  padding-left: var(--kami-gap);\n  padding-right: var(--kami-gap);\n}\n\n/* ③ 每条消息 = 一张跟随皮肤的卡。\n      谁改色谁配底（契约 §9.7-4）：**背景与字色一起给**，于是「皮肤的字 × 皮肤的卡底」\n      在任意酒馆明暗下都保证对比度 —— 浅色皮肤（宣纸 / 樱色）也不会出现「白卡配酒馆浅字」，\n      深色皮肤（终端）同样是「浅字配深卡」。\n      只加 background-color / color / border / border-radius / padding-bottom / margin-bottom；\n      **不碰** .mes 的 display:flex / align-items / width / position（那头是头像列与 swipe 的几何）。\n      酒馆全局 * { box-sizing:border-box }（public/style.css:132），加边框只吃进原有内边距、\n      不改变外宽；padding-bottom / margin-bottom 都是竖向，不碰 width:100% 的横向布局。\n      选中态 #chat .mes.selected 特异性 (1,2,0) 高于本条 (0,2,0)，酒馆的选中高亮仍然赢，不受影响。 */\nhtml[data-kami-skin] .mes {\n  background-color: var(--kami-card);\n  color: var(--kami-fg);\n  border: var(--kami-border-w) solid var(--kami-line);\n  border-radius: var(--kami-r-md);\n  padding-bottom: var(--kami-gap);\n  margin-bottom: var(--kami-gap);\n}\n\n/* ④ 正文文字跟随皮肤字体：只设 font-family 一类（契约 §3.3 的 --kami-font）。\n      line-height / max-width / overflow-wrap / padding / 子元素边距 是「内部排版」，\n      归正文美化脚本层，本文件一律不碰。 */\nhtml[data-kami-skin] .mes_text { font-family: var(--kami-font); }\n";
+  /* @@KAMI_TAVERN_CSS_END@@ */
+
   function skinCssText(skin) {
     return '/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
@@ -370,6 +382,9 @@
     setAttrs(doc, skin);
     putStyle(doc, STYLE_ID, skinCssText(skin));
     putStyle(doc, USER_STYLE_ID, userCssText(skin));
+    /* 全局层（tavern.css）：只注入酒馆页面。消息 iframe 里没有 #chat/.mes，注入也匹配不到，
+       还每个楼层多背一份 —— 所以用 doc === HDOC 守住，只走页面这一份（契约 §1 第三种作用域）。 */
+    if (doc === HDOC && TAVERN_CSS) { putStyle(doc, TAVERN_STYLE_ID, TAVERN_CSS); }
     /* 装饰模块：皮肤声明了才注入；皮肤一换就销毁（契约 §8） */
     syncDecor(doc);
   }
@@ -1210,6 +1225,22 @@
     var box = paneEl('skin');
     if (!box) { return; }
     box.textContent = '';
+    /* 「显示」卡（全局档位）整张放到**皮肤预览之前**（2026-09-25 用户裁定：放在皮肤预览上面）。
+       只调「皮肤」页的卡片顺序；卡内行序保持现状（正文美化第一行、正文标签第二行，
+       明暗/动效/密度三行相对顺序不变）；参数 / 特效两页的顺序不动。 */
+    box.appendChild(sectionTitle('显示'));
+    var g = mk('div', 'kami-card');
+    /* 正文美化放**第一行**（2026-09-25 用户裁定），后面明暗/动效/密度三行相对顺序不变。
+       「正文标签」文本行紧随其后（同一卡内，改标签名当场生效，见 setBodyTag）。
+       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），零新类名零新令牌。 */
+    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
+    g.appendChild(textRow('bodyTag', '正文标签'));
+    g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
+    g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
+    g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
+    box.appendChild(g);
+
+    /* 皮肤预览（15 套皮肤的网格）在「显示」卡下面 */
     var grid = mk('div', 'kami-grid');
     SKINS.forEach(function (s) {
       var on = s.id === state.skinId;
@@ -1229,19 +1260,6 @@
       grid.appendChild(card);
     });
     box.appendChild(grid);
-
-    /* 全局档位 */
-    box.appendChild(sectionTitle('显示'));
-    var g = mk('div', 'kami-card');
-    /* 正文美化放**第一行**（2026-09-25 用户裁定），后面明暗/动效/密度三行相对顺序不变。
-       「正文标签」文本行紧随其后（同一卡内，改标签名当场生效，见 setBodyTag）。
-       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），零新类名零新令牌。 */
-    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
-    g.appendChild(textRow('bodyTag', '正文标签'));
-    g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
-    g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
-    g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
-    box.appendChild(g);
   }
 
   /* 栏目小标题：只用已登记的 .kami-card-note（注释排版类），间距回落到皮肤自己的默认规则。
@@ -1628,6 +1646,7 @@
     /* 页面与所有消息 iframe：收样式、摘属性 */
     try { dropStyle(HDOC, STYLE_ID); } catch (e) { }
     try { dropStyle(HDOC, USER_STYLE_ID); } catch (e) { }
+    try { dropStyle(HDOC, TAVERN_STYLE_ID); } catch (e) { }
     try { destroyDecor(HDOC); } catch (e) { }
     try { restoreDecor(HDOC); } catch (e) { }
     try { clearAttrs(HDOC); } catch (e) { }
