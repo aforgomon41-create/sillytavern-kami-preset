@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-kami-skin="grokbot" data-kami-scheme="dark" data-kami-motion="full" data-kami-density="cozy">
+<head>
+<meta charset="UTF-8">
+<title>FORK 正文外壳 · 探针</title>
+<style>
+  body{background:#0b0b0e;color:#cfcfd6;font:14px/1.7 system-ui,"Microsoft YaHei",sans-serif;padding:12px 16px 60px;}
+  h1{font-size:16px;margin:0 0 4px;} .lead{color:#9a9aa8;margin:0 0 12px;font-size:13px;}
+  #chat{max-width:820px;margin:0 auto;}
+  .mes{border:1px dashed #33333f;border-radius:10px;padding:8px 10px;margin:10px 0;}
+  .mes_block{padding:2px}
+  .ch_name{color:#ffd9a0;font-weight:600}
+  .mes_text{background:#101016;border-radius:8px;padding:8px 10px;margin-top:4px;color:#dcdce4;}
+  pre{background:#0d0d12;border:1px solid #2a2a35;border-radius:8px;padding:10px 12px;overflow:auto;white-space:pre-wrap;font-size:13px}
+  .ok{color:#6ee7a8}.bad{color:#ff8f8f}.warn{color:#ffd479}
+  /* 假装是文生图插件插进来的按钮（样式故意做得显眼，方便一眼看到它在不在正文原位） */
+  .fake-t2i-btn{display:inline-block;margin:6px 0;padding:6px 12px;border:1px solid #7a5cae;border-radius:8px;background:#2a2140;color:#e6dcff}
+</style>
+</head>
+<body>
+<h1>FORK 正文外壳 · 探针</h1>
+<p class="lead">
+  这一页只做一件事：**照酒馆的显示链**造两栋楼层（正则 → showdown 的真实产物），
+  加载 <code>src/scripts/45-正文外壳.js</code>，然后看
+  ① 外壳建起来没有、② 标记收干净没有、③ 仿真生图按钮插进正文之后**还在不在它原来那一行**。
+  结论行以 <code>探针|</code> 开头。
+</p>
+<pre id="out">跑起来了……</pre>
+
+<div id="chat"></div>
+
+<script src="/vendor/showdown.js"></script>
+<script>
+/* ─────────────────────────────────────────────────────────────
+   一、造「酒馆渲染完之后」的消息楼层
+   正文用 showdown 现场渲，口径与 build/verify-body-shell.mjs 的④一致；
+   标记串与 fork 正则的载荷一字不差。
+   ───────────────────────────────────────────────────────────── */
+var MARK_START = '<div data-kami-body-start></div>';
+var MARK_END = '<div data-kami-body-end></div>';
+
+/* 一楼：正文里带插图标签（两处，用来验「按钮散布在各自位置」而不是挤一块） */
+var RAW_1 = [
+  '开场白一段，她在门口收伞。',
+  '',
+  '<content>',
+  '## 雨夜',
+  '',
+  'image###雨夜，一把伞，湿透的半边肩膀###',
+  '',
+  '她把伞往我这边偏了偏。',
+  '',
+  'image###路灯下的水洼，倒影###',
+  '',
+  '- 雨点砸在伞面上',
+  '',
+  '> 「你这个人啊……」',
+  '</content>',
+  '',
+  '收尾一句。',
+].join('\n');
+/* 二楼：正文里没有插图标签（对照：外壳照样要建） */
+var RAW_2 = ['她又笑了一下。', '', '<content>', '### 后来', '', '什么也没说。', '</content>'].join('\n');
+
+var conv = new showdown.Converter();
+function renderMes(mesid, raw, isUser) {
+  var body = /<content>([\s\S]*?)<\/content>/.exec(raw);
+  var bodyText = body ? body[1] : raw;
+  var shown = raw.replace(/[ \t]*<content>([\s\S]*?)<\/content>[ \t]*/g, MARK_START + '\n\n$1\n\n' + MARK_END);
+  var mes = document.createElement('div');
+  mes.className = 'mes';
+  mes.setAttribute('mesid', String(mesid));
+  mes.setAttribute('is_user', isUser ? 'true' : 'false');
+  mes.innerHTML = '<div class="mes_block"><div class="ch_name">' +
+    (isUser ? '你' : '奈亚子') + '</div><div class="mes_text"></div></div>';
+  mes.querySelector('.mes_text').innerHTML = conv.makeHtml(shown);
+  document.getElementById('chat').appendChild(mes);
+  return bodyText;
+}
+var BODY_1 = renderMes(0, RAW_1, false);
+var BODY_2 = renderMes(1, RAW_2, false);
+
+/* ─────────────────────────────────────────────────────────────
+   二、给脚本备好它要的全局（照酒馆助手的样子）
+   ───────────────────────────────────────────────────────────── */
+window.tavern_events = {
+  MESSAGE_RENDERED: 'message_rendered', CHARACTER_MESSAGE_RENDERED: 'character_message_rendered',
+  USER_MESSAGE_RENDERED: 'user_message_rendered', MESSAGE_UPDATED: 'message_updated',
+  MESSAGE_SWIPED: 'message_swiped', CHAT_CHANGED: 'chat_changed',
+};
+var HANDLERS = {};
+window.eventOn = function (ev, cb) { (HANDLERS[ev] = HANDLERS[ev] || []).push(cb); return { stop: function () { } }; };
+window.SillyTavern = {
+  getContext: function () {
+    return { chat: [{ mes: RAW_1, name: '奈亚子' }, { mes: RAW_2, name: '奈亚子' }] };
+  },
+};
+console.log('探针|夹具|两栋楼层已按「正则 → showdown」渲好');
+
+/* ─────────────────────────────────────────────────────────────
+   三、加载 fork 脚本
+   ───────────────────────────────────────────────────────────── */
+var lines = [];
+function say(s) { lines.push(s); console.log(s); }
+function yn(b) { return b ? '是' : '否'; }
+function flush() { document.getElementById('out').textContent = lines.join('\n'); }
+
+(function load() {
+  var s = document.createElement('script');
+  s.src = '/dev/45-正文外壳.js';
+  s.onload = function () { setTimeout(check, 300); };
+  s.onerror = function () { say('探针|★ 脚本没加载上（检查 /.fork 路径）'); flush(); };
+  document.body.appendChild(s);
+})();
+
+/* ─────────────────────────────────────────────────────────────
+   四、查
+   ───────────────────────────────────────────────────────────── */
+function check() {
+  var chat = document.getElementById('chat');
+  var mes0 = chat.querySelector('.mes[mesid="0"]');
+  var mes1 = chat.querySelector('.mes[mesid="1"]');
+  var root0 = mes0.querySelector('[data-kami-body-host]');
+  var root1 = mes1.querySelector('[data-kami-body-host]');
+
+  say('探针|外壳|一楼建了=' + yn(!!root0) + '｜二楼建了=' + yn(!!root1) +
+    '｜还剩几个标记=' + chat.querySelectorAll('[data-kami-body-start],[data-kami-body-end]').length + '（应为 0）');
+  if (!root0) { flush(); return; }
+  say('探针|外壳|结构=' + root0.className + ' > ' + (root0.firstElementChild ? root0.firstElementChild.className : '-') +
+    '｜comp=' + root0.getAttribute('data-kami-comp') + '｜view=' + root0.getAttribute('data-kami-view'));
+  say('探针|外壳|字数读数=' + (root0.querySelector('.kami-sub') || {}).textContent +
+    '（原文非空白字符 ' + BODY_1.replace(/\s+/g, '').length + '）');
+
+  /* 关键：正文是不是真在父文档里（插件能不能读到标签） */
+  var bodyText = (root0.querySelector('.kami-body-render') || root0).textContent;
+  say('探针|正文可见性|父文档里读得到插图标签=' + yn(bodyText.indexOf('image###') >= 0) +
+    '｜标签出现次数=' + (bodyText.split('image###').length - 1) + '（两处 tags）');
+
+  /* 关键：仿真生图插件「就地」把标签换成一个按钮 —— 看它落在哪儿 */
+  var walker = document.createTreeWalker(root0, NodeFilter.SHOW_TEXT, null);
+  var target = null, n;
+  while ((n = walker.nextNode())) { if (n.nodeValue.indexOf('image###') >= 0) { target = n; break; } }
+  if (target) {
+    var idx = target.nodeValue.indexOf('image###');
+    var end = target.nodeValue.indexOf('###', idx + 8);
+    var range = document.createRange();
+    range.setStart(target, idx);
+    range.setEnd(target, end + 3);
+    var btn = document.createElement('span');
+    btn.className = 'fake-t2i-btn';
+    btn.textContent = '🎨 生成图片（仿真）';
+    range.deleteContents();
+    range.insertNode(btn);
+  }
+  var inBody = !!(btn && btn.closest('.kami-body'));
+  var h2 = root0.querySelector('h2');
+  say('探针|仿真插件|就地插入的按钮落在外壳正文区里=' + yn(inBody) +
+    '｜它前面还有标题节点=' + yn(!!h2 && !!(h2.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING)) +
+    '｜正文里还剩几处标签=' + (((root0.querySelector('.kami-body-render') || root0).textContent.split('image###').length - 1)));
+  say('探针|仿真插件|按钮在文档里的顺序（正文区子的元素顺序）=' +
+    Array.prototype.map.call((root0.querySelector('.kami-body-render') || root0).children,
+      function (c) { return c.tagName.toLowerCase() + (c.className ? '.' + String(c.className).split(' ')[0] : ''); }).join(' → '));
+
+  /* 双视图切换 */
+  var seg = root0.querySelectorAll('[data-kami-view-btn]');
+  if (seg.length === 2) {
+    seg[1].click();
+    var rawShown = !root0.querySelector('[data-kami-view="raw"]').hasAttribute('hidden');
+    var renderHidden = root0.querySelector('[data-kami-view="render"]') && root0.getAttribute('data-kami-view') === 'raw';
+    say('探针|双视图|切到原文=' + yn(rawShown) + '｜根上的 view=' + root0.getAttribute('data-kami-view') +
+      '｜原文里含标签=' + yn((root0.querySelector('[data-kami-view="raw"]').textContent || '').indexOf('image###') >= 0));
+    seg[0].click();
+    say('探针|双视图|切回渲染｜根上的 view=' + root0.getAttribute('data-kami-view'));
+  } else { say('探针|双视图|★ 没找到那两枚切换按钮'); }
+
+  /* 幂等：再扫一遍不许重复套壳 */
+  var before = chat.querySelectorAll('[data-kami-body-host]').length;
+  if (window.KamiBodyShell) { window.KamiBodyShell.scan(); window.KamiBodyShell.scan(); }
+  var after = chat.querySelectorAll('[data-kami-body-host]').length;
+  say('探针|幂等|重扫两次：外壳数 ' + before + ' → ' + after + '（应相等）｜status=' +
+    JSON.stringify(window.KamiBodyShell ? window.KamiBodyShell.status() : null));
+  flush();
+  document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
+  skinCheck();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   五、色块（grokbot）皮肤：暗色 / 亮色两套底下的实测配色
+   用户 2026-09-26 的要求：「默认暗色情况下，面板应该是黑色的、字体是白的，
+   比如正文前端就该是黑底白字」。这里把外壳里几个关键件的**计算样式**读出来，
+   并算对比度 —— 只读数，不改被测代码。
+   ───────────────────────────────────────────────────────────── */
+function lum(c) {
+  var m = String(c || '').match(/-?\d+(?:\.\d+)?/g) || [];
+  if (m.length < 3) { return -1; }
+  var v = m.slice(0, 3).map(function (x) { return parseFloat(x) / 255; }).map(function (u) {
+    return u <= 0.03928 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+function ratio(a, b) {
+  var la = lum(a), lb = lum(b);
+  if (la < 0 || lb < 0) { return '-'; }
+  return ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)).toFixed(2);
+}
+function skinCheck() {
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = '/src/skins/grokbot/skin.css';
+  link.onload = function () { setTimeout(measureSkin, 120); };
+  link.onerror = function () { say('探针|皮肤|★ 读不到 grokbot 的 skin.css'); flush(); };
+  document.head.appendChild(link);
+}
+function measureSkin() {
+  var html = document.documentElement;
+  html.setAttribute('data-kami-skin', 'grokbot');
+  ['dark', 'light'].forEach(function (scheme) {
+    html.setAttribute('data-kami-scheme', scheme);
+    /* 强制重算 */
+    void document.body.offsetHeight;
+    var root = document.querySelector('[data-kami-body-host]');
+    var shell = root ? root.querySelector('.kami-shell') : null;
+    if (!shell) { say('探针|皮肤|★ 没找到外壳'); return; }
+    var cs = getComputedStyle(shell);
+    var title = root.querySelector('.kami-title');
+    var sub = root.querySelector('.kami-sub');
+    var btn = root.querySelector('.kami-btn');
+    var segOn = root.querySelector('.kami-seg-item.is-on');
+    var tcs = title ? getComputedStyle(title) : null;
+    var scs = sub ? getComputedStyle(sub) : null;
+    var bcs = btn ? getComputedStyle(btn) : null;
+    var gcs = segOn ? getComputedStyle(segOn) : null;
+    say('探针|皮肤-' + scheme + '|外壳 底=' + cs.backgroundColor.replace(/ /g, '') +
+      ' 字=' + cs.color.replace(/ /g, '') + ' 对比=' + ratio(cs.color, cs.backgroundColor));
+    if (tcs) { say('探针|皮肤-' + scheme + '|标题 对比=' + ratio(tcs.color, cs.backgroundColor) + '（' + tcs.color.replace(/ /g, '') + '）'); }
+    if (scs) { say('探针|皮肤-' + scheme + '|次要字 对比=' + ratio(scs.color, cs.backgroundColor) + '（' + scs.color.replace(/ /g, '') + '）'); }
+    if (bcs) { say('探针|皮肤-' + scheme + '|按钮 底=' + bcs.backgroundColor.replace(/ /g, '') + ' 字=' + bcs.color.replace(/ /g, '') + ' 对比=' + ratio(bcs.color, bcs.backgroundColor)); }
+    if (gcs) { say('探针|皮肤-' + scheme + '|选中分段片 底=' + gcs.backgroundColor.replace(/ /g, '') + ' 字=' + gcs.color.replace(/ /g, '') + ' 对比=' + ratio(gcs.color, gcs.backgroundColor)); }
+    say('探针|皮肤-' + scheme + '|外壳底色是不是浅底（>0.5 亮度即浅底）=' + (lum(cs.backgroundColor) > 0.5 ? '是' : '否'));
+    if (scheme === 'dark') {
+      /* 诊断：按钮那一族规则到底有没有生效（读令牌 + 数样式表规则） */
+      var sheets = document.styleSheets;
+      var ruleCount = 0, sheetErr = '';
+      for (var i = 0; i < sheets.length; i++) {
+        try { ruleCount += sheets[i].cssRules.length; } catch (e) { sheetErr += (sheets[i].href || 'inline') + '=跨域,'; }
+      }
+      say('探针|诊断|样式表规则总数=' + ruleCount + (sheetErr ? '（' + sheetErr + '）' : ''));
+      say('探针|诊断|按钮上的令牌 --kami-clay-plate=' + JSON.stringify(bcs ? bcs.getPropertyValue('--kami-clay-plate').trim() : '-') +
+        ' --kami-card=' + JSON.stringify(bcs ? bcs.getPropertyValue('--kami-card').trim() : '-') +
+        ' --kami-accent=' + JSON.stringify(bcs ? bcs.getPropertyValue('--kami-accent').trim() : '-'));
+      say('探针|诊断|按钮的 class=' + (btn ? btn.className : '-') + '｜外壳上的 --kami-clay-surface=' +
+        JSON.stringify(cs.getPropertyValue('--kami-clay-surface').trim()));
+      /* 逐条查：到底哪几条规则命中了这个按钮、各自声明了什么 */
+      var sel = 'html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-btn';
+      say('探针|诊断|按钮 matches 那条选择器=' + yn(!!(btn && btn.matches(sel))));
+      var hits = [];
+      for (var s2 = 0; s2 < sheets.length; s2++) {
+        var rs2 = null;
+        try { rs2 = sheets[s2].cssRules; } catch (e2) { continue; }
+        for (var r2 = 0; r2 < rs2.length; r2++) {
+          var rule = rs2[r2];
+          if (!rule.selectorText || rule.selectorText.indexOf('.kami-btn') < 0) { continue; }
+          var first = rule.selectorText.split(',')[0].trim();
+          var m = false;
+          try { m = !!(btn && btn.matches(first)); } catch (e3) { }
+          if (m) { hits.push(first + ' {' + String(rule.style.cssText).slice(0, 70) + '}'); }
+        }
+      }
+      say('探针|诊断|命中按钮的规则 ' + hits.length + ' 条' + (hits.length ? '｜' + hits.slice(0, 3).join(' ‖ ') : ''));
+    }
+  });
+  html.setAttribute('data-kami-scheme', 'dark');
+  flush();
+  document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
+}
+</script>
+</body>
+</html>

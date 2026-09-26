@@ -1,0 +1,8 @@
+{
+  "bodyFrontTitle": "正文前端",
+  "bodyFrontNote": "AI 写在 <content> 标签里的正文，会被单独渲染。它和显式思维链、行动选项是同类组件。它们分别负责正文、思考与按钮。开关默认开着，平时保持开启即可。",
+  "bodyFrontWarn": "请勿在会话中切换，重载正则前端可能会导致消息内容丢失。",
+  "bodyFrontOn": "已开启",
+  "bodyFrontOff": "已关闭",
+  "bodyFrontDegrade": "皮肤管理脚本没有在运行，这个开关暂时点不动。启用 🎨 皮肤管理后即可正常切换。"
+}

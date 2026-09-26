@@ -54,6 +54,23 @@
   },
   {
     "disabled": false,
+    "findRegex": "/[ \\t]*<content>([\\s\\S]*?)<\\/content>[ \\t]*/g",
+    "id": "4c1f9b26-7d05-4a53-9f18-2be7c4a0d6e1",
+    "markdownOnly": true,
+    "maxDepth": 1,
+    "minDepth": null,
+    "placement": [
+      2
+    ],
+    "promptOnly": false,
+    "replaceString": "<div data-kami-body-start></div>\n\n$1\n\n<div data-kami-body-end></div>",
+    "runOnEdit": false,
+    "scriptName": "前端|正文 v0.1",
+    "substituteRegex": 0,
+    "trimStrings": []
+  },
+  {
+    "disabled": false,
     "findRegex": "/\\s*<nyaruko_think>([\\s\\S]*?)<\\/nyaruko_think>\\s*/gs",
     "id": "79864f01-b47d-4f4f-9332-5f53dc1e6aa5",
     "markdownOnly": true,
@@ -65,7 +82,24 @@
     "promptOnly": false,
     "replaceString": "@@FRONTEND:think@@",
     "runOnEdit": true,
-    "scriptName": "前端|显式思维链(占位)",
+    "scriptName": "前端|显式思维链 v0.1",
+    "substituteRegex": 0,
+    "trimStrings": []
+  },
+  {
+    "disabled": false,
+    "findRegex": "/<options>([\\s\\S]*?)<\\/options>/gs",
+    "id": "84759b61-525f-4d91-b841-bcf9434e1a65",
+    "markdownOnly": true,
+    "maxDepth": 1,
+    "minDepth": null,
+    "placement": [
+      2
+    ],
+    "promptOnly": false,
+    "replaceString": "@@FRONTEND:options@@",
+    "runOnEdit": true,
+    "scriptName": "前端|行动选项 v0.1",
     "substituteRegex": 0,
     "trimStrings": []
   },
@@ -135,23 +169,6 @@
     "replaceString": "",
     "runOnEdit": true,
     "scriptName": "隐藏+屏蔽|行动选项数据",
-    "substituteRegex": 0,
-    "trimStrings": []
-  },
-  {
-    "disabled": false,
-    "findRegex": "/<options>([\\s\\S]*?)<\\/options>/gs",
-    "id": "84759b61-525f-4d91-b841-bcf9434e1a65",
-    "markdownOnly": true,
-    "maxDepth": 1,
-    "minDepth": null,
-    "placement": [
-      2
-    ],
-    "promptOnly": false,
-    "replaceString": "@@FRONTEND:options@@",
-    "runOnEdit": true,
-    "scriptName": "前端|行动选项(占位)",
     "substituteRegex": 0,
     "trimStrings": []
   },

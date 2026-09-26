@@ -58,7 +58,11 @@ const DEMO = {
     { title: '追问她的拍摄动机', type: '信息', content: '冷静地询问她今晚反常的真正原因。' },
     { title: '装傻充愣转移话题', type: '搞笑', content: '指着她身上宽大的衬衫大呼小叫。' },
     { title: '指尖触碰透光的领口', type: 'nsfw', content: '一言不发地抬起手，指尖顺着敞开的领口缓缓滑入。' }
-  ], null, 2)
+  ], null, 2),
+  /* ⚠️ 2026-09-26：这里原来有个 `body` 样例，供 `/doc/body?demo=1` 在预览台里看**正文前端 iframe**。
+     那条链路已经换成「两个空标记夹正文 + 45-正文外壳.js 在父文档里套壳」，
+     预览台不再需要这个样例；新链路的验收页是 `/test/harness/body.html`
+     （它拉真脚本、按酒馆的显示链造楼层，页面里直接给读数）。 */
 };
 
 function newestPreset() {
@@ -158,7 +162,8 @@ http.createServer((req, res) => {
     return;
   }
 
-  /* 真前端文档：/doc/think?demo=1 或 /doc/options?payload=<原文> */
+  /* 真前端文档：/doc/think?demo=1 或 /doc/options?payload=<原文>
+     （正文那条 2026-09-26 起不在这里了 —— 它改成父文档外壳，验收页见 /test/harness/body.html） */
   if (p.startsWith('/doc/')) {
     const name = p.slice(5);
     if (name !== 'think' && name !== 'options') { send(404, 'text/plain', 'no doc: ' + name); return; }

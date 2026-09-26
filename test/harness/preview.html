@@ -201,12 +201,14 @@ function installMocks(w, scriptId) {
     const dg = document.getElementById('mdiag');
     if (dg) { dg.textContent = lines.join('\n'); }
     lines.forEach(function (l) { console.log(l); });
-  };  /* 假酒馆正则表（2026-09-23 补）：📜 压缩的「滚动压缩」开关只在读得到**酒馆自己的**正则表时
-     才出现（roll.ok=true），它跟预设里那份正则不是一回事 —— 预览台以前没有这两个接口，
-     于是那一枚开关、以及它下面那段模式说明，在预览台里根本测不到（只有真机能看）。
-     这里给一份与预设 src/regex/list.json 同源的替身（同 id、同名字、minDepth 20），
-     写入也照单收下：于是「点开关 → 状态字翻转」这条路径在预览台也能跑。
-     全项目只有 60-压缩.js 用这两个 API，加它们不会影响别的脚本。 */
+  };  /* 假酒馆正则表（2026-09-23 补，2026-09-26 改成**真形态**）：📜 压缩的「滚动压缩」开关、
+     🎨 皮肤管理的「正文前端」开关，都只在读得到**酒馆自己的**正则表时才动得了 ——
+     它跟预设里那份正则不是一回事。这里给一份与预设 src/regex/list.json 同源的替身。
+     ⚠️ 形态按酒馆助手的**归一化**返回（官方文档「获取正则」）：`script_name` + `enabled`（snake_case）。
+     预设文件里那份是酒馆原生形态 `scriptName` + `disabled`（camelCase）—— 两者**不一样**，
+     2026-09-26 因为按 camelCase 去匹配、按 disabled 去比对，正文前端开关曾整条静默失效。
+     这里必须留真形态，否则预览台测不出这类字段名错误。写入照单收下（并记一笔 writes，供探针断言）。 */
+  w.__tavernRegexWrites = 0;
   w.__tavernRegexes = [{
     id: '0c74198f-1acc-43e3-8d88-d776d7242b89',
     script_name: '压缩|摘要/设定(默认最小深度20)',
@@ -214,10 +216,19 @@ function installMocks(w, scriptId) {
     min_depth: 20,
     find_regex: '',
     replace_string: '$1',
-    disabled: false,
+  }, {
+    id: '4c1f9b26-7d05-4a53-9f18-2be7c4a0d6e1',
+    script_name: '前端|正文 v0.1',
+    /* ?bfoff=1：假装「用户在酒馆原生面板里把这条正则关掉了」——
+       用来验「打开面板时开关与真实启用位对账」这条路径（脚本自己存的状态还是「开」）。 */
+    enabled: !(new URLSearchParams(location.search).get('bfoff') === '1'),
+    min_depth: null,
+    max_depth: 1,
+    find_regex: '/[ \\t]*<content>([\\s\\S]*?)<\\/content>[ \\t]*/g',
+    replace_string: '$1',
   }];
   w.getTavernRegexes = () => JSON.parse(JSON.stringify(w.__tavernRegexes));
-  w.replaceTavernRegexes = (list) => { w.__tavernRegexes = JSON.parse(JSON.stringify(list || [])); };
+  w.replaceTavernRegexes = (list) => { w.__tavernRegexWrites++; w.__tavernRegexes = JSON.parse(JSON.stringify(list || [])); };
   /* SillyTavern 全局：预设置面板要用它读/写当前预设（与真机同一条路径）。
      这里给的是**可观测**的活对象：prompt_order 就是那份真预设的 order，
      saveSettingsDebounced 只计数、不写盘（没有 settings.json 可写）。 */
@@ -356,9 +367,13 @@ async function loadScript(file, scriptId, seedVars) {
   return { iframe: f, w };
 }
 /* ── 前端 tab 表 ──
-   六个前端 + 一格预留：四块面板（🎨 皮肤管理 / 🌟 预设设置 / 🧭 引导 / 📜 压缩）
+   六格 + 一格预留：四块面板（🎨 皮肤管理 / 🌟 预设设置 / 🧭 引导 / 📜 压缩）
    与两个内嵌前端（💭 显式思维链 / 🎯 行动选项），最后一格留给将来的「状态栏」前端
-   （它多半也是内嵌前端，到时候把 kind 改成 'frame'、加一个 pane 即可）。 */
+   （它多半也是内嵌前端，到时候把 kind 改成 'frame'、加一个 pane 即可）。
+   ⚠️ 2026-09-26：「📄 正文」这一格撤了 —— 正文不再是 iframe 前端，
+   改成「两个空标记夹正文 + 45-正文外壳.js 在父文档里套壳」。那条链路的验收页是
+   `/test/harness/body.html`（拉真脚本、按酒馆显示链造楼层、页面里直接给读数），
+   放进这里当 frame tab 反而要再造一份假的显示链，不如让它独立成页。 */
 const TAB_API = { skin: 'KamiSkin', preset: 'KamiPreset', guide: 'KamiGuide', compress: 'KamiSummarize' };
 const TAB_DEFS = [
   { key: 'think', label: '💭 显式思维链', kind: 'frame' },
@@ -1699,6 +1714,38 @@ function installSpresetHost(ST) {
       var utxt = us ? String(us.textContent || '').split(NL).join(' ').split('  ').join(' ').trim() : 'MISSING';
       diag.push('用户参数CSS|' + utxt);
     } catch (e5) { diag.push('用户参数CSS|err'); }
+    /* 正文前端联动探针（只读，不改被测代码）：把「开关位置」与「假酒馆正则表里那条的
+       真实启用位」并排报出来。2026-09-26 加 —— 这两个数曾经各说各话：脚本按 camelCase 的
+       `scriptName` 找条目、按 `disabled` 比对，而酒馆助手返回的是 `script_name` / `enabled`，
+       于是找不到条目 + 误判「已一致」，开关点了像没点，日志却写「已设为启用」。
+       ⚠️ 假正则表挂在**脚本 iframe 的 window 上**（酒馆助手把 API 合并进脚本 iframe），
+       不是顶层 window；脚本 iframe 由 loadScript() 直接挂在 body 上（left:-9999px），
+       所以这里扫全文档的 iframe，不能只扫 #slot（那是前端 iframe 的家）。
+       ⚠️ 而且**每个脚本 iframe 各有一张自己的假表**（installMocks 逐窗口装）：
+       必须认准皮肤管理那一张（getScriptId() === 'skinmgr'），否则读到的是别的脚本那张、
+       恒定显示「写入次数=0」，看起来像没写进去。 */
+    try {
+      var brw = null, bany = null;
+      Array.prototype.forEach.call(document.querySelectorAll('iframe'), function (f) {
+        try {
+          var cw = f.contentWindow;
+          if (!cw || !cw.__tavernRegexes) { return; }
+          if (!bany) { bany = cw; }
+          var sid = (typeof cw.getScriptId === 'function') ? String(cw.getScriptId()) : '';
+          if (!brw && sid === 'skinmgr') { brw = cw; }
+        } catch (e7) { }
+      });
+      if (!brw) { brw = bany; }
+      var brx = null, brl = (brw && brw.__tavernRegexes) || [];
+      for (var bi = 0; bi < brl.length; bi++) {
+        if (String(brl[bi] && brl[bi].script_name || '').indexOf('前端|正文') === 0) { brx = brl[bi]; break; }
+      }
+      var bfLine = '正文前端探针|开关=' + (window.KamiSkin && window.KamiSkin.bodyFront ? (window.KamiSkin.bodyFront() ? '开' : '关') : '无接口') +
+        ' 正则=' + (brw ? (brx ? (brx.enabled ? '启用' : '停用') : '表里没这条') : '读不到脚本窗口') +
+        ' 写入次数=' + (brw ? (brw.__tavernRegexWrites || 0) : '-');
+      diag.push(bfLine);
+      if (window.__lastBfLine !== bfLine) { window.__lastBfLine = bfLine; console.log(bfLine); }
+    } catch (e6) { diag.push('正文前端探针|err'); }
     document.getElementById('diag').textContent = diag.join(' ｜ ');
     const s = window.KamiSkin.status();
     var pn = document.getElementById('kami-skin-panel');

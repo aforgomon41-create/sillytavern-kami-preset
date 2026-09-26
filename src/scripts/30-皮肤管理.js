@@ -15,9 +15,10 @@
  *   · 作用域：html[data-kami-skin="<id>"] .kami-root { … }
  *             兜底皮肤 html:not([data-kami-skin]) .kami-root { … }
  *   · 用户参数写在**后置**的 <style id="kami-skin-user"> 里，靠文档顺序覆盖皮肤默认值
- *   · 全局层（tavern.css，契约 §1 第三种作用域）：把聊天消息区（#sheld/#chat/.mes/.mes_text）
- *     按当前皮肤令牌上色，注入到**酒馆页面**（不同步到消息 iframe），注销时收回。
- *     令牌由 build/sync-tavern.mjs 上提到 <html>，全局层才读得到。
+ *   · ⛔ **酒馆本身的 UI 一个像素都不动**（2026-09-26 用户裁定「我们不动酒馆本身了」）：
+ *     曾经有过一层「消息区外壳」（tavern.css → #sheld/#chat/.mes/.mes_text 的底色、圆角、间距、字体），
+ *     两轮效果都被否，已整体删除；本脚本现在只往 <html> 写 5 个 data-kami-* 属性 + 注入皮肤 CSS，
+ *     作用域全在 `.kami-root` 里（面板、引导、以及三个嵌入式前端自己的组件）。
  * ============================================================ */
 (function () {
   'use strict';
@@ -26,7 +27,6 @@
   var TAG = 'data-kami-skin';
   var STYLE_ID = 'kami-skin';
   var USER_STYLE_ID = 'kami-skin-user';
-  var TAVERN_STYLE_ID = 'kami-tavern';   // 全局层（src/skin/tavern.css）：只注入酒馆页面
   var PREVIEW_STYLE_ID = 'kami-skin-preview';
   var PANEL_ID = 'kami-skin-panel';
   var API_NAME = 'KamiSkin';
@@ -130,8 +130,11 @@
     scheme: '',                  // '' = 跟随皮肤默认
     motion: 'full',              // full | calm | off
     density: 'cozy',             // compact | cozy | roomy
-    bodyText: false,             // 正文美化（默认关闭）：把 .mes_text 里的纯文本段包进 .kami-md 骨架
-    bodyTag: 'content',          // 正文美化的作用范围标签名（v2 新增）：只包 <bodyTag>…</bodyTag> 之内
+    /* 正文前端（默认开）：把 <content> 里的正文交给嵌入式前端渲染（正则「前端|正文 v0.1」）。
+       ⚠️ 值必须是字符串 '1' —— 面板的 flagRow 用 String(state[key]) === 选项值 判选中态，
+       写布尔 true 会算出 'true' ≠ '1'，于是开关在界面上显示成「关」（用户点名要求默认显示开）。
+       旧存档里可能存着布尔 true/false，读取一律走 bodyFrontOn() 归一。 */
+    bodyFront: '1',
     effects: {},                 // { effectId: true }
     params: {},                  // { paramId: number }
     panel: { x: null, y: null, w: null, h: null, open: false }
@@ -166,8 +169,6 @@
       state[k] = saved[k];
     }
     if (!findSkin(state.skinId)) { state.skinId = SKINS[0].id; }
-    /* 存档里的正文标签也要过校验（防旧档/手改坏值把 v2 判据拼坏） */
-    state.bodyTag = normalizeBodyTag(state.bodyTag) || BODY_TAG_DEF;
   }
 
   var saveTimer = null;
@@ -251,18 +252,10 @@
     '@media (max-width:768px){.kami-root[data-kami-comp="panel"] .kami-drop.kami-drop{' + SHEET_BODY + '}}'
   ].join('');
 
-  /* ── 全局层（tavern.css，契约 §1 第三种作用域）──
-     把「聊天消息区」按当前皮肤令牌上色的一份共享规则：不属于任何皮肤包、15 套共用。
-     源码在 src/skin/tavern.css，由 build/sync-tavern.mjs 同步进下面这段占位区（勿手改中间行）。
-     只注入酒馆页面（HDOC），不同步到消息 iframe —— 那里没有 #chat/.mes，规则空转还白占体积。 */
-  /* @@KAMI_TAVERN_CSS_BEGIN@@ */
-  var TAVERN_CSS = "/* ============================================================\n * 卡密预设 · 酒馆「聊天消息区」皮肤化（全局层 / tavern global layer）\n * ------------------------------------------------------------\n * 定位：一份**不属于任何皮肤包**的共享规则，由 30-皮肤管理.js 注入到**酒馆页面**\n *   （不同步到消息 iframe —— 那里没有 #chat/.mes），注销时收回。\n *   它是契约 §1 登记的「第三种作用域」：html[data-kami-skin] 层，只作用于酒馆自身 UI。\n *\n * 铁律（契约 §2.1 为全局层开的口子）：\n *   1. 规则**只读 --kami-* 令牌**，不写死任何颜色/字号/圆角 —— 于是 15 套皮肤\n *      （以及将来的第 16 套）自动跟随，零皮肤改动。令牌由 build/sync-tavern.mjs\n *      上提到 <html>（契约 §3），全局层才读得到（否则令牌只在 .kami-root 上，\n *      而 #chat/.mes 不在任何 .kami-root 里，继承不到）。\n *   2. 作用域**只限聊天消息区**：#sheld / #chat / .mes / .mes_block / .mes_text，\n *      只碰 底色 / 描边 / 圆角 / 内外间距 / 字体 五类（外加 §9.7 要求的配套字色，见下）。\n *   3. **明确不碰**（调研 §3.3「明确不该碰」清单，逐条对应）：\n *      · .mes_text 内部排版（行距 / max-width / overflow-wrap / padding / 子元素边距）\n *        —— 归正文美化脚本层（另一个 agent）；\n *      · 控件几何 / z-index / pointer-events / overflow / flex 布局（display/flex-direction/\n *        align-items/gap/width/position 一律不碰，#sheld 的高度 calc 与 #chat 的 overflow-y:scroll\n *        都是酒馆算死的，动它们就是二次踩契约 §9.2 的坑）；\n *      · .qr--buttons 排布 / 原生弹窗定位 / input·select·textarea 可用性。\n *\n * 与用户自定义 CSS（#custom-style）的关系（调研点名的最大风险）：\n *   同特异性下**后注入者赢**，而用户的 power-user.js 在运行时把 #custom-style 追加到\n *   document.head，可能排在我们的 #kami-tavern 之后。所以本文件刻意**只挑用户通常不设的\n *   属性**（圆角 / 间距 / 字体 / 描边）先落地；底色是唯一大概率与用户撞车的一格，\n *   冲突明细见 .audit/酒馆消息区美化.md。我们**不打 !important 战争**。\n * ============================================================ */\n\n/* ① 聊天外壳底色：只上色，绝不碰 #sheld / #chat 的 flex / overflow-y / 高度几何。\n      这两层只是「卡与卡之间的间隙背板」—— 所有正文都在 .mes 的卡上，不与这两层直接相邻，\n      故给它们上色没有「浅字浅底」的对比度风险（对比度由 .mes 的卡底+字色成对保证，见 ③）。\n      #chat 另加左右内边距，实现「消息与左右边缘有间距」：.mes 自己是 width:100%，\n      不能给它加横向 margin（会横向溢出），所以间距加在 flex 竖列容器 #chat 上。 */\nhtml[data-kami-skin] #sheld { background-color: var(--kami-bg-soft); }\nhtml[data-kami-skin] #chat {\n  background-color: var(--kami-card-2);\n  padding-left: var(--kami-gap);\n  padding-right: var(--kami-gap);\n}\n\n/* ③ 每条消息 = 一张跟随皮肤的卡。\n      谁改色谁配底（契约 §9.7-4）：**背景与字色一起给**，于是「皮肤的字 × 皮肤的卡底」\n      在任意酒馆明暗下都保证对比度 —— 浅色皮肤（宣纸 / 樱色）也不会出现「白卡配酒馆浅字」，\n      深色皮肤（终端）同样是「浅字配深卡」。\n      只加 background-color / color / border / border-radius / padding-bottom / margin-bottom；\n      **不碰** .mes 的 display:flex / align-items / width / position（那头是头像列与 swipe 的几何）。\n      酒馆全局 * { box-sizing:border-box }（public/style.css:132），加边框只吃进原有内边距、\n      不改变外宽；padding-bottom / margin-bottom 都是竖向，不碰 width:100% 的横向布局。\n      选中态 #chat .mes.selected 特异性 (1,2,0) 高于本条 (0,2,0)，酒馆的选中高亮仍然赢，不受影响。 */\nhtml[data-kami-skin] .mes {\n  background-color: var(--kami-card);\n  color: var(--kami-fg);\n  border: var(--kami-border-w) solid var(--kami-line);\n  border-radius: var(--kami-r-md);\n  padding-bottom: var(--kami-gap);\n  margin-bottom: var(--kami-gap);\n}\n\n/* ④ 正文文字跟随皮肤字体：只设 font-family 一类（契约 §3.3 的 --kami-font）。\n      line-height / max-width / overflow-wrap / padding / 子元素边距 是「内部排版」，\n      归正文美化脚本层，本文件一律不碰。 */\nhtml[data-kami-skin] .mes_text { font-family: var(--kami-font); }\n";
-  /* @@KAMI_TAVERN_CSS_END@@ */
 
   function skinCssText(skin) {
     return '/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
-      '\n/* ==== body wrap struct (正文美化包裹层，契约 §9.7；开关关着时页面上没有这种节点，规则空转) ==== */\n' + BODY_STRUCT_CSS +
       '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '');
   }
 
@@ -331,8 +324,24 @@
   }
   function sheetMode() { return tavernSingleColumn(); }
 
+  /* ───────── 消息排版的「第三方宿主」标记 ────────
+     ⛔ **已停用**（2026-09-26 用户裁定删掉消息楼层美化）。它配合「把皮肤字号/面铺到消息楼层」
+     那套用；那套已整体回退，所以这里只剩一个空壳：`unmarkMesHosts()` 留着当**扫尾** ——
+     老版本升级上来的页面上若还留着 data-kami-mes-host 标记，注销时清掉，页面上不留 kami 痕迹。
+     要彻底删就删掉这个函数与它在 teardown 里的那一处调用。 */
+  var MES_HOST_ATTR = 'data-kami-mes-host';
+  function unmarkMesHosts() {
+    var list, i;
+    try { list = HDOC.querySelectorAll('[' + MES_HOST_ATTR + ']'); } catch (e) { return; }
+    for (i = 0; i < list.length; i++) { list[i].removeAttribute(MES_HOST_ATTR); }
+  }
+
   /* ───────── 下发：酒馆页面 + 每个消息 iframe ───────── */
 
+  /* 只写 <html> 上的 5 个 data-kami-* 属性（皮肤作用域与档位）。
+     ⛔ 2026-09-26 起**不再往酒馆 UI 写任何东西**（用户裁定「连外壳层美化也不需要，
+     我们不动酒馆本身了」）：以前这里还会给 #chat 写 data-kami-mes、量原生字体并广播
+     --kami-host-*，那套属于「消息区外壳美化」，已整体删除。 */
   function setAttrs(doc, skin) {
     try {
       var el = doc.documentElement;
@@ -382,9 +391,6 @@
     setAttrs(doc, skin);
     putStyle(doc, STYLE_ID, skinCssText(skin));
     putStyle(doc, USER_STYLE_ID, userCssText(skin));
-    /* 全局层（tavern.css）：只注入酒馆页面。消息 iframe 里没有 #chat/.mes，注入也匹配不到，
-       还每个楼层多背一份 —— 所以用 doc === HDOC 守住，只走页面这一份（契约 §1 第三种作用域）。 */
-    if (doc === HDOC && TAVERN_CSS) { putStyle(doc, TAVERN_STYLE_ID, TAVERN_CSS); }
     /* 装饰模块：皮肤声明了才注入；皮肤一换就销毁（契约 §8） */
     syncDecor(doc);
   }
@@ -399,11 +405,10 @@
       var doc = iframeDoc(frame);
       if (doc && doc.documentElement) { applyTo(doc); }
     } catch (e) { }
-    /* 正文只存在于酒馆页面的 #chat 里（消息 iframe 是前端文档，没有 .mes_text）；
-       但 iframe 渲染结束往往意味着新楼层刚建好，这里补一次正文检查（开关开着才做事）。 */
-    syncBodyAfterIframes();
   }
 
+  /* 只要有一条 iframe 变了，就顺手把「旧功能残渣」清一次（幂等、一条都不剩时立刻返回），
+     再给新楼层的第三方宿主打标记（幂等：已打标的原样留着）。 */
   function syncAllIframes() {
     try {
       var frames = HDOC.querySelectorAll(IFRAME_SEL), i;
@@ -412,298 +417,50 @@
         if (doc && doc.documentElement) { applyTo(doc); }
       }
     } catch (e) { }
-    syncBodyAfterIframes();
+    purgeBodyWraps();
   }
 
   function syncAll() {
     if (disposed) { return; }
     applyTo(HDOC);
     syncAllIframes();
-    if (bodyTextOn()) { syncBody(); }
+    purgeBodyWraps();
   }
 
-  /* ───────── 正文美化 v2（默认关闭）─────────
-     把酒馆消息正文里的「纯文本节点 + 无 class 无 style 的 markdown 元素」原地包进
-     div.kami-root[data-kami-comp="body"] > div.kami-body.kami-md ——
-     复用 15 套皮肤里已登记的 .kami-root / .kami-body / .kami-md 规则，皮肤与令牌零改动。
-     v2 收窄（2026-09-25）：**只包用户指定标签的内部**，标签外一个节点都不碰 ——
-       · 标签名 = 脚本变量 kami-skin.bodyTag（默认 'content'），
-         在面板「显示」卡「正文标签」文本框里改，改完就地点火（同 setFlag 的就地路径）；
-       · 判据的根基：酒馆把消息正文跑完 showdown → DOMPurify 后灌进 .mes_text
-         （酒馆 public/script.js 1898-1908 / 2637）。content 在 DOMPurify 3.4.2 的默认
-         允许标签表里（node_modules/dompurify/dist/purify.min.js 的 html 白名单字面含
-         "content"），所以 content 标签能以元素形态存活到 DOM —— 主路径：在 .mes_text
-         里直接找该标签的元素，只包它内部；
-       · 兜底路径（标签被剥掉时）：不在允许表里的自造标签名（如「正文」「narr」）会被
-         清洗剥掉只留内容，DOM 里认不出边界 —— 此时回到该楼层原始文本（酒馆助手
-         getChatMessages）里定位 <tag>…</tag> 的内文，用「只留文字/数字/emoji」的归一化
-         指纹，在 .mes_text 直接子节点的连续区间上对位；对得上才包，对不上一个节点
-         都不动（失败 = 不美化，绝不包错）。指纹按（标签名, 原文长度）记在元素上缓存，
-         避免每轮 sweep 反复做同一场对位。
-     两条铁律不变：
-       ① 只在 #chat 里跑（流式打字机浮窗也挂 mes_text 类，但它在 dialog[open] 里，绝不许碰）；
-       ② 「让位清单」里的元素一律原地不动 —— 包裹必须是移动原节点而不是 innerHTML 拼串，
-          否则插件（如智能生图触发器）插进正文的按钮会掉监听、掉锚点。
-     让位清单（判据即代码，永不包裹；标签内、标签外、指纹窗内一视同仁）：
-        div.TH-render / pre / iframe / button / input / select / textarea / label /
-        details / summary / 带 class 的元素 / 带行内 style 的元素 / .mes_* 容器 /
-        style / script / link / custom-style 等元数据元素 / 注释节点 / 纯空白文本。
-        「带 class 就让位」同时放过了 TH-render（既有前端宿主）、插件卡片（自带 class）、
-        与酒馆自己的结构容器；「带行内 style 就让位」放过了 HTML 美化条目的卡片。
-     不套娃：包裹层自带 class（kami-root）+ data-kami-comp="body"，
-        「带 class 就让位」与容器级幂等检查双保险把它认出来跳过。 */
-  var BODY_MES_TEXT_SEL = '#chat .mes .mes_text';
-  var BODY_WRAP_SEL = ':scope > .kami-root[data-kami-comp="body"]';
-  var BODY_PROTECT_TAGS = ['IFRAME', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'LABEL',
-    'DETAILS', 'SUMMARY', 'PRE', 'SCRIPT', 'STYLE', 'LINK', 'VIDEO', 'AUDIO',
-    'CUSTOM-STYLE', 'DIALOG'];
-  var BODY_PROTECT_CLS = 'mes_';   // .mes_buttons / .mes_media_wrapper / .mes_bias 等（以空格分词匹配）
-  var BODY_TAG_DEF = 'content';
-  var BODY_TAG_MAX = 32;
+  /* ───────── 旧「正文美化包裹层」残渣清理（退役，契约 §9.7）─────────
+     2026-09-25 做过一版「只把 <content> 标签内的正文包进 .kami-md 骨架」的功能
+     （div.kami-root[data-kami-comp="body"]），2026-09-26 按用户裁定**整体退役**：
+     改用全局层（src/skin/tavern.css）直接给 #chat 的消息楼层上皮肤排版，不再往
+     楼层 DOM 里插任何节点 —— 复杂度归零，也不会和插件/既有前端抢层级。
+     这里保留一次「扫尾」：万一页面上还留着旧版包出来的包裹层（老版本升级上来的
+     用户、旧聊天复用了已渲染的 DOM），当场把里面的节点按原顺序搬回原位再删包裹层。
+     幂等 + 惰性：整页一条都没有时是「一次 querySelectorAll 就返回」，可以挂在
+     每条 iframe 事件链上跑（syncAll / syncAllIframes 末尾）。
+     用 :scope > 认亲，只挑包裹层结构本身，绝不误伤面板里的 .kami-md 正文块。 */
+  var MES_WRAP_SEL = '.kami-root[data-kami-comp="body"]';
+  var MES_CHILD_SEL = ':scope > .kami-body.kami-md, :scope > div.kami-body.kami-md';
 
-  /* 标签名规范：去首尾空白；空值 / 超长 / 含尖括号·引号·斜杠·空白 → 非法（调用方回退默认）。
-     再用真实 DOM 验一道（querySelectorAll 对非法标识符会抛错），保证标签名
-     永远不会把查找路径拼坏 —— 查找用 getElementsByTagName（不做 CSS 解析），校验宁可从严。 */
-  function normalizeBodyTag(v) {
-    if (typeof v !== 'string') { return null; }
-    var t = v.trim();
-    if (!t || t.length > BODY_TAG_MAX) { return null; }
-    if (/[<>"'\s\/\\]/.test(t)) { return null; }
-    try {
-      HDOC.createElement(t);
-      var probe = HDOC.body || HDOC.documentElement;
-      if (probe) { probe.querySelectorAll(t); }
-      return t;
-    } catch (e) { return null; }
-  }
-  function bodyTag() { return normalizeBodyTag(state.bodyTag) || BODY_TAG_DEF; }
-
-  function bodyProtected(el) {
-    if (el.nodeType !== 1) { return false; }
-    if (BODY_PROTECT_TAGS.indexOf(el.tagName) >= 0) { return true; }
-    if (el.hasAttribute('class')) { return true; }   /* 插件卡片 / TH-render / 包裹层本身 / 酒馆容器 */
-    if (el.hasAttribute('style')) { return true; }   /* HTML 美化条目产出的卡片（预设强制行内样式） */
-    if ((el.className || '').split(/\s+/).indexOf(BODY_PROTECT_CLS) >= 0) { return true; }
-    return false;
-  }
-  /* 注释节点与纯空白文本必须跳过：包进去会造出空 wrapper，
-     并让酒馆的 `.last_mes:has(.mes_text:empty)` 显隐判据失效（探针第一版实测踩过）。 */
-  function bodySkippable(n) {
-    if (n.nodeType === 8) { return true; }                 /* 注释 */
-    if (n.nodeType === 3) { return !n.nodeValue.trim(); }  /* 纯空白文本 */
-    return false;
-  }
-
-  /* 一段「可包节点」包进包裹层：插入父元素 = host，候选节点 = kids（必须是 host 的直接子节点）。
-     手法（探针实测踩坑后的定稿）：先在连续段首节点**之前**插入空包裹层，
-     再把段内节点逐个 appendChild 搬进去 —— 全程保留原节点对象，
-     事件监听与插件锚点都不会丢。 */
-  function wrapRunsIn(host, kids) {
-    try {
-      var runs = [], cur = [], i;
-      for (i = 0; i < kids.length; i++) {
-        var n = kids[i];
-        if (bodySkippable(n)) { continue; }
-        if (n.nodeType === 1 && bodyProtected(n)) {
-          if (cur.length) { runs.push(cur); cur = []; }
-          continue;
-        }
-        cur.push(n);
-      }
-      if (cur.length) { runs.push(cur); }
-      for (i = 0; i < runs.length; i++) {
-        var root = host.ownerDocument.createElement('div');
-        root.className = 'kami-root';
-        root.setAttribute('data-kami-comp', 'body');
-        root.setAttribute('data-kami-ready', '1');
-        var body = host.ownerDocument.createElement('div');
-        body.className = 'kami-body kami-md';
-        root.appendChild(body);
-        var run = runs[i];
-        host.insertBefore(root, run[0]);
-        for (var j = 0; j < run.length; j++) { body.appendChild(run[j]); }
-      }
-      return runs.length;
-    } catch (e) { return 0; }
-  }
-
-  /* .mes_text 里「最外层的」用户标签容器（嵌套同名只认最外层，内层整个被外层包裹层带走） */
-  function bodyContainers(mt) {
-    var tag = bodyTag();
-    var raw;
-    try { raw = mt.getElementsByTagName(tag); } catch (e) { return []; }
-    var out = [];
-    for (var i = 0; i < raw.length; i++) {
-      var el = raw[i], up = el.parentNode, nested = false;
-      while (up && up !== mt) { if (up.tagName === el.tagName) { nested = true; break; } up = up.parentNode; }
-      if (!nested) { out.push(el); }
-    }
-    return out;
-  }
-  function bodyHasWrap(el) {
-    try { return !!el.querySelector(BODY_WRAP_SEL); } catch (e) { return false; }
-  }
-
-  /* ── 兜底判据：标签被酒馆清洗剥掉时走的「原始文本 → 文本指纹」对位 ──
-     归一化：只留文字/数字/注音/emoji，标点与 markdown 记号（* _ ` # > 等）全忽略 ——
-     于是「夜里**很冷**。」与渲染后的「夜里很冷。」指纹相同，空白差异也一并抹平。 */
-  function normText(s) {
-    return String(s).replace(/[^\p{L}\p{N}\p{M}\u2600-\u27BF\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}]/gu, '');
-  }
-  function readMesRaw(mesid) {
-    if (typeof getChatMessages !== 'function') { return null; }
-    try {
-      var arr = getChatMessages(String(mesid));
-      if (arr && arr.length) {
-        for (var i = 0; i < arr.length; i++) {
-          if (arr[i] && Number(arr[i].message_id) === Number(mesid) && typeof arr[i].mes === 'string') { return arr[i].mes; }
-        }
-      }
-    } catch (e) { }
-    return null;
-  }
-  /* 在原始文本里找 <tag>…</tag> 的全部内文（大小写不敏感；开标签允许带属性） */
-  function bodySectionsIn(raw, tag) {
-    var out = [];
-    try {
-      var esc = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      var tok = new RegExp('<(/?)' + esc + '(?=\\s|>|/)[^>]*>', 'g');
-      var src = String(raw);
-      var m, depth = 0, start = -1;
-      tok.lastIndex = 0;
-      while ((m = tok.exec(src)) != null) {
-        if (!m[1]) {
-          if (depth === 0) { start = m.index + m[0].length; }
-          depth++;
-        } else if (depth > 0) {
-          depth--;
-          if (depth === 0 && start >= 0) { out.push(src.slice(start, m.index)); start = -1; }
-        }
-      }
-    } catch (e) { }
-    return out;
-  }
-  /* 窗口里有几个「可包」的连续段（找不到可包节点时 = 这一窗已在包裹层里、无需再包） */
-  function runsCount(kids) {
-    var cnt = 0, cur = 0;
-    for (var i = 0; i < kids.length; i++) {
-      var n = kids[i];
-      if (bodySkippable(n)) { continue; }
-      if (n.nodeType !== 1 || !bodyProtected(n)) { cur = 1; continue; }
-      if (cur) { cnt++; cur = 0; }
-    }
-    if (cur) { cnt++; }
-    return cnt;
-  }
-  /* 在 .mes_text 的直接子节点序列上找一段连续窗口，其归一化指纹恰好等于标签内文。
-     窗口里有可包节点 → 包（返回段数）；窗口里全是让位对象/包裹层 → 已包好，返回 -1；
-     整个窗口对不上 → 返回 0（失败 = 不美化，绝不包错）。 */
-  function wrapByFingerprint(mt, innerRaw) {
-    var target = normText(innerRaw);
-    if (!target) { return 0; }
-    var kids = Array.prototype.slice.call(mt.childNodes);
-    var cs = kids.map(function (k) { return normText(k.nodeType === 3 ? k.nodeValue : k.textContent); });
-    for (var i = 0; i < kids.length; i++) {
-      var acc = '';
-      for (var j = i; j < kids.length; j++) {
-        acc += cs[j];
-        if (acc.length > target.length) { break; }
-        if (acc.length === target.length && acc === target) {
-          var win = kids.slice(i, j + 1);
-          if (runsCount(win) === 0) { return -1; }   /* 指纹对上但已在包裹层里：不是 miss，也不重复动手 */
-          return wrapRunsIn(mt, win);
-        }
-      }
-    }
-    return 0;
-  }
-  /* 一条 .mes_text 的兜底路径：只有「真对不上」才按（标签名, 原文长度）记忆、本形态不再重试
-     （原文改写会变长度，钥匙自动更换重算；「已包好」永不记忆，开关/标签一拆一重包还在）。 */
-  function wrapFromBodyRange(mt, raw, tag) {
-    var key = '__kamiBodyAt_' + tag + ':' + String(raw).length;
-    if (mt[key] === true) { return 0; }
-    var sections = bodySectionsIn(raw, tag);
-    var n = 0, anyDone = false, anyHard = false;
-    for (var i = 0; i < sections.length; i++) {
-      var w = wrapByFingerprint(mt, sections[i]);
-      if (w > 0) { n += w; anyDone = true; }
-      else if (w < 0) { anyDone = true; }
-      else { anyHard = true; log('正文标签 <' + tag + '> 的内文指纹在渲染后的 DOM 里对不上（该段保持原样、未美化）'); }
-    }
-    if (!anyDone && anyHard) { mt[key] = true; }
-    return n;
-  }
-
-  /* 清一条 .mes_text 的包裹层（关闭开关 / 注销时）：把包裹层里搬进去的节点按原顺序放回，再删包裹层。
-     v2 注意：包裹层可能在用户标签容器**内部**（主路径），也可能就在 .mes_text 直接子级（兜底路径），
-     所以用后代查询 + 逆序还原，两种位置都拆得干净。 */
-  function unwrapOneMesText(mesText) {
-    var roots;
-    try { roots = mesText.querySelectorAll('.kami-root[data-kami-comp="body"]'); } catch (e) { return; }
-    for (var i = roots.length - 1; i >= 0; i--) {
-      var root = roots[i];
-      var body = root.firstElementChild;
+  function purgeBodyWraps() {
+    if (disposed) { return; }
+    var chat = HDOC.getElementById ? HDOC.getElementById('chat') : null;
+    if (!chat) { return; }
+    var wraps;
+    try { wraps = chat.querySelectorAll(MES_WRAP_SEL); } catch (e) { return; }
+    for (var i = wraps.length - 1; i >= 0; i--) {
+      var root = wraps[i];
       var parent = root.parentNode;
       if (!parent) { continue; }
+      var body = null;
+      try { body = root.querySelector(MES_CHILD_SEL); } catch (e2) { body = root.firstElementChild; }
+      if (!body) { continue; }
       try {
-        while (body && body.firstChild) { parent.insertBefore(body.firstChild, root); }
-      } catch (e) { continue; }   /* 万一搬不动（不该发生），留着包裹层总比丢内容强 */
-      parent.removeChild(root);
-    }
-  }
-
-  /* 遍历 #chat 里所有 .mes_text：开启时包裹、关闭时还原。
-     单轮最多包 12 层，剩下的留给下一轮触发（防大聊天首次加载卡顿；调研 §2.4）。
-     主路径：找用户标签容器，只包容器内部；
-     兜底：容器一个都没有、但原始文本里确实出现了这个标签（多半被清洗剥掉）时，才走指纹对位。 */
-  var BODY_SWEEP_CAP = 12;
-  function syncBody() {
-    if (disposed) { return; }
-    var on = bodyTextOn();
-    var list;
-    try { list = HDOC.querySelectorAll(BODY_MES_TEXT_SEL); } catch (e) { return; }
-    var done = 0;
-    for (var i = 0; i < list.length; i++) {
-      var mt = list[i];
-      if (!on) { unwrapOneMesText(mt); continue; }
-      var containers = bodyContainers(mt);
-      for (var c = 0; c < containers.length; c++) {
-        if (done >= BODY_SWEEP_CAP) { break; }
-        if (bodyHasWrap(containers[c])) { continue; }   /* 该容器已包过：跳过（幂等，不套娃） */
-        done += wrapRunsIn(containers[c], Array.prototype.slice.call(containers[c].childNodes));
-      }
-      if (!containers.length && done < BODY_SWEEP_CAP) {
-        var mes = mt.closest ? mt.closest('.mes') : null;
-        var mesid = mes ? mes.getAttribute('mesid') : null;
-        if (mesid !== null && mesid !== '') {
-          var tag = bodyTag();
-          var raw = readMesRaw(mesid);
-          if (raw && String(raw).toLowerCase().indexOf('<' + tag.toLowerCase()) >= 0) {
-            done += wrapFromBodyRange(mt, raw, tag);
-          }
-        }
-      }
+        while (body.firstChild) { parent.insertBefore(body.firstChild, root); }
+        parent.removeChild(root);
+      } catch (e3) { }   /* 万一搬不动（不该发生），留着包裹层总比丢内容强 */
     }
   }
 
   /* ───────── 装饰：注入 / 销毁（契约 §8）───────── */
-
-  /* 正文美化的触发点**复用**上面三条既有链（报告 §2.3 的纪律：不新增观察者）：
-     · MESSAGE_IFRAME_RENDER_ENDED / STARTED 事件 → syncIframe(id)（末尾补 syncBodyAfterIframes）；
-     · 300ms 防抖 MutationObserver → syncAllIframes()（末尾补）；
-     · 8 秒 sweep → syncAllIframes()（同上）。
-     开关关着时 syncBodyAfterIframes 第一行就返回，零成本。 */
-  function syncBodyAfterIframes() {
-    if (disposed || !bodyTextOn()) { return; }
-    try { syncBody(); } catch (e) { }
-  }
-
-  /* 正文包裹层的结构性兜底（契约 §9.7 登记的例外）：
-     只做排版归位（块级、清外边距、防横向溢出），一个颜色都不写 —— 外观仍归皮肤。
-     作用域带 .kami-root[data-kami-comp="body"]，特异性 (0,3,0) 高于 .kami-root 通用规则的
-     (0,2,0)/(0,2,1)，皮肤想接管写同名前缀的规则即可，不冲突。 */
-  var BODY_STRUCT_CSS = '.kami-root[data-kami-comp="body"]{display:block;margin:0;min-width:0;max-width:100%;overflow-wrap:anywhere;}'
-    + '.kami-root[data-kami-comp="body"]>.kami-body{padding:0;}';
 
   function decorOn(id) {
     var d = curSkin().decor;
@@ -1032,14 +789,6 @@
       }
     });
 
-    /* 正文标签文本行（v2 新增）：change（失焦 / Enter 提交）就地生效并校验，
-       非法值回退默认并回显。 */
-    panelDrop.addEventListener('change', function (ev) {
-      var t = ev.target;
-      if (!t || !t.getAttribute || !t.getAttribute('data-kami-bodytag')) { return; }
-      setBodyTag(t.value, t);
-    });
-
     /* 参数：滑杆与数字输入双向绑定 */
     panelDrop.addEventListener('input', function (ev) {
       var t = ev.target;
@@ -1226,15 +975,21 @@
     if (!box) { return; }
     box.textContent = '';
     /* 「显示」卡（全局档位）整张放到**皮肤预览之前**（2026-09-25 用户裁定：放在皮肤预览上面）。
-       只调「皮肤」页的卡片顺序；卡内行序保持现状（正文美化第一行、正文标签第二行，
-       明暗/动效/密度三行相对顺序不变）；参数 / 特效两页的顺序不动。 */
+       只调「皮肤」页的卡片顺序；卡内行序保持现状。 */
     box.appendChild(sectionTitle('显示'));
     var g = mk('div', 'kami-card');
-    /* 正文美化放**第一行**（2026-09-25 用户裁定），后面明暗/动效/密度三行相对顺序不变。
-       「正文标签」文本行紧随其后（同一卡内，改标签名当场生效，见 setBodyTag）。
-       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll），零新类名零新令牌。 */
-    g.appendChild(flagRow('bodyText', '正文美化', [['0', '关'], ['1', '开']]));
-    g.appendChild(textRow('bodyTag', '正文标签'));
+    /* 行序（2026-09-26 起）：
+       ① 正文前端 —— 把 `<content>…</content>` 里的正文交给嵌入式前端渲染，**默认开**。
+          它本质是一条酒馆正则（「前端|正文 v0.1」，在 list.json 里排在「显式思维链」**之前**）
+          的启用位；开关与酒馆真正的正则开关**联动**（setBodyFront 读写正则表的启用位）。
+          与下面三个档位同一类：全局、不随皮肤变、存在 state 顶层。
+          默认值必须是字符串 '1'（flagRow 按 String(state[key]) 判选中态，布尔 true 会显示成「关」）。
+       ②③④ 明暗 / 动效 / 密度，相对顺序不变。
+       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll → setBodyFront），零新类名零新令牌。 */
+    g.appendChild(flagRow('bodyFront', '正文前端', [['0', '关'], ['1', '开']]));
+    /* 风险提示（用户 2026-09-26 给的定稿文案，逐字照抄，不要再改词）—— 用已登记的 .kami-card-note */
+    g.appendChild(mk('div', 'kami-card-note',
+      '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。'));
     g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
     g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
     g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
@@ -1274,33 +1029,13 @@
     var val = mk('span', 'kami-field-value');
     var seg = mk('span', 'kami-seg');
     opts.forEach(function (o) {
-      /* 布尔态（bodyText 的 false/true）与字符串档位（'0'/'1'）统一比字符串：
-         flagRow 选中态只认「当前值 == 选项值」，两边都 String() 后比较，避免类型不一致高亮错。 */
-      var now = (state[key] === true) ? '1' : (state[key] === false) ? '0' : String(state[key] === undefined || state[key] === null ? '' : state[key]);
+      /* 选中态只认「当前值 == 选项值」，两边都 String() 后比较，避免类型不一致导致高亮错。 */
+      var now = String(state[key] === undefined || state[key] === null ? '' : state[key]);
       var b = mk('button', 'kami-seg-item' + (now === o[0] ? ' is-on' : ''), o[1]);
       b.setAttribute('data-kami-act', 'flag:' + key + '=' + o[0]);
       seg.appendChild(b);
     });
     val.appendChild(seg);
-    row.appendChild(val);
-    return row;
-  }
-
-  /* 单行文本设置项：复用契约 §4.2 已登记的 .kami-field + .kami-text（文本框专用类），
-     零新类名。行为钩子 data-kami-bodytag 由 bindPanelEvents 的 change 委托接（v2 新增）。 */
-  function textRow(key, label) {
-    var row = mk('div', 'kami-field');
-    row.appendChild(mk('span', 'kami-field-label', label));
-    var val = mk('span', 'kami-field-value');
-    var inp = mk('input', 'kami-text');
-    inp.type = 'text';
-    inp.value = bodyTag();
-    inp.placeholder = BODY_TAG_DEF;
-    inp.autocomplete = 'off';
-    inp.spellcheck = false;
-    inp.setAttribute('data-kami-bodytag', '1');
-    inp.setAttribute('aria-label', label);
-    val.appendChild(inp);
     row.appendChild(val);
     return row;
   }
@@ -1496,45 +1231,38 @@
     renderFxPane();
     renderPaneStatusOnly();
   }
+  /* 档位开关。返回值只对 bodyFront 有意义（见 setBodyFront 的契约）：
+     面板路径不看它；导出给引导页的那条会拿它等写入落定。 */
   function setFlag(kv) {
     var i = kv.indexOf('=');
     var k = kv.slice(0, i), v = kv.slice(i + 1);
+    var prev = state[k];
     state[k] = v;
     saveState();
+    /* 档位改动只需重下 <html> 属性 + 皮肤 CSS（酒馆 UI 一个像素都不动，所以这里没有别的动作） */
     syncAll();
     renderPane();
-    if (k === 'bodyText') {
-      /* 正文美化开关就地点火/还原：不再等下一轮 iframe 事件或 sweep */
-      if (v === '1') { try { syncBody(); } catch (e) { } }
-      else { try { unwrapAllBody(); } catch (e) { } }
-      log('正文美化 → ' + (v === '1' ? '开' : '关'));
+    if (k !== 'bodyFront') { return null; }
+    /* 正文前端：**就地点火** —— 它本质是一条酒馆正则（「前端|正文 v0.1」）的启用位，
+       所以除了上面的同步，还要把正则表的启用位真正写回去（见 setBodyFront）。
+       写不成（false）或写失败（reject）就把档位**退回原位**：开关的位置必须反映酒馆正则的
+       真实启用状态，否则用户会以为开了、正文其实没被前端接管（只有日志能看出问题）。 */
+    var w = null;
+    try { w = setBodyFront(bodyFrontOn()); } catch (e) { }
+    var back = function () {
+      state[k] = prev;
+      saveState();
+      syncAll();
+      renderPane();
+      toast('error', '没能写进酒馆正则，开关已退回原位。请确认预设里有「' + BODY_REGEX_NAME + '」这条正则。');
+    };
+    if (w && typeof w.then === 'function') {
+      return w.then(function () { log('正文前端 → ' + (bodyFrontOn() ? '开' : '关')); return true; },
+        function (e) { back(); throw e; });
     }
-  }
-  /* 正文标签（v2 新增）：与开关同样的就地点火方式 —— 改完立即「拆旧包 → 按新标签重包」。
-     非法值（空 / 尖括号 / 引号 / 空白 / 超长 / 非法标识符）拒绝并回退默认，
-     输入框当场回显生效值，绝不把查找拼坏。 */
-  function setBodyTag(v, srcNode) {
-    var tag = normalizeBodyTag(v);
-    if (!tag) {
-      toast('warning', '正文标签不合法，已回退为「' + BODY_TAG_DEF + '」');
-      tag = BODY_TAG_DEF;
-      log('正文标签「' + v + '」非法，回退默认 ' + BODY_TAG_DEF);
-    }
-    state.bodyTag = tag;
-    if (srcNode && srcNode.value !== tag) { srcNode.value = tag; }
-    saveState();
-    if (bodyTextOn()) {
-      /* 边界换了：先全部拆除，再按新标签重新包一轮 */
-      try { unwrapAllBody(); } catch (e) { }
-      try { syncBody(); } catch (e) { }
-    }
-    log('正文标签 → ' + tag);
-  }
-  /* 把 #chat 里所有正文包裹层还原（关闭开关 / 注销时走这里，一条不剩） */
-  function unwrapAllBody() {
-    var list;
-    try { list = HDOC.querySelectorAll(BODY_MES_TEXT_SEL); } catch (e) { return; }
-    for (var i = 0; i < list.length; i++) { unwrapOneMesText(list[i]); }
+    if (w === false) { back(); return false; }
+    log('正文前端 → ' + (bodyFrontOn() ? '开' : '关'));
+    return w;
   }
 
   function setOpen(open) {
@@ -1545,6 +1273,9 @@
       panelRoot.style.display = '';
       restoreGeometry();
       logGeom('打开');
+      /* 每次打开面板都跟酒馆正则对一次账：用户可能在酒馆原生面板里改过这条正则，
+         开关的位置必须是**当前真实状态**，不是我们上次记住的状态。 */
+      syncBodyFrontFromTavern();
       renderPane();
     } else {
       panelDrop.setAttribute('data-kami-open', '0');
@@ -1552,13 +1283,136 @@
     }
     saveState();
   }
-  /* flagRow 的选中态按字符串比较：bodyText 用 '0'/'1' 存，读回来统一成布尔给 syncBody 用 */
-  function bodyTextOn() {
-    return state.bodyText === true || state.bodyText === '1';
+  /* 档位值统一按字符串存（'0'/'1'）：兼容旧存档里写成布尔 true/false 的形态 */
+  function bodyFrontOn() {
+    return state.bodyFront === true || state.bodyFront === '1';
+  }
+  /* ---------- 正文前端：正则启用位的读写（「前端|正文 v0.1」）----------
+     这条功能本质是一条**酒馆正则**：它把 `<content>…</content>` 换成前端载荷，
+     由酒馆助手渲染成 iframe（与「显式思维链 / 行动选项」同一个机制）。
+     所以「开关」= 把正则表里那一条的启用位写回去 —— 酒馆的正则表是活设置，
+     写回后酒馆自己会持久化（§五第 16 条：写完发 OAI_PRESET_CHANGED_AFTER 让原生面板刷新）。
+
+     ⚠️ 字段名与预设文件里**不一样**（2026-09-26 对着官方文档逐条核对，两处曾写错、静默失效）：
+       酒馆预设文件（src/preset.base.json / src/regex/list.json）用的是酒馆原生形态
+         `scriptName` / `disabled`（camelCase）；
+       酒馆助手的 getTavernRegexes 返回的是**归一化形态**
+         `script_name` / `enabled`（snake_case），官方类型：
+         https://n0vi028.github.io/JS-Slash-Runner-Doc/guide/功能详情/酒馆正则/获取正则.html
+       按 camelCase 去匹配会一个都匹配不上；按 `disabled` 去比对会拿 undefined 当「已一致」，
+       于是开关看着能点、日志还说「已设为启用」，实际一个字节都没写。
+       这里的规矩：**名字两种都认**（兼容旧版本/原生对象），
+       **启用位只动对象上本来就有的那个键**（有 enabled 就写 enabled，有 disabled 才写 disabled），
+       绝不凭空造字段。replaceTavernRegexes 的第二个参数是**必填**的（不带会落到全局正则表），
+       统一照 60-压缩.js 的写法：{ type: 'preset', name: 'in_use' }。
+
+     ⚠️ 两个已知代价，做成了面板上的提示（用户点名要求）：
+       ① replaceTavernRegexes 为了重新应用正则会**重新载入整个聊天消息**，已加载出来的楼层要等重载完
+          才看到效果或恢复；极端情况下会让人以为「消息丢了」。
+       ② 正则被关掉时，`<content>` 标签会原样显示成文本（内容不丢，只是露出标签）。 */
+  var BODY_REGEX_NAME = '前端|正文 v0.1';
+  var BODY_REGEX_NAME_ALT = '前端|正文';   /* 兼容旧名（改名前导出的预设 / 用户手改过） */
+  var BODY_REGEX_NAME_OLD = '前端|正文(占位)';   /* v0.1 之前的占位名，老预设里可能还是它 */
+  function bodyRegexApi() {
+    /* 酒馆助手 4.x：getTavernRegexes / replaceTavernRegexes。
+       读、写**都必须带 { type: 'preset', name: 'in_use' }**：
+       不带 type 会落到全局正则表，不带 name 认不出「当前使用中的预设」。 */
+    if (typeof getTavernRegexes !== 'function' || typeof replaceTavernRegexes !== 'function') { return null; }
+    var opt = { type: 'preset', name: 'in_use' };
+    return {
+      get: function () { return getTavernRegexes(opt) || []; },
+      put: function (list) { return replaceTavernRegexes(list, opt); }
+    };
+  }
+  function regexNameOf(r) {
+    if (!r) { return ''; }
+    /* 归一化形态 script_name 优先；没有就退回酒馆原生 scriptName */
+    return String(r.script_name !== undefined && r.script_name !== null ? r.script_name
+      : (r.scriptName !== undefined && r.scriptName !== null ? r.scriptName : ''));
+  }
+  function regexOnOf(r) {
+    if (!r) { return false; }
+    if (typeof r.enabled === 'boolean') { return r.enabled; }          /* 归一化形态 */
+    if (typeof r.disabled === 'boolean') { return !r.disabled; }       /* 酒馆原生形态 */
+    return true;   /* 两个都没有：当成启用（不要凭空把用户的正则关掉） */
+  }
+  function setRegexOn(r, on) {
+    var wrote = false;
+    if (r && typeof r.enabled === 'boolean') { r.enabled = !!on; wrote = true; }
+    if (r && typeof r.disabled === 'boolean') { r.disabled = !on; wrote = true; }
+    if (!wrote) { r.enabled = !!on; }   /* 两种形态都没有：按归一化形态写 */
+  }
+  function findBodyRegex(list) {
+    var arr = (list && list.length ? list : (list && list.regexes) || []) || [];
+    /* 先精确匹配带版本号的名字，再退回不带版本号的前缀匹配（改名兼容） */
+    for (var i = 0; i < arr.length; i++) {
+      if (regexNameOf(arr[i]) === BODY_REGEX_NAME) { return { list: arr, index: i, item: arr[i] }; }
+    }
+    for (var j = 0; j < arr.length; j++) {
+      var n = regexNameOf(arr[j]);
+      if (n.indexOf(BODY_REGEX_NAME_ALT) === 0 || n === BODY_REGEX_NAME_OLD) { return { list: arr, index: j, item: arr[j] }; }
+    }
+    return null;
+  }
+  /* 写正则启用位。返回值契约（两个调用方都靠它决定界面怎么画）：
+       true   —— 本来就一致，不用写（最省，也避免白白重载一次聊天）
+       false  —— 写不了（版本没有接口 / 正则表里找不到这条）
+       Promise—— 真写下去了，等它落定；resolve=写成功，reject=写失败 */
+  function setBodyFront(on) {
+    var want = !!on;
+    var api = bodyRegexApi();
+    if (!api) { log('正文前端：这个酒馆助手版本没有 getTavernRegexes / replaceTavernRegexes，改不了正则启用位'); return false; }
+    try {
+      var list = api.get();
+      var hit = findBodyRegex(list);
+      if (!hit) { log('正文前端：正则表里没有「' + BODY_REGEX_NAME + '」，改不了启用位'); return false; }
+      if (regexOnOf(hit.item) === want) { return true; }   /* 已经一致，不白写 */
+      setRegexOn(hit.item, want);
+      var p = api.put(hit.list);
+      return Promise.resolve(p).then(function () {
+        try {
+          if (typeof eventEmit === 'function' && typeof tavern_events !== 'undefined') {
+            eventEmit(tavern_events.OAI_PRESET_CHANGED_AFTER);
+          }
+        } catch (e) { }
+        log('正文前端：正则「' + BODY_REGEX_NAME + '」已设为 ' + (want ? '启用' : '停用'));
+        return true;
+      }, function (e) {
+        log('正文前端：写正则启用位失败（' + ((e && e.message) || e) + '）');
+        throw e;
+      });
+    } catch (e) {
+      log('正文前端：写正则启用位失败（' + ((e && e.message) || e) + '）');
+      return false;
+    }
+  }
+  /* 面板 / 引导上那枚开关的**位置**，与酒馆正则的真实启用位对账（用户 2026-09-26 点名要求）。
+     为什么只读不写：写正则走 replaceTavernRegexes，它会**重新载入整个聊天**（见 setBodyFront 的注释），
+     启动时或一开面板就来这么一下，用户会莫名其妙看见聊天重载。
+     所以规矩是：**界面跟着酒馆走** —— 谁在酒馆原生面板里改了这条正则，我们下次对账就把开关摆过去。
+     读不到（版本没接口 / 预设里没有这条正则）就保持原样，不猜、不动。
+     返回 true 表示「这次真的对上了、界面重画过」。 */
+  function syncBodyFrontFromTavern() {
+    var api = bodyRegexApi();
+    if (!api) { return false; }
+    try {
+      var hit = findBodyRegex(api.get());
+      if (!hit) { return false; }
+      var real = regexOnOf(hit.item) ? '1' : '0';
+      if (String(state.bodyFront) === real) { return false; }
+      var was = bodyFrontOn() ? '开' : '关';
+      state.bodyFront = real;
+      saveState();
+      renderPane();
+      log('正文前端：按酒馆正则的真实启用位对齐（' + was + ' → ' + (real === '1' ? '开' : '关') + '）');
+      return true;
+    } catch (e) {
+      log('正文前端：对账失败（' + ((e && e.message) || e) + '）');
+      return false;
+    }
   }
   function openPanel() { setOpen(true); }
-  function closePanel() { setOpen(false); }
-  function togglePanel() { setOpen(!(state.panel.open && panelDrop && panelDrop.getAttribute('data-kami-open') === '1')); }
+  function closePanel() { setOpen(false); }  function togglePanel() { setOpen(!(state.panel.open && panelDrop && panelDrop.getAttribute('data-kami-open') === '1')); }
 
   /* ───────── 登记按钮 ───────── */
 
@@ -1611,8 +1465,23 @@
       },
       open: openPanel, close: closePanel, toggle: togglePanel,
       setSkin: setSkin, setParam: setParam, setFlag: function (k, v) { setFlag(k + '=' + v); },
-      /* v2：改正文标签名并就地点火（控制台/引导可调；面板输入行走同一个 setBodyTag） */
-      setBodyTag: function (v) { setBodyTag(v, null); },
+      /* 正文前端（引导面板的皮肤页要用它给一枚开关）：
+         bodyFront() 读当前状态；setBodyFront(on) 写状态 + 联动酒馆真正的正则启用位。
+         返回契约照 50-引导.js 的开关行工厂：Promise=写入落定后成功（值=落定后的状态）、
+         null=写不了（那边弹提示、不翻界面）、布尔=无需写，直接就是落定后的状态。 */
+      bodyFront: function () { return bodyFrontOn(); },
+      /* 引导页那枚开关在渲染前先调一次：把状态与酒馆正则的真实启用位对齐（只读，不写正则）。
+         这样「谁在酒馆原生面板里改过」也能被引导页如实反映。 */
+      syncBodyFront: function () { return syncBodyFrontFromTavern(); },
+      setBodyFront: function (on) {
+        var w = null;
+        try { w = setFlag('bodyFront=' + (on ? '1' : '0')); } catch (e) { }
+        if (w && typeof w.then === 'function') {
+          return w.then(function () { return bodyFrontOn(); });   /* 写失败会 reject → 引导页弹提示且不翻界面 */
+        }
+        if (w === false || w === null || w === undefined) { return null; }
+        return bodyFrontOn();
+      },
       sync: syncAll, shutdown: function () { teardown(); },
       status: function () {
         return {
@@ -1646,12 +1515,12 @@
     /* 页面与所有消息 iframe：收样式、摘属性 */
     try { dropStyle(HDOC, STYLE_ID); } catch (e) { }
     try { dropStyle(HDOC, USER_STYLE_ID); } catch (e) { }
-    try { dropStyle(HDOC, TAVERN_STYLE_ID); } catch (e) { }
     try { destroyDecor(HDOC); } catch (e) { }
     try { restoreDecor(HDOC); } catch (e) { }
     try { clearAttrs(HDOC); } catch (e) { }
-    /* 正文包裹层：原样还原（原节点搬回 .mes_text 直接子级），不留残迹 */
-    try { unwrapAllBody(); } catch (e) { }
+    /* 旧功能残渣 + 消息排版的宿主标记：注销时一并清扫，页面上不留 kami 痕迹 */
+    try { purgeBodyWraps(); } catch (e) { }
+    try { unmarkMesHosts(); } catch (e) { }
     try {
       var frames = HDOC.querySelectorAll(IFRAME_SEL), k;
       for (k = 0; k < frames.length; k++) {
@@ -1688,8 +1557,12 @@
     readState();
     expose();
     syncAll();
-    /* 首轮正文美化（开关开着时）：楼层 DOM 可能比样式下发晚建好，再补一次 */
-    setTimeout(function () { if (!disposed && bodyTextOn()) { try { syncBody(); } catch (e) { } } }, 600);
+    /* 开关位置与酒馆正则的真实启用位对账（只读；写会重载聊天，所以这里绝不写）。
+       启动瞬间可能读不到正则表（酒馆助手还没就绪 / 预设还没加载完），1.2 秒后补一次。 */
+    syncBodyFrontFromTavern();
+    setTimeout(function () { if (!disposed) { try { syncBodyFrontFromTavern(); } catch (e) { } } }, 1200);
+    /* 旧功能残渣清理（消息排版 v1 的包裹层）：楼层 DOM 可能比样式下发晚建好，再补一次 */
+    setTimeout(function () { if (!disposed) { try { purgeBodyWraps(); } catch (e) { } } }, 600);
 
     /* 新楼层 / 重渲染的消息 iframe */
     try {

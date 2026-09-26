@@ -113,8 +113,7 @@
                 "scheme": "",
                 "motion": "full",
                 "density": "cozy",
-                "bodyText": false,
-                "bodyTag": "content",
+                "bodyFront": "1",
                 "effects": {},
                 "params": {},
                 "panel": {
@@ -126,6 +125,22 @@
                 }
             }
         },
+        "export_with": {
+            "data": true,
+            "button": true
+        }
+    },
+    {
+        "file": "45-正文外壳.js",
+        "name": "📄 正文外壳 v0.1",
+        "id": "b7e4c1a2-3f68-4d19-9c05-8ae27f4b61d3",
+        "enabled": true,
+        "info": "把 AI 输出里 <content>…</content> 的正文套上一层卡密外壳（标题 / 字数 / 渲染与原文双视图 / 复制）。\n\n· 2026-09-26 起**不再用 iframe**：正文留在聊天页的 DOM 里，脚本只把正则留下的那对标记之间套壳。\n  这么改是为了让「在正文里就地插生图按钮」的插件照常工作 —— 正文在 DOM 里，插件才看得见、插得进，\n  按钮也才会散布在正文对应的那一行（而不是挤成一堆）。\n· 只渲染最新一层（正则 maxDepth=1）；老楼层照旧是酒馆原生排版，不套壳、不打扰。\n· 外壳用皮肤那套类名与令牌（.kami-root / data-kami-comp=body），换皮肤即换外观；\n  皮肤管理没运行时回落到内置兜底皮肤。\n· 本脚本不写预设、不改酒馆设置；被关闭或删除时外壳与标记都不再产生，正文照旧正常显示。",
+        "button": {
+            "enabled": true,
+            "buttons": []
+        },
+        "data": {},
         "export_with": {
             "data": true,
             "button": true

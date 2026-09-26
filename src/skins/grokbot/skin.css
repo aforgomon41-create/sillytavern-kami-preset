@@ -201,13 +201,16 @@ html[data-kami-skin="grokbot"] .kami-root {
   word-break: break-word;
   -webkit-tap-highlight-color: transparent;
 }
-/* —— 语义色按「背景是深还是浅」分两套（不是按 data-kami-scheme）——
-   因为同一个 html 的 scheme 下，面板（炭底）与消息楼层（黏土白）底色是**反的**，
-   只看 scheme 会量错底。所以这里按 data-kami-comp 挂：
-     暗色方案：面板＝炭底 ⇒ 用亮级；消息楼层＝黏土白 ⇒ 用暗级（= :root 上面那套的反相）
-     亮色方案：面板也翻成黏土白 ⇒ 面板也要用暗级（见 §17）
+/* —— 语义色：**只有消息楼层是浅底时才用暗级** ——
+   2026-09-26 用户裁定：**暗色方案下消息楼层也是炭底**（「默认暗色情况下，面板应该是黑色的、字体是白的，
+   比如正文前端就该是黑底白字」）。所以那套「按 data-kami-comp 挂」的写法改了：
+   暗色方案下消息楼层与面板同底，直接用 :root 那套亮级；只有亮色方案（楼层是黏土白）才换成暗级。
    七个色相各改一次，全部实测 ≥ 4.97:1。 */
 html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) {
+  margin: 10px 0 8px;
+  max-width: var(--kami-maxw);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root:not([data-kami-comp="panel"]) {
   --kami-kind-action: #7f4b2d;
   --kami-kind-fun: #645723;
   --kami-kind-plot: #23634c;
@@ -216,8 +219,6 @@ html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) {
   --kami-kind-nsfw: #963558;
   --kami-kind-other: var(--kami-fg-dim);
   --kami-kind-focus: #23634c;
-  margin: 10px 0 8px;
-  max-width: var(--kami-maxw);
 }
 html[data-kami-skin="grokbot"] .kami-root *,
 html[data-kami-skin="grokbot"] .kami-root *::before,
@@ -314,11 +315,39 @@ html[data-kami-skin="grokbot"] .kami-shell { display: block; }
    同理受害的还有 .kami-btn.is-on / .kami-seg-item.is-on / .kami-tab[aria-selected]
    / .kami-switch 选中态 / 注释标记 hover —— 它们全都吃这一对令牌。
    修法：亮面把这一对**成对**翻过来（墨底 + 黏土白的字），不再只翻一半。 */
-html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-shell,
-html[data-kami-skin="grokbot"] .kami-root:not([data-kami-comp="panel"]) .kami-surface,
-html[data-kami-skin="grokbot"] .kami-root .kami-card,
-html[data-kami-skin="grokbot"] .kami-root .kami-item,
-html[data-kami-skin="grokbot"] .kami-root .kami-card-note {
+/* ── 2026-09-26 用户裁定：**暗色方案下消息楼层不翻黏土白，跟面板一样是炭底** ──
+   （原话：「默认暗色情况下，面板应该是黑色的、字体是白的，比如正文前端就该是黑底白字」。）
+   做法：把「黏土白那一族」整体**指回炭黑那一族**，一处改、处处生效 ——
+   几十条组件规则读的都是 --kami-clay-*（按钮 / 分段 / 徽章 / 开关 / 正文块 / 空态…），
+   逐条加 [data-kami-scheme="dark"] 既啰嗦又必漏。
+   ⚠️ 这里不会成环：本作用域里 --kami-fg / --kami-bg-soft / --kami-card … 还是 :root 那套炭黑值，
+   被它们赋值的才是 clay 那一族。反过来若让 clay 去赋 --kami-fg（下面的亮色块就是那么写的），
+   两族互指就会双双失效 —— 所以**下面那两块必须只留给亮色方案**。 */
+html[data-kami-skin="grokbot"][data-kami-scheme="dark"] .kami-root:not([data-kami-comp="panel"]) {
+  --kami-clay-surface: var(--kami-bg-soft);
+  --kami-clay-surface-flat: var(--kami-bg-soft);
+  --kami-clay-plate: var(--kami-card);
+  --kami-clay-plate-flat: var(--kami-card);
+  --kami-clay-sink: var(--kami-card-2);
+  --kami-clay-hover: var(--kami-card-hover);
+  --kami-clay-ink: var(--kami-fg);
+  --kami-clay-ink-dim: var(--kami-fg-dim);
+  --kami-clay-ink-mute: var(--kami-fg-mute);
+  --kami-clay-line: var(--kami-line);
+  --kami-clay-line-strong: var(--kami-line-strong);
+  --kami-clay-t1: var(--kami-t1);
+  --kami-clay-t2: var(--kami-t2);
+  --kami-clay-t3: var(--kami-t3);
+  --kami-clay-accent: var(--kami-accent);
+  --kami-clay-accent-soft: var(--kami-accent-soft);
+  --kami-clay-accent-line: var(--kami-accent-line);
+  --kami-clay-choice: var(--kami-accent);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root:not([data-kami-comp="panel"]) .kami-shell,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root:not([data-kami-comp="panel"]) .kami-surface,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-card,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-item,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-card-note {
   --kami-fg: var(--kami-clay-ink);
   --kami-fg-dim: var(--kami-clay-ink-dim);
   --kami-fg-mute: var(--kami-clay-ink-mute);
@@ -337,8 +366,8 @@ html[data-kami-skin="grokbot"] .kami-root .kami-card-note {
   --kami-accent-soft: var(--kami-clay-accent-soft);
   --kami-accent-line: var(--kami-clay-accent-line);
 }
-html[data-kami-skin="grokbot"] .kami-root .kami-md,
-html[data-kami-skin="grokbot"] .kami-root .kami-raw {
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-md,
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] .kami-root .kami-raw {
   --kami-fg: var(--kami-clay-ink);
   --kami-fg-dim: var(--kami-clay-ink-dim);
   --kami-fg-mute: var(--kami-clay-ink-mute);
@@ -2021,34 +2050,16 @@ html[data-kami-skin="grokbot"] .kami-root .kami-item-note {
 html[data-kami-skin="grokbot"] .kami-root .kami-item-note > .kami-card {
   flex: 1 1 auto;
 }
-
+
 
 /* ============================================================
- * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
- *   容器外观照的是**托板上摆着的那块黏土**（不是歪 blob 也不是槽里的凹坑）：
- *   clay-plate-flat 平面黏土白 + 圆角放大版（r-* 阶梯 4px 步进里容器那一档）
- *   —— 字来自 --kami-clay-ink 的炭墨覆盖，与这层亮底成对设计，15:1。
- *   内层 .kami-md 自绘的小黏土块（底/描边/圆角/影）收掉，容器整块归包裹层。
- *   §9.7 禁令遵守（无 overflow/position/pointer-events/z-index）。
+ * · 正文美化包裹层 [data-kami-comp="body"]（已退役，2026-09-26）
+ *   本节原样保留到 2026-09-26：给「只美化 <content> 标签内正文」包出来的
+ *   div.kami-root[data-kami-comp="body"] 上皮（容器底 / 描边 / 圆角 / 字色）。
+ *   那套功能已按用户裁定整体退役（改为直接在酒馆的消息楼层上做皮肤排版，
+ *   见 src/skin/tavern.css 第 ⑤ 段与契约 §9.8），包裹层不再产生，故本节删除。
+ *   消息楼层的容器（.mes）与正文排版都由全局层负责，皮肤包这边零维护。
  * ============================================================ */
-html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="body"] {
-  margin: 10px 0;
-  background-color: var(--kami-clay-plate-flat);
-  border: var(--kami-border-w) solid var(--kami-clay-line);
-  border-radius: var(--kami-r-md);
-  box-shadow: var(--kami-shadow-sm);
-  overflow-wrap: anywhere;
-}
-html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="body"] > .kami-body {
-  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
-  color: var(--kami-clay-ink);
-  /* 内层 .kami-md 原来自绘的小黏土块（底/描边/圆角/无影）收掉。 */
-  background-color: transparent;
-  background-image: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="grokbot"] {
@@ -2157,6 +2168,84 @@ html[data-kami-skin="grokbot"] {
   --kami-enter-scale: .97;
   --kami-stagger: 26ms;
 }
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] {
+  --kami-kind-action: #7f4b2d;
+  --kami-kind-fun: #645723;
+  --kami-kind-plot: #23634c;
+  --kami-kind-info: #2a5d77;
+  --kami-kind-persona: #7f379e;
+  --kami-kind-nsfw: #963558;
+  --kami-kind-other: var(--kami-fg-dim);
+  --kami-kind-focus: #23634c;
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="dark"] {
+  --kami-clay-surface: var(--kami-bg-soft);
+  --kami-clay-surface-flat: var(--kami-bg-soft);
+  --kami-clay-plate: var(--kami-card);
+  --kami-clay-plate-flat: var(--kami-card);
+  --kami-clay-sink: var(--kami-card-2);
+  --kami-clay-hover: var(--kami-card-hover);
+  --kami-clay-ink: var(--kami-fg);
+  --kami-clay-ink-dim: var(--kami-fg-dim);
+  --kami-clay-ink-mute: var(--kami-fg-mute);
+  --kami-clay-line: var(--kami-line);
+  --kami-clay-line-strong: var(--kami-line-strong);
+  --kami-clay-t1: var(--kami-t1);
+  --kami-clay-t2: var(--kami-t2);
+  --kami-clay-t3: var(--kami-t3);
+  --kami-clay-accent: var(--kami-accent);
+  --kami-clay-accent-soft: var(--kami-accent-soft);
+  --kami-clay-accent-line: var(--kami-accent-line);
+  --kami-clay-choice: var(--kami-accent);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] {
+  --kami-fg: var(--kami-clay-ink);
+  --kami-fg-dim: var(--kami-clay-ink-dim);
+  --kami-fg-mute: var(--kami-clay-ink-mute);
+  --kami-bg: var(--kami-clay-surface);
+  --kami-bg-soft: var(--kami-clay-sink);
+  --kami-card: var(--kami-clay-plate);
+  --kami-card-2: var(--kami-clay-sink);
+  --kami-card-hover: var(--kami-clay-hover);
+  --kami-line: var(--kami-clay-line);
+  --kami-line-strong: var(--kami-clay-line-strong);
+  --kami-t1: var(--kami-clay-t1);
+  --kami-t2: var(--kami-clay-t2);
+  --kami-t3: var(--kami-clay-t3);
+  --kami-accent: var(--kami-clay-accent);
+  --kami-accent-fg: var(--kami-clay-plate);
+  --kami-accent-soft: var(--kami-clay-accent-soft);
+  --kami-accent-line: var(--kami-clay-accent-line);
+}
+html[data-kami-skin="grokbot"][data-kami-scheme="light"] {
+  --kami-fg: var(--kami-clay-ink);
+  --kami-fg-dim: var(--kami-clay-ink-dim);
+  --kami-fg-mute: var(--kami-clay-ink-mute);
+  --kami-bg: var(--kami-clay-surface);
+  --kami-bg-soft: var(--kami-clay-sink);
+  --kami-card-2: var(--kami-clay-sink);
+  --kami-line: var(--kami-clay-line);
+  --kami-line-strong: var(--kami-clay-line-strong);
+  --kami-t1: var(--kami-clay-t1);
+  --kami-t2: var(--kami-clay-t2);
+  --kami-t3: var(--kami-clay-t3);
+  --kami-accent: var(--kami-clay-accent);
+  --kami-accent-fg: var(--kami-clay-plate);
+  --kami-accent-soft: var(--kami-clay-accent-soft);
+  --kami-accent-line: var(--kami-clay-accent-line);
+}
+html[data-kami-skin="grokbot"] {
+  --kami-kind-action: #7f4b2d;
+  --kami-kind-fun: #645723;
+  --kami-kind-plot: #23634c;
+  --kami-kind-info: #2a5d77;
+  --kami-kind-persona: #7f379e;
+  --kami-kind-nsfw: #963558;
+  --kami-kind-other: #3f3f45;
+}
+html[data-kami-skin="grokbot"] {
+  --kami-items-min: 100px;
+}
 html[data-kami-skin="grokbot"][data-kami-density="compact"] {
   --kami-pad-x: 12px;
   --kami-pad-y: 8px;
@@ -2216,7 +2305,8 @@ html[data-kami-skin="grokbot"][data-kami-motion="calm"] {
   --kami-enter-scale: 1;
   --kami-stagger: 0ms;
 }
-html[data-kami-skin="grokbot"][data-kami-motion="off"] {
+html[data-kami-skin="grokbot"][data-kami-motion="off"],
+html[data-kami-skin="grokbot"] {
   --kami-dur-fast: 1ms;
   --kami-dur: 1ms;
   --kami-dur-slow: 1ms;

@@ -430,26 +430,18 @@ html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-body {
 }
 
 /* ============================================================
- * 30 · 正文美化包裹层（契约 §4.2 + §9.7；颜色归皮肤，本节只调结构）
+ * 30 · 消息楼层正文排版（全局层，契约 §9.8 第五类，2026-09-26）
  * ------------------------------------------------------------
- * 由 30-皮肤管理.js 包出来的 div.kami-root[data-kami-comp="body"]：
- * 结构属性 = 外部呼吸、内侧留白（跟随皮肤自己的 --kami-pad-lg-* 与
- * --kami-r-md）、overflow-wrap:anywhere 防 URL 撑破楼层。§9.7-3 的禁令照抄：
- * 不写 overflow（除 overflow-wrap）/ position / pointer-events / z-index，
- * 本节也不写任何 color/background/border——外观全部归 15 套皮肤。
+ * 旧版（2026-09-25 ~ 09-26）这里是「正文美化包裹层」的结构规则：由 30-皮肤管理.js
+ * 把 <content> 标签内的正文包进 div.kami-root[data-kami-comp="body"]，本节负责
+ * 去掉 .kami-root 通用外边距、把 .kami-body 的内边距归零。
+ * **那套已整体退役**（用户裁定：改成直接美化酒馆的消息楼层），包裹层不再产生，
+ * 所以本节删除。新的消息楼层排版在 src/skin/tavern.css 的第 ⑤ 段（全局层，
+ * 只读令牌，15 套皮肤自动跟随），兜底皮肤那份见下面 31 节。
+ * ⚠️ 紧跟着的 .kami-md 规则（下方「正文 / markdown / 原文」一节）**不能删**：
+ * 它同时在服务面板预览骨架（30-皮肤管理.js 的 previewSkeleton）与两个正则前端
+ * （frontend-think.html 的 <div class="kami-md">，皮肤管理没跑时靠这份兜底）。
  * ============================================================ */
-html:not([data-kami-skin]) .kami-root[data-kami-comp="body"]{
-  display: block;
-  margin: 10px 0;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-html:not([data-kami-skin]) .kami-root[data-kami-comp="body"] > .kami-body{
-  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
-  border-radius: var(--kami-r-md);
-  overflow-wrap: anywhere;
-}
 
 /* ---------- 正文 / markdown / 原文 ---------- */
 html:not([data-kami-skin]) .kami-md {

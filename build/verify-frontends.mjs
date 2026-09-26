@@ -31,17 +31,23 @@ const NL = String.fromCharCode(10);
 const FENCE = String.fromCharCode(96, 96, 96);
 
 function newestPreset() {
-  let best = null, bestN = -1;
-  for (const f of fs.readdirSync(DIST)) {
-    /* 现行 kami-v<版本>-<构建号>-<日期>（版本见根目录 version.json）.json、曾用 卡密预设v0.90-<构建号>-<日期>.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
-    let m = /^(?:kami-|卡密预设)v\d+\.\d+-(\d{1,4})-\d{8}\.json$/i.exec(f);
-    if (m) {
-      if (Number(m[1]) > bestN) { bestN = Number(m[1]); best = path.join(DIST, f); }
-      continue;
+  /* ⚠️ 2026-09-25 起构建号**按版本各自计数**（换版本号就重置），所以「只按构建号挑最新」是错的：
+     0.90-131 会压过 0.91-30。必须**先比版本号、再比构建号**（交接 §二第 17 条那条副作用）。
+     2026-09-26 实测踩到：新产物 0.91-30 已写出，这里却仍在验 0.90-131，
+     于是新加的前端正则「找不到该正则」而误报 FAIL。 */
+  let best = null, bestVer = -1, bestN = -1;
+  const consider = (ver, build, file) => {
+    if (ver > bestVer || (ver === bestVer && build > bestN)) {
+      bestVer = ver; bestN = build; best = path.join(DIST, file);
     }
+  };
+  const verNum = (major, digits) => Number(major) + Number('0.' + digits);
+  for (const f of fs.readdirSync(DIST)) {
+    /* 现行 kami-v<版本>-<构建号>-<日期>.json、曾用 卡密预设v0.90-<构建号>-<日期>.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
+    let m = /^(?:kami-|卡密预设)v(\d+)\.(\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
+    if (m) { consider(verNum(m[1], m[2]), Number(m[3]), f); continue; }
     m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
-    if (!m) { continue; }
-    if (Number(m[1]) > bestN) { bestN = Number(m[1]); best = path.join(DIST, f); }
+    if (m) { consider(0.9, Number(m[1]), f); }
   }
   return best;
 }
@@ -62,13 +68,20 @@ function stReplace(rawString, findRegex, replaceString, trimStrings) {
   });
 }
 
-const presetPath = newestPreset();
+/* 产物：优先用命令行传进来的那一个（build.mjs 会把**它刚写出的**文件路径传进来，
+   避免「按文件猜最新」在构建号按版本重置之后挑错版本 —— 2026-09-26 实测踩过：
+   新产物 0.91-30 已写出，这里却仍在验 0.90-131，新加的前端正则被误报「找不到该正则」）。 */
+const presetPath = (process.argv[2] && fs.existsSync(process.argv[2])) ? process.argv[2] : newestPreset();
 if (!presetPath) { console.log('dist 里没有产物'); process.exit(1); }
 const preset = JSON.parse(fs.readFileSync(presetPath, 'utf8'));
 const rx = preset.extensions.regex_scripts;
 const targets = [
-  { name: '前端|显式思维链(占位)', raw: '<nyaruko_think>' + '测试载荷 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + '<name> 与 ' + String.fromCharCode(36) + String.fromCharCode(36) + ' 和换行' + NL + '第二行' + '</nyaruko_think>' },
-  { name: '前端|行动选项(占位)', raw: '<options>[{"title":"甲","type":"行动","content":"含 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + ' 与反斜杠"}]</options>' },
+  /* ⚠️ 名字带版本号（2026-09-26 起三个前端各带自己的 vX.Y）——这里必须与 src/regex/list.json 逐字一致。
+     ⚠️ 2026-09-26 起「前端|正文 v0.1」**不在这里**：它不再发 iframe 载荷，
+     改成「两个空标记夹住正文」交给 45-正文外壳.js 在父文档里套壳 ——
+     那条链路的守卫是 build/verify-body-shell.mjs（含「正则 → showdown」的端到端发射检查）。 */
+  { name: '前端|显式思维链 v0.1', raw: '<nyaruko_think>' + '测试载荷 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + '<name> 与 ' + String.fromCharCode(36) + String.fromCharCode(36) + ' 和换行' + NL + '第二行' + '</nyaruko_think>' },
+  { name: '前端|行动选项 v0.1', raw: '<options>[{"title":"甲","type":"行动","content":"含 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + ' 与反斜杠"}]</options>' },
 ];
 
 let bad = 0;

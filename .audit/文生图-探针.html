@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>文生图 × 正文前端 · 探针</title>
+<style>
+  body{background:#14141a;color:#d8d8e0;font:14px/1.7 system-ui,"Microsoft YaHei",sans-serif;padding:16px 20px 60px;}
+  h1{font-size:17px;margin:0 0 6px;}
+  .lead{color:#9a9aa8;margin:0 0 14px;}
+  .case{border:1px solid #2c2c38;border-radius:10px;padding:12px 14px;margin:12px 0;background:#1a1a22;}
+  .case h2{font-size:14px;margin:0 0 8px;color:#c9b3ff;}
+  .mes{border:1px dashed #3a3a48;border-radius:8px;padding:8px 10px;margin:6px 0;}
+  .ch_name{font-weight:600;color:#ffd9a0;}
+  .mes_text{background:#101016;border-radius:6px;padding:8px 10px;margin-top:6px;white-space:pre-wrap;}
+  iframe{width:100%;height:74px;border:0;background:#000;display:block;}
+  .TH-render{border:1px solid #4a3a6a;border-radius:6px;padding:4px;margin:6px 0;background:#1e1830;}
+  pre{background:#0d0d12;border:1px solid #2a2a35;border-radius:8px;padding:10px 12px;overflow:auto;white-space:pre-wrap;}
+  .ok{color:#6ee7a8;} .bad{color:#ff8f8f;} .warn{color:#ffd479;}
+</style>
+</head>
+<body>
+<h1>文生图插件 × 正文前端：扫描可见性探针</h1>
+<p class="lead">
+  本页不改任何被测代码，只**照抄**酒馆的消息结构（<code>public/index.html:6780-6845</code>）与插件用的三段逻辑，
+  量三件事：插件拿到的宿主是谁、智能扫描能不能读到标签、深度扫描会不会打偏。结论行以 <code>探针|</code> 开头，同时打到控制台。
+</p>
+<pre id="out">跑起来了，等结果……</pre>
+
+<div class="case">
+  <h2>甲 · 最新楼层（正文前端已接管）</h2>
+  <div id="caseNew"></div>
+</div>
+<div class="case">
+  <h2>乙 · 对照：老楼层（正则没生效，原文还在 .mes_text 里）</h2>
+  <div id="caseOld"></div>
+</div>
+<div class="case">
+  <h2>丙 · 对照：最新楼层（正文前端已接管，但**没被深度扫描碰过**）</h2>
+  <div id="caseClean"></div>
+</div>
+<div class="case">
+  <h2>丁 · 拟议的接法：影子文本 + 载荷编码（点开前先看这条能不能同时喂饱「智能」和「深度」两种模式）</h2>
+  <div id="caseShadow"></div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   一、造两栋一模一样的消息，只差在「正文前端有没有接管」
+   ───────────────────────────────────────────────────────────── */
+
+/* 正文原文：里面就有文生图插件的插图标签。故意放两行 + 一个空行，
+   因为插件的 raw 是「标签连同里面的换行一起」比对，换行会不会在属性序列化里变形是关键之一。 */
+var RAW = 'image###雨夜，一把伞，湿透的半边肩膀\n第二行：路灯下的水洼###';
+
+/* 我们的正文前端文档（照 src/regex/frontend-body.html 的形状精简：
+   正文原文放在 <script type="text/plain" data-kami-payload> 里，外面是一整套 HTML 文档）。 */
+function frontendDoc(payload) {
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><\/head><body>' +
+    '<div class="kami-root" data-kami-comp="body"><div class="kami-shell kami-surface">' +
+    '<div class="kami-head"><span class="kami-title">正文</span></div>' +
+    '<div class="kami-body"><div class="kami-md">（渲染后的正文）</div></div>' +
+    '<\/div><\/div>' +
+    '<script type="text/plain" data-kami-payload>' + payload + '<\/script>' +
+    '<\/body><\/html>';
+}
+
+/* 酒馆的消息结构：.mes[mesid] > .mes_block > (.ch_name + .mes_text)
+   （ch_name 里还有 .mes_buttons，这里给一枚，方便看深度扫描重写 innerHTML 会波及什么） */
+function buildMes(mesid, mode) {
+  var mes = document.createElement('div');
+  mes.className = 'mes';
+  mes.setAttribute('mesid', String(mesid));
+  var block = document.createElement('div');
+  block.className = 'mes_block';
+  var name = document.createElement('div');
+  name.className = 'ch_name';
+  name.textContent = '奈亚子';
+  var btns = document.createElement('div');
+  btns.className = 'mes_buttons';
+  btns.innerHTML = '<span class="mes_edit">✎</span><span class="mes_copy">⧉</span>';
+  name.appendChild(btns);
+  var text = document.createElement('div');
+  text.className = 'mes_text';
+  block.appendChild(name);
+  block.appendChild(text);
+  mes.appendChild(block);
+
+  if (mode === 'front') {
+    /* 正文前端接管：酒馆助手把代码围栏渲染成 div.TH-render > iframe[srcdoc]。
+       属性方式写入（与酒馆助手一致），序列化时属性值会被转义 —— 这正是要量的地方。 */
+    var wrap = document.createElement('div');
+    wrap.className = 'TH-render';
+    var fr = document.createElement('iframe');
+    fr.setAttribute('srcdoc', frontendDoc(RAW));
+    wrap.appendChild(fr);
+    text.appendChild(wrap);
+    /* 标签外面的散字（真实楼层里正文块前后常还有别的文字） */
+    text.appendChild(document.createTextNode('\n（其余的正文散字）\n'));
+  } else {
+    text.textContent = RAW;   /* 没接管：原文就在文本节点里 */
+  }
+  return mes;
+}
+
+var hostNew = document.getElementById('caseNew');
+var hostOld = document.getElementById('caseOld');
+var hostClean = document.getElementById('caseClean');
+var hostShadow = document.getElementById('caseShadow');
+var mesNew = buildMes(9, 'front');
+var mesOld = buildMes(3, 'plain');
+var mesClean = buildMes(4, 'front');   /* 丙：同样被前端接管，但**不做任何扫描**，当基准 */
+
+/* 丁：正文前端接管 + 影子文本（给插件扫的那份原文）+ 载荷用 base64 编码藏在文档里。
+   两条一起上，才可能同时满足「插件找得到标签」与「插件咬不到 iframe」。 */
+function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+function frontendDocEncoded(payload) {
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><\/head><body>' +
+    '<div class="kami-root" data-kami-comp="body"><div class="kami-shell kami-surface">' +
+    '<div class="kami-head"><span class="kami-title">正文</span></div>' +
+    '<div class="kami-body"><div class="kami-md" id="md">（渲染后的正文）</div></div>' +
+    '<\/div><\/div>' +
+    /* 载荷以 base64 存放：父文档的 innerHTML 里就不会出现明文的插图标签 */
+    '<script type="text/plain" data-kami-payload-b64>' + b64(payload) + '<\/script>' +
+    '<script>try{var t=decodeURIComponent(escape(atob(document.querySelector("[data-kami-payload-b64]").textContent)));' +
+    'document.getElementById("md").textContent=t;document.title="正文:"+t.slice(0,12);}catch(e){document.title="decode-err:"+e.message}<\/script>' +
+    '<\/body><\/html>';
+}
+var mesShadow = buildMes(5, 'plain');
+(function () {
+  var text = mesShadow.querySelector('.mes_text');
+  text.textContent = '';
+  var wrap = document.createElement('div');
+  wrap.className = 'TH-render';
+  var fr = document.createElement('iframe');
+  fr.setAttribute('srcdoc', frontendDocEncoded(RAW));
+  wrap.appendChild(fr);
+  text.appendChild(wrap);
+  /* 影子文本：只给插件扫，肉眼不可见（用「裁成一像素」而不是 display:none，
+     这样连布局都照常参与，最贴近真机；下面再顺手量一下 display:none 行不行）。 */
+  var shadow = document.createElement('span');
+  shadow.className = 'kami-t2i-shadow';
+  shadow.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:pre';
+  shadow.textContent = RAW;
+  text.appendChild(shadow);
+  var hidden = document.createElement('span');
+  hidden.className = 'kami-t2i-shadow-none';
+  hidden.style.display = 'none';
+  hidden.textContent = RAW;
+  text.appendChild(hidden);
+})();
+
+hostNew.appendChild(mesNew);
+hostOld.appendChild(mesOld);
+hostClean.appendChild(mesClean);
+hostShadow.appendChild(mesShadow);
+
+/* ─────────────────────────────────────────────────────────────
+   二、照抄插件用的三段逻辑（只读，不改这里的 DOM）
+   ───────────────────────────────────────────────────────────── */
+
+/* ① 宿主选择器：与 RBQ-Draw-index.js 偏移 217635 的 Tn() 一字不差 */
+var TN_SEL = '.mes_text, [data-role="message-text"], .mes_block .mes_text, .message-body, .mes_block, .mes_text > div';
+function Tn(e) { return e instanceof HTMLElement ? e.querySelector(TN_SEL) : null; }
+function name(el) { return el ? (el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '')) : 'null'; }
+
+/* ② 智能/经典扫描：TreeWalker 拼文本节点（照 @220874 的写法） */
+function smartScan(host) {
+  var out = '';
+  try {
+    var w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+    var n;
+    while ((n = w.nextNode())) { if (n.nodeType === 3) { out += n.nodeValue; } }
+  } catch (e) { out = '〔err:' + e.message + '〕'; }
+  return out;
+}
+
+/* ③ 深度扫描：拿 innerHTML 做字符串替换（照 @219536 的写法），返回是否命中 + 替换后有没有打偏。
+   ⚠️ 判「有没有打偏」踩过两次坑，记下来免得后人再踩：
+   · 不能用「占位符出现在 srcdoc=" 之后」——影子文本本来就排在靠后，那种粗判会把它算成打偏；
+   · 也不能只看 srcdoc 属性里有没有占位符字符串 —— 占位符那串 `<span class="…">` **自带双引号**，
+     插进双引号属性值里会把属性**提前截断**，属性里反而搜不到那个串了。
+   唯一可靠的判据：**替换前后，iframe 的 srcdoc 属性值是不是同一个字符串**（整个属性被重写＝打偏了）。 */
+function deepScan(host, raw) {
+  var html = host.innerHTML;
+  var hit = html.indexOf(raw) >= 0;
+  var before = [], nodes = host.querySelectorAll('iframe');
+  Array.prototype.forEach.call(nodes, function (f) { before.push(f.getAttribute('srcdoc') || ''); });
+  if (!hit) { return { hit: false, corrupted: false, frames: before.length }; }
+  var next = html.split(raw).join('<span class="__ST_BTN_PH_0__"></span>');
+  var kidsBefore = host.querySelectorAll('iframe, .ch_name, .mes_buttons').length;
+  host.innerHTML = next;
+  var kidsAfter = host.querySelectorAll('iframe, .ch_name, .mes_buttons').length;
+  var after = [], n2 = host.querySelectorAll('iframe');
+  Array.prototype.forEach.call(n2, function (f) { after.push(f.getAttribute('srcdoc') || ''); });
+  var damaged = before.length !== after.length;
+  for (var i = 0; i < before.length && !damaged; i++) { if (before[i] !== after[i]) { damaged = true; } }
+  return { hit: true, corrupted: damaged, frames: before.length, before: kidsBefore, after: kidsAfter };
+}
+
+/* ─────────────────────────────────────────────────────────────
+   三、量并报告
+   ───────────────────────────────────────────────────────────── */
+var lines = [];
+function say(s) { lines.push(s); console.log(s); }
+function yn(b) { return b ? '是' : '否'; }
+
+function measure(label, mes, mode) {
+  var tn = Tn(mes);
+  say('探针|' + label + '|宿主=' + name(tn));
+  var text = tn ? smartScan(tn) : '';
+  var gotSmart = text.indexOf('image###') >= 0;
+  say('探针|' + label + '|智能扫描读到标签=' + yn(gotSmart) + ' 扫到的字数=' + text.length);
+  if (mode === 'front') {
+    var d = deepScan(tn, RAW);
+    say('探针|' + label + '|深度扫描innerHTML命中=' + yn(d.hit) +
+      (d.hit ? ' iframe的srcdoc被改写=' + yn(d.corrupted) + ' 写回后iframe/ch_name/按钮数 ' + d.before + '→' + d.after : ''));
+  } else {
+    var d2 = deepScan(tn, RAW);
+    say('探针|' + label + '|深度扫描innerHTML命中=' + yn(d2.hit) +
+      (d2.hit ? ' iframe的srcdoc被改写=' + yn(d2.corrupted) + ' 写回后iframe/ch_name/按钮数 ' + d2.before + '→' + d2.after : ''));
+  }
+}
+
+measure('甲-前端已接管', mesNew, 'front');
+
+/* 乙 组要在甲 组量完之后再量：甲的深度扫描会把甲的 DOM 写坏，
+   乙 是独立的一栋楼，不受影响。 */
+measure('乙-老楼层原文', mesOld, 'plain');
+
+/* 丁：先量「插件看不看得见」（智能 + 两种藏法），**再**量深度扫描（它会把影子那段换掉，
+   顺序反了就读不到影子了 —— 第一版探针就是顺序反了，误报「两种藏法都读不到」）。 */
+var tn4 = Tn(mesShadow);
+var txt4 = tn4 ? smartScan(tn4) : '';
+say('探针|丁-影子文本方案|宿主=' + name(tn4) + ' 智能扫描读到标签=' + yn(txt4.indexOf('image###') >= 0) + ' 扫到的字数=' + txt4.length);
+say('探针|丁-影子文本方案|两种藏法|裁成一像素读到=' +
+  yn(smartScan(mesShadow.querySelector('.kami-t2i-shadow')).indexOf('image###') >= 0) +
+  '｜display:none 读到=' + yn(smartScan(mesShadow.querySelector('.kami-t2i-shadow-none')).indexOf('image###') >= 0));
+var d4 = deepScan(tn4, RAW);
+say('探针|丁-影子文本方案|深度扫描innerHTML命中=' + yn(d4.hit) + ' iframe的srcdoc被改写=' + yn(d4.corrupted) +
+  '（这一楼的 iframe 数=' + d4.frames + '）');
+/* 关键一问：深度扫描把影子那段换掉之后，`<script>` 那份编码载荷还算完整吗 */
+var fr4 = mesShadow.querySelector('iframe');
+var sc4 = fr4 ? fr4.getAttribute('srcdoc') || '' : '';
+say('探针|丁-影子文本方案|替换后|明文标签还剩=' + yn(mesShadow.querySelector('.mes_block').innerHTML.indexOf(RAW) >= 0) +
+  '｜iframe 的载荷还在=' + yn(sc4.indexOf('data-kami-payload-b64') >= 0));
+
+/* ④ 卡片会落在哪儿：插件最后一步是 container.append(卡片)（照 @11000 的兜底分支） */
+var card = document.createElement('div');
+card.className = 'st-scene-trigger-inline-wrap';
+card.textContent = '〔文生图卡片〕';
+var tn2 = Tn(mesNew);
+tn2.appendChild(card);
+var order = [];
+Array.prototype.forEach.call(tn2.children, function (c) { order.push(c.className.split(' ')[0] || c.tagName.toLowerCase()); });
+say('探针|甲-卡片落点|append 之后 .mes_block 的子元素顺序=' + order.join(' → '));
+var iframeTop = mesNew.querySelector('iframe') ? mesNew.querySelector('iframe').getBoundingClientRect().top : -1;
+say('探针|甲-卡片落点|卡片在 iframe 下面=' + yn(card.getBoundingClientRect().top >= iframeTop));
+
+/* ⑤ 反向确认：iframe 里的那段字，父文档到底看不看得见。
+   ⚠️ iframe[srcdoc] 是**异步**加载的，同步读 contentDocument 只会拿到 about:blank
+   （第一版探针就是这么量出「iframe 内部含标签=否」的假读数）。
+   所以这里等甲组的 iframe 加载完再量；顺便量第二件更要紧的事：
+   深度扫描把 srcdoc 属性改坏之后，srcdoc 会被浏览器**重新解析**，前端里那行字会变成什么。 */
+var fr = mesNew.querySelector('iframe');
+var innerRead = function (el, tag) {
+  var doc = null;
+  try { doc = el.contentDocument; } catch (e) { }
+  var body = doc && doc.body ? doc.body.textContent : '〔读不到〕';
+  say('探针|' + tag + '|iframe 内部文本含标签=' + yn(body.indexOf('image###') >= 0) +
+    ' 含占位符=' + yn(body.indexOf('ST_BTN_PH') >= 0) + ' 字数=' + body.length);
+};
+function whenLoaded(el, tag) {
+  if (!el) { return; }
+  var done = false;
+  var once = function () {
+    if (done) { return; }
+    done = true;
+    innerRead(el, tag);
+    document.getElementById('out').textContent = lines.join('\n');
+    document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
+  };
+  el.addEventListener('load', once);
+  setTimeout(once, 700);   /* 加载事件可能已经错过（iframe 是同步建的），兜一次 */
+}
+whenLoaded(fr, '甲-被深度扫描过');
+whenLoaded(mesClean.querySelector('iframe'), '丙-没被碰过');
+whenLoaded(mesShadow.querySelector('iframe'), '丁-影子方案');
+say('探针|甲-父文档侧|.mes_text 的 textContent 含标签=' + yn(mesNew.querySelector('.mes_text').textContent.indexOf('image###') >= 0));
+
+document.getElementById('out').textContent = lines.join('\n');
+document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
+</script>
+</body>
+</html>

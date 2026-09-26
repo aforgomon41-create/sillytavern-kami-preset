@@ -1768,23 +1768,13 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field .kami-
 
 
 /* ============================================================
- * · 正文美化包裹层 [data-kami-comp="body"]（2026-09-26）
- *   容器外观照思维链外壳的古卷气质走：黑夜羊皮正文底 + 描金骨线 +
- *   手抄卷软影。§9.7 禁令遵守（无 overflow/position/pointer-events/
- *   z-index）。对比度见 .audit/正文容器美化.md。
+ * · 正文美化包裹层 [data-kami-comp="body"]（已退役，2026-09-26）
+ *   本节原样保留到 2026-09-26：给「只美化 <content> 标签内正文」包出来的
+ *   div.kami-root[data-kami-comp="body"] 上皮（容器底 / 描边 / 圆角 / 字色）。
+ *   那套功能已按用户裁定整体退役（改为直接在酒馆的消息楼层上做皮肤排版，
+ *   见 src/skin/tavern.css 第 ⑤ 段与契约 §9.8），包裹层不再产生，故本节删除。
+ *   消息楼层的容器（.mes）与正文排版都由全局层负责，皮肤包这边零维护。
  * ============================================================ */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="body"] {
-  margin: 10px 0;
-  background-color: var(--kami-card-2);
-  border: var(--kami-border-w) solid var(--kami-line-strong);
-  border-radius: var(--kami-r-md);
-  box-shadow: var(--kami-shadow-sm);
-  overflow-wrap: anywhere;
-}
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="body"] > .kami-body {
-  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
-  color: var(--kami-fg);
-}
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="wod"] {
@@ -1945,5 +1935,32 @@ html[data-kami-skin="wod"][data-kami-motion="off"] {
   --kami-enter-y: 0px;
   --kami-enter-scale: 1;
   --kami-stagger: 0ms;
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-action);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-persona);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-plot);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-info);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-fun);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-nsfw);
+}
+html[data-kami-skin="wod"] {
+  --kami-kind-curr: var(--kami-kind-other);
+}
+html[data-kami-skin="wod"] {
+  --kami-items-min: 100px;
+}
+html[data-kami-skin="wod"] {
+  --kami-items-min: 88px;
 }
 /* ==== END 全局层令牌上提 ==== */

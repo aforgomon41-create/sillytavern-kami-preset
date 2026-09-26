@@ -74,7 +74,11 @@ function makeEnv(opts) {
     }
   }
 
-  /* 假 Releases 接口：默认给一个「最新正式版 97」 */
+  /* 假 Releases 接口：默认给一个「上一个两位小版本 + 构建号 97」的正式版。
+     ⚠️ 这个默认值**比本地当前版本旧**（VERSION_PREV < VERSION_NOW），所以凡是断言
+     「没有更新 / 已经是最新 / 已导入过」的用例，必须自己传 release: [releaseOfNow(...)]
+     把假仓库版抬到当前版本那一档，否则本地比它新、脚本会正确地判成「已是最新」，用例反而红
+     （2026-09-26 升到 0.92 时踩到，5 条用例就是这么红的）。 */
   const RELEASE = opts.release === undefined ? [releaseOf(97, '20260922')] : opts.release;
   const PRESET_TEXT = opts.presetText !== undefined ? opts.presetText
     : JSON.stringify({ name: PN + '-97-20260922', prompts: [{ identifier: 'a', name: 'x', content: 'y' }], prompt_order: [] });
@@ -235,6 +239,16 @@ const VERSION_PREV = (function () {
    （夹具里的「仓库最新版」用 VERSION_PREV＝上一个两位小版本，所以跨小版本升级这条路每次都被测到。） */
 const PV = 'v' + VERSION_PREV;      /* 例：v0.90 */
 const PN = 'kami-' + PV;            /* 例：kami-v0.90 */
+/* VERSION_NOW 自己那一版的前缀：凡是断言「本地已是最新 / 本地就是仓库那一版」的用例，
+   夹具必须用**当前版本**这一档来造（用 VERSION_PREV 造出来的假仓库版比本地还旧，
+   脚本会正确地判成「已是最新」，用例反而红 —— 2026-09-26 升到 0.92 时踩到，5 条用例）。
+   VERSION_PREV 那一档留给「跨小版本升级要能识别」用（见文件下方那条）。 */
+const VN = 'v' + VERSION_NOW;
+const PN_VN = 'kami-' + VN;
+/* 造「VERSION_NOW 自己那一版」的假 Release：仓库里的版本号 = 本地当前版本，构建号可比本地更大 */
+function releaseOfNow(build, date, extra) {
+  return releaseOf(build, date, Object.assign({ __version: VERSION_NOW }, extra || {}));
+}
 
 /* 造一个假 Release：现行正式分发名 kami-v<版本>-<build>-<date>.json
    （曾用名「卡密预设v…」在 GitHub 上会被削成「v…」，所以 2026-09-23 起前缀改成 ASCII） */
@@ -321,8 +335,8 @@ console.log('--- 用户点「暂不更新」 ---');
 console.log('--- 已经是最新 ---');
 {
   const env = makeEnv({
-    vars: REPO_VARS, localPreset: '卡密预设0.9-95', installed: ['卡密预设0.9-95', 'Default'],
-    release: [releaseOf(95, '20260921')],
+    vars: REPO_VARS, localPreset: PN_VN + '-97-20260922', installed: [PN_VN + '-97-20260922', 'Default'],
+    release: [releaseOfNow(97, '20260921')],
   });
   await settle();
   const r = await env.api().check(false);
@@ -333,7 +347,7 @@ console.log('--- 已经是最新 ---');
 
 console.log('--- 本机已导入过该版本（只是没切换） ---');
 {
-  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', PN + '-97-20260922'] });
+  const env = makeEnv({ vars: REPO_VARS, installed: ['卡密预设0.9-96', PN_VN + '-97-20260922'], release: [releaseOfNow(97, '20260922')] });
   await settle();
   const r = await env.api().check(false);
   ok(r.action === 'installed', 'action = installed');
@@ -519,12 +533,12 @@ console.log('--- Releases 列表挑选规则 ---');
 console.log('--- 新旧命名互认 ---');
 {
   const env = makeEnv({
-    vars: REPO_VARS, localPreset: '卡密预设0.9-97', installed: ['卡密预设0.9-97'],
-    release: [releaseOf(97, '20260922')],
+    vars: REPO_VARS, localPreset: PN_VN + '-97-20260922', installed: [PN_VN + '-97-20260922'],
+    release: [releaseOfNow(97, '20260922')],
   });
   await settle();
   const r = await env.api().check(false);
-  ok(r.action === 'none', '本机旧命名 0.9-97 与仓库正式命名 ' + PV + '-97 判为同一版本', JSON.stringify(r.action));
+  ok(r.action === 'none', '本机旧命名 0.9-97 与仓库正式命名 ' + VN + '-97 判为同一版本（夹具两边都是 ' + VN + '-97）', JSON.stringify(r.action));
 
   const env2 = makeEnv({
     vars: REPO_VARS, localPreset: PN + '-96-20260921', installed: [PN + '-96-20260921'],
@@ -639,7 +653,8 @@ console.log('--- ② 下载链：直链与 jsDelivr @<tag> 都 404 → 自动落
   const r = await env.api().check(false);
   ok(env.importCalls.length === 1, '@<tag> 404 后 @main 兜底仍装上了预设');
   ok(r.action === 'imported' && env.scriptVars['kami-update'].imported === PV + '-97', '@main 兜底同样记 imported');
-  const jsdTag = env.fetchCalls.filter(c => /cdn\.jsdelivr\.net\/.*@v0\.90-97\//.test(c.url));
+  /* ⚠️ tag 名从 PV 派生，别写死版本号（写死了升小版本就会静默失效 —— 2026-09-26 踩到） */
+  const jsdTag = env.fetchCalls.filter(c => c.url.indexOf('@' + PV + '-97/') >= 0);
   const jsdMain = jsdFileCalls(env).filter(c => c.url.indexOf('@main/') >= 0);
   ok(jsdTag.length >= 1, '@<tag> 那条也试过（每条通道 2 次的既有逻辑没动）', JSON.stringify(jsdTag.map(c => c.url)));
   ok(jsdMain.length >= 1, '随后落到 @main 那条', JSON.stringify(jsdMain.map(c => c.url)));

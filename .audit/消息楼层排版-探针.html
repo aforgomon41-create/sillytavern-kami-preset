@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>消息楼层排版探针</title>
+<style>
+  /* 只见骨不见皮：探针页自己不提供任何消息区外观，一切读数都来自
+     「皮肤 CSS + 全局层 tavern.css + 上提的 <html> 令牌」。 */
+  html, body { margin: 0; padding: 0; background: #101014; color: #ddd; font: 13px/1.5 system-ui, sans-serif; }
+  #stage { max-width: 900px; }
+  #sheld { padding: 6px; }
+  #chat { overflow-y: auto; }              /* 酒馆原样：样式目标 */
+  .mes { display: flex; padding: 10px 10px 0; position: relative; }
+  .mes_block { width: 100%; min-width: 0; overflow: hidden; }
+  .mes_text { padding: 5px 16px 5px 0; max-width: 100%; overflow-wrap: anywhere; }
+  #out { white-space: pre-wrap; font: 11px/1.45 ui-monospace, Consolas, monospace; color: #9fd8b0; margin: 8px; }
+  .bad { color: #ff8f8f; }
+  .ok { color: #8fffa8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="sheld">
+    <div id="chat" data-kami-mes="1">
+      <div class="mes" mesid="7">
+        <div class="mes_block">
+          <div class="ch_name">测试角色</div>
+          <div class="mes_text" id="slot">
+!PLACEHOLDER!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<pre id="out">跑起来了，正在等皮肤……</pre>
+<script>
+(function () {
+  'use strict';
+  var out = document.getElementById('out');
+  var log = function (s) { console.log(s); out.textContent += s + '\n'; };
+
+  /* ---------- 夹具：一条楼层，里面把 markdown 元件与插件卡片都摆上 ----------
+     用真实 DOM 构造（不走 innerHTML 拼串），免得转义问题把夹具咬坏。 */
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text != null) { e.textContent = text; }
+    return e;
+  }
+  function buildFixture(slot) {
+    var p1 = el('p', '', '第一段正文，用来量字号、行距与段落间距。');
+    var p2 = el('p');
+    p2.appendChild(document.createTextNode('第二段里带一个 '));
+    var a = el('a', '', '很长的链接');
+    a.href = 'https://example.com/a?x=' + 'y'.repeat(80);
+    p2.appendChild(a);
+    p2.appendChild(document.createTextNode('，还有一个 '));
+    p2.appendChild(el('code', '', 'inline_code()'));
+    p2.appendChild(document.createTextNode('。'));
+    var h2 = el('h2', '', '二级标题');
+    var ul = el('ul');
+    ul.appendChild(el('li', '', '无序项一'));
+    ul.appendChild(el('li', '', '无序项二'));
+    var bq = el('blockquote', '', '引用的一句话。');
+    var pre = el('pre');
+    pre.appendChild(el('code', '', 'const a = 1;\nconsole.log(a);'));
+    var table = el('table');
+    var tr1 = el('tr'), tr2 = el('tr');
+    tr1.appendChild(el('th', '', '列一')); tr1.appendChild(el('th', '', '列二'));
+    tr2.appendChild(el('td', '', '1')); tr2.appendChild(el('td', '', '2'));
+    table.appendChild(tr1); table.appendChild(tr2);
+    var p3 = el('p');
+    p3.appendChild(document.createTextNode('结尾一段，'));
+    p3.appendChild(el('strong', '', '加粗的词'));
+    p3.appendChild(document.createTextNode('在这里。'));
+
+    /* 插件卡片：自带 class + 行内样式（智能生图触发器那一类），应当完全不受我们的排版影响 */
+    var card = el('div', 'rbq-sdt-card');
+    card.setAttribute('style', 'max-width:350px;margin:12px auto;padding:16px;background:#20242a;border-radius:16px;color:#e6edf3;font-family:-apple-system,sans-serif');
+    var head = el('div');
+    head.setAttribute('style', 'display:flex;align-items:center;gap:8px');
+    var dot = el('span');
+    dot.setAttribute('style', 'width:10px;height:10px;background:#2ea043;border-radius:50%');
+    var name = el('span', '', '柚香（妹妹）');
+    name.setAttribute('style', 'font-size:14px;font-weight:600');
+    head.appendChild(dot); head.appendChild(name);
+    var cp = el('p', '', '卡片自己的段落');
+    cp.setAttribute('style', 'color:#8b949e');
+    var cstrong = el('strong', '', '卡片自己的加粗');
+    var ca = el('a', '', '卡片自己的链接');
+    ca.href = '#';
+    var btn = el('button', '', '🎨 生成');
+    btn.type = 'button';
+    btn.id = 'probe-btn';
+    btn.className = 'menu_button';
+    var inp = el('input');
+    inp.type = 'text';
+    inp.value = '输入框';
+    card.appendChild(head); card.appendChild(cp); card.appendChild(cstrong);
+    card.appendChild(document.createTextNode(' ')); card.appendChild(ca);
+    card.appendChild(document.createTextNode(' ')); card.appendChild(btn);
+    card.appendChild(document.createTextNode(' ')); card.appendChild(inp);
+
+    [p1, p2, h2, ul, bq, pre, table, el('hr'), p3, card].forEach(function (n) { slot.appendChild(n); });
+  }
+  buildFixture(document.getElementById('slot'));
+
+  /* ---------- 工具 ---------- */
+  function rgb(s) {
+    var m = String(s).match(/rgba?\(([^)]+)\)/);
+    if (!m) { return null; }
+    var p = m[1].split(',').map(function (x) { return parseFloat(x); });
+    if (p.length > 3 && p[3] === 0) { return null; }
+    return [p[0], p[1], p[2]];
+  }
+  function lum(c) {
+    var f = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+  }
+  function ratio(fg, bg) {
+    if (!fg || !bg) { return null; }
+    var a = lum(fg), b = lum(bg);
+    return Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100;
+  }
+  /* 往上层找第一层不透明背景：半透明要按 alpha 合成（假读数的老坑） */
+  function bgOf(el) {
+    var stack = [];
+    var n = el;
+    while (n && n.nodeType === 1) {
+      var cs = getComputedStyle(n);
+      var c = rgb(cs.backgroundColor);
+      var a = /rgba\(([^)]+)\)/.test(cs.backgroundColor) ? parseFloat(cs.backgroundColor.match(/rgba\(([^)]+)\)/)[1].split(',')[3]) : 1;
+      if (c && a >= 1) { return stack.length ? comp(stack, c) : c; }
+      if (c && a > 0) { stack.push({ c: c, a: a }); }
+      n = n.parentElement;
+    }
+    return [0, 0, 0];
+  }
+  function comp(stack, base) {
+    /* stack 从近到远：远的先画，近的后叠 */
+    var out = base.slice();
+    for (var i = stack.length - 1; i >= 0; i--) {
+      var l = stack[i];
+      out = [out[0] * (1 - l.a) + l.c[0] * l.a, out[1] * (1 - l.a) + l.c[1] * l.a, out[2] * (1 - l.a) + l.c[2] * l.a];
+    }
+    return out.map(function (v) { return Math.round(v); });
+  }
+  function tok(name) {
+    var v = TOKENS[name] || '';
+    var m = v.match(/#([0-9a-f]{6})([0-9a-f]{2})?\b/i);
+    if (m) {
+      var out = [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+      if (m[2]) { return { c: out, a: parseInt(m[2], 16) / 255 }; }
+      return out;
+    }
+    m = v.match(/rgba?\(([^)]+)\)/);
+    if (m) {
+      var p = m[1].split(',').map(function (x) { return parseFloat(x); });
+      return p.length > 3 ? { c: p.slice(0, 3), a: p[3] } : p.slice(0, 3);
+    }
+    return null;
+  }
+  /* 令牌里带 alpha 的（--kami-t2 之类）：按 alpha 合成到底色上，再算对比度 */
+  function flat(tv, base) {
+    if (!tv) { return null; }
+    if (Object.prototype.toString.call(tv) === '[object Array]') { return tv; }
+    return [0, 1, 2].map(function (i) { return Math.round(base[i] * (1 - tv.a) + tv.c[i] * tv.a); });
+  }
+  var q = function (s) { return document.querySelector(s); };
+  /* cs(选择器) 或 cs(选择器, 元素) */
+  var cs = function (s, p) { return getComputedStyle(p || document.querySelector(s)); };
+  /* csEl(元素)：读一个已有元素的计算样式（别再传选择器，会拼成非法选择器） */
+  var csEl = function (el) { return getComputedStyle(el); };
+
+  var failures = [];
+  var TOKENS = {};                 /* 当前皮肤「上提到 <html>」的那批令牌（主流程逐套解析后填） */
+  var BASE_FONT_SIZE = '13px';     /* 上皮肤之前量一次：正文与卡片的「原生字号」基准 */
+  var INHERIT_PROBE = '';          /* 上皮肤之前量一次：宿主页继承色（插件卡片里的元素应当保持这个） */
+  function check(name, pass, detail) {
+    if (!pass) { failures.push(name + ' —— ' + detail); }
+    return (pass ? '✓' : '✗') + name + (detail ? '（' + detail + '）' : '');
+  }
+
+  var BTN_HITS = 0;
+  var BTN = q('#probe-btn');
+  BTN.addEventListener('click', function () { BTN_HITS += 1; });
+
+  /* ---------- 单套皮肤：一轮读数 ---------- */
+  function probeSkin(skin) {
+    var lines = [];
+    var html = document.documentElement;
+    /* 1) 皮肤 CSS */
+    var st = document.getElementById('probe-skin');
+    if (!st) { st = document.createElement('style'); st.id = 'probe-skin'; document.head.appendChild(st); }
+    st.textContent = skin.css;
+    /* 2) 全局层 tavern.css（探针页与酒馆页面同源，选择器原样可用） */
+    var sv = document.getElementById('probe-tavern');
+    if (!sv) { sv = document.createElement('style'); sv.id = 'probe-tavern'; document.head.appendChild(sv); }
+    sv.textContent = window.__TAVERN_CSS || '';
+
+    /* 不再用「挂组件类」那个原型（它会把 .mes 的 flex 夺走）：面与特效现在由
+       build/sync-tavern.mjs 改写成消息楼层作用域、跟着皮肤 CSS 一起来，这里无需打类。 */
+
+    var schemes = ['dark', 'light'];
+    var schemesOf = skin.scheme ? [skin.scheme] : schemes;
+    var minContrast = 99, minWhere = '', fails = [], rows = [];
+    schemesOf.forEach(function (scheme) {
+      html.setAttribute('data-kami-skin', skin.id);
+      html.setAttribute('data-kami-scheme', scheme);
+      html.setAttribute('data-kami-motion', 'full');
+      html.setAttribute('data-kami-density', 'cozy');
+      var chat = q('#chat');
+      chat.setAttribute('data-kami-mes', '1');
+      var fg = tok('--kami-fg'), accent = tok('--kami-accent'), card = rgb(cs('.mes').backgroundColor);
+      var st2 = cs('.mes_text');
+      var cBody = ratio(rgb(st2.color), card);
+      if (scheme === schemesOf[0]) {
+        rows.push('  字号 ' + st2.fontSize + ' 行距 ' + st2.lineHeight + ' 字体 ' + String(st2.fontFamily).split(',')[0]);
+        rows.push('  .mes 底 ' + JSON.stringify(card) + ' 字 ' + st2.color + ' → ' + cBody + ':1 ｜ 圆角 ' + cs('.mes').borderRadius + ' 间距 ' + cs('.mes').marginBottom);
+        /* 「像不像前端」的硬读数：面（底图/投影/裁剪）+ 特效伪元素是否真的生效 */
+        var mesCs = cs('.mes');
+        rows.push('  面：bgImage=' + String(mesCs.backgroundImage).slice(0, 58) + ' shadow=' + String(mesCs.boxShadow).slice(0, 44) +
+          ' clip=' + String(mesCs.clipPath).slice(0, 22) + ' blend=' + mesCs.mixBlendMode);
+        ['::before', '::after'].forEach(function (pe) {
+          var p = getComputedStyle(q('.mes'), pe);
+          rows.push('  .mes' + pe + ' content=' + JSON.stringify(p.content) + ' bgImage=' + String(p.backgroundImage).slice(0, 46) +
+            ' border=' + p.borderTopWidth + ' anim=' + String(p.animationName).slice(0, 30));
+        });
+        rows.push('  布局：.mes display=' + mesCs.display + ' flexDir=' + mesCs.flexDirection + ' width=' + mesCs.width +
+          ' padding=' + mesCs.padding + ' ｜ .mes_text padding=' + st2.padding + ' maxWidth=' + st2.maxWidth);
+        /* 「容器感」读数：头部行与正文区的内边距、分隔线、以及内容离卡边缘的余量 */
+        var headCs = cs('.ch_name'), cardBox = q('.mes').getBoundingClientRect(), headBox = q('.ch_name').getBoundingClientRect();
+        rows.push('  容器：.ch_name padding=' + headCs.padding + ' 下边线=' + headCs.borderBottomWidth + ' ' + headCs.borderBottomColor);
+        rows.push('  容器：头部行左缘离卡左缘=' + Math.round(headBox.left - cardBox.left) + 'px ｜ 正文左缘离卡左缘=' +
+          Math.round(q('.mes_text').getBoundingClientRect().left - cardBox.left) + 'px');
+      }
+      [['正文', '.mes_text'], ['加粗', '.mes_text strong'], ['链接', '.mes_text a'],
+       ['行内代码', '.mes_text code'], ['引用', '.mes_text blockquote'], ['标题', '.mes_text h2']].forEach(function (pair) {
+        var el = q(pair[1]);
+        var self = rgb(csEl(el).color);
+        var r = ratio(self, bgOf(el));
+        if (r == null) { return; }
+        /* 「跟谁一致」也要留证据：正文/加粗/链接都应当 = 该皮肤的字色令牌 */
+        if (pair[0] === '链接' || pair[0] === '加粗') {
+          if (scheme === schemesOf[0]) {
+            rows.push('  ' + pair[0] + '色=' + JSON.stringify(self) + ' | 令牌 --kami-fg=' + JSON.stringify(fg) + ' → ' +
+              (JSON.stringify(self) === JSON.stringify(fg) ? '用字色令牌 ✓' : '不是字色令牌 ✗'));
+          }
+        }
+        if (r < minContrast) { minContrast = r; minWhere = pair[0] + '@' + scheme; }
+        if (r < 4.5) { fails.push(pair[0] + '@' + scheme + '=' + r); }
+      });
+      /* 代码块：自带底色，必须成对给 */
+      var preR = ratio(rgb(cs('.mes_text pre').color), rgb(cs('.mes_text pre').backgroundColor));
+      if (preR != null) {
+        if (preR < minContrast) { minContrast = preR; minWhere = '代码块@' + scheme; }
+        if (preR < 4.5) { fails.push('代码块@' + scheme + '=' + preR); }
+      }
+      if (scheme === schemesOf[0]) {
+        var bodySelf = rgb(cs('.mes_text').color);
+        lines.push('  正文色=' + cs('.mes_text').color + ' | 令牌 --kami-fg=' + JSON.stringify(fg) + ' → ' +
+          (JSON.stringify(bodySelf) === JSON.stringify(fg) ? '一致 ✓' : '不一致 ✗'));
+        lines.push('  引用色=' + cs('.mes_text blockquote').color + ' | 令牌 --kami-fg-mute=' + JSON.stringify(tok('--kami-fg-mute')) + ' → ' +
+          (JSON.stringify(rgb(cs('.mes_text blockquote').color)) === JSON.stringify(tok('--kami-fg-mute')) ? '一致 ✓' : '不一致 ✗'));
+        lines.push('  引用左线=' + cs('.mes_text blockquote').borderLeftWidth + ' ' + cs('.mes_text blockquote').borderLeftColor +
+          '（--kami-accent-mark / --kami-accent-line）');
+      }
+    });
+    lines = lines.concat(rows);
+
+    /* 窄屏横向溢出：把视口夹到 375px 量一次 #chat（量完立刻还原） */
+    var OVERFLOW_CUR = 0;
+    (function () {
+      var w0 = document.documentElement.style.width;
+      document.documentElement.style.width = '375px';
+      OVERFLOW_CUR = q('#chat').scrollWidth - q('#chat').clientWidth;
+      document.documentElement.style.width = w0;
+    })();
+
+    /* 3) 插件卡片：我们**一个字都不能碰**。卡片在自己的行内样式里定了背景/圆角/字色/行内字号，
+          但段落与加粗那两样它自己没定 —— 所以它们的字号必须是「宿主页原生值」，颜色则是继承来的。
+          旧方案靠 JS 让位，新方案靠 :where(:not([class],[style])) 让位；下面这几条就是那个判据的验收。 */
+    var cardEl = q('.rbq-sdt-card');
+    var cardCs = cs('.rbq-sdt-card'), pCs = cs('.rbq-sdt-card p');
+    var cardLabel = cardEl.querySelector('div[style] span[style]:last-child');
+    lines.push('  ' + check('插件卡片背景未被改', rgb(cardCs.backgroundColor) && rgb(cardCs.backgroundColor).join(',') === '32,36,42', cardCs.backgroundColor));
+    lines.push('  ' + check('插件卡片圆角未被改', cardCs.borderRadius === '16px', cardCs.borderRadius));
+    lines.push('  ' + check('卡片内段落色未被改（行内样式仍赢）', pCs.color === 'rgb(139, 148, 158)', pCs.color));
+    lines.push('  ' + check('卡片内段落字号未被改（不进我们的射程）', pCs.fontSize === BASE_FONT_SIZE, pCs.fontSize + '（宿主默认 ' + BASE_FONT_SIZE + '）'));
+    lines.push('  ' + check('卡片内行内字号未被改', csEl(cardLabel).fontSize === '14px', csEl(cardLabel).fontSize));
+    lines.push('  ' + check('卡片内加粗没被我们的 strong 规则抓到', csEl(cardEl.querySelector('strong')).color === INHERIT_PROBE,
+      csEl(cardEl.querySelector('strong')).color + '（宿主继承色 ' + INHERIT_PROBE + '）'));
+    lines.push('  ' + check('卡片内加粗跟随卡片自己的色', csEl(cardEl.querySelector('strong')).color === csEl(cardEl).color,
+      csEl(cardEl.querySelector('strong')).color + ' vs 卡 ' + csEl(cardEl).color));
+    lines.push('  ' + check('卡片内加粗字号复原', csEl(cardEl.querySelector('strong')).fontSize === BASE_FONT_SIZE,
+      csEl(cardEl.querySelector('strong')).fontSize));
+    /* 对照实验：把同一个色值用更高特异性压回去，看它到底能不能赢 —— 用来区分
+       「我们的规则真的命中了」与「有别的来源在改它」。 */
+    var dbg = document.getElementById('probe-dbg') || (function () {
+      var s = document.createElement('style'); s.id = 'probe-dbg'; document.head.appendChild(s); return s;
+    })();
+    dbg.textContent = 'html[data-kami-skin] #chat[data-kami-mes="1"] .mes_text .rbq-sdt-card strong { color: #e6edf3 !important; }';
+    var afterForce = csEl(cardEl.querySelector('strong')).color;
+    dbg.textContent = '';
+    lines.push('  对照：强制压回 #e6edf3 后 = ' + afterForce + '（能变=我们的规则原本在赢；不变=另有来源）');
+    /* 选择器语义自证：三层 :where 的真值表（不猜，直接 matches） */
+    (function () {
+      var n1 = cardEl.querySelector('div[style]'), st = cardEl.querySelector('strong');
+      lines.push('  自证 :where(:not([class],[style])) → 裸strong=' + st.matches(':where(:not([class], [style]))') +
+        ' · 带class的div=' + n1.matches(':where(:not([class], [style]))') +
+        ' · 裸strong.closest(rbq)=' + !!st.closest('.rbq-sdt-card') +
+        ' · 裸strong.attributes=' + st.getAttributeNames().join(','));
+    })();
+    /* 排障读数：我们的 strong 规则到底命中了哪些元素（应当只有楼层里那个，不含卡片里那个） */
+    var SEL = 'html[data-kami-skin] #chat[data-kami-mes="1"] .mes_text strong:where(:not([class], [style]))';
+    var cardStrong = cardEl.querySelector('strong');
+    lines.push('  排障：选择器可解析=' + (function () { try { document.querySelector(SEL); return true; } catch (e) { return false; } })() +
+      ' · 卡片 strong 命中=' + (function () { try { return cardStrong.matches(SEL); } catch (e) { return 'ERROR'; } })() +
+      ' · 卡片 strong 父元素=' + (cardStrong.parentElement ? cardStrong.parentElement.tagName + (cardStrong.parentElement.getAttribute('style') ? '[style]' : '[无style]') : '无') +
+      ' · 卡片元素命中 mes_text 后代=' + cardStrong.closest('.mes_text').tagName);
+
+    /* 4) 插件按钮：真点击必须回调（旧方案的红线） */
+    var before = BTN_HITS;
+    BTN.click();
+    lines.push('  ' + check('插件按钮真点击回调', BTN_HITS === before + 1, before + '→' + BTN_HITS));
+    lines.push('  ' + check('按钮未被套进 kami 包裹层', !BTN.closest('.kami-root'), ''));
+    lines.push('  ' + check('输入框未被套进 kami 包裹层', !q('.rbq-sdt-card input').closest('.kami-root'), ''));
+    lines.push('  ' + check('楼层 DOM 里没有任何 kami 节点', !q('#slot').querySelector('.kami-root'), '（新方案不往楼层插节点）'));
+
+    /* 5) 开关：关掉 = 一个字都不改（.mes 连底都不上） */
+    var chat = q('#chat');
+    var domBefore = q('#slot').innerHTML;
+    chat.setAttribute('data-kami-mes', '0');
+    var offBg = cs('.mes').backgroundColor;
+    var offBorder = cs('.mes').borderTopWidth;
+    var offFont = cs('.mes_text').fontSize;
+    chat.setAttribute('data-kami-mes', '1');
+    var onBg = cs('.mes').backgroundColor;
+    lines.push('  ' + check('关掉时消息卡底色撤掉', offBg !== onBg, '关=' + offBg + ' 开=' + onBg));
+    lines.push('  ' + check('关掉时描边撤掉', offBorder === '0px', offBorder));
+    lines.push('  ' + check('关掉时正文排版撤掉', offFont === BASE_FONT_SIZE, '关=' + offFont + ' 开=' + cs('.mes_text').fontSize + '（基准 ' + BASE_FONT_SIZE + '）'));
+    lines.push('  ' + check('开关前后 DOM 一字未改', q('#slot').innerHTML === domBefore, ''));
+
+    /* 6) 横向溢出：窄屏下聊天气泡不许横向滚（看 #chat 自己，不看整页 ——
+          页面上还有探针自己的诊断输出，那是给人看的、不算消息区）。 */
+    lines.push('  ' + check('消息区无横向溢出（375px 视口）', OVERFLOW_CUR === 0, '聊天区溢出=' + OVERFLOW_CUR + 'px'));
+
+    lines.push('  对比度最低 ' + minContrast + ':1（' + minWhere + '）' + (fails.length ? ' ✗ ' + fails.join(' ') : ' ✓'));
+    /* 令牌上提是否生效：这几支读不到，就说明 build/sync-tavern.mjs 那块没跟上 / 探针没解析到 */
+    ['--kami-fs', '--kami-lh', '--kami-font', '--kami-fg', '--kami-card', '--kami-gap',
+     '--kami-r-md', '--kami-border-w', '--kami-t2', '--kami-fg-mute', '--kami-accent-mark',
+     '--kami-accent-line', '--kami-fw-title', '--kami-font-title', '--kami-font-mono'].forEach(function (t) {
+      if (!TOKENS[t]) { lines.push('  ✗ 令牌缺失：' + t); failures.push('令牌缺失 ' + t); }
+    });
+    lines.push('  令牌齐全（' + Object.keys(TOKENS).length + ' 支已解析）');
+    return lines;
+  }
+
+  /* ---------- 主流程：逐套皮肤 ---------- */
+  fetch('/dev/30-皮肤管理.js').then(function (r) { return r.text(); }).then(function (code) {
+    /* 从 30 号源码里取真实 SKINS（dev 服务器会把 @@KAMI_SKINS@@ 展开成 15 套皮肤包） */
+    var m = code.match(/var SKINS = (\[[\s\S]*?\]);\r?\n/);
+    if (!m) { throw new Error('30 号脚本里没找到 SKINS 注入行'); }
+    var SKINS = JSON.parse(m[1]);
+    return fetch('/src/skin/tavern.css').then(function (r2) { return r2.text(); }).then(function (tcss) {
+      window.__TAVERN_CSS = tcss;
+      window.__DUMP_TOKENS = /dump=1/.test(location.search);
+      window.__SHELL_MODE = /shell=1/.test(location.search);
+      /* 上皮肤之前量一次基准：正文/卡片的原生字号，与「宿主继承色」 */
+      BASE_FONT_SIZE = cs('.mes_text').fontSize;
+      INHERIT_PROBE = cs('.rbq-sdt-card strong').color;
+      /* 模拟 30-皮肤管理.js 的 markMesHosts：给「.mes_text 里带 class/style 的直接子元素」
+         打上 data-kami-mes-host（全局层靠它把整棵子树挡在排版之外）。真机上这一步由脚本做。 */
+      Array.prototype.forEach.call(q('.mes_text').children, function (el) {
+        if (el.classList.contains('TH-render') || el.classList.contains('kami-root') || el.classList.contains('mes_')) { return; }
+        if (el.hasAttribute('class') || el.hasAttribute('style')) { el.setAttribute('data-kami-mes-host', '1'); }
+      });
+      var narrowChat = q('#chat');
+      var w = document.documentElement.style.width;
+      document.documentElement.style.width = '375px';
+      var OVERFLOW0 = narrowChat.scrollWidth - narrowChat.clientWidth;
+      document.documentElement.style.width = w;
+      log('皮肤 ' + SKINS.length + ' 套 · tavern.css ' + tcss.length + ' 字节 · 基准字号 ' + BASE_FONT_SIZE +
+        ' · 宿主继承色 ' + INHERIT_PROBE + ' · 375px 下聊天区溢出 ' + OVERFLOW0 + 'px · 模式=' + (window.__SHELL_MODE ? '挂组件类（shell 原型）' : '现状'));
+      var only = (location.search.match(/skin=([a-z0-9]+)/) || [])[1];
+      SKINS.forEach(function (skin) {
+        if (only && skin.id !== only) { return; }
+        /* 把该皮肤「上提到 <html>」的那批令牌解析出来（就是 build/sync-tavern.mjs 生成的那块），
+           再原样注入页面 —— 于是探针里的令牌继承与真酒馆页面一致，还能直接读到令牌真值。 */
+        var head = 'html[data-kami-skin="' + skin.id + '"]';
+        var i = skin.css.indexOf(head + ' {');
+        var j = i < 0 ? -1 : skin.css.indexOf('}', i);
+        /* 兜底：有些皮肤的生成块选择器带档位后缀（如 [data-kami-scheme]），换个更宽的锚点再找 */
+        if (j <= 0) {
+          i = skin.css.indexOf('html[data-kami-skin="' + skin.id + '"] {');
+          j = i < 0 ? -1 : skin.css.indexOf('}', i);
+        }
+        TOKENS = {};
+        if (j > 0) {
+          skin.css.slice(i + head.length + 1, j).split(';').forEach(function (decl) {
+            /* 第一段带着选择器前缀（`html[...] {\n  --kami-fg: …`），先砍掉第一行左花括号之前的部分 */
+            var nl = decl.indexOf('{');
+            if (nl >= 0) { decl = decl.slice(nl + 1); }
+            var k = decl.indexOf(':');
+            if (k <= 0) { return; }
+            var name = decl.slice(0, k).trim();
+            if (name.indexOf('--kami-') === 0) { TOKENS[name] = decl.slice(k + 1).trim(); }
+          });
+        }
+        var tb = document.getElementById('probe-tokens');
+        if (!tb) { tb = document.createElement('style'); tb.id = 'probe-tokens'; document.head.appendChild(tb); }
+        tb.textContent = 'html[data-kami-skin] {' + Object.keys(TOKENS).map(function (k) { return k + ':' + TOKENS[k] + ';'; }).join('') + '}';
+        if (window.__DUMP_TOKENS) { log('  令牌原文：--kami-fg=' + JSON.stringify(TOKENS['--kami-fg']) + ' 块起址=' + i + ' 块长=' + (j - i) + ' 本套令牌数=' + Object.keys(TOKENS).length); }
+        var lines = probeSkin(skin);
+        log('=== ' + skin.id + '（' + skin.name + '）===');
+        log(lines.join('\n'));
+      });
+      log(failures.length ? ('\n★ 失败 ' + failures.length + ' 条：\n' + failures.join('\n')) : '\n★ 全部通过');
+      document.title = '探针完成：' + (failures.length ? ('失败 ' + failures.length) : '全过');
+    });
+  }).catch(function (e) {
+    log('✗ 探针自身失败：' + ((e && e.message) || e));
+    document.title = '探针失败';
+  });
+})();
+</script>
+</body>
+</html>

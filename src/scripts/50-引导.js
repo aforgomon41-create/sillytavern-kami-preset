@@ -93,6 +93,15 @@
     skinPageIntro: '皮肤决定整个界面的样子。点下面任意一张卡立刻换上，之后随时可以在 🎨 按钮里换。',
     skinCurrent: '当前',
     skinDegrade: '皮肤管理脚本没有在运行，暂时只能用默认外观。启用 🎨 皮肤管理后再点这个按钮重看。',
+    /* 正文前端区（2026-09-26 新增，放在皮肤选择网格**上面**）。文案由文案 agent（Gemini）产出，
+       唯一真相是 design/copy/guide-copy.json（构建期内联成 GUIDE_COPY），这里只是缺表时的兜底，
+       两处措辞保持一字不差。 */
+    bodyFrontTitle: '正文前端',
+    bodyFrontNote: 'AI 写在 <content> 标签里的正文，会被单独渲染。它和显式思维链、行动选项是同类组件。它们分别负责正文、思考与按钮。开关默认开着，平时保持开启即可。',
+    bodyFrontOn: '已开启',
+    bodyFrontOff: '已关闭',
+    bodyFrontWarn: '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。',
+    bodyFrontDegrade: '皮肤管理脚本没有在运行，这个开关暂时点不动。启用 🎨 皮肤管理后即可正常切换。',
     modelPageTitle: '你在用什么模型',
     modelPageIntro: '选一个模型，引导会自动开好它名下的条目、关掉其它模型的。以后随时可以在 🌟卡密预设 里换。',
     modelCurrent: '当前',
@@ -801,6 +810,54 @@
     panelBody.appendChild(t);
   }
 
+  /* ── 开关行工厂（模块级：压缩页的「滚动/超限压缩」与皮肤页的「正文前端」共用这一份）──
+     ⚠️ 为什么抽出来：项目硬规矩「同一枚组件只许有一份实现」（交接 §五第 23 条，
+     ⓘ 注释标记 / 开关卡片高亮 / 模型卡结构三次都是「两处各写一套」害的）。
+     语义：整行即开关；右侧状态字用调用方给的两条文案键；写失败只提示、不改界面；
+     write 可以返回 Promise（异步写入，成功了再翻界面）或同步值 —— 同步返回 null/undefined 视为失败。
+     labelKey / onKey / offKey 允许重复使用同一个键（正文前端就是把标题当成开关名、状态字只有开/关两种）。 */
+  function buildSwitchRow(opt) {
+    var o = opt || {};
+    var on = false;
+    try { on = !!o.read(); } catch (e) { }
+    var row = el('button', 'kami-guide-switchrow');
+    row.type = 'button';
+    if (on) { row.classList.add('is-on'); }
+    row.appendChild(el('span', 'kami-guide-rowname', copyOf(o.labelKey)));
+    var stateEl = el('span', 'kami-guide-rowstate', on ? copyOf(o.onKey) : copyOf(o.offKey));
+    if (on) { stateEl.classList.add('is-on'); }
+    row.appendChild(stateEl);
+    function paint(v) {
+      on = !!v;
+      row.classList.toggle('is-on', on);
+      stateEl.classList.toggle('is-on', on);
+      stateEl.textContent = on ? copyOf(o.onKey) : copyOf(o.offKey);
+    }
+    if (o.disabled) {
+      row.setAttribute('aria-disabled', 'true');
+      row.disabled = true;
+      return row;
+    }
+    row.addEventListener('click', function () {
+      var want = !on;
+      try {
+        var r = o.write(want);
+        if (r && typeof r.then === 'function') {
+          /* 写酒馆正则这类异步路径：成功了再翻界面，失败了只提示 */
+          r.then(function () { paint(want); log(o.labelKey + ' → ' + (want ? '开' : '关')); },
+            function () { toast('error', copyOf('applyFail')); });
+        } else if (r === null || r === undefined) {
+          toast('error', copyOf('applyFail'));
+        } else {
+          /* write 可能返回「实际生效的状态」（正文前端两条状态联动时会这样），以它为准 */
+          paint(typeof r === 'boolean' ? r : want);
+          log(o.labelKey + ' → ' + ((typeof r === 'boolean' ? r : want) ? '开' : '关'));
+        }
+      } catch (e) { toast('error', copyOf('applyFail')); }
+    });
+    return row;
+  }
+
   function renderDisclaimer(st) {
     panelBody.appendChild(el('p', 'kami-guide-offnote', st.intro));
     panelBody.appendChild(el('p', 'kami-guide-offnote', copyOf('disclaimerConfirmHint')));
@@ -821,6 +878,31 @@
       degradeNote(copyOf('skinDegrade'));
       return;
     }
+    /* ── 正文前端区（在皮肤选择网格**上面**，用户 2026-09-26 点名）──
+       一块小卡：标题 + 一段说明 + 一枚开关行 + 一行风险提示。
+       开关与「🎨 皮肤管理面板 → 显示 → 正文前端」是**同一个状态**
+       （KamiSkin.bodyFront() / setBodyFront()），底层联动酒馆真正的正则启用位。
+       复用已登记类名：.kami-card / .kami-card-title / .kami-guide-lead / .kami-guide-switchrow*，
+       零新增类名、零新增令牌；开关行用模块级的 buildSwitchRow（与压缩页共用一份实现）。 */
+    (function () {
+      /* 先跟酒馆正则的真实启用位对一次账（只读，不写 —— 写会重载聊天）。
+         对账失败（皮肤管理没提供这个接口 / 读不到正则表）就照旧用当前状态，不挡渲染。 */
+      try { if (typeof api.syncBodyFront === 'function') { api.syncBodyFront(); } } catch (e) { }
+      var card = el('div', 'kami-card');
+      card.appendChild(el('div', 'kami-card-title', copyOf('bodyFrontTitle')));
+      card.appendChild(el('p', 'kami-guide-lead', copyOf('bodyFrontNote')));
+      var hasApi = typeof api.bodyFront === 'function' && typeof api.setBodyFront === 'function';
+      var row = buildSwitchRow({
+        labelKey: 'bodyFrontTitle', onKey: 'bodyFrontOn', offKey: 'bodyFrontOff',
+        disabled: !hasApi,
+        read: function () { return hasApi ? !!api.bodyFront() : false; },
+        write: function (want) { return hasApi ? api.setBodyFront(want) : null; }
+      });
+      card.appendChild(row);
+      card.appendChild(el('p', 'kami-guide-offnote', copyOf('bodyFrontWarn')));
+      if (!hasApi) { card.appendChild(el('p', 'kami-guide-offnote', copyOf('bodyFrontDegrade'))); }
+      panelBody.appendChild(card);
+    })();
     var list = [], curId = null;
     try { list = api.skins() || []; curId = api.skin; } catch (e) { }
     var grid = el('div', 'kami-guide-skins');
@@ -1344,38 +1426,13 @@
     var stat = null;
     try { stat = api.status(); } catch (e) { }
 
-    /* 一枚开关行：整行即开关，右侧状态字。写失败只提示、不改界面。 */
+    /* 开关行走模块级的 buildSwitchRow（与皮肤页的「正文前端」共用同一份实现）；
+       这里包一层只是为了沿用原来两个调用点的签名。 */
     function switchRow(nameKey, readOn, write) {
-      var on = false;
-      try { on = !!readOn(); } catch (e) { }
-      var row = el('button', 'kami-guide-switchrow');
-      row.type = 'button';
-      if (on) { row.classList.add('is-on'); }
-      row.appendChild(el('span', 'kami-guide-rowname', copyOf(nameKey)));
-      var stateEl = el('span', 'kami-guide-rowstate', on ? copyOf('compressOn') : copyOf('compressOff'));
-      if (on) { stateEl.classList.add('is-on'); }
-      row.appendChild(stateEl);
-      function paint(v) {
-        on = !!v;
-        row.classList.toggle('is-on', on);
-        stateEl.classList.toggle('is-on', on);
-        stateEl.textContent = on ? copyOf('compressOn') : copyOf('compressOff');
-      }
-      row.addEventListener('click', function () {
-        var want = !on;
-        try {
-          var r = write(want);
-          if (r && typeof r.then === 'function') {
-            /* 滚动压缩要写酒馆正则，是异步的：成功了再翻界面，失败了只提示 */
-            r.then(function () { paint(want); log(nameKey + ' → ' + (want ? '开' : '关')); },
-              function () { toast('error', copyOf('applyFail')); });
-          } else {
-            paint(want);
-            log(nameKey + ' → ' + (want ? '开' : '关'));
-          }
-        } catch (e) { toast('error', copyOf('applyFail')); }
-      });
-      panelBody.appendChild(row);
+      panelBody.appendChild(buildSwitchRow({
+        labelKey: nameKey, onKey: 'compressOn', offKey: 'compressOff',
+        read: readOn, write: write
+      }));
     }
 
     /* 滚动压缩：正则不在当前预设里时（roll.ok=false）这枚开关不出现，只留超限那一枚。

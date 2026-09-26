@@ -291,11 +291,22 @@ if (dry) {
   manifest.builds.push(entry);
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
   console.log(`  [完成] ${outPath}  (${fs.statSync(outPath).size} bytes)`);
-  /* 真实语义验证：按酒馆 engine.js 的替换语义重放并编译前端脚本，不通过就退出 */
+  /* 真实语义验证：按酒馆 engine.js 的替换语义重放并编译前端脚本，不通过就退出。
+     ⚠️ 必须把**刚写出的那个文件**传进去：让验证脚本自己「按文件猜最新」在
+     「构建号按版本重置」之后会挑错版本（2026-09-26 实测：新产物 0.91-30 已写出，
+     验证却仍在跑 0.90-131，于是新加的前端正则被误报成「找不到该正则」）。 */
   try {
-    execFileSync(process.execPath, [path.join(__dirname, 'verify-frontends.mjs')], { stdio: 'inherit' });
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-frontends.mjs'), outPath], { stdio: 'inherit' });
   } catch (e) {
     console.error('  [中止] 前端真实语义验证未通过，产物已写出但请不要使用，先修前端。');
+    process.exit(1);
+  }
+  /* 正文外壳链路（2026-09-26 起「前端|正文 v0.1」不再发 iframe 载荷：两个空标记夹正文 +
+     45-正文外壳.js 在父文档里套壳）。它有自己的守卫，理由见那个文件头。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-body-shell.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 正文外壳链路验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
 }
