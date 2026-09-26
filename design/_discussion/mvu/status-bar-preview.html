@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-kami-skin="dark-glass" data-kami-scheme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>卡密预设 · MVU变量系统状态栏原型示例 (v3.0)</title>
+<style>
+/* ==========================================================================
+   1. 设计令牌与三套模拟皮肤变量 (符合卡密皮肤契约设计)
+   ========================================================================== */
+:root {
+  /* 基础通用参数 */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+  --dur-fast: 0.15s;
+  --dur-normal: 0.25s;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* 皮肤 1：暗黑微光玻璃 (卡密预设主力暗黑风) */
+html[data-kami-skin="dark-glass"] {
+  --bg-page: #0b0c10;
+  --bg-surface: rgba(18, 20, 29, 0.85);
+  --bg-surface-elevated: rgba(28, 32, 48, 0.95);
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-input: rgba(0, 0, 0, 0.35);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(176, 125, 255, 0.35);
+  --text-primary: #f0f2f8;
+  --text-secondary: #9da5bc;
+  --text-muted: #626a84;
+  --primary: #a855f7;
+  --primary-rgb: 168, 85, 247;
+  --primary-glow: rgba(168, 85, 247, 0.4);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #06b6d4;
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-subtle);
+  --blur: blur(16px);
+}
+
+/* 皮肤 2：TRPG 跑团草稿本 (复刻奈亚子的TRPG) */
+html[data-kami-skin="trpg-paper"] {
+  --bg-page: #f0ebe1;
+  --bg-surface: #fdfbf7;
+  --bg-surface-elevated: #f4eee2;
+  --bg-card: #f8f4ec;
+  --bg-card-hover: #ede5d5;
+  --bg-input: #fff;
+  --border-subtle: #d6ccbe;
+  --border-strong: #8c7355;
+  --text-primary: #3c3226;
+  --text-secondary: #6e6050;
+  --text-muted: #9e8e7a;
+  --primary: #8c5826;
+  --primary-rgb: 140, 88, 38;
+  --primary-glow: rgba(140, 88, 38, 0.25);
+  --success: #3b7042;
+  --warning: #b07412;
+  --danger: #9a2b2b;
+  --info: #35678a;
+  --shadow: 0 4px 16px rgba(80, 60, 40, 0.12), 0 0 0 1px var(--border-subtle);
+  --blur: none;
+}
+
+/* 皮肤 3：赛博终端 (高对比绿黑客风格) */
+html[data-kami-skin="cyber-terminal"] {
+  --bg-page: #050807;
+  --bg-surface: rgba(8, 16, 12, 0.95);
+  --bg-surface-elevated: #0f2318;
+  --bg-card: rgba(0, 255, 128, 0.04);
+  --bg-card-hover: rgba(0, 255, 128, 0.08);
+  --bg-input: #040d08;
+  --border-subtle: rgba(0, 255, 128, 0.2);
+  --border-strong: #00ff88;
+  --text-primary: #e0ffe8;
+  --text-secondary: #7ecd96;
+  --text-muted: #3a7550;
+  --primary: #00ff88;
+  --primary-rgb: 0, 255, 136;
+  --primary-glow: rgba(0, 255, 136, 0.5);
+  --success: #00ff88;
+  --warning: #ffcc00;
+  --danger: #ff3355;
+  --info: #00ccff;
+  --shadow: 0 0 20px rgba(0, 255, 128, 0.15), 0 0 0 1px var(--border-subtle);
+  --blur: none;
+}
+
+/* ==========================================================================
+   2. 基础重置与容器布局
+   ========================================================================== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: 16px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: background var(--dur-normal) var(--ease), color var(--dur-normal) var(--ease);
+}
+
+/* 演示外壳提示条 */
+.harness-topbar {
+  width: 100%;
+  max-width: 900px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--blur);
+}
+.harness-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--primary);
+}
+.harness-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+.harness-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.harness-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.harness-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--primary);
+}
+.harness-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* 模拟消息气泡 (体验状态栏在真实对话末尾的视觉定位) */
+.mock-chat-bubble {
+  width: 100%;
+  max-width: 900px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.mock-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mock-chat-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.mock-chat-quote {
+  border-left: 3px solid var(--primary);
+  padding-left: 10px;
+  margin: 6px 0 12px 0;
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   3. 核心组件：.kami-status-wrapper 状态栏本体
+   ========================================================================== */
+.kami-status-wrapper {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: inherit;
+  margin-top: 8px;
+}
+
+/* 3.1 折叠精简条 (始终可见的锚点) */
+.kami-status-bar {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--dur-normal) var(--ease);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  backdrop-filter: var(--blur);
+}
+.kami-status-bar:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+.bar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.bar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.bar-pill.accent {
+  background: rgba(var(--primary-rgb), 0.15);
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+.bar-pill.weather {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.3);
+  color: var(--info);
+}
+.bar-avatars {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+.avatar-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -5px;
+  position: relative;
+  font-weight: 600;
+}
+.avatar-dot:first-child { margin-left: 0; }
+.avatar-dot.player { background: #3b82f6; }
+.avatar-dot.npc { background: #10b981; }
+
+.bar-center-focus {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+  display: none;
+}
+@media (min-width: 680px) {
+  .bar-center-focus { display: block; }
+}
+
+.bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.expand-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+}
+.expand-icon {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--dur-normal) var(--ease);
+}
+.kami-status-wrapper.is-expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+/* 3.2 展开面板总容器 */
+.kami-status-panel {
+  display: none;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  backdrop-filter: var(--blur);
+  animation: panelSlideDown var(--dur-normal) var(--ease);
+}
+.kami-status-wrapper.is-expanded .kami-status-panel {
+  display: block;
+}
+@keyframes panelSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 导航选项卡 (Tab 栏) */
+.panel-tabs-bar {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  padding: 4px 8px 0;
+  gap: 4px;
+}
+.panel-tabs-bar::-webkit-scrollbar { display: none; }
+.panel-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--dur-fast) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.panel-tab:hover {
+  color: var(--text-primary);
+}
+.panel-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.tab-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+}
+
+/* 标签内容展示区 */
+.panel-content {
+  padding: 16px;
+  min-height: 380px;
+}
+.tab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+.tab-pane.active {
+  display: flex;
+}
+
+/* ==========================================================================
+   4. 通用子组件：卡片、栅格、标头、进度条、徽章
+   ========================================================================== */
+.card-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--border-subtle);
+  padding-bottom: 6px;
+}
+.card-section-title .desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.prop-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-size: 12px;
+  gap: 8px;
+}
+.prop-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.prop-val {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+}
+.prop-val.bold { font-weight: 600; }
+
+/* 进度条与数值指示器 */
+.gauge-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gauge-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.gauge-track {
+  width: 100%;
+  height: 7px;
+  background: var(--bg-input);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  position: relative;
+}
+.gauge-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-normal) var(--ease);
+}
+.gauge-fill.primary { background: linear-gradient(90deg, var(--primary), #c084fc); }
+.gauge-fill.affection { background: linear-gradient(90deg, #ec4899, #f43f5e); }
+.gauge-fill.danger { background: linear-gradient(90deg, #ef4444, #f97316); }
+.gauge-fill.success { background: linear-gradient(90deg, #10b981, #34d399); }
+
+/* 标签胶囊群 */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kami-tag {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.kami-tag.highlight {
+  border-color: var(--primary);
+  color: var(--text-primary);
+  background: rgba(var(--primary-rgb), 0.1);
+}
+
+/* ==========================================================================
+   5. 模块特定样式：角色切换、地图双模式、网格棋盘
+   ========================================================================== */
+/* 角色子切换栏 */
+.char-sub-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.char-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--dur-fast) var(--ease);
+}
+.char-pill-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+.char-pill-btn.active {
+  background: rgba(var(--primary-rgb), 0.18);
+  border-color: var(--primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 着装层级展示表 */
+.wardrobe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+.wardrobe-slot {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.wardrobe-slot .slot-title {
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.wardrobe-slot .slot-val {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* 网格战术地图 (8x8 棋盘) */
+.tactical-grid-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.tactical-board {
+  display: grid;
+  grid-template-columns: repeat(8, 38px);
+  grid-template-rows: repeat(8, 38px);
+  gap: 3px;
+  background: var(--bg-input);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  max-width: 100%;
+  overflow: auto;
+}
+.grid-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.grid-cell:hover {
+  border-color: var(--primary);
+  z-index: 2;
+}
+.grid-cell.obstacle {
+  background: rgba(140, 140, 140, 0.25);
+  border-color: rgba(180, 180, 180, 0.4);
+}
+.grid-cell.interactive {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.grid-cell.entity-player {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: #3b82f6;
+  font-weight: bold;
+}
+.grid-cell.entity-npc {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: #10b981;
+  font-weight: bold;
+}
+.cell-marker {
+  font-size: 13px;
+}
+
+/* 节点拓扑地图卡片 */
+.node-card {
+  border-left: 3px solid var(--border-subtle);
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.node-card.current {
+  border-left-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+}
+.node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+.node-links {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 变量源码查看器与模拟操作条 */
+.json-viewer {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #7dd3fc;
+  max-height: 340px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.patch-simulator-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  align-items: center;
+}
+.patch-action-btn {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--dur-fast) var(--ease);
+}
+.patch-action-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+</style>
+</head>
+<body>
+
+<!-- 1. 顶部预研演示控制器 (用于横向切换皮肤、折叠态与直观感受) -->
+<div class="harness-topbar">
+  <div class="harness-badge">卡密预设 · MVU 变量状态栏预研示例 (v3.0 全场景)</div>
+  <div class="harness-controls">
+    <span>模拟皮肤：</span>
+    <button class="harness-btn active" onclick="switchSkin('dark-glass')">暗夜拟态</button>
+    <button class="harness-btn" onclick="switchSkin('trpg-paper')">奈亚子TRPG</button>
+    <button class="harness-btn" onclick="switchSkin('cyber-terminal')">赛博终端</button>
+    <span style="margin-left: 6px;">形态：</span>
+    <button class="harness-btn" onclick="toggleExpand()">展开/收起状态栏</button>
+  </div>
+</div>
+
+<!-- 2. 模拟真实聊天气泡末尾的宿主环境 (AI 发送的正文) -->
+<div class="mock-chat-bubble">
+  <div class="mock-chat-header">
+    <div class="mock-chat-avatar">艾</div>
+    <span>艾莉亚 (森林巡逻游侠)</span>
+    <span style="font-size: 11px; color: var(--text-muted); margin-left: auto;">刚刚 · 第12轮</span>
+  </div>
+  <div class="mock-chat-quote">
+    “站住，陌生人。把你的手从剑柄上移开。在这片常年大雾的石碑林里，任何微弱的魔力躁动都会惊醒深处的守卫。告诉我，你掌心握着的发光结晶究竟是从哪里偷来的？”
+  </div>
+  <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+    （风吹起浓雾，艾莉亚手中的精灵长弓已半拉成满月，银白色的箭尖在幽微魔光下闪烁着破甲的寒芒。周遭古木沙沙作响。）
+  </div>
+
+  <!-- ======================================================================
+       3. 核心单文件状态栏组件 (.kami-status-wrapper)
+       ====================================================================== -->
+  <div class="kami-status-wrapper is-expanded" id="statusBarRoot">
+    
+    <!-- 3.1 折叠精简条 (始终可见的精简概览) -->
+    <div class="kami-status-bar" onclick="toggleExpand()">
+      <div class="bar-left">
+        <span class="bar-pill accent" id="pillRoundTime">📅 第四纪元 · 15:00</span>
+        <span class="bar-pill" id="pillLocation">📍 迷雾森林 · 石碑入口</span>
+        <span class="bar-pill weather" id="pillWeather">🌫️ 浓雾</span>
+        <div class="bar-avatars" title="同屏在场人员">
+          <span class="avatar-dot player" title="主角: 雷恩">雷</span>
+          <span class="avatar-dot npc" title="NPC: 艾莉亚">艾</span>
+        </div>
+      </div>
+      <div class="bar-center-focus" id="barMacroFocus">
+        🎯 焦点：调查迷雾森林异象，设法取得通行许可
+      </div>
+      <div class="bar-right">
+        <button class="expand-toggle" type="button" aria-label="展开或收起状态栏">
+          <span id="expandText">收起</span>
+          <svg class="expand-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3.2 展开完整状态栏仪表盘 -->
+    <div class="kami-status-panel">
+      <!-- 顶部 Tab 导航 -->
+      <div class="panel-tabs-bar">
+        <button class="panel-tab active" data-tab="overview" onclick="switchTab('overview')">
+          <span>🌐 现场概览</span>
+        </button>
+        <button class="panel-tab" data-tab="characters" onclick="switchTab('characters')">
+          <span>👤 角色档案</span>
+          <span class="tab-badge" id="tabCharCount">3</span>
+        </button>
+        <button class="panel-tab" data-tab="map" onclick="switchTab('map')">
+          <span>🗺️ 地图视界</span>
+          <span class="tab-badge" id="tabMapModeBadge">节点/网格</span>
+        </button>
+        <button class="panel-tab" data-tab="quests" onclick="switchTab('quests')">
+          <span>📜 剧情任务</span>
+          <span class="tab-badge">2</span>
+        </button>
+        <button class="panel-tab" data-tab="factions" onclick="switchTab('factions')">
+          <span>🏛️ 势力大局</span>
+          <span class="tab-badge">2</span>
+        </button>
+        <button class="panel-tab" data-tab="living-world" onclick="switchTab('living-world')">
+          <span>🌍 活世界</span>
+        </button>
+        <button class="panel-tab" data-tab="raw-vars" onclick="switchTab('raw-vars')">
+          <span>⚙️ 变量底座 & 模拟</span>
+        </button>
+      </div>
+
+      <!-- 面板内容容器 -->
+      <div class="panel-content">
+
+        <!-- ──────────────────────────────────────────────
+             TAB 1: 现场概览 (时空、地点、天气、焦点)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane active" id="pane-overview">
+          <div class="grid-2">
+            <!-- 时空时钟卡 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>时空与天色 (当前状态模块)</span>
+                <span class="desc">交互轮次: #12</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">历法时间</span>
+                <span class="prop-val bold" id="ovTime">第四纪元-2023年-11月-15日-15:00</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">所在地点</span>
+                <span class="prop-val" id="ovLocation">迷雾森林 · 石碑入口 [坐标: 3, 4]</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">天气特效</span>
+                <span class="prop-val" style="color:var(--info);" id="ovWeather">浓雾 (环境魔力流速 +20%)</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">同屏角色</span>
+                <span class="prop-val" id="ovPresent">雷恩 (主角), 艾莉亚 (巡逻游侠)</span>
+              </div>
+            </div>
+
+            <!-- 当前核心目标卡 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>宏观叙事焦点 (剧情中枢)</span>
+                <span class="desc">指引下一步驱动</span>
+              </div>
+              <p style="font-size: 13px; color: var(--text-primary); line-height: 1.6;" id="ovMacroFocus">
+                调查迷雾森林异象，设法取得通行许可；向艾莉亚证明手中发光结晶的来历，避免爆发武力冲突。
+              </p>
+              <div style="margin-top: 6px;">
+                <div class="gauge-header">
+                  <span style="font-size: 11px; color: var(--text-muted);">主线任务“穿越迷雾”完成度</span>
+                  <span style="font-size: 11px; font-weight: 600; color: var(--primary);" id="ovQuestProgressText">35%</span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill primary" id="ovQuestProgressBar" style="width: 35%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 同屏角色速览条 -->
+          <div class="card-section">
+            <div class="card-section-title">
+              <span>同屏交互角色即时反应</span>
+              <span class="desc">点击角色卡片可跳转详细档案</span>
+            </div>
+            <div class="grid-2">
+              <div class="card-section" style="background:var(--bg-input); cursor:pointer;" onclick="selectCharAndSwitch('char_player')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="color:#60a5fa;">🛡️ 雷恩 (玩家扮演)</strong>
+                  <span class="kami-tag highlight">黑铁阶初段</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+                  状态：戒备拔剑中 ｜ 健康：轻微擦伤 ｜ 精力：充沛
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                  当前目标：自证清白，寻找迷雾核心
+                </div>
+              </div>
+
+              <div class="card-section" style="background:var(--bg-input); cursor:pointer;" onclick="selectCharAndSwitch('npc_aria')">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="color:#34d399;">🏹 艾莉亚 (精灵游侠)</strong>
+                  <span class="kami-tag highlight">白银阶中段</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+                  状态：警戒瞄准中 ｜ 好感：15 (陌生防备) ｜ 心声：提防人类
+                </div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                  诉求：核验结晶来源，确保祭坛结界无虞
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 2: 角色档案 (5大子模块：基础、属性、资产、社交、NSFW)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-characters">
+          <!-- 角色子导航切换 -->
+          <div class="char-sub-nav">
+            <button class="char-pill-btn active" id="btnCharPlayer" onclick="selectChar('char_player')">
+              <span>🛡️ 雷恩 (主角)</span>
+            </button>
+            <button class="char-pill-btn" id="btnCharAria" onclick="selectChar('npc_aria')">
+              <span>🏹 艾莉亚 (同屏NPC)</span>
+            </button>
+            <button class="char-pill-btn" id="btnCharKallum" onclick="selectChar('npc_kallum')">
+              <span>💼 卡勒姆 (场外商会会长)</span>
+            </button>
+          </div>
+
+          <!-- 角色详情区域 (动态渲染) -->
+          <div id="charDetailContainer" style="display:flex; flex-direction:column; gap:14px;">
+            <!-- 由 JS renderCharacterDetails() 动态灌入 -->
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 3: 地图视界 (互斥双模式：节点拓扑 vs 战术网格)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-map">
+          <!-- 地图模式切换器 -->
+          <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-subtle); padding-bottom:8px;">
+            <div>
+              <strong style="font-size:14px;" id="mapModeTitle">模式 A：图谱节点拓扑 (宏观叙事与旅行)</strong>
+              <div style="font-size:11px; color:var(--text-muted);">规范定义：纯节点拓扑模式与网格模式互斥</div>
+            </div>
+            <div class="harness-controls">
+              <button class="harness-btn active" id="btnMapModeNode" onclick="switchMapMode('node')">节点图谱</button>
+              <button class="harness-btn" id="btnMapModeGrid" onclick="switchMapMode('grid')">战术网格</button>
+            </div>
+          </div>
+
+          <!-- 模式 A 视图：节点图谱 -->
+          <div id="mapViewNode" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>当前宏观大区：迷雾森林</span>
+                <span class="desc">当前节点：石碑入口 (已探索)</span>
+              </div>
+              <p style="font-size:12px; color:var(--text-secondary);">
+                古老原始森林，终年笼罩魔力浓雾。林中散落着失落纪元的封印石碑与巡逻栈道。
+              </p>
+              
+              <div class="grid-2" style="margin-top:6px;">
+                <div class="node-card current">
+                  <div class="node-header">
+                    <span>📍 石碑入口 (当前位置)</span>
+                    <span class="kami-tag highlight">已探索</span>
+                  </div>
+                  <div style="font-size:11px; color:var(--text-secondary);">森林边缘的风化断碑，青苔覆盖，立于岔路口。</div>
+                  <div style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">
+                    Tags: misty forest, entrance, stone monument, moss, cinematic lighting
+                  </div>
+                  <div class="node-links">
+                    <span>➡️ 通往 <strong>核心祭坛</strong> (穿行2小时，需驱雾火把或向导) [通路状态: 浓雾阻隔]</span>
+                    <span>➡️ 通往 <strong>起始镇·北门</strong> (步行30分钟，畅通)</span>
+                  </div>
+                </div>
+
+                <div class="node-card">
+                  <div class="node-header">
+                    <span>🏛️ 核心祭坛</span>
+                    <span class="kami-tag">已知未至</span>
+                  </div>
+                  <div style="font-size:11px; color:var(--text-secondary);">深处被巨大古木环绕的圆形祭坛，散发淡紫色微光。</div>
+                  <div style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">
+                    Tags: ancient magic altar, purple glow, giant trees, fantasy
+                  </div>
+                  <div class="node-links">
+                    <span>⬅️ 通往 <strong>石碑入口</strong></span>
+                    <span>➡️ 通往 <strong>深层封印裂谷</strong> (未探索)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 连接关系表 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>图谱边拓扑连通清单 (Connections)</span>
+              </div>
+              <div class="tag-list">
+                <span class="kami-tag">迷雾森林·石碑入口 &lt;--&gt; 迷雾森林·核心祭坛 (双向)</span>
+                <span class="kami-tag">迷雾森林·石碑入口 &lt;--&gt; 起始镇·北门 (跨大区连接)</span>
+                <span class="kami-tag">迷雾森林·核心祭坛 --&gt; 迷雾森林·单向滑道 (单向)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 模式 B 视图：战术网格 -->
+          <div id="mapViewGrid" style="display:none; flex-direction:column; gap:12px;">
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>网格场景：石碑入口前哨阵地</span>
+                <span class="desc">规格：8×8 网格 (1格 = 1.5米)</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; flex-wrap:wrap; font-size:12px; color:var(--text-secondary); gap:8px;">
+                <span>当前单位：<strong>雷恩 [3, 4]</strong> ｜ <strong>艾莉亚 [4, 4]</strong> ｜ <strong>树精守卫 [6, 2]</strong></span>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:8px; height:8px; background:#3b82f6; border-radius:2px;"></span>玩家</span>
+                  <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:8px; height:8px; background:#10b981; border-radius:2px;"></span>友善/中立</span>
+                  <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:8px; height:8px; background:rgba(140,140,140,0.5); border-radius:2px;"></span>掩体/障碍</span>
+                  <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:8px; height:8px; background:#f59e0b; border-radius:2px;"></span>交互点</span>
+                </div>
+              </div>
+
+              <!-- 8x8 棋盘渲染区 -->
+              <div class="tactical-grid-container" style="margin-top:10px;">
+                <div class="tactical-board" id="tacticalBoard">
+                  <!-- JS 生成 64 格 -->
+                </div>
+                <div id="gridCellDetail" style="font-size:12px; color:var(--text-muted); text-align:center;">
+                  点击网格查看地块环境与掩体属性
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 4: 剧情使命 (剧情模块：宏观焦点与多剧情线)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-quests">
+          <div class="card-section">
+            <div class="card-section-title">
+              <span>宏观叙事核心 (剧情总控)</span>
+            </div>
+            <div style="font-size:13px; color:var(--text-primary); line-height:1.6;">
+              🎯 <strong>全局指引：</strong>调查迷雾森林异象，设法取得通行许可；结晶背后牵扯古代封印的崩塌，必须赶在月圆之夜前查明真相。
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <!-- 剧情线 1 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>[主线] 新手试炼：穿越迷雾</span>
+                <span class="kami-tag highlight">推进中</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">当前阶段</span>
+                <span class="prop-val bold">获得守卫艾莉亚的信任</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">阶段目标</span>
+                <span class="prop-val">证明魔力结晶并非盗窃所得，说服她作为向导</span>
+              </div>
+              <div class="gauge-box" style="margin-top:6px;">
+                <div class="gauge-header">
+                  <span class="prop-label">阶段完成度</span>
+                  <span class="prop-val bold" style="color:var(--primary);">35%</span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill primary" style="width: 35%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 剧情线 2 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>[支线] 艾莉亚的心结</span>
+                <span class="kami-tag">已触发</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">当前阶段</span>
+                <span class="prop-val bold">失踪的巡逻队长</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">阶段目标</span>
+                <span class="prop-val">在探索森林时留意三日前失踪的精灵小队痕迹</span>
+              </div>
+              <div class="gauge-box" style="margin-top:6px;">
+                <div class="gauge-header">
+                  <span class="prop-label">阶段完成度</span>
+                  <span class="prop-val bold" style="color:var(--warning);">15%</span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill success" style="width: 15%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 关键线索与谜团备忘 -->
+          <div class="card-section">
+            <div class="card-section-title">
+              <span>已知关键线索与伏笔 (情报簿)</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="font-size:12px; background:var(--bg-input); padding:8px 10px; border-radius:var(--radius-sm);">
+                🔍 <strong>古代符文结晶的来历：</strong>在起始镇外废弃矿坑偶然捡到，表面刻有精灵圣坛的秘印，吸收微弱魔力后会发出淡紫色的温热微光。
+              </div>
+              <div style="font-size:12px; background:var(--bg-input); padding:8px 10px; border-radius:var(--radius-sm);">
+                🔍 <strong>苍白商会的秘密委托：</strong>商会会长卡勒姆出价 50 枚金币重金悬赏这块结晶，并叮嘱绝对不要让精灵巡逻队发现。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 5: 势力大局 (势力模块：拟人化组织外交)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-factions">
+          <div class="grid-2">
+            <!-- 势力 1 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>🌲 自然守卫巡逻队</span>
+                <span class="kami-tag">中立守序</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">组织类型</span>
+                <span class="prop-val">精灵自治防卫军 (微型编制)</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">根据地</span>
+                <span class="prop-val">迷雾森林 · 巡逻主帐篷</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">核心代表</span>
+                <span class="prop-val">艾莉亚 / 队长雷萨 (失踪)</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">近期动向</span>
+                <span class="prop-val">封锁外围通道，搜寻失踪巡逻小队</span>
+              </div>
+              <div class="gauge-box" style="margin-top:6px;">
+                <div class="gauge-header">
+                  <span class="prop-label">主角声望</span>
+                  <span class="prop-val bold" style="color:var(--info);">+15 (例行盘查)</span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill success" style="width: 57.5%;"></div>
+                </div>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                组织特性：林地掌控 (在森林中行动隐蔽性与索敌范围极大增强)
+              </div>
+            </div>
+
+            <!-- 势力 2 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>🪙 苍白商会</span>
+                <span class="kami-tag highlight">中立邪恶</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">组织类型</span>
+                <span class="prop-val">走私与跨国贸易财阀</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">根据地</span>
+                <span class="prop-val">起始镇 · 苍白仓库</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">核心代表</span>
+                <span class="prop-val">卡勒姆 (商会会长)</span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label">近期动向</span>
+                <span class="prop-val">高价悬赏古代遗迹圣物，向外雇佣佣兵</span>
+              </div>
+              <div class="gauge-box" style="margin-top:6px;">
+                <div class="gauge-header">
+                  <span class="prop-label">主角声望</span>
+                  <span class="prop-val bold" style="color:var(--warning);">-20 (戒备提防)</span>
+                </div>
+                <div class="gauge-track">
+                  <div class="gauge-fill danger" style="width: 40%;"></div>
+                </div>
+              </div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                掌控资源：富可敌国的资金流、起始镇地下钱庄与情报暗桩
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 6: 活世界 (客观事件账本：场外动态、传闻、公共变迁)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-living-world">
+          <div class="grid-2">
+            <!-- 场外动态 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>镜头之外的场外动态 (实时进行中)</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="background:var(--bg-input); padding:8px 10px; border-radius:var(--radius-sm); font-size:12px;">
+                  <strong style="color:var(--text-primary);">起始镇北门集市：</strong>
+                  <div style="color:var(--text-secondary); margin-top:2px;">
+                    由于森林浓雾封锁，多支往返王都的货商车队滞留在城门外，商人们正围住守备队讨要说法。
+                  </div>
+                  <div style="color:var(--text-muted); font-size:11px; margin-top:2px;">潜在影响：集市物资价格上涨 15%</div>
+                </div>
+
+                <div style="background:var(--bg-input); padding:8px 10px; border-radius:var(--radius-sm); font-size:12px;">
+                  <strong style="color:var(--text-primary);">黑铁酒馆地下室：</strong>
+                  <div style="color:var(--text-secondary); margin-top:2px;">
+                    神秘吟游诗人正在弹唱关于三千年前封印破碎的叙事诗，引起了多名佣兵侧耳倾听。
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 传闻八卦与公共变动 -->
+            <div class="card-section">
+              <div class="card-section-title">
+                <span>坊间传闻与公共设施变迁</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-secondary);">
+                <strong style="color:var(--primary);">📢 坊间传闻与流言：</strong>
+                <ul style="padding-left:18px; margin-top:4px; display:flex; flex-direction:column; gap:4px;">
+                  <li>“听猎人说，昨天午夜迷雾深处传来了低沉的龙吼。”</li>
+                  <li>“苍白商会的二当家今天清晨秘密调动了十几个好手，行色匆匆。”</li>
+                </ul>
+
+                <hr style="border:0; border-top:1px dashed var(--border-subtle); margin:10px 0;">
+
+                <strong style="color:var(--warning);">⚠️ 公共规则与环境变动：</strong>
+                <ul style="padding-left:18px; margin-top:4px; display:flex; flex-direction:column; gap:4px;">
+                  <li>起始镇守备队颁布了夜间宵禁令（申时后禁止出城）。</li>
+                  <li>通往古老神殿的石桥因地脉震动出现裂隙，禁止大型马车通行。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────────────────────────
+             TAB 7: 变量底座与模拟器 (JSON Patch 演示)
+             ────────────────────────────────────────────── -->
+        <div class="tab-pane" id="pane-raw-vars">
+          <!-- 补丁演练控制器 -->
+          <div class="patch-simulator-bar">
+            <span style="font-size:12px; font-weight:600; color:var(--primary);">🎯 模拟模型打补丁 (RFC 6902 JSON Patch)：</span>
+            <button class="patch-action-btn" onclick="simulatePatch('aria_affection')">💖 艾莉亚好感 +10</button>
+            <button class="patch-action-btn" onclick="simulatePatch('use_herb')">🧪 消耗止血草药 (-1)</button>
+            <button class="patch-action-btn" onclick="simulatePatch('move_altar')">🚶 移动到核心祭坛</button>
+            <button class="patch-action-btn" onclick="simulatePatch('nsfw_flutter')">💓 触发情欲动摇 (心防松动)</button>
+            <button class="patch-action-btn" onclick="simulatePatch('reset')">🔄 重置示例数据</button>
+          </div>
+
+          <div class="card-section" style="margin-top:10px;">
+            <div class="card-section-title">
+              <span>当前楼层底层变量快照 (Mvu stat_data)</span>
+              <span class="desc">JSON 格式 · 实时响应 Patch 更新</span>
+            </div>
+            <div class="json-viewer" id="jsonViewer"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+   6. JavaScript 运行时：完整数据模型驱动与响应式交互
+   ========================================================================== -->
+<script>
+// ──────────────────────────────────────────────────────────────────────────
+// 1. 符合 v3.0 规范的全场景完整示例数据 (Initial State Data)
+// ──────────────────────────────────────────────────────────────────────────
+const INITIAL_STAT_DATA = {
+  "当前状态": {
+    "轮次": 12,
+    "时间": "第四纪元-2023年-11月-15日-15:00",
+    "地点": {
+      "大区": "迷雾森林",
+      "地点": "石碑入口",
+      "坐标": [3, 4]
+    },
+    "天气": "浓雾",
+    "在场人员": ["char_player", "npc_aria"]
+  },
+  "角色": {
+    "char_player": {
+      "基础": {
+        "姓名": "雷恩",
+        "是否主角": true,
+        "身份头衔": "流浪游侠 / 异界旅者",
+        "位阶": "黑铁阶初段",
+        "所在地点": "迷雾森林·石碑入口",
+        "当前状态": "戒备拔剑中",
+        "健康": "轻微擦伤，体力充沛",
+        "精力": "充沛",
+        "当前外貌": "黑发黑瞳，身形矫健，眼神沉着警惕",
+        "当前目标": "解除误会，打听古代结晶的真相",
+        "心声": "这精灵警惕性极高，冒然动手只会被射成刺猬，先用言语稳住她。",
+        "着装状态": {
+          "外穿": "风尘仆仆的灰色防风斗篷",
+          "主体": "熟皮轻型游侠皮甲",
+          "贴身": "粗织棉布内衬",
+          "足部": "耐磨鹿皮长靴",
+          "装饰": "铜制指南针表",
+          "其他": "腰带佩挂短剑与杂物包"
+        }
+      },
+      "属性": {
+        "数值属性_DnD": { "力量": 14, "敏捷": 16, "体质": 13, "智力": 15, "感知": 14, "魅力": 12 },
+        "数值属性_WoD": { "力量": 3, "敏捷": 4, "耐力": 3, "智力": 3, "机智": 4, "决心": 3, "魅力": 2, "操纵": 2, "沉着": 3 },
+        "特殊属性": { "理智值 (SAN)": 85, "魔力亲和度": "35%" },
+        "特质与被动": {
+          "超常直觉": "对周围十米内的杀意与机械陷阱有预警直感",
+          "异邦旅人": "对精神干涉法术具备微弱抗性"
+        },
+        "能力与技能": {
+          "精准射击": "使用远程武器时修正风速与视线干扰",
+          "侦测灵光": "可感知附有魔力的古老遗迹与结晶残留"
+        }
+      },
+      "资产": {
+        "装备": {
+          "武器": { "精钢短剑": { "描述": "锋利精巧，便于近战格挡" } },
+          "防具": { "游侠硬皮甲": { "描述": "提供基础防砍割保护" } },
+          "饰品": { "旅行者护身符": { "描述": "略微加快体力回复" } },
+          "道具": { "黄铜指北针": { "描述": "在强魔力场中会轻微抖动" } },
+          "载具与坐骑": { "栗色旅行马": { "描述": "栓在森林外的灌木丛旁" } }
+        },
+        "消耗品": {
+          "止血草药": { "数量": 3, "描述": "捣碎后外敷可快速止血" },
+          "干粮与肉干": { "数量": 5, "描述": "可维持五日的行军消耗" },
+          "优质箭矢": { "数量": 24, "描述": "带倒钩的穿甲箭" }
+        },
+        "背包": {
+          "古代符文结晶": { "描述": "散发着淡紫色温润光泽的未知宝石，正是艾莉亚戒备的源头" },
+          "破损的羊皮地图": { "描述": "仅记录了起始镇周边二十里的大致地形" }
+        },
+        "资金财富": { "金币": 12, "银币": 35, "铜币": 80 }
+      },
+      "社交": {
+        "npc_aria": {
+          "好感": 15,
+          "关系": "初次对峙的警戒守卫",
+          "印象": "身手矫健、原则分明且极度忠于职守的精灵游侠",
+          "约定": "无",
+          "隐瞒": "自己其实来自异世界的秘密",
+          "关键回忆": "刚刚在林间被其一箭封喉擦身而过的瞬间"
+        }
+      },
+      "NSFW": {
+        "性设定": { "性欲倾向": "克制稳重", "性经验": "普通", "性癖与偏好": "偏好温柔与水到渠成的互动" },
+        "性状态": { "情欲唤起": "心无杂念", "心防程度": "警觉戒备", "体液与痕迹": "干爽", "衣物破损": "完好" },
+        "敏感部位": {
+          "颈部": { "敏感度": "普通", "当前状态": "紧绷防备", "刺激反馈": "下意识避让" }
+        }
+      }
+    },
+    "npc_aria": {
+      "基础": {
+        "姓名": "艾莉亚",
+        "是否主角": false,
+        "身份头衔": "精灵族森林巡逻游侠",
+        "位阶": "白银阶中段",
+        "所在地点": "迷雾森林·石碑入口",
+        "当前状态": "拉弓瞄准警戒中",
+        "健康": "轻度疲惫，无明显外伤",
+        "精力": "充沛",
+        "当前外貌": "银发绿瞳，修长挺拔，神情冷峻凛然，尖耳微颤",
+        "当前目标": "盘查可疑人类的来历，护送其远离祭坛",
+        "心声": "这人类手里的结晶散发着圣坛同源的气息……难不成队长失踪与他有关？绝不能大意！",
+        "着装状态": {
+          "外穿": "墨绿色防风短斗篷",
+          "主体": "深绿紧身猎手皮甲 (完好)",
+          "贴身": "素白亚麻内衬",
+          "足部": "软底静音猎靴",
+          "装饰": "风行者护符、细银耳坠",
+          "其他": "后背斜挎金丝箭袋"
+        }
+      },
+      "属性": {
+        "数值属性_DnD": { "力量": 12, "敏捷": 18, "体质": 14, "智力": 13, "感知": 16, "魅力": 14 },
+        "数值属性_WoD": { "力量": 2, "敏捷": 5, "耐力": 3, "智力": 3, "机智": 4, "决心": 4, "魅力": 3, "操纵": 2, "沉着": 4 },
+        "特殊属性": { "自然魔力储备": "80%", "专注度": "极高" },
+        "特质与被动": {
+          "森林之子": "林地移动不受任何减速影响，潜行判定极难被察觉",
+          "风行感知": "通过空气中的微弱气流感知弓箭射程内的敌对单位"
+        },
+        "能力与技能": {
+          "连珠附魔箭": "可瞬间搭上两支附带自然穿透的箭矢连续射击",
+          "荆棘缠绕": "沟通林木召唤根系缠绕对手双腿，造成定身效果"
+        }
+      },
+      "资产": {
+        "装备": {
+          "武器": { "星痕长弓": { "描述": "白银阶精灵古树枝打造，附带微量破魔" } },
+          "防具": { "轻灵游侠皮甲": { "描述": "韧性极高，不阻碍敏捷动作" } },
+          "饰品": { "细银耳坠": { "描述": "具备抵御精神污染的铭文祝福" } },
+          "道具": { "巡逻信号弹": { "描述": "发射后升起翠绿鸣镝，可召集附近同伴" } }
+        },
+        "消耗品": {
+          "附魔精钢箭": { "数量": 18, "描述": "箭头刻有气流减阻符文" },
+          "止血苔藓药膏": { "数量": 2, "描述": "精灵族秘制草药" }
+        },
+        "背包": {
+          "巡逻日志": { "描述": "记载了近一个月森林异变与浓雾加深的时间节点" }
+        },
+        "资金财富": { "森林银叶币": 15 }
+      },
+      "社交": {
+        "char_player": {
+          "好感": 15,
+          "关系": "可疑的受困人类旅者",
+          "印象": "手握圣坛结晶但身法沉稳，似乎没有直接的邪恶污染，尚待观察",
+          "约定": "保持双手在视线内方可回答盘问",
+          "隐瞒": "巡逻队长三日前失踪、圣坛结界正在减弱的军情机密",
+          "关键回忆": "方才在浓雾中悄无声息接近此人，对方却在最后一瞬察觉到弓弦微响"
+        }
+      },
+      "NSFW": {
+        "性设定": { "性欲倾向": "冷淡克制", "性经验": "未经人事", "性癖与偏好": "轻微被动支配倾向、对耳语极其敏感" },
+        "性状态": { "情欲唤起": "平静无波", "心防程度": "严防死守", "体液与痕迹": "干爽洁净", "衣物破损": "各层衣物严整完好" },
+        "敏感部位": {
+          "耳尖": { "敏感度": "弱点特异点", "当前状态": "警觉充血微颤", "刺激反馈": "被温热吐息包裹时会浑身发软触电" },
+          "锁骨": { "敏感度": "普通", "当前状态": "紧绷于皮甲内", "刺激反馈": "基础触觉，无多余生理波动" }
+        }
+      }
+    },
+    "npc_kallum": {
+      "基础": {
+        "姓名": "卡勒姆",
+        "是否主角": false,
+        "身份头衔": "苍白商会起始镇分会会长",
+        "位阶": "无战力凡人 / 巨富",
+        "所在地点": "起始镇·苍白货仓",
+        "当前状态": "在账房核对货物与走私清单",
+        "健康": "常年缺乏运动导致的体虚肥胖",
+        "精力": "精神矍铄，算计深沉",
+        "当前外貌": "戴单片金丝眼镜，挺着大肚，锦衣华服，手指戴满宝石戒指",
+        "当前目标": "不惜代价买下雷恩手中的古代结晶",
+        "心声": "只要把那块结晶献给王都的大人物，我的商会就能拿到垄断矿权！",
+        "着装状态": { "外穿": "紫貂皮绒大氅", "主体": "丝绸金线马甲", "贴身": "高级天鹅绒内衣", "足部": "软羊皮马靴" }
+      },
+      "属性": {
+        "数值属性_DnD": { "力量": 8, "敏捷": 9, "体质": 10, "智力": 16, "感知": 15, "魅力": 16 },
+        "特殊属性": { "商业信用": "声名狼藉", "私人金库": "富甲一方" },
+        "特质与被动": { "商海老手": "识破一切伪造契约与寻常谎言" }
+      },
+      "资产": {
+        "装备": { "饰品": { "隔绝护符": { "描述": "抵挡一次致命暗杀" } } },
+        "消耗品": {},
+        "背包": { "秘密账簿": { "描述": "记录多笔见不得光的黑市交易" } },
+        "资金财富": { "金币": 2400, "银币": 8000 }
+      },
+      "社交": {
+        "char_player": {
+          "好感": -20,
+          "关系": "心怀鬼胎的委托人",
+          "印象": "油滑狡诈的投机商人",
+          "约定": "带回结晶即可换取巨额报酬",
+          "隐瞒": "其实在结晶上涂抹了追踪荧光粉"
+        }
+      },
+      "NSFW": {
+        "性设定": { "性欲倾向": "纵欲", "性经验": "老手", "性癖与偏好": "金钱支配欲望" },
+        "性状态": { "情欲唤起": "寻常", "心防程度": "世故封闭", "体液与痕迹": "无", "衣物破损": "完好" },
+        "敏感部位": {}
+      }
+    }
+  },
+  "势力": {
+    "faction_rangers": {
+      "基础": {
+        "名称": "自然守卫巡逻队",
+        "组织类型": "精灵自治防卫军",
+        "规模层级": "微型编制 (约四十名游侠)",
+        "根据地": "迷雾森林·巡逻主营",
+        "核心代表": "艾莉亚 / 队长雷萨",
+        "当前诉求": "驱散森林魔雾，搜寻失踪巡逻队员，维护圣坛结界",
+        "内部氛围": "纪律严明但人心惶惶 (队长失联导致指挥体系受挫)"
+      },
+      "组织特性": { "林地行者": "在森林复杂地形作战与索敌获得巨大主场优势" },
+      "掌控资源": { "资金账目": "维持生计", "控制场所": ["迷雾森林外围栈道", "古树哨所"] },
+      "对外关系": { "char_player": { "好感声望": 15, "关系性质": "例行排查", "明面态度": "戒备盘问", "暗地动作": "暗桩在四周布控防线" } }
+    },
+    "faction_pale_guild": {
+      "基础": {
+        "名称": "苍白商会",
+        "组织类型": "跨国走私与黑市财阀",
+        "规模层级": "中大型跨区域组织",
+        "根据地": "起始镇·苍白货仓及地下黑市",
+        "核心代表": "卡勒姆",
+        "当前诉求": "独占古代遗迹圣物开采权，向王都贵族换取特许经营",
+        "内部氛围": "唯利是图，多方佣兵割据"
+      },
+      "组织特性": { "金权渗透": "可用重金收买各城防卫队与流氓佣兵团" },
+      "掌控资源": { "资金账目": "资金流雄厚", "控制场所": ["起始镇地下黑市", "西郊货栈"] },
+      "对外关系": { "char_player": { "好感声望": -20, "关系性质": "相互防备", "明面态度": "和气生财", "暗地动作": "暗中派遣盗贼尾随" } }
+    }
+  },
+  "剧情": {
+    "宏观焦点": "调查迷雾森林异象，设法取得通行许可；向艾莉亚证明手中发光结晶的来历，避免爆发武力冲突。",
+    "剧情线": {
+      "quest_main_01": {
+        "名称": "新手试炼：穿越迷雾",
+        "类型": "主线使命",
+        "状态": "推进中",
+        "当前阶段": "获得守卫艾莉亚的信任",
+        "阶段进度": 35,
+        "阶段目标": "证明身上魔力结晶并非盗窃所得，说服其成为引路向导"
+      },
+      "quest_aria_sub": {
+        "名称": "艾莉亚的心结",
+        "类型": "伙伴专属支线",
+        "状态": "已触发",
+        "当前阶段": "失踪的巡逻队长",
+        "阶段进度": 15,
+        "阶段目标": "在探索过程中打听三日前失踪的精灵小队痕迹"
+      }
+    }
+  },
+  "活世界": {
+    "场外动态": {
+      "起始镇城门滞留": {
+        "涉及范围": "起始镇北门",
+        "当前情况": "大雾阻断道路，大量货商滞留城外，物资流通受阻",
+        "潜在影响": "城内药品与箭矢价格攀升 15%"
+      }
+    },
+    "传闻与八卦": [
+      "听说昨天深夜有人在森林深处看见了古神祭坛的紫光冲天。",
+      "苍白商会的会长今天暗中拜访了黑铁酒馆的刺客头目。"
+    ],
+    "公共现状变动": [
+      "起始镇防卫队发布三级迷雾戒严，日落后关闭四门。",
+      "由于地脉异动，通往迷雾森林的古石桥出现破损，重型马车无法通过。"
+    ]
+  }
+};
+
+// 运行时变量（深拷贝一份初始数据，支持 Patch 交互演算）
+let STAT_DATA = JSON.parse(JSON.stringify(INITIAL_STAT_DATA));
+let currentSelectedChar = "npc_aria"; // 默认查看同屏 NPC 艾莉亚
+let currentAttrSystem = "dnd";        // 默认显示 DnD 跑团属性
+let currentMapMode = "node";          // 默认图谱节点模式
+
+// ──────────────────────────────────────────────────────────────────────────
+// 2. 界面视图渲染核心逻辑
+// ──────────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderOverview();
+  renderCharacterDetails();
+  renderTacticalGrid();
+  renderRawJson();
+}
+
+// 渲染 TAB 1: 现场概览
+function renderOverview() {
+  const cur = STAT_DATA.当前状态;
+  document.getElementById('pillRoundTime').textContent = `📅 轮次 #${cur.轮次} · ${cur.时间.split('-').pop()}`;
+  document.getElementById('pillLocation').textContent = `📍 ${cur.地点.大区} · ${cur.地点.地点}`;
+  document.getElementById('pillWeather').textContent = `🌫️ ${cur.天气}`;
+  
+  document.getElementById('ovTime').textContent = cur.时间;
+  document.getElementById('ovLocation').textContent = `${cur.地点.大区} · ${cur.地点.地点} [坐标: ${cur.地点.坐标 ? cur.地点.坐标.join(', ') : '无'}]`;
+  document.getElementById('ovWeather').textContent = `${cur.天气} (直接触发环境雾气/光斑特效通道)`;
+  
+  const presentNames = cur.在场人员.map(id => {
+    const c = STAT_DATA.角色[id];
+    return c ? `${c.基础.姓名} (${c.基础.是否主角 ? '主角' : c.基础.身份头衔})` : id;
+  });
+  document.getElementById('ovPresent').textContent = presentNames.join('、');
+  
+  const focus = STAT_DATA.剧情.宏观焦点;
+  document.getElementById('ovMacroFocus').textContent = focus;
+  document.getElementById('barMacroFocus').textContent = `🎯 焦点：${focus}`;
+  
+  const qMain = STAT_DATA.剧情.剧情线.quest_main_01;
+  if (qMain) {
+    document.getElementById('ovQuestProgressText').textContent = `${qMain.阶段进度}%`;
+    document.getElementById('ovQuestProgressBar').style.width = `${qMain.阶段进度}%`;
+  }
+}
+
+// 渲染 TAB 2: 角色完整档案 (5大子模块展示)
+function renderCharacterDetails() {
+  const container = document.getElementById('charDetailContainer');
+  const c = STAT_DATA.角色[currentSelectedChar];
+  if (!c) {
+    container.innerHTML = `<div class="card-section">未找到该角色数据</div>`;
+    return;
+  }
+
+  const b = c.基础;
+  const a = c.属性;
+  const assets = c.资产;
+  const social = c.社交;
+  const nsfw = c.NSFW;
+
+  // 好感度针对主角的计算（主角自身视为100）
+  let affectionVal = 0;
+  let relLabel = "自己";
+  if (b.是否主角) {
+    affectionVal = 100;
+  } else if (social && social.char_player) {
+    affectionVal = social.char_player.好感;
+    relLabel = social.char_player.关系;
+  }
+
+  let html = `
+    <!-- 2.1 基础模块卡 -->
+    <div class="card-section">
+      <div class="card-section-title">
+        <span>【基础人设与生理】${b.姓名} ${b.是否主角 ? '<span class="kami-tag highlight">玩家操控</span>' : ''}</span>
+        <span class="desc">${b.身份头衔} ｜ 位阶：${b.位阶}</span>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="prop-row"><span class="prop-label">所在地点</span><span class="prop-val">${b.所在地点}</span></div>
+          <div class="prop-row"><span class="prop-label">当前姿态</span><span class="prop-val bold" style="color:var(--primary);">${b.当前状态}</span></div>
+          <div class="prop-row"><span class="prop-label">健康状况</span><span class="prop-val">${b.健康}</span></div>
+          <div class="prop-row"><span class="prop-label">精力储备</span><span class="prop-val">${b.精力}</span></div>
+        </div>
+        <div>
+          <div class="prop-row"><span class="prop-label">当前目标</span><span class="prop-val">${b.当前目标}</span></div>
+          <div class="prop-row"><span class="prop-label">真实心声</span><span class="prop-val" style="color:var(--warning); font-style:italic;">“${b.心声}”</span></div>
+          <div class="prop-row"><span class="prop-label">浓缩外貌</span><span class="prop-val">${b.当前外貌}</span></div>
+        </div>
+      </div>
+
+      <!-- 分层着装展示表 -->
+      <div style="margin-top:8px;">
+        <span style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">分层着装状态：</span>
+        <div class="wardrobe-grid">
+          <div class="wardrobe-slot"><div class="slot-title">外穿</div><div class="slot-val">${b.着装状态.外穿 || '无'}</div></div>
+          <div class="wardrobe-slot"><div class="slot-title">主体</div><div class="slot-val">${b.着装状态.主体 || '无'}</div></div>
+          <div class="wardrobe-slot"><div class="slot-title">贴身</div><div class="slot-val">${b.着装状态.贴身 || '无'}</div></div>
+          <div class="wardrobe-slot"><div class="slot-title">足部</div><div class="slot-val">${b.着装状态.足部 || '无'}</div></div>
+          <div class="wardrobe-slot"><div class="slot-title">饰品</div><div class="slot-val">${b.着装状态.装饰 || '无'}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.2 属性模块卡 (DnD / WoD 双体系切换) -->
+    <div class="card-section">
+      <div class="card-section-title">
+        <span>【能力与数值属性】</span>
+        <div class="harness-controls">
+          <button class="harness-btn ${currentAttrSystem==='dnd'?'active':''}" onclick="setAttrSystem('dnd')">DnD 六维</button>
+          <button class="harness-btn ${currentAttrSystem==='wod'?'active':''}" onclick="setAttrSystem('wod')">WoD 点数</button>
+        </div>
+      </div>
+      
+      <!-- 六维或九维网格 -->
+      <div class="grid-4" style="background:var(--bg-input); padding:8px; border-radius:var(--radius-sm);">
+  `;
+
+  if (currentAttrSystem === 'dnd' && a.数值属性_DnD) {
+    for (const [k, v] of Object.entries(a.数值属性_DnD)) {
+      html += `<div style="text-align:center;"><div style="font-size:10px; color:var(--text-muted);">${k}</div><strong style="font-size:15px; color:var(--primary);">${v}</strong></div>`;
+    }
+  } else if (currentAttrSystem === 'wod' && a.数值属性_WoD) {
+    for (const [k, v] of Object.entries(a.数值属性_WoD)) {
+      html += `<div style="text-align:center;"><div style="font-size:10px; color:var(--text-muted);">${k}</div><strong style="font-size:15px; color:var(--info);">${'●'.repeat(v)}${'○'.repeat(Math.max(0, 5-v))}</strong></div>`;
+    }
+  }
+
+  html += `
+      </div>
+
+      <!-- 特殊能量槽与特质 -->
+      <div class="grid-2" style="margin-top:6px;">
+        <div>
+          <span style="font-size:11px; color:var(--text-muted);">特殊机制槽位：</span>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+  `;
+  if (a.特殊属性) {
+    for (const [k, v] of Object.entries(a.特殊属性)) {
+      html += `<div class="prop-row"><span class="prop-label">${k}</span><span class="prop-val bold" style="color:var(--info);">${v}</span></div>`;
+    }
+  }
+  html += `
+          </div>
+        </div>
+        <div>
+          <span style="font-size:11px; color:var(--text-muted);">固有特质与被动：</span>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+  `;
+  if (a.特质与被动) {
+    for (const [k, v] of Object.entries(a.特质与被动)) {
+      html += `<div style="font-size:11px;"><strong style="color:var(--text-primary);">${k}</strong>: <span style="color:var(--text-secondary);">${v}</span></div>`;
+    }
+  }
+  html += `
+          </div>
+        </div>
+      </div>
+
+      <!-- 能力与技能清单 -->
+      <div style="margin-top:6px;">
+        <span style="font-size:11px; color:var(--text-muted);">掌握的主动技能：</span>
+        <div class="tag-list" style="margin-top:4px;">
+  `;
+  if (a.能力与技能) {
+    for (const [k, v] of Object.entries(a.能力与技能)) {
+      html += `<span class="kami-tag highlight" title="${v}">⚡ ${k}</span>`;
+    }
+  }
+  html += `
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.3 资产与装备卡 (防位移字典结构) -->
+    <div class="card-section">
+      <div class="card-section-title">
+        <span>【资产、装备与财富】</span>
+        <span class="desc">货币：${formatCurrency(assets.资金财富)}</span>
+      </div>
+      <div class="grid-3">
+        <!-- 装备 -->
+        <div>
+          <span style="font-size:11px; color:var(--text-muted);">佩戴装备：</span>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+  `;
+  if (assets.装备) {
+    for (const [slot, items] of Object.entries(assets.装备)) {
+      for (const [itemName, itemMeta] of Object.entries(items)) {
+        html += `<div style="font-size:11px; background:var(--bg-input); padding:4px 6px; border-radius:4px;"><span style="color:var(--primary); font-weight:600;">[${slot}]</span> ${itemName} <div style="color:var(--text-muted); font-size:10px;">${itemMeta.描述 || ''}</div></div>`;
+      }
+    }
+  }
+  html += `
+          </div>
+        </div>
+
+        <!-- 消耗品 -->
+        <div>
+          <span style="font-size:11px; color:var(--text-muted);">计件消耗品：</span>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+  `;
+  if (assets.消耗品) {
+    for (const [k, v] of Object.entries(assets.消耗品)) {
+      html += `<div style="font-size:11px; background:var(--bg-input); padding:4px 6px; border-radius:4px; display:flex; justify-content:space-between;"><span>🧪 ${k}</span><strong style="color:var(--success);">x${v.数量}</strong></div>`;
+    }
+  }
+  html += `
+          </div>
+        </div>
+
+        <!-- 背包 -->
+        <div>
+          <span style="font-size:11px; color:var(--text-muted);">随身背包关键道具：</span>
+          <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+  `;
+  if (assets.背包) {
+    for (const [k, v] of Object.entries(assets.背包)) {
+      html += `<div style="font-size:11px; background:var(--bg-input); padding:4px 6px; border-radius:4px;"><span>🎒 ${k}</span><div style="color:var(--text-muted); font-size:10px;">${v.描述 || ''}</div></div>`;
+    }
+  }
+  html += `
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.4 社交羁绊卡 (扁平网状关系) -->
+    <div class="card-section">
+      <div class="card-section-title">
+        <span>【社交羁绊与人际网络】</span>
+        <span class="desc">对主角关系定位：${relLabel}</span>
+      </div>
+  `;
+  if (!b.是否主角 && social && social.char_player) {
+    const s = social.char_player;
+    // 好感度条 (-100 ~ 100 映射为 0% ~ 100%)
+    const pct = Math.max(0, Math.min(100, (s.好感 + 100) / 2));
+    html += `
+      <div class="gauge-box">
+        <div class="gauge-header">
+          <span class="prop-label">对主角好感度</span>
+          <span class="prop-val bold" style="color:#ec4899;">${s.好感 > 0 ? '+' : ''}${s.好感} / 100</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill affection" style="width: ${pct}%;"></div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:6px;">
+        <div>
+          <div class="prop-row"><span class="prop-label">主观评价</span><span class="prop-val">${s.印象}</span></div>
+          <div class="prop-row"><span class="prop-label">彼此约定</span><span class="prop-val">${s.约定 || '无'}</span></div>
+        </div>
+        <div>
+          <div class="prop-row"><span class="prop-label">暗中隐瞒</span><span class="prop-val" style="color:var(--danger);">${s.隐瞒 || '无'}</span></div>
+          <div class="prop-row"><span class="prop-label">核心记忆</span><span class="prop-val">${s.关键回忆 || '无'}</span></div>
+        </div>
+      </div>
+    `;
+  } else if (b.是否主角) {
+    html += `
+      <div style="font-size:12px; color:var(--text-secondary);">
+        作为主角，您的人际网络遍布世界。当前已知角色关系：艾莉亚 (警惕观察中)、卡勒姆 (商业雇佣交易)。
+      </div>
+    `;
+  }
+  html += `
+    </div>
+
+    <!-- 2.5 NSFW 深层生理卡 (可拔插开关) -->
+    <div class="card-section">
+      <div class="card-section-title" style="cursor:pointer;" onclick="toggleNsfwBlock()">
+        <span style="color:#f43f5e;">🔞 【深层生理与情欲心防状态机】(点击切换展开)</span>
+        <span class="desc" id="nsfwToggleHint">状态：已展开</span>
+      </div>
+      <div id="nsfwDetailBox" style="display:flex; flex-direction:column; gap:8px;">
+  `;
+  if (nsfw) {
+    const s = nsfw.性状态;
+    const pref = nsfw.性设定;
+    html += `
+      <div class="grid-2">
+        <div>
+          <div class="prop-row"><span class="prop-label">情欲唤起</span><span class="prop-val bold" style="color:#f43f5e;">${s.情欲唤起}</span></div>
+          <div class="prop-row"><span class="prop-label">心防程度</span><span class="prop-val bold" style="color:var(--warning);">${s.心防程度}</span></div>
+        </div>
+        <div>
+          <div class="prop-row"><span class="prop-label">体液反应</span><span class="prop-val">${s.体液与痕迹}</span></div>
+          <div class="prop-row"><span class="prop-label">衣物完好度</span><span class="prop-val">${s.衣物破损}</span></div>
+        </div>
+      </div>
+      <div style="font-size:11px; color:var(--text-muted); background:var(--bg-input); padding:6px; border-radius:4px;">
+        性倾向偏好：${pref.性欲倾向} ｜ 经验：${pref.性经验} ｜ 偏好：${pref.性癖与偏好}
+      </div>
+      
+      <!-- 敏感部位状态列表 -->
+      <div style="margin-top:4px;">
+        <span style="font-size:11px; color:var(--text-muted);">敏感特异点实时感应：</span>
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+    `;
+    if (nsfw.敏感部位) {
+      for (const [part, pData] of Object.entries(nsfw.敏感部位)) {
+        html += `
+          <div style="background:var(--bg-input); padding:6px 8px; border-radius:4px; font-size:11px;">
+            <strong style="color:#f43f5e;">${part}</strong> [${pData.敏感度}] ｜ 状态：${pData.当前状态}
+            <div style="color:var(--text-secondary); margin-top:2px;">刺激反馈：${pData.刺激反馈}</div>
+          </div>
+        `;
+      }
+    }
+    html += `
+        </div>
+      </div>
+    `;
+  }
+  html += `
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// 渲染 TAB 3: 8x8 战术棋盘
+function renderTacticalGrid() {
+  const board = document.getElementById('tacticalBoard');
+  board.innerHTML = '';
+  // 预设地块数据 (稀疏矩阵)
+  const specialCells = {
+    "2,2": { type: "obstacle", name: "风化古树", desc: "高大掩体，阻挡弓箭直线穿透" },
+    "5,3": { type: "obstacle", name: "青苔石碑", desc: "半人高掩体，提供掩护" },
+    "1,6": { type: "interactive", name: "神秘结界泉水", desc: "闪耀淡蓝色微光的古老泉水" },
+    "6,2": { type: "entity-npc", name: "树精", desc: "游荡在林地边缘的中立灵体" },
+    "3,4": { type: "entity-player", name: "雷恩", desc: "主角当前站位坐标 [3, 4]" },
+    "4,4": { type: "entity-npc", name: "艾莉亚", desc: "游侠艾莉亚当前对峙站位 [4, 4]" },
+  };
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const key = `${c},${r}`;
+      const cell = document.createElement('div');
+      cell.className = 'grid-cell';
+      cell.dataset.coord = `[${c}, ${r}]`;
+      
+      const sp = specialCells[key];
+      if (sp) {
+        cell.classList.add(sp.type);
+        if (sp.type === 'entity-player') {
+          cell.innerHTML = '<span class="cell-marker">🛡️</span>';
+        } else if (sp.type === 'entity-npc' && key === "4,4") {
+          cell.innerHTML = '<span class="cell-marker">🏹</span>';
+        } else if (sp.type === 'obstacle') {
+          cell.innerHTML = '<span class="cell-marker">🪨</span>';
+        } else if (sp.type === 'interactive') {
+          cell.innerHTML = '<span class="cell-marker">✨</span>';
+        } else {
+          cell.innerHTML = '<span class="cell-marker">👾</span>';
+        }
+        cell.title = `${sp.name} [${c}, ${r}]`;
+        cell.onclick = () => {
+          document.getElementById('gridCellDetail').innerHTML = `<strong>${sp.name}</strong> 坐标 [${c}, ${r}]：${sp.desc}`;
+        };
+      } else {
+        cell.innerHTML = `<span style="opacity:0.35;">${c},${r}</span>`;
+        cell.onclick = () => {
+          document.getElementById('gridCellDetail').innerHTML = `普通平地地块 坐标 [${c}, ${r}]：无通行阻碍`;
+        };
+      }
+      board.appendChild(cell);
+    }
+  }
+}
+
+// 格式化货币
+function formatCurrency(curr) {
+  if (!curr) return '无';
+  return Object.entries(curr).map(([k, v]) => `${k}: ${v}`).join(' ｜ ');
+}
+
+// 渲染原生 JSON 数据
+function renderRawJson() {
+  document.getElementById('jsonViewer').textContent = JSON.stringify(STAT_DATA, null, 2);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// 3. 交互行为逻辑与模拟器 (Patch Actions)
+// ──────────────────────────────────────────────────────────────────────────
+function toggleExpand() {
+  const root = document.getElementById('statusBarRoot');
+  const isExp = root.classList.toggle('is-expanded');
+  document.getElementById('expandText').textContent = isExp ? '收起' : '展开';
+}
+
+function switchTab(tabId) {
+  const tabs = document.querySelectorAll('.panel-tab');
+  const panes = document.querySelectorAll('.tab-pane');
+  tabs.forEach(t => {
+    t.classList.toggle('active', t.getAttribute('data-tab') === tabId);
+  });
+  panes.forEach(p => {
+    p.classList.toggle('active', p.id === `pane-${tabId}`);
+  });
+}
+
+function selectChar(charId) {
+  currentSelectedChar = charId;
+  document.querySelectorAll('.char-pill-btn').forEach(b => b.classList.remove('active'));
+  if (charId === 'char_player') document.getElementById('btnCharPlayer').classList.add('active');
+  if (charId === 'npc_aria') document.getElementById('btnCharAria').classList.add('active');
+  if (charId === 'npc_kallum') document.getElementById('btnCharKallum').classList.add('active');
+  renderCharacterDetails();
+}
+
+function selectCharAndSwitch(charId) {
+  switchTab('characters');
+  selectChar(charId);
+}
+
+function setAttrSystem(sys) {
+  currentAttrSystem = sys;
+  renderCharacterDetails();
+}
+
+function switchMapMode(mode) {
+  currentMapMode = mode;
+  document.getElementById('btnMapModeNode').classList.toggle('active', mode === 'node');
+  document.getElementById('btnMapModeGrid').classList.toggle('active', mode === 'grid');
+  document.getElementById('mapViewNode').style.display = mode === 'node' ? 'flex' : 'none';
+  document.getElementById('mapViewGrid').style.display = mode === 'grid' ? 'flex' : 'none';
+  document.getElementById('mapModeTitle').textContent = mode === 'node' 
+    ? '模式 A：图谱节点拓扑 (宏观叙事与旅行)' 
+    : '模式 B：局部战术网格 (微观地牢探险与战术对峙)';
+}
+
+function toggleNsfwBlock() {
+  const box = document.getElementById('nsfwDetailBox');
+  const hint = document.getElementById('nsfwToggleHint');
+  const isHidden = box.style.display === 'none';
+  box.style.display = isHidden ? 'flex' : 'none';
+  hint.textContent = isHidden ? '状态：已展开' : '状态：已折叠防窥';
+}
+
+function switchSkin(skinId) {
+  document.documentElement.setAttribute('data-kami-skin', skinId);
+  document.querySelectorAll('.harness-topbar .harness-btn').forEach(btn => {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(skinId)) {
+      btn.classList.add('active');
+    } else if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes('switchSkin')) {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// 模拟 JSON Patch 补丁更新 (响应式验证)
+function simulatePatch(action) {
+  if (action === 'aria_affection') {
+    // 模拟好感 +10
+    if (STAT_DATA.角色.npc_aria && STAT_DATA.角色.npc_aria.社交.char_player) {
+      STAT_DATA.角色.npc_aria.社交.char_player.好感 += 10;
+      STAT_DATA.角色.npc_aria.基础.当前状态 = "神色稍显缓和，垂下弓箭";
+      STAT_DATA.角色.npc_aria.基础.心声 = "言辞诚恳，也许确实不是窃贼……姑且听他说完。";
+    }
+  } else if (action === 'use_herb') {
+    // 模拟消耗止血草药 -1
+    const p = STAT_DATA.角色.char_player;
+    if (p && p.资产.消耗品.止血草药 && p.资产.消耗品.止血草药.数量 > 0) {
+      p.资产.消耗品.止血草药.数量 -= 1;
+      p.基础.健康 = "擦伤已被草药包扎，伤口愈合良好";
+    }
+  } else if (action === 'move_altar') {
+    // 模拟移动到核心祭坛
+    STAT_DATA.当前状态.地点.地点 = "核心祭坛";
+    STAT_DATA.当前状态.地点.坐标 = [0, 0];
+    STAT_DATA.当前状态.轮次 += 1;
+    STAT_DATA.剧情.剧情线.quest_main_01.阶段进度 = 60;
+    STAT_DATA.剧情.剧情线.quest_main_01.当前阶段 = "探索祭坛结界印记";
+    STAT_DATA.剧情.宏观焦点 = "查明祭坛结界破损原因，放置手中的古代结晶进行充能。";
+  } else if (action === 'nsfw_flutter') {
+    // 模拟情欲与心防波动
+    const aria = STAT_DATA.角色.npc_aria;
+    if (aria && aria.NSFW) {
+      aria.NSFW.性状态.情欲唤起 = "脸热微动 (心率加速)";
+      aria.NSFW.性状态.心防程度 = "略有动摇 (防备降低)";
+      if (aria.NSFW.敏感部位.耳尖) {
+        aria.NSFW.敏感部位.耳尖.当前状态 = "耳根滚烫微颤";
+      }
+    }
+  } else if (action === 'reset') {
+    STAT_DATA = JSON.parse(JSON.stringify(INITIAL_STAT_DATA));
+  }
+
+  // 重绘全部界面
+  renderAll();
+}
+
+// 页面初始化
+window.addEventListener('DOMContentLoaded', () => {
+  renderAll();
+});
+</script>
+</body>
+</html>

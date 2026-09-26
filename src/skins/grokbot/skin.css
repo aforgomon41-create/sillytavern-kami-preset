@@ -1548,6 +1548,22 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-ca
   border-color: currentColor;
   color: inherit;
 }
+/* ── 卡头里那枚标题（2026-09-26 用户报「模型卡片标题栏被选中是黑底黑字，完全看不清」）──
+   病因：`.kami-item.is-on .kami-card-title { color: var(--kami-clay-ink) }`（墨）
+   与卡头自己的底 `.kami-card-head.is-on { background-color: var(--kami-clay-ink) }`（也是墨）
+   撞在一起 —— 实测 1.0:1。**不是这一轮新引入的**：面板里 clay 一族一直是浅色那套，
+   这两条从写下那天就互相抵消，只是没人盯过模型页那一栏。
+   另一处是这一轮带出来的：暗色下消息楼层不再翻黏土白之后，**未选中**的卡头标题吃的是
+   `--kami-fg`（白），压在卡头的 `--kami-clay-sink`（浅灰）上 → 1.05:1，同样看不见。
+   修法：卡头里的标题**不再让那两条通用规则决定颜色**，直接按卡头自己那一对来 ——
+   未选中＝浅槽底＋墨字，选中＝墨底＋黏土白字。两条都用明确令牌，不依赖继承与翻转。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn .kami-card-title {
+  color: var(--kami-clay-ink);
+}
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn.is-on .kami-card-title,
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn[aria-pressed="true"] .kami-card-title {
+  color: var(--kami-clay-plate);
+}
 /* 卡内卡的层级：外层卡 r=16，卡里的条目卡收到 r=12，两层不再同形同色 */
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.kami-card-head) {
   border-radius: var(--kami-r-sm);

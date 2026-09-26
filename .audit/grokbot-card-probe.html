@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-kami-skin="grokbot" data-kami-scheme="dark">
+<head>
+<meta charset="UTF-8">
+<title>色块皮肤 · 模型卡标题栏 配色探针</title>
+<style>
+  body{background:#0b0b0e;color:#cfcfd6;font:14px/1.7 system-ui,"Microsoft YaHei",sans-serif;padding:14px 18px 60px}
+  h1{font-size:16px;margin:0 0 6px} .lead{color:#9a9aa8;font-size:13px;margin:0 0 12px}
+  pre{background:#0d0d12;border:1px solid #2a2a35;border-radius:8px;padding:10px 12px;white-space:pre-wrap}
+  .case{border:1px dashed #33333f;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .case h2{font-size:13px;margin:0 0 8px;color:#c9b3ff}
+</style>
+</head>
+<body>
+<h1>色块皮肤 · 模型卡标题栏配色探针</h1>
+<p class="lead">
+  照 40-预设设置 的模型卡结构造几个变体（面板 / 消息楼层 × 暗色 / 亮色 / 不写 scheme），
+  把 grokbot 的 skin.css 拉进来，读**计算样式**并算对比度。结论行以 <code>探针|</code> 开头。
+</p>
+<pre id="out">跑起来了……</pre>
+
+<div class="case"><h2>面板 · 暗色</h2><div id="c1"></div></div>
+<div class="case"><h2>面板 · 亮色</h2><div id="c2"></div></div>
+<div class="case"><h2>面板 · 不写 scheme（跟随皮肤默认）</h2><div id="c3"></div></div>
+<div class="case"><h2>消息楼层 · 暗色</h2><div id="c4"></div></div>
+
+<script>
+var lines = [];
+function say(s) { lines.push(s); console.log(s); }
+function flush() { document.getElementById('out').textContent = lines.join('\n'); }
+function lum(c) {
+  var m = String(c || '').match(/-?\d+(?:\.\d+)?/g) || [];
+  if (m.length < 3) { return -1; }
+  var v = m.slice(0, 3).map(function (x) { return parseFloat(x) / 255; }).map(function (u) {
+    return u <= 0.03928 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+function ratio(a, b) {
+  var la = lum(a), lb = lum(b);
+  if (la < 0 || lb < 0) { return '-'; }
+  return ((Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)).toFixed(2);
+}
+function mk(hostId, comp) {
+  var host = document.getElementById(hostId);
+  var root = document.createElement('div');
+  root.className = 'kami-root';
+  root.setAttribute('data-kami-comp', comp);
+  /* 真实结构（照 40-预设设置 的模型卡）：外层卡 .kami-item.kami-card[.is-on]，
+     里面是卡头按钮 button.kami-card-head.kami-btn.kami-btn--ghost[.is-on]，
+     卡头里再套一枚 .kami-card-title。用户报的就是「卡头被选中」那一态。 */
+  function card(on) {
+    var item = document.createElement('div');
+    item.className = 'kami-item kami-card' + (on ? ' is-on' : '');
+    if (on) { item.setAttribute('aria-pressed', 'true'); }
+    var head = document.createElement('button');
+    head.className = 'kami-card-head kami-btn kami-btn--ghost' + (on ? ' is-on' : '');
+    head.type = 'button';
+    if (on) { head.setAttribute('aria-pressed', 'true'); }
+    var title = document.createElement('span');
+    title.className = 'kami-card-title';
+    title.textContent = on ? '模型名（选中）' : '模型名（未选中）';
+    var chip = document.createElement('span');
+    chip.className = 'kami-chip';
+    chip.textContent = '3 条';
+    head.appendChild(title); head.appendChild(chip);
+    var body = document.createElement('div');
+    body.className = 'kami-card-body';
+    body.textContent = '卡身正文';
+    item.appendChild(head); item.appendChild(body);
+    return { item: item, head: head, title: title };
+  }
+  var on = card(true), off = card(false);
+  root.appendChild(on.item); root.appendChild(off.item);
+  host.appendChild(root);
+  return { root: root, on: on.head, off: off.head, onTitle: on.title, offTitle: off.title };
+}
+var V = {
+  '面板·暗色': mk('c1', 'panel'),
+  '面板·亮色': mk('c2', 'panel'),
+  '面板·无scheme': mk('c3', 'panel'),
+  '楼层·暗色': mk('c4', 'body')
+};
+var link = document.createElement('link');
+link.rel = 'stylesheet';
+link.href = '/src/skins/grokbot/skin.css';
+link.onload = function () { setTimeout(measure, 150); };
+link.onerror = function () { say('探针|★ 读不到 skin.css'); flush(); };
+document.head.appendChild(link);
+
+function snap(el) {
+  var cs = getComputedStyle(el);
+  return {
+    bg: cs.backgroundColor, color: cs.color, bgi: cs.backgroundImage.slice(0, 40),
+    clayInk: cs.getPropertyValue('--kami-clay-ink').trim(),
+    clayPlate: cs.getPropertyValue('--kami-clay-plate').trim(),
+    claySurface: cs.getPropertyValue('--kami-clay-surface').trim(),
+    fg: cs.getPropertyValue('--kami-fg').trim()
+  };
+}
+function measure() {
+  var html = document.documentElement;
+  html.setAttribute('data-kami-skin', 'grokbot');
+  var schemes = { '面板·暗色': 'dark', '面板·亮色': 'light', '面板·无scheme': null, '楼层·暗色': 'dark' };
+  Object.keys(V).forEach(function (k) {
+    var sc = schemes[k];
+    if (sc) { html.setAttribute('data-kami-scheme', sc); } else { html.removeAttribute('data-kami-scheme'); }
+    void document.body.offsetHeight;
+    var on = snap(V[k].on), off = snap(V[k].off), root = snap(V[k].root);
+    say('探针|' + k + '|根上 clay-ink=' + root.clayInk + ' clay-plate=' + root.clayPlate + ' clay-surface=' + root.claySurface + ' fg=' + root.fg);
+    say('探针|' + k + '|选中标题栏 底=' + on.bg.replace(/ /g, '') + ' 字=' + on.color.replace(/ /g, '') + ' 对比=' + ratio(on.color, on.bg));
+    say('探针|' + k + '|未选中标题栏 底=' + off.bg.replace(/ /g, '') + ' 字=' + off.color.replace(/ /g, '') + ' 对比=' + ratio(off.color, off.bg));
+    /* 关键：卡头里那枚标题 span（用户报的就是它）。
+       ⚠️ 卡头是 <button>，Chrome 的 getComputedStyle 对按钮背景会报 UA 的 buttonface（240,240,240），
+       读不到我们写的那条 —— 所以底**按规则用的那对令牌自己算**：
+       未选中用 --kami-clay-sink，选中用 --kami-clay-ink（见 skin.css 里那两条规则）。 */
+    var tOn = getComputedStyle(V[k].onTitle), tOff = getComputedStyle(V[k].offTitle);
+    var sink = root.claySurface ? getComputedStyle(V[k].root).getPropertyValue('--kami-clay-sink').trim() : '';
+    var bgOn = getComputedStyle(V[k].root).getPropertyValue('--kami-clay-ink').trim();
+    var bgOff = getComputedStyle(V[k].root).getPropertyValue('--kami-clay-sink').trim();
+    var hex2rgb = function (h) {
+      var m = /^#([0-9a-f]{6})$/i.exec(h);
+      return m ? 'rgb(' + [0, 2, 4].map(function (i) { return parseInt(m[1].substr(i, 2), 16); }).join(',') + ')' : h;
+    };
+    say('探针|' + k + '|★选中卡头的标题 字=' + tOn.color.replace(/ /g, '') + ' 压卡头底（按令牌算）=' + hex2rgb(bgOn) +
+      ' 对比=' + ratio(tOn.color, hex2rgb(bgOn)));
+    say('探针|' + k + '|未选中卡头的标题 字=' + tOff.color.replace(/ /g, '') + ' 压卡头底（按令牌算）=' + hex2rgb(bgOff) +
+      ' 对比=' + ratio(tOff.color, hex2rgb(bgOff)));
+  });
+  html.setAttribute('data-kami-scheme', 'dark');
+  flush();
+}
+</script>
+</body>
+</html>
