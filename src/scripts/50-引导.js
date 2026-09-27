@@ -44,7 +44,8 @@
   var GUIDE_TAG = 'data-kami-guide';
   var Z = 30000;
   var CHAR_ID = 100001;
-  var PRESET_MARK = '卡密预设';        // 自动弹前核对当前预设名含这个
+  /* （2026-09-26 起没有「预设名里必须含卡密预设」那道闸了 —— 见 maybeAutoOpen 的注释：
+     脚本能跑起来就说明预设已载入，而那道闸在 ASCII 产物名下会误伤，把自动弹出整个关掉。） */
   var READY_TIMEOUT = 15000;           // 等酒馆设置可读的上限
   var READY_TICK = 300;
   var OPEN_DELAY = 1200;               // 页面就绪后再等的缓冲，不抢启动瞬间
@@ -1685,15 +1686,18 @@
 
   function maybeAutoOpen(name) {
     if (disposed || autoOpened) { return; }
-    if (String(name || '').indexOf(PRESET_MARK) < 0) {
-      log('当前预设不是「' + PRESET_MARK + '」（' + name + '），不自动弹');
-      return;
-    }
+    /* ⚠️ 2026-09-26 用户裁定：**去掉「预设名里必须含卡密预设」那道闸**。
+       理由：脚本能跑起来，就说明它所在的预设已经载入了 —— 这道闸除了误伤什么也没防住。
+       而它确实误伤了：2026-09-23 起产物名改成 ASCII（GitHub 会削非 ASCII 附件名），
+      更新脚本导入的预设名是 `kami-v0.91-46-20260926`，不含中文那四个字，
+       于是**自动弹出等于被关掉了**只能手动点 🧭（预览台日志就是这个现象）。
+       用户改预设名同样不受影响 —— 现在只看「这个产物的构建号看过没有」。 */
     if (readGuideVars() === BUILD_N) {
       log('产物 ' + BUILD_N + ' 已看过（seen=' + seen + '），不自动弹');
       return;
     }
     autoOpened = true;
+    log('这一版（产物 ' + BUILD_N + '）还没看过，准备自动弹；当前预设「' + (name || '?') + '」');
     openTimer = setTimeout(function () {
       if (!disposed && !panelRoot) { openWizard(); }
     }, OPEN_DELAY);

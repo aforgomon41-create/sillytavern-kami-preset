@@ -1776,11 +1776,21 @@
     return '';
   }
 
-  /* 预设版本：从预设名里认**正式命名**（现行 kami-v<版本>-<构建号>-<日期>（版本见根目录 version.json），曾用 卡密预设v0.90-<构建号>-<日期>）。
-     认不出返回 null。
+  /* 预设版本。**首选是打包时写进来的产物名**（SELF_NAME，2026-09-26 用户点名）：
+     版本号的唯一真相是仓库根目录的 version.json，构建时把它写进脚本文本，
+     于是「本机是哪个版本」与用户怎么给预设改名无关 —— 以前只看当前预设名，
+     用户一改名（改成「我的卡密预设」之类）这里就显示不出年份与构建号了。
+     认不出才退回当前预设名，认不出返回 null。
      ⚠️ 与 70-远程更新.js 的 parseVersion 是同一套命名规则的两份实现：那边管「比大小」，
-     这份只管「显示」。不共用是为了让面板不依赖那个脚本是否在运行（它可能被用户关掉）。 */
+     这份只管「显示」。不共用是为了让面板不依赖那个脚本是否在运行（它可能被用户关掉）——
+     这一条现在依然成立：这里是**构建期常量**，不是去读别的脚本。 */
+  var SELF_NAME = '@@KAMI_PRESET_NAME@@';
   function presetVersionOf(name) {
+    var hit = presetVersionLabel(SELF_NAME);
+    if (hit) { return hit; }
+    return presetVersionLabel(name);
+  }
+  function presetVersionLabel(name) {
     var s = cleanName(name);
     var m = /(?:kami-|卡密预设)v(\d+)\.(\d+)-(\d+)-(\d{8})/i.exec(s);
     if (m) { return { label: 'v' + m[1] + '.' + m[2] + '-' + m[3], date: m[4], build: +m[3] }; }

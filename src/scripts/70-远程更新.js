@@ -75,6 +75,12 @@
   var VERSION = '1.4';
   var API_NAME = 'KamiUpdate';
   var VARS_KEY = 'kami-update';
+  /* 本产物的正式分发名（打包时写进来，例如 kami-v0.91-46-20260926）。
+     ⚠️ 这是「本机是哪个版本」的**权威来源**（2026-09-26 用户点名）：
+     以前只从当前预设名解析，用户一改名就解析不出来 —— 那时 localVer === null，
+     本脚本按「本机版本未知」处理，于是每 6 小时把同一个版本再推一次。
+     现在优先用这个常量（构建期写死，与用户怎么命名无关），预设名解析只作为旧产物的兜底。 */
+  var SELF_NAME = '@@KAMI_PRESET_NAME@@';
   /* 本实例的身份证。pagehide 可能**迟到**（酒馆助手重挂脚本 iframe 时旧实例的 pagehide
      晚于新实例的启动），注销时如果按名字删全局，会把新实例刚挂上去的 API 一起删掉 ——
      真机表现就是「远程更新脚本没在运行」且再也无法唤醒（本脚本没有按钮，唯一产物是这个
@@ -814,13 +820,18 @@
       last.error = null;
       last.remote = remote;
       var local = resolvePresetName();
-      var localVer = parseVersion(local.name);
+      /* 版本发现：① 打包时写进来的产物名（权威，与用户改不改名无关）
+                     ② 认不出才退回当前预设名（旧产物没有①这个常量） */
+      var localVer = parseVersion(SELF_NAME);
+      var verFrom = '脚本文本里写死的产物名';
+      if (!localVer) { localVer = parseVersion(local.name); verFrom = '预设名'; }
       last.localName = local.name || null;
       last.localBuild = localVer ? localVer.build : null;
       last.localVersion = localVer ? versionLabel(localVer) : null;
       log('仓库最新：' + remote.version + '（' + (remote.from === 'manifest' ? '来自 jsDelivr 清单' : '来自 GitHub Releases') +
-        '）；本机当前预设：' +
-        (local.name ? ('「' + local.name + '」（' + (localVer === null ? '版本没能识别' : versionLabel(localVer)) + '，取自' + local.from + '）') : '没能识别'));
+        '）；本机当前版本：' +
+        (localVer === null ? '没能识别' : (versionLabel(localVer) + '（取自' + verFrom + '）')) +
+        '；当前预设名：' + (local.name ? ('「' + local.name + '」') : '没能识别'));
 
       /* ① 先比版本：不比你新就什么都不做（绝大多数启动都是这一种） */
       var newer = (localVer === null) ? true : (cmpVersion(remote, localVer) > 0);
@@ -1150,6 +1161,15 @@
       version: VERSION,
       __instance: INSTANCE_ID,   /* 注销时只删“自己这一份”的判据（见 INSTANCE_ID 的注释） */
       status: status,
+      /* ── 「本机是哪个版本」的对外读取口（2026-09-26 用户点名要的）──
+         版本号的唯一真相是仓库根目录的 version.json，构建时把正式分发名写进脚本文本（SELF_NAME）；
+         别的脚本想拿版本可以读这里，**但不要把它当成必须**：本脚本可能被用户关掉，
+         所以 40 号 / 50 号各自也有一份构建期常量，读不到这里照样知道自己是哪一版。 */
+      selfName: function () { return SELF_NAME; },
+      presetVersion: function () {
+        var v = parseVersion(SELF_NAME);
+        return { name: SELF_NAME, label: v ? versionLabel(v) : '', build: v ? v.build : null, date: v ? v.date : '' };
+      },
       /* 手动查一次；force=true 时忽略「已拒绝/已写入/已安装」记录 */
       check: function (force) { return check(!!force); },
       /* 清掉「拒绝过 / 已写入」的记录（下次启动会重新弹） */

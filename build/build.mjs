@@ -252,11 +252,24 @@ const outPath = path.join(DIST, outName);
 
 preset.name = outName.replace(/\.json$/, '');
 
-/* ---------- 产物号注入（引导脚本用它判「这个产物看过没有」） ---------- */
+/* ---------- 产物号 / 产物名注入 ----------
+ * 产物号：引导脚本用它判「这个产物看过没有」。
+ * 产物名：给「本机当前是哪个版本」用的**权威来源**（2026-09-26 用户点名）——
+ *   以前 40 号（关于页）与 70 号（更新检查）都是**从当前预设名解析版本**，
+ *   而用户随时可能把预设改名（改成「我的卡密预设」之类），一改就解析不出来：
+ *   40 号关于页显示不出版本，70 号更糟 —— `localVer === null` 时它按「本机版本未知」处理，
+ *   于是每 6 小时就把同一个版本再推一次。
+ *   现在改成**打包时把产物名写进脚本**：版本号不再依赖任何运行时状态，也不依赖别的脚本是否在运行
+ *   （40 号里那条「不共用是为了不依赖 70 号是否在跑」的注释仍然成立：这里是构建期常量，不是跨脚本读取）。
+ *   两条注入都保留：脚本里没有占位符就原样跳过（幂等）。 */
 for (const s of scripts) {
   if (s.content.includes('@@KAMI_BUILD_N@@')) {
     s.content = s.content.split('@@KAMI_BUILD_N@@').join(String(N));
     console.log(`  [注入] 产物号 ${N} → ${s.name}`);
+  }
+  if (s.content.includes('@@KAMI_PRESET_NAME@@')) {
+    s.content = s.content.split('@@KAMI_PRESET_NAME@@').join(outName.replace(/\.json$/, ''));
+    console.log(`  [注入] 产物名 ${outName.replace(/\.json$/, '')} → ${s.name}`);
   }
 }
 
@@ -307,6 +320,14 @@ if (dry) {
     execFileSync(process.execPath, [path.join(__dirname, 'verify-body-shell.mjs'), outPath], { stdio: 'inherit' });
   } catch (e) {
     console.error('  [中止] 正文外壳链路验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 版本身份（产物名注入）：用户会改预设名，所以「本机是哪个版本」不许再依赖它。
+     这条链路坏了是功能级的（更新脚本每 6 小时重推同一版、引导在 ASCII 产物名下永不自动弹），装个守卫。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-version-identity.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 版本身份验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
 }
