@@ -128,8 +128,8 @@ function installMocks(w, scriptId) {
      探针可以用 window.__KAMI_PREVIEW_CHAT 塞坏消息、再 STATE.emit('message_received', id) 看结果。 */
   if (scriptId === 'presetmgr') {
     w.__chat = window.__KAMI_PREVIEW_CHAT || (window.__KAMI_PREVIEW_CHAT = [
-      { message_id: 0, is_user: true, message: '（用户）旁白' },
-      { message_id: 1, is_user: false, message: '<nyaruko_think>想好了</nyaruko_think><content>正文写完整了</content>' }
+      { message_id: 0, is_user: false, message: '<nyaruko_think>想好了</nyaruko_think><content>开场白故意没写闭合' },
+      { message_id: 1, is_user: true, message: '（用户）旁白' }
     ]);
     w.getChatMessages = (range) => {
       const arr = w.__chat;
@@ -371,6 +371,23 @@ async function setupSillyTavern() {
          35 号「角色名包裹」把档位存在这里，所以预览台必须给同一套接口，否则
          面板那一行会降级成「脚本没在运行」的说明 —— 那是验收不到的假象。 */
       extensionSettings: { variables: { global: {} } },
+      /* 酒馆原生弹窗的替身（2026-09-30 加，给「自动标签处理」的手动确认窗用）。
+         记下弹的是什么内容、**弹的时候预设面板的层级是多少**（那一行是「确认窗有没有被面板盖住」
+         的机械读数），然后按 __popupAnswer 决定返回真还是假，探针可以两边都验。 */
+      callPopup: (text, type, def, opts) => {
+        const panelRoot = document.getElementById('kami-preset-panel');
+        const rec = {
+          text: String(text || ''),
+          type: type,
+          ok: (opts && opts.okButton) || null,
+          cancel: (opts && opts.cancelButton) || null,
+          panelZ: panelRoot ? (panelRoot.style.zIndex || '(清空=默认 30000)') : '(面板不在)'
+        };
+        (window.__POPUP_LOG = window.__POPUP_LOG || []).push(rec);
+        console.log('弹窗替身| type=' + type + ' 按钮=' + rec.ok + '/' + rec.cancel +
+          ' 面板层级=' + rec.panelZ + '| 正文 ' + rec.text.replace(/<[^>]*>/g, '').slice(0, 60));
+        return Promise.resolve(window.__popupAnswer !== false);
+      },
       variables: {
         global: {
           get: (n) => {

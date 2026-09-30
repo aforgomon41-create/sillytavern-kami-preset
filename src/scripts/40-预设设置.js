@@ -1205,26 +1205,34 @@
           if (t.getAttribute('data-kami-act') === 'merge-all-next') { setMergeAll('next'); return; }
           if (t.getAttribute('data-kami-act') === 'merge-apply') { applyMergeReview(); return; }
           if (t.getAttribute('data-kami-choice')) { setMergeChoice(t, t.getAttribute('data-kami-choice')); return; }
-          /* 🧰 其他功能 → 自动标签处理：三档切换 + 手动扫一遍聊天 */
+          /* 🧰 其他功能 → 自动标签处理：三档切换 + 手动处理当前楼层 */
           if (t.getAttribute('data-kami-tagfix')) { setTagFixMode(t.getAttribute('data-kami-tagfix')); return; }
-          if (t.getAttribute('data-kami-act') === 'tagfix-scan') { tagFixScanAll(); return; }
+          if (t.getAttribute('data-kami-act') === 'tagfix-floor') { tagFixCurrentFloor(); return; }
         }
         t = t.parentNode;
       }
     });
 
     /* 变量数字框：原生 change（失焦 / 回车都会来）就写回预设；回车另外掐一下，
-       免得在数字框里按回车被酒馆的全局快捷键接走。 */
+       免得在数字框里按回车被酒馆的全局快捷键接走。
+       自定义标签输入框也走同一个 change：失焦或回车就解析存盘。 */
     panelDrop.addEventListener('change', function (ev) {
       var t = ev.target;
-      if (t && t.getAttribute && t.getAttribute('data-kami-var')) { applyVar(t); }
+      if (!t || !t.getAttribute) { return; }
+      if (t.getAttribute('data-kami-var')) { applyVar(t); return; }
+      if (t.getAttribute('data-kami-tagfix-custom')) { setTagFixCustom(t.value); }
     });
     panelDrop.addEventListener('keydown', function (ev) {
       /* 契约 §4.4 硬规则 1：注释标记与预设面板逐属性同构 → 键盘也必须同构。
          50-引导.js:731-733 认 Enter 与 Space，这里原来只认 Enter，按 Space 什么都不发生
          （还会顺带滚一下页面）。两个 keyCode 是给老引擎的兜底。 */
-      if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar' && ev.keyCode !== 13 && ev.keyCode !== 32) { return; }
       var t = ev.target;
+      if (t && t.getAttribute && t.getAttribute('data-kami-tagfix-custom')) {
+        /* 自定义标签框只认回车：空格是标签之间的分隔符，不能当确认键 */
+        if (ev.key === 'Enter' || ev.keyCode === 13) { ev.preventDefault(); setTagFixCustom(t.value); }
+        return;
+      }
+      if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar' && ev.keyCode !== 13 && ev.keyCode !== 32) { return; }
       if (t && t.getAttribute && t.getAttribute('data-kami-var')) { ev.preventDefault(); applyVar(t); }
       else if (t && t.getAttribute && t.getAttribute('data-kami-note-mark')) { ev.preventDefault(); toggleNote(t); }
     });
@@ -1976,40 +1984,54 @@
    * ══════════════════════════════════════════════════════════════════════ */
 
   var TAGFIX_VAR = 'tagFix';
+  var TAGFIX_CUSTOM_VAR = 'tagFixCustom';
   var TAGFIX_MODES = [
     { id: 'off', label: '关闭' },
     { id: 'close', label: '补全' },
     { id: 'del', label: '删除' }
   ];
+  /* 面板文案：2026-09-30 由文案 Agent（Gemini）出稿，用户裁定「说明折叠进 ⓘ」。
+     我（实现者）只做了两处事实订正，不改语气：
+       · 「标签头」→「标签」（前者是行话，用户看不懂）
+       · 「遇到其他完整的标签还会提前收口以免吞掉它们」→ 说清是「补在它们前面」 */
   var TAGFIX_COPY = {
     title: '自动标签处理',
-    note: 'AI 回复里的成对标签（比如正文块的标签）没写闭合时，在这里决定要不要自动收拾。' +
-      '「补全」把缺的闭合标签补上，「删除」把配不上对的标签删掉（内容都原样保留）。',
-    howClose: '补在哪儿：默认补在消息末尾；如果后面还跟着一个写完整的兄弟块（前处理/后处理/摘要/设定/行动选项/图片），就补在那个块前面，免得把它吞进去。',
-    howDel: '删除只动标签本身，标签里的正文一个字都不删。',
-    tagsLabel: '管的标签',
-    statLabel: '本次会话',
-    statNone: '还没处理过',
-    scanBtn: '扫一遍当前聊天',
-    scanLabel: '手动补课',
-    scanHint: '「扫一遍当前聊天」给已经存在的聊天补课：只处理 AI 的楼层，用户自己打的字不碰；动手前会先问一次。',
-    scanning: '正在检查...',
-    scanNone: '检查完了，没发现要处理的标签。',
-    scanAsk: '个 AI 楼层里有没闭合的标签。要把它们改好吗？（会写进聊天记录）',
-    scanDone: '已经改好，聊天记录里的显示会立刻更新。',
-    scanFail: '处理失败：',
-    fixToast: '标签已补全',
+    note: 'AI 忘写结尾标签会导致正文或选项不显示，也会让摘要压缩失效。' +
+      '补全模式会在消息末尾帮你补上结尾，遇到其他完整的标签会补在它们前面，免得把它们吞进正文。' +
+      '删除模式会直接扔掉没配对的标签，关闭则保持原样。' +
+      '你还可以在下面填入其他需要自动收拾的标签名。',
     modeLabel: '处理方式',
-    needApi: '这个功能要酒馆助手提供消息读写接口（setChatMessages）才能用，当前版本拿不到。'
+    modeHint: '关闭不干预，补全自动加结尾，删除清掉多余的标签',
+    customLabel: '自定义标签',
+    customHint: '填入其他要处理的标签，用空格隔开',
+    manualLabel: '手动处理',
+    manualBtn: '处理当前楼层',
+    manualHint: '手动对当前楼层执行一次检查和处理',
+    statLabel: '本次会话',
+    statNone: '等待处理',
+    confirmLead: '这次将处理当前楼层的这些标签：',
+    confirmNote: '这会直接修改当前楼层的文字，操作没法撤销。',
+    confirmOk: '确认执行',
+    confirmCancel: '取消',
+    confirmNoTags: '这次没有要处理的标签。',
+    confirmNothing: '这一楼没有需要处理的标签。',
+    confirmDone: '处理完了，聊天记录里的显示会立刻更新。',
+    confirmFail: '处理失败：',
+    noFloor: '找不到可处理的楼层。',
+    needApi: '这个功能需要酒馆助手提供消息读写接口，当前版本拿不到。'
   };
   var tagFixMode = 'off';
-  var tagFixStat = { seen: 0, fixed: 0, lastFloor: -1, lastText: '' };
+  var tagFixCustom = [];                       // 用户自定义标签（面板上那个输入框）
+  var tagFixStat = { fixed: 0, lastFloor: -1, lastText: '' };
   var tagFixEls = null;
+  var tagFixCurFloor = -1;                     // 「当前楼层」= 用户最后点过的那一楼（没有就退回最新一楼）
 
   function tagFixModeSpec(id) {
     for (var i = 0; i < TAGFIX_MODES.length; i++) { if (TAGFIX_MODES[i].id === id) { return TAGFIX_MODES[i]; } }
     return TAGFIX_MODES[0];
   }
+  /* 这一次实际要管的标签 = 内置登记表 + 用户自定义 */
+  function tagFixSpecs() { return specsWithCustom(tagFixCustom); }
   function tagFixApiReady() {
     return (typeof getChatMessages === 'function') && (typeof setChatMessages === 'function');
   }
@@ -2019,12 +2041,6 @@
       var list = getChatMessages(String(i));
       return (list && list.length) ? list[0] : null;
     } catch (e) { return null; }
-  }
-  function chatAll() {
-    try {
-      var list = getChatMessages('0-' + Math.max(0, chatLen() - 1));
-      return list || [];
-    } catch (e) { return []; }
   }
   function chatLen() {
     try {
@@ -2036,23 +2052,58 @@
       return el || 0;
     } catch (e) { return 0; }
   }
+  /* 「当前楼层」：优先用户最后点过的那一楼，否则最新的一楼（AI 楼层才算数） */
+  function currentFloorId() {
+    var n = chatLen();
+    if (!n) { return -1; }
+    var seq = [], i, m;
+    if (tagFixCurFloor >= 0 && tagFixCurFloor < n) { seq.push(tagFixCurFloor); }
+    seq.push(n - 1);
+    if (tagFixCurFloor === n - 1) { seq = [n - 1]; }
+    for (i = 0; i < seq.length; i++) {
+      m = chatMsgAt(seq[i]);
+      if (m && !m.is_user) { return seq[i]; }
+    }
+    return -1;
+  }
+  /* 记「用户点了哪一楼」：被动监听，不改 DOM、不拦事件。 */
+  function bindChatFloorWatch() {
+    try {
+      var chat = HDOC.getElementById('chat');
+      if (!chat || chat.getAttribute('data-kami-tagfix-floor')) { return; }
+      chat.setAttribute('data-kami-tagfix-floor', '1');
+      chat.addEventListener('click', function (ev) {
+        try {
+          var node = ev.target;
+          while (node && node !== chat) {
+            if (node.getAttribute && node.getAttribute('mesid') !== null) {
+              var id = parseInt(node.getAttribute('mesid'), 10);
+              if (isFinite(id) && id >= 0) { tagFixCurFloor = id; }
+              return;
+            }
+            node = node.parentNode;
+          }
+        } catch (e) { }
+      }, true);
+    } catch (e) { }
+  }
 
   /* 处理一条文本：返回 repairTags 的结果；关闭档或没变化时返回 null */
   function tagFixText(text, mode) {
     var m = mode || tagFixMode;
     if (m === 'off') { return null; }
     var res = null;
-    try { res = repairTags(text, m); } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
+    try { res = repairTags(text, m, tagFixSpecs()); } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
     return (res && res.changed) ? res : null;
   }
 
   /* 「收到消息」那条路：改完等它写完再返回 —— 酒馆的 emit 会 await 监听器，
-     非流式时这一步跑在界面渲染之前，所以用户看不到「先闪一下坏的、再变好」。 */
+     非流式时这一步跑在界面渲染之前（正则还没跑），所以用户看不到「先闪一下坏的、再变好」。
+     流式那条路做不到「渲染前」：完整正文要等流结束才存在（调研 B2），只能改完补一次重画。 */
   function tagFixOnReceived(id) {
     if (disposed || tagFixMode === 'off' || !tagFixApiReady()) { return; }
     var idx = (typeof id === 'number' && isFinite(id)) ? id : (chatLen() - 1);
     if (idx < 0) { return; }
-    tagFixStat.seen++;
     var m = chatMsgAt(idx);
     if (!m || m.is_user) { return; }
     var res = tagFixText(m.message);
@@ -2067,50 +2118,78 @@
     } catch (e) { log('写回第 ' + idx + ' 楼失败：' + ((e && e.message) || e)); }
   }
 
-  /* 手动「扫一遍当前聊天」：先只数不改，问过用户再写（用户 2026-09-30 选的是改聊天记录） */
-  async function tagFixScanAll() {
+  /* 弹窗里的文本要转义：确认窗走酒馆原生弹窗，内容是 HTML。
+     尖括号必须转义（标签名里就有），管道符与花括号按 70 号那条经验一并换成全角（斜杠命令会咬它们）。 */
+  function tagFixEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\|/g, '｜').replace(/\{/g, '｛').replace(/\}/g, '｝');
+  }
+
+  /* 确认窗：必须在预设面板**上面**。酒馆原生弹窗的层级与面板同为 30000，
+     而面板是脚本后挂进 body 的、DOM 顺序在后面 —— 不处理就会被盖住（用户实测点名）。
+     做法：弹窗期间把面板舞台临时压到 1，弹完恢复。只动自己那个元素的层级，不碰酒馆 DOM。 */
+  function tagFixAsk(html) {
+    var root = panelRoot, oldZ = '';
+    try {
+      if (root) { oldZ = root.style.zIndex; root.style.zIndex = '1'; }
+    } catch (e) { }
+    var restore = function () {
+      try { if (root) { root.style.zIndex = oldZ || String(Z); } } catch (e) { }
+    };
+    var c = stCtx();
+    if (!c || typeof c.callPopup !== 'function') {
+      restore();
+      return Promise.resolve(HOST.confirm ? HOST.confirm(html.replace(/<[^>]*>/g, '')) : true);
+    }
+    return Promise.resolve(c.callPopup(html, 'confirm', null,
+      { okButton: TAGFIX_COPY.confirmOk, cancelButton: TAGFIX_COPY.confirmCancel }))
+      ['catch'](function () { return false; })
+      .then(function (r) { restore(); return !!r; }, function (e) { restore(); throw e; });
+  }
+
+  /* 手动「处理当前楼层」：先只算不改 → 弹确认窗（窗里列出这次会处理哪些标签）→ 才写 */
+  async function tagFixCurrentFloor() {
     if (tagFixMode === 'off') { return; }
     if (!tagFixApiReady()) { toast('warning', TAGFIX_COPY.needApi); return; }
-    if (tagFixEls && tagFixEls.btn) { tagFixEls.btn.disabled = true; }
-    try {
-      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.scanning; }
-      var list = chatAll(), hits = [], i, r;
-      for (i = 0; i < list.length; i++) {
-        if (!list[i] || list[i].is_user) { continue; }
-        r = tagFixText(list[i].message);
-        if (r) { hits.push({ message_id: list[i].message_id, message: r.text, text: describeFix(r) }); }
-      }
-      if (!hits.length) {
-        if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.scanNone; }
-        toast('success', TAGFIX_COPY.scanNone);
-        return;
-      }
-      var ask = '发现 ' + hits.length + TAGFIX_COPY.scanAsk;
-      var c = stCtx();
-      var yes = true;
-      try {
-        if (c && typeof c.callPopup === 'function') { yes = await c.callPopup(ask, 'confirm'); }
-        else { yes = HOST.confirm ? HOST.confirm(ask) : true; }
-      } catch (e) { yes = true; }
-      if (!yes) {
-        if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = '检查到 ' + hits.length + ' 楼有问题，你没让改。'; }
-        return;
-      }
-      var payload = [];
-      for (i = 0; i < hits.length; i++) { payload.push({ message_id: hits[i].message_id, message: hits[i].message }); }
-      await setChatMessages(payload, { refresh: 'affected' });
-      tagFixStat.fixed += hits.length;
-      tagFixStat.lastFloor = hits[hits.length - 1].message_id;
-      tagFixStat.lastText = hits[hits.length - 1].text;
-      paintTagFixStat(TAGFIX_COPY.scanDone);
-      toast('success', TAGFIX_COPY.scanDone);
-      log('扫全聊天：改了 ' + hits.length + ' 楼');
-    } catch (e) {
-      toast('error', TAGFIX_COPY.scanFail + ((e && e.message) || e));
-      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.scanFail + ((e && e.message) || e); }
-    } finally {
-      if (tagFixEls && tagFixEls.btn) { tagFixEls.btn.disabled = false; }
+    var idx = currentFloorId();
+    if (idx < 0) { toast('warning', TAGFIX_COPY.noFloor); return; }
+    var m = chatMsgAt(idx);
+    if (!m) { toast('warning', TAGFIX_COPY.noFloor); return; }
+    var res = tagFixText(m.message);
+    var ask = '<div style="text-align:left;line-height:1.6;">';
+    ask += '<div>' + tagFixEsc(TAGFIX_COPY.confirmLead) + '</div>';
+    ask += '<div style="margin:6px 0 8px;opacity:.85;">' + tagFixEsc(tagFixListText()) + '</div>';
+    ask += '<div style="opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
+    ask += '</div>';
+    var yes = await tagFixAsk(ask);
+    if (!yes) { return; }
+    if (!res) {
+      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.confirmNothing; }
+      toast('success', TAGFIX_COPY.confirmNothing);
+      return;
     }
+    try {
+      await setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
+      tagFixStat.fixed++;
+      tagFixStat.lastFloor = idx;
+      tagFixStat.lastText = describeFix(res);
+      paintTagFixStat();
+      toast('success', TAGFIX_COPY.confirmDone);
+      log('手动处理第 ' + idx + ' 楼：' + tagFixStat.lastText);
+    } catch (e) {
+      toast('error', TAGFIX_COPY.confirmFail + ((e && e.message) || e));
+      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.confirmFail + ((e && e.message) || e); }
+    }
+  }
+
+  /* 确认窗里那份「这次会处理哪些标签」= 当前登记表（含自定义）逐个人话列出 */
+  function tagFixListText() {
+    var specs = tagFixSpecs(), out = [], i;
+    for (i = 0; i < specs.length; i++) {
+      out.push('<' + specs[i].tag + '> ' + specs[i].label);
+    }
+    return out.join('、');
   }
 
   function setTagFixMode(id) {
@@ -2131,28 +2210,51 @@
     if (tagFixEls && tagFixEls.chip) { tagFixEls.chip.textContent = spec.label; }
   }
 
-  /* 状态行：面板没开时是空操作（元素是渲染时挂上来的） */
+  /* 自定义标签输入框：失焦或回车时解析并存盘（不重建面板，免得正在打字时被打断） */
+  function setTagFixCustom(text) {
+    var list = parseCustomTags(text);
+    var before = tagFixCustom.join(',');
+    tagFixCustom = list;
+    if (tagFixEls && tagFixEls.custom && tagFixEls.custom.value !== list.join(' ')) {
+      tagFixEls.custom.value = list.join(' ');
+    }
+    if (before !== list.join(',')) {
+      saveVars();
+      log('自定义标签：' + (list.length ? list.join(' ') : '（清空）'));
+    }
+    return list;
+  }
+
+  /* 状态行：面板没开时是空操作（元素是渲染时挂上来的）。
+     ⚠️ 它走 .kami-card-note（整段文字会换行），**不是 .kami-field 的值列** ——
+     状态文本会长到「已处理 3 楼（最近：第 12 楼 补全 1 处（content））」，塞进值列会把
+     「本次会话」这个标签挤成竖排单字（实测踩过两次，另一处是「管的标签」）。 */
   function paintTagFixStat(extra) {
     if (!tagFixEls || !tagFixEls.stat) { return; }
-    if (extra) { tagFixEls.stat.textContent = extra; return; }
-    if (!tagFixStat.fixed) { tagFixEls.stat.textContent = TAGFIX_COPY.statNone; return; }
-    tagFixEls.stat.textContent = '已修 ' + tagFixStat.fixed + ' 楼（最近：第 ' +
+    if (extra) { tagFixEls.stat.textContent = TAGFIX_COPY.statLabel + '：' + extra; return; }
+    if (!tagFixStat.fixed) { tagFixEls.stat.textContent = TAGFIX_COPY.statLabel + '：' + TAGFIX_COPY.statNone; return; }
+    tagFixEls.stat.textContent = TAGFIX_COPY.statLabel + '：已处理 ' + tagFixStat.fixed + ' 楼（最近：第 ' +
       (tagFixStat.lastFloor + 1) + ' 楼 ' + tagFixStat.lastText + '）';
   }
 
   function renderToolboxTab(pane) {
     tagFixEls = null;
 
-    /* ① 自动标签处理 */
+    /* ① 自动标签处理。屏幕上只留短标签；说明全部折叠进 ⓘ（用户 2026-09-30 裁定）。 */
     var box = mk('div', 'kami-card');
     var head = mk('div', 'kami-card-head');
     head.appendChild(mk('span', 'kami-card-title', TAGFIX_COPY.title));
+    head.appendChild(noteMark(TAGFIX_COPY.note));          /* ⓘ 与预设条目的注释同一套结构 */
     var modeSpec = tagFixModeSpec(tagFixMode);
-    head.appendChild(mk('span', 'kami-chip', modeSpec.label));
+    var chip = mk('span', 'kami-chip', modeSpec.label);
+    head.appendChild(chip);
     box.appendChild(head);
 
+    var noteBox = noteText(TAGFIX_COPY.note);
+    noteBox.hidden = true;
+    box.appendChild(noteBox);
+
     var body = mk('div', 'kami-card-body');
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.note));
 
     /* 三档：关闭 / 补全 / 删除 */
     var rowMode = mk('div', 'kami-field');
@@ -2172,26 +2274,32 @@
     valMode.appendChild(seg);
     rowMode.appendChild(valMode);
     body.appendChild(rowMode);
+    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.modeHint));
 
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.howClose));
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.howDel));
+    /* 自定义标签：用户自己往里填，逗号 / 空格 / 换行都算分隔 */
+    var rowCus = mk('div', 'kami-field');
+    rowCus.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.customLabel));
+    var valCus = mk('span', 'kami-field-value');
+    var inp = mk('input', 'kami-text');
+    inp.type = 'text';
+    inp.setAttribute('data-kami-tagfix-custom', '1');
+    inp.setAttribute('placeholder', TAGFIX_COPY.customHint);
+    inp.setAttribute('aria-label', TAGFIX_COPY.customLabel);
+    inp.value = tagFixCustom.join(' ');
+    valCus.appendChild(inp);
+    rowCus.appendChild(valCus);
+    body.appendChild(rowCus);
 
-    /* 管的标签：由登记表生成，改表就跟着变，面板与实现不会说法不一致。
-       ⚠️ 走 .kami-card-note（整段说明文字，会自动换行），**不要**走 .kami-field 的值列 ——
-       那一列是给短值用的，十几二十个标签塞进去会把标签名挤成竖排、右边还会溢出（实测踩过）。 */
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.tagsLabel + '：' + tagListText()));
+    /* 状态 + 手动处理当前楼层 */
+    var statNote = mk('div', 'kami-card-note', TAGFIX_COPY.statLabel + '：' + TAGFIX_COPY.statNone);
+    body.appendChild(statNote);
 
-    /* 状态 + 手动扫按钮。标签一律短（长说明另起一行 note），与上一行同一个理由。 */
-    var rowStat = aboutRow(TAGFIX_COPY.statLabel, TAGFIX_COPY.statNone, '');
-    var statVal = rowStat.querySelector('.kami-field-value');
-    body.appendChild(rowStat);
-
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.scanHint));
-    var btn = mk('button', 'kami-btn', TAGFIX_COPY.scanBtn);
+    var btn = mk('button', 'kami-btn', TAGFIX_COPY.manualBtn);
     btn.type = 'button';
-    btn.setAttribute('data-kami-act', 'tagfix-scan');
+    btn.title = TAGFIX_COPY.manualHint;
+    btn.setAttribute('data-kami-act', 'tagfix-floor');
     var rowBtn = mk('div', 'kami-field');
-    rowBtn.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.scanLabel));
+    rowBtn.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.manualLabel));
     var valBtn = mk('span', 'kami-field-value');
     valBtn.appendChild(btn);
     rowBtn.appendChild(valBtn);
@@ -2201,10 +2309,8 @@
     box.appendChild(body);
     pane.appendChild(box);
 
-    tagFixEls = { box: box, seg: seg, stat: statVal, btn: btn, chip: head.querySelector('.kami-chip') };
+    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp };
     paintTagFixStat();
-
-    /* 点击：三档切换由面板的 click 委托统一处理（见 bindPanel 的 data-kami-tagfix 分支） */
   }
 
   function renderAboutTab(pane) {
@@ -2740,9 +2846,12 @@
     }
     /* 当前模型（闸门）与面板几何存在同一个键里；没存过就等 refresh 时从数据推断 */
     if (typeof saved.currentModel === 'string' && saved.currentModel) { currentModel = saved.currentModel; }
-    /* 🧰 其他功能 → 自动标签处理的三档（关闭 / 补全 / 删除）。存在同一个键里，
-       跟着预设走：换聊天、换设备都还是这一档。 */
+    /* 🧰 其他功能 → 自动标签处理的三档（关闭 / 补全 / 删除）与自定义标签。
+       存在同一个键里，跟着预设走：换聊天、换设备都还是这一套。 */
     if (typeof saved[TAGFIX_VAR] === 'string') { tagFixMode = tagFixModeSpec(saved[TAGFIX_VAR]).id; }
+    if (Object.prototype.toString.call(saved[TAGFIX_CUSTOM_VAR]) === '[object Array]') {
+      tagFixCustom = parseCustomTags(saved[TAGFIX_CUSTOM_VAR].join(' '));
+    }
     /* 「这一份继承自哪份旧预设」——跟着预设走（脚本变量就存在预设文件里），
        用户 2026-09-28 点名要在面板里写明，免得看标题栏的名字时误会。 */
     if (typeof saved.inheritFrom === 'string' && saved.inheritFrom) { inheritFromName = saved.inheritFrom; }
@@ -2763,7 +2872,8 @@
           currentModel: currentModel || null,
           inheritFrom: inheritFromName || null,
           inheritAt: inheritAtText || null,
-          tagFix: tagFixMode
+          tagFix: tagFixMode,
+          tagFixCustom: tagFixCustom.slice()
         };
         replaceVariables(all, { type: 'script' });
       } catch (e) { log('写脚本变量失败：' + ((e && e.message) || e)); }
@@ -3081,6 +3191,7 @@
      refresh:'affected' 重画那一楼，三个正则前端会跟着重跑（同文件 B3 已验证这条链路）。
      拿不到 eventOn/tavern_events 时不报错、只记一行 —— 面板上的手动按钮仍然可用。 */
   function bindTagFixEvents() {
+    bindChatFloorWatch();                       /* 「当前楼层」= 用户最后点过的那一楼 */
     try {
       if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined' ||
         !tavern_events.MESSAGE_RECEIVED) {

@@ -6,7 +6,7 @@
  * 它测的是 src/scripts/_tags-pure.js —— 构建期内联进 40-预设设置.js 的那份。
  * 这里只碰纯函数：给一段 AI 回复，看它认不认得出没闭合的标签、补在哪儿、删得对不对。
  */
-import { TAG_SPECS, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText } from '../../src/scripts/_tags-pure.js';
+import { TAG_SPECS, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom } from '../../src/scripts/_tags-pure.js';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -122,7 +122,30 @@ function ok(cond, label) { eq(!!cond, true, label); }
     '<content>甲</content><image>图</image>', '⑩ 图片块算兄弟块');
 }
 
-/* ── ⑪ 面板上的文案与登记表联动 ── */{
+/* ── ⑫ 自定义标签（面板上的输入框） ── */
+{
+  eq(parseCustomTags('foo bar,baz、qux；quux|last').join(','), 'foo,bar,baz,qux,quux,last', '⑫ 逗号/顿号/空格/分号/竖线都能当分隔符');
+  eq(parseCustomTags('<mytag> <other>').join(','), 'mytag,other', '⑫ 带尖括号也认（替用户去掉）');
+  eq(parseCustomTags('foo foo foo').join(','), 'foo', '⑫ 重复的只留一个');
+  eq(parseCustomTags('content summary').join(','), '', '⑫ 内置标签忽略（本来就管）');
+  eq(parseCustomTags('1bad _bad bad-dash bad.dot').join(','), '', '⑫ 不合法的标签名丢弃');
+  eq(parseCustomTags('').join(','), '', '⑫ 空输入');
+  eq(parseCustomTags(null).join(','), '', '⑫ null 不炸');
+
+  /* 并进登记表之后真的管起来 */
+  const specs = specsWithCustom(['note', 'aside']);
+  eq(specs.length, TAG_SPECS.length + 2, '⑫ 自定义标签并进登记表');
+  eq(tagListText(specs).indexOf('<note>（自定义）') >= 0, true, '⑫ 清单里标成「自定义」');
+  eq(repairTags('<note>备注没写完', 'close', specs).text, '<note>备注没写完</note>', '⑫ 自定义标签能补全');
+  eq(repairTags('<note>备注没写完', 'close').text, '<note>备注没写完', '⑫ 没并进去时不管它');
+  eq(repairTags('甲</aside>', 'del', specs).text, '甲', '⑫ 自定义标签能删除');
+  /* 自定义标签不当分界：别让它把别的标签提前闭合 */
+  const s2 = specsWithCustom(['note']);
+  eq(repairTags('<content>正文<note>备注</note>', 'close', s2).text,
+    '<content>正文<note>备注</note></content>', '⑫ 自定义标签不会被当成兄弟块分界');
+}
+
+/* ── ⑬ 面板上的文案与登记表联动 ── */{
   ok(tagListText().includes('<content>（正文块）'), '⑨ 标签清单由登记表生成');
   ok(tagListText().includes('<options>（行动选项）'), '⑨ 标签清单里有行动选项');
   ok(TAG_SPECS.length >= 10, '⑨ 登记表至少有 10 个标签');

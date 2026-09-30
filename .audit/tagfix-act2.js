@@ -1,0 +1,1 @@
+(function(){try{var out={};var chat=window.__KAMI_PREVIEW_CHAT;out.len0=chat.length;chat.push({message_id:chat.length,is_user:false,message:'<foo>自定义标签没关'});var id=chat.length-1;STATE.emit('message_received',id);out.id=id;return JSON.stringify(out);}catch(e){return JSON.stringify({error:String((e&&e.message)||e)});}})()

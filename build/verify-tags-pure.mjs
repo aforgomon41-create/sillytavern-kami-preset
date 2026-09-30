@@ -84,8 +84,22 @@ ok(code.indexOf("special: 'toolbox'") >= 0 && code.indexOf("if (tab.special === 
   '⑦ 渲染分派接上了（special=toolbox → renderToolboxTab）');
 ok(code.indexOf("data-kami-tagfix") >= 0 && code.indexOf('setTagFixMode(') >= 0,
   '⑦ 三档开关接上了（data-kami-tagfix → setTagFixMode）');
-ok(code.indexOf("'tagfix-scan'") >= 0 && code.indexOf('tagFixScanAll') >= 0,
-  '⑦ 手动「扫一遍当前聊天」接上了');
+ok(code.indexOf("'tagfix-floor'") >= 0 && code.indexOf('tagFixCurrentFloor') >= 0,
+  '⑦ 手动「处理当前楼层」接上了');
+/* ⑦-b 用户 2026-09-30 的两条追加要求：说明折叠进 ⓘ、自定义标签可填 */
+ok(code.indexOf('noteMark(TAGFIX_COPY.note)') >= 0 && code.indexOf('noteText(TAGFIX_COPY.note)') >= 0,
+  '⑦ 说明折叠进 ⓘ（用与预设条目注释同一套 noteMark / noteText）');
+ok(code.indexOf("'data-kami-tagfix-custom'") >= 0 && code.indexOf('setTagFixCustom(') >= 0,
+  '⑦ 自定义标签输入框接上了');
+ok(code.indexOf('specsWithCustom(tagFixCustom)') >= 0 && code.indexOf('parseCustomTags(') >= 0,
+  '⑦ 自定义标签并进登记表（parseCustomTags → specsWithCustom）');
+ok(code.indexOf('tagFixCustom: tagFixCustom.slice()') >= 0 && code.indexOf('saved[TAGFIX_CUSTOM_VAR]') >= 0,
+  '⑦ 自定义标签存进脚本变量（读回来 + 写回去都在）');
+/* ⑦-c 确认窗：列标签 + 抬到面板上层 */
+ok(code.indexOf('tagFixAsk(') >= 0 && code.indexOf('confirmLead') >= 0 && code.indexOf('tagFixListText()') >= 0,
+  '⑦ 确认窗里列出了这次会处理哪些标签');
+ok(code.indexOf("root.style.zIndex = '1'") >= 0,
+  '⑦ 弹确认窗时把面板临时压到下面（否则同层级 + DOM 顺序在后 = 被盖住，用户实测点名）');
 
 /* ⑧ 自动那一条路：事件、Promise、写回、重画 */
 ok(code.indexOf('tavern_events.MESSAGE_RECEIVED') >= 0, '⑧ 挂在 MESSAGE_RECEIVED 上');

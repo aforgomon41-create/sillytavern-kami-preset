@@ -74,6 +74,42 @@ export function tagSpecOf(name, specs) {
   return null;
 }
 
+/* ── 自定义标签（面板上那个输入框，2026-09-30 用户点名） ──
+   用户填进来的标签并进登记表一起管。规则：
+     · 一行里可以写多个，逗号 / 顿号 / 空格 / 换行都算分隔符（用户不该被分隔符难住）；
+     · 标签名只认字母开头的字母数字下划线（与 XML 标签名同规则），带尖括号也行（写了就替用户去掉）；
+     · 已经在内置登记表里的忽略掉（内置的本来就管），重复的也去重；
+     · 自定义标签的 sibling 一律 false：它**不当作别人的分界**。
+       理由：分界规则会让别的标签提前闭合，拿不准的新标签不该有这个权力（宁可补在末尾）。 */
+export function parseCustomTags(text) {
+  var raw = String(text == null ? '' : text);
+  var parts = raw.split(/[\s,，、;；|]+/);
+  var out = [], seen = {}, i, name;
+  for (i = 0; i < parts.length; i++) {
+    name = parts[i].replace(/[<>\/]/g, '');
+    if (!name) { continue; }
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(name)) { continue; }
+    if (tagSpecOf(name, TAG_SPECS)) { continue; }
+    if (seen[name]) { continue; }
+    seen[name] = 1;
+    out.push(name);
+  }
+  return out;
+}
+
+/* 内置登记表 + 用户自定义 = 这一次实际要管的标签。
+   自定义的排在后面，`sibling:false`（见上），label 统一叫「自定义」。 */
+export function specsWithCustom(custom) {
+  var out = TAG_SPECS.slice(), i;
+  var list = (custom && custom.length) ? custom : [];
+  for (i = 0; i < list.length; i++) {
+    var name = (typeof list[i] === 'string') ? list[i] : (list[i] && list[i].tag);
+    if (!name || tagSpecOf(name, TAG_SPECS)) { continue; }
+    out.push({ tag: name, label: '自定义', sibling: false, custom: true });
+  }
+  return out;
+}
+
 /* 代码块（``` 或 ~~~ 围起来的段落）的区间：这些地方里的尖括号不当标签看 */
 export function codeRanges(text) {
   var out = [], re = /^[ \t]*(```|~~~)/gm, m, start = -1;

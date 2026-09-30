@@ -1,0 +1,1 @@
+(function(){try{window.__POPUP_LOG=[];window.__popupAnswer=true;var p=document.querySelector('#kami-preset-panel [data-kami-pane="BOX"]');var b=p.querySelector('[data-kami-act="tagfix-floor"]');if(b){b.click();}return JSON.stringify({clicked:!!b});}catch(e){return JSON.stringify({error:String((e&&e.message)||e)});}})()
