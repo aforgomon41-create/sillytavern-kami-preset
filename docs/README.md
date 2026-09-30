@@ -23,7 +23,7 @@
 | [../design/proposals/](../design/proposals/) | 各皮肤的设计简报：grokbot（色块，当前默认）、trpg、rain、nixie |
 | [../design/_prompts/](../design/_prompts/) | 当时派给各 subagent 的任务简报原文（历史记录） |
 | [任务书.md](任务书.md) | **用户最初写的任务书**（原始需求基准）。需求有歧义时以它为准 |
-| [../test/harness/](../test/harness/) | 测试台：preview.html 皮肤预览台、index.html 脚本生命周期、skin.html 皮肤链路（待按真皮肤维护）、d20-geom.mjs 几何自测、update-flow.mjs 远程更新脚本离线自测 |
+| [../test/harness/](../test/harness/) | 测试台：preview.html 皮肤预览台、index.html 脚本生命周期、skin.html 皮肤链路（待按真皮肤维护）、d20-geom.mjs 几何自测、update-flow.mjs 远程更新脚本离线自测、**summarize-pure.mjs 压缩纯逻辑自测（解析器 + 世界书对账，79 项）**、summarize-flow.mjs 压缩脚本离线集成自测 |
 | [../dist/](../dist/) | 构建产物（版本号自增，从不覆盖历史，可回档） |
 
 ## 维护约定

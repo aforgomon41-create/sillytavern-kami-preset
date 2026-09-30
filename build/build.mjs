@@ -330,4 +330,39 @@ if (dry) {
     console.error('  [中止] 版本身份验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 「非必要不开」条目（破限 / 抗审）：默认关，且选模型时不许跟着开。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-model-switch.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 「非必要不开」验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 角色名包裹：标记配平、文生图条目干净、三档齐全、两处入口都在。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-name-wrap.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 角色名包裹验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 继承旧预设设置：复用同一台合并引擎、读对 API、先备份再覆盖。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-inherit.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 继承旧预设设置验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 面板舞台移动端：高度下限内联、兜底皮肤不塌、窄屏判定换信号。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-panel-mobile.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 面板舞台移动端验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 压缩纯逻辑内联：解析器与对账器来自构建期内联，漏了只有真机点开面板才会炸。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-summarize-pure.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 压缩纯逻辑内联验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
 }

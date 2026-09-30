@@ -1,7 +1,24 @@
 /* ============================================================
- * 📜 压缩   v1.1
- * 酒馆助手（TavernHelper / JS-Slash-Runner 4.9.5）脚本
+ * 📜 压缩   v1.3
+ * 酒馆助手（TavernHelper / JS-Slash-Runner 4.9.5+）脚本
  * ------------------------------------------------------------
+ * ⚠️ v1.3 起摘要请求会带 json_schema —— 这个参数要**酒馆助手 4.11** 才认
+ *   （本机实测版本 4.11.0）。旧版会静默忽略它，此时靠 OUTPUT_CONTRACT 那段
+ *   提示词约束输出格式，功能不受影响，只是少了服务端强制。
+ * v1.3（2026-09-29，三个用户反馈的 bug）：
+ *   · 摘要改走结构化输出（json_schema + 提示词契约双保险），解析器只认合法 JSON：
+ *     供应商报错信息再也不会被当成压缩块写进世界书（旧版只要非空就收）。
+ *     解析不过自动换边重试一次，仍不过就判该块失败 —— 不写盘、不隐藏、断点续跑。
+ *     落盘前一定还原成人话（时间线/本块剧情/关键变化），世界书条目里不塞 JSON。
+ *   · **块条目的正文是唯一真相**：面板读条目本身，不再读账本里的副本；
+ *     保存时也不再回写正文 —— 你在世界书里手改的内容既不会被无视，也不会被覆盖。
+ *     账本瘦身成 v3（只有结构：前沿 / 例外楼层 / 我们隐藏过哪些楼 / 待重做段 / 块档案）。
+ *     世界书保存事件（worldinfo_updated）会触发面板自动对账，另有「刷新」按钮兜底。
+ *   · **缺块会补**：账本里有档案、条目却没了的段记成「待重做」，
+ *     下次大总结先重做这些段（连已隐藏楼层的原文一起读回来），再往前推进。
+ *     账本也丢了的极端情况：面板报警 + 一颗按钮，由用户决定要不要重新纳入。
+ *
+ * v1.2：iOS 上面板打不开的修法（舞台高度下限 + 滚回原点 + 窄屏判定改读 body）。
  * v1.1（2026-09-21，并入主任务线）：摘要提示词支持多模板；四个控件类名迁到
  * 契约 §4.2 新登记的 `.kami-text` / `.kami-select` / `.kami-textarea`
  * （此前借用数字框的 `.kami-number`，被那条 `text-align:right` 带成了右对齐）。
@@ -84,7 +101,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.1';
+  var VERSION = '1.3';
   var HUB_NAME = '📜 压缩';
   /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
   var HUB_ORDER = 40;
@@ -123,14 +140,14 @@
     '',
     '请通读本块楼层，对照历史压缩块，写出**本块**的剧情提要。',
     '',
-    '## 输出格式（严格遵守，只输出以下内容）',
-    '时间线：[本块覆盖的时间跨度与场景转移]',
-    '本块剧情：',
-    '[300-600 字第三人称叙述式总结，须覆盖：核心事件及其因果、人物关系与情绪的变化、重要对话得出的结论、地点与物品的转移]',
-    '关键变化：',
-    '- [人物状态、关系或立场的改变]',
-    '- [物品、地点、时间线的推进]',
-    '- [尚未解决、后续必须回收的伏笔]',
+    '## 输出格式（严格遵守）',
+    '只输出一个 JSON 对象，不要解释、开场白或代码块标记：',
+    '{"timeline":"…","plot":"…","changes":["…"]}',
+    '· timeline：本块覆盖的时间跨度与场景转移，一到两句；',
+    '· plot：本块的剧情提要，第三人称叙述，300 到 600 字，须覆盖核心事件及其因果、',
+    '  人物关系与情绪的变化、重要对话得出的结论、地点与物品的转移；',
+    '· changes：关键变化逐条，0 到 8 条：人物状态与关系、物品地点与时间线的推进、',
+    '  尚未解决、后续必须回收的伏笔。',
     '',
     '## 写作规则',
     '- 与历史压缩块自然衔接：已写过的信息不重复，只写增量与变化；',
@@ -138,9 +155,29 @@
     '- 人名、称谓、专有名词沿用原文写法，不要改译或简写；',
     '- 楼层里的 XML 标签（<summary>、<options> 等）是格式残留，一律忽略；',
     '- 状态要具体：伤势、持有物、金钱、时间点宁可写细，不要含糊带过；',
-    '- 本块结尾悬而未决的情节点，必须在「关键变化」里单列一条；',
-    '- 不要开场白、解释或代码块标记，直接从「时间线：」开始输出。',
+    '- 本块结尾悬而未决的情节点，必须在 changes 里单列一条；',
+    '- JSON 的字符串里不要出现 markdown 语法（列表、加粗、标题都不要）。',
     '</compress_task>'
+  ].join('\n');
+
+  /* 结构化输出的**运行时契约**：不管用户把「任务正文」改成什么样子，
+     这一段都会作为最后一条消息附在请求末尾。必要性：老用户的自定义提示词
+     与模板存在脚本变量里，它们不懂 JSON，光靠默认任务正文救不了 ——
+     少了它，这些人的摘要会永远卡在「返回内容不是合法 JSON」。
+     格式只此一处权威（默认任务正文里那份是给人看的副本）。 */
+  var OUTPUT_CONTRACT = [
+    '<output_format>',
+    '最后一步：把上面的结果整理成**一个 JSON 对象**输出，不要输出任何其它内容。',
+    '',
+    '{"timeline":"…","plot":"…","changes":["…","…"]}',
+    '',
+    '· timeline：字符串。本块覆盖的时间跨度与场景转移，一到两句。',
+    '· plot：字符串。本块的剧情提要，第三人称叙述，300 到 600 字。',
+    '· changes：字符串数组。关键变化逐条写，0 到 8 条，每条一句话，不要挤成一大段。',
+    '',
+    '若无法完成总结，同样必须返回此结构的 JSON，并将 plot 替换为实际说明。',
+    '只输出这一个 JSON 对象：不要解释、不要开场白、不要代码块标记，也不要 markdown 语法。',
+    '</output_format>'
   ].join('\n');
 
   /* ── 面板文案（唯一出处；改文案只动这张表） ──
@@ -287,10 +324,19 @@
       "blockTag": "块",
       "empty": "暂无压缩块。开启超限压缩达到上限后会自动生成，也可点击顶部的「立即大总结」手动生成。",
       "depthTag": "注入深度",
-      "note": "每个压缩块对应一个世界书条目（📜 压缩块 #N），按位置锚定在对应楼层后注入。数据保存在当前聊天绑定的世界书「{lb}」中，更换预设不会丢失。",
+      "note": "每个压缩块对应一个世界书条目（📜 压缩块 #N），按位置锚定在楼层后注入。数据保存在当前绑定的世界书「{lb}」中，更换预设不会丢失。条目正文支持手动修改，改完点「刷新」即可同步。",
       "lbNone": "（当前聊天未绑定世界书）",
       "errHint": "压缩数据读取异常：{err}",
-      "errFix": "可点击顶部「清除压缩数据」重置当前聊天的压缩记录。已被隐藏的楼层不会受影响。"
+      "errFix": "可点击顶部「清除压缩数据」重置当前聊天的压缩记录。已被隐藏的楼层不会受影响。",
+      "pendingTag": "待重新生成",
+      "pendingNote": "有 {n} 个楼层的压缩块条目缺失或被清空。下次大总结会自动重新总结并补回。",
+      "orphanNote": "检测到 {n} 个已隐藏楼层没有压缩块。手动隐藏的楼层无需处理；若因条目误删导致，可点下方按钮重新总结。",
+      "orphanBtn": "重新纳入大总结",
+      "dupNote": "发现 {n} 组楼层范围重复的压缩块，目前仅生效其中一块。建议在世界书里删掉多余条目。",
+      "suspectNote": "有 {n} 个压缩块的内容疑似接口报错，已在下方标出。在世界书里删掉对应条目后重新大总结即可。",
+      "suspectTag": "疑似失败内容",
+      "refresh": "刷新",
+      "refreshTip": "重新读取世界书，同步手动修改的内容"
     },
     "entry": {
       "section": "「🧱 摘要(小总结)」条目",
@@ -309,7 +355,20 @@
       "partial": "大总结未全部完成：{err}",
       "partialTail": "。已完成的 {n} 个压缩块照常生效。",
       "done": "大总结完成：新增 {a} 个压缩块，隐藏 {b} 楼（当前共 {c} 块）",
+      "repairFail": "补回楼层 {range} 的压缩块失败：{err}",
+      "repairQueued": "已将 {n} 个隐藏楼层重新加入大总结，下次触发时会自动补回压缩块",
+      "refreshed": "已重新读取世界书",
+      "schemaBad": "模型未按要求格式作答（{why}）。本块未写入，楼层完整保留，可稍后重试。返回内容：{head}",
+      "schemaWhy": {
+        "empty": "返回内容为空",
+        "errorText": "接口返回错误信息",
+        "noJson": "未按要求格式输出",
+        "badJson": "输出被打断，格式不完整",
+        "errorJson": "接口返回错误数据",
+        "noFields": "缺少剧情提要正文"
+      },
       "noHidden": "当前聊天没有被隐藏的楼层",
+      "noOrphan": "没有需要重新纳入的隐藏楼层",
       "unhideDone": "已恢复 {n} 个楼层的显示（压缩数据保持原样）",
       "noLorebook": "当前聊天未绑定世界书，且没有压缩数据",
       "clearFail": "删除世界书条目失败：{err}",
@@ -336,6 +395,9 @@
 
   /* 面板手势共享模块（构建期内联，两块面板共用同一份） */
   /* @@KAMI_PANEL_GESTURES@@ */
+
+  /* 压缩纯逻辑（摘要响应解析器 + 世界书对账器；构建期内联，离线单测直接读那份源码） */
+  /* @@KAMI_SUMMARIZE_PURE@@ */
 
   /* 兜底皮肤（唯一真相：src/skin/base.css，构建期内联成字符串常量） */
   /* @@KAMI_BASE_CSS_JS@@ */
@@ -498,16 +560,31 @@
   /* 超限压缩进行中（面板标签与页脚都会显示进度） */
   var pipeline = { running: false, done: 0, total: 0 };
 
-  /* 本聊天的压缩状态（真相在聊天世界书条目里，这里是它的内存映像） */
+  /* 本聊天的压缩状态（真相在聊天世界书条目里，这里是它的内存映像）。
+     v1.3 起「块条目的正文」是唯一真相：
+       · 面板显示的、请求带上的、注入提示词的都是**块条目自己**的内容 ——
+         你在世界书里改正文，面板立刻跟着变，脚本再也不回写覆盖你改的东西；
+       · 账本（📜 压缩状态（勿动））只记结构：前沿 / 例外楼层 / 我们隐藏过哪些楼 / 块的档案；
+       · 账本里有档案、条目却没了（你删了或清空了正文）= 你要求这段重来 →
+         记进 pending，下次大总结重新总结这些楼层。 */
   var st = freshState();
   function freshState() {
-    return { v: 2, lbName: null, stateUid: null, blocks: [], pins: [], covered: -1, updatedAt: null, adopted: false, error: null };
+    return {
+      v: 3, lbName: null, stateUid: null,
+      blocks: [],          // 活着的块 {from,to,at,uid,depth,text}（text 来自块条目）
+      pending: [],         // 待重做段 {from,to}（条目没了/正文空了，等着重新总结）
+      pins: [], covered: -1, hiddenByUs: [], updatedAt: null,
+      adopted: false, error: null, notice: [], suspect: [], orphan: [], dup: []
+    };
   }
 
   /* 实测（会话内记忆，不持久化）：钩子里每次生成后更新 */
   var measure = { installed: false, native: null, host: null, last: null };
   var floorTokCache = {};
   var tokenCounter = null;   // { kind: 'async'|'sync'|'est', fn }
+  /* 结构化输出上次是哪条路走通的：'on' = json_schema 通过，'off' = 只剩提示词约束。
+     每次摘要先试走通的那条，失败自动换边再试（见 summarizeChunk）。 */
+  var schemaMode = 'on';
 
   /* ───────── 脚本变量（面板几何 + 超限压缩参数） ───────── */
 
@@ -687,6 +764,16 @@
     return out;
   }
 
+  /* ───────── 块条目的解析（正文的唯一真相） ─────────
+     条目名字是结构化的：「📜 压缩块 #N｜楼层 X-Y」。名字里的楼层范围是收养与对账的依据，
+     正文（含用户手改）由条目自己拥有，脚本只读不覆盖。
+     解析与对账的纯逻辑在 _summarize-pure.js（构建期内联，见文件顶部占位注释）。 */
+
+  /* 读世界书 → 对账。真相优先级：
+       ① 块条目（正文 + 名字里的楼层范围）—— 唯一真相，用户手改立刻生效；
+       ② 账本「📜 压缩状态（勿动）」—— 只提供结构（前沿 / 例外楼层 / 我们隐藏过哪些楼 / 块的档案）；
+       ③ 账本里有档案、条目却没了 ⇒ 那一段进 pending，下次大总结重做（用户删块 = 要求这段重来）。
+     对账本身是纯函数 reconcileBlocks()，这里只负责取数与落地。 */
   async function loadChatState() {
     st = freshState();
     if (!hasNativeLorebook()) { st.error = '拿不到酒馆原生的世界书读写接口'; return st; }
@@ -695,78 +782,109 @@
     try { lb = getChatLorebook(); } catch (e) { st.error = '读聊天世界书失败：' + msgOf(e); return st; }
     if (!lb) { return st; }   // 本聊天没绑世界书 = 没有压缩数据（不主动创建，写的时候才建）
     st.lbName = lb;
-    var entryMap = {};
+    var raw = null, entryMap = {};
     try {
-      var raw = await ctx.loadWorldInfo(lb);
+      raw = await ctx.loadWorldInfo(lb);
       entryMap = (raw && raw.entries && typeof raw.entries === 'object') ? raw.entries : {};
     } catch (e) { st.error = '读世界书条目失败：' + msgOf(e); return st; }
+
+    /* 账本（只读结构；JSON 坏了就只是丢了结构，块条目本身照常能用） */
+    var ledger = null;
     var stateEntry = findRawEntry(entryMap, LB_STATE);
     if (stateEntry) {
       st.stateUid = stateEntry.uid;
       try {
         var data = JSON.parse(stateEntry.content || '{}');
-        if (data && typeof data === 'object') {
-          if (Array.isArray(data.blocks)) {
-            for (var i = 0; i < data.blocks.length; i++) {
-              var b = data.blocks[i];
-              if (b && typeof b.text === 'string' && typeof b.from === 'number' && typeof b.to === 'number') {
-                st.blocks.push({
-                  from: b.from, to: b.to, at: b.at || null, text: b.text,
-                  uid: (typeof b.uid === 'number') ? b.uid : null,
-                  depth: (typeof b.depth === 'number') ? b.depth : null
-                });
-              }
-            }
-          }
-          if (Array.isArray(data.pins)) {
-            for (var j = 0; j < data.pins.length; j++) {
-              if (typeof data.pins[j] === 'number') { st.pins.push(data.pins[j]); }
-            }
-          }
-          if (typeof data.covered === 'number') { st.covered = data.covered; }
-          if (typeof data.updatedAt === 'number') { st.updatedAt = data.updatedAt; }
-        }
+        if (data && typeof data === 'object') { ledger = data; }
       } catch (e) {
         st.error = '压缩状态条目不是合法 JSON（已被手工改坏？）——可点「清除本聊天压缩数据」重来';
       }
     }
-    /* 账本丢了但块条目还在：按条目名收养（楼层范围写在名字里），避免重复总结 */
-    if (!st.blocks.length) {
-      var re = new RegExp('^' + LB_BLOCK_PREFIX + '(\\d+)｜楼层 (\\d+)-(\\d+)$');
-      var allEntries = rawEntryList(entryMap);
-      for (var k = 0; k < allEntries.length; k++) {
-        var en = allEntries[k];
-        if (!en || typeof en.comment !== 'string') { continue; }
-        var m2 = re.exec(en.comment);
-        if (!m2) { continue; }
-        st.blocks.push({
-          from: Number(m2[2]), to: Number(m2[3]), at: null,
-          text: stripBlockHeader(String(en.content || '')),
-          uid: en.uid, depth: (typeof en.depth === 'number') ? en.depth : null
-        });
+
+    /* 聊天现状：楼层总数 + 哪些楼被隐藏。
+       ⚠️ 只读**前沿那一段**（0 到 covered），不读整个聊天：对账只关心压缩覆盖过的楼层，
+       而世界书保存事件（用户在编辑器里打字）会频繁触发这条路径 —— 长聊天全量读会卡。
+       前沿的三种来源都要算上：账本的 covered、账本的块档案、账本的待重做段，
+       **以及世界书里块条目名字里的楼层范围**（账本整个丢了时，只有条目的名字能告诉我们
+       压缩到过哪一楼；漏了这条，底下就找不到"孤儿隐藏楼层"，账本丢失场景会静默失灵）。 */
+    var len = chatLen();
+    var hiddenFloors = [];
+    var coveredSoFar = (ledger && typeof ledger.covered === 'number') ? ledger.covered : -1;
+    if (Array.isArray(ledger && ledger.blocks)) {
+      for (var lb0 = 0; lb0 < ledger.blocks.length; lb0++) {
+        var arc0 = ledger.blocks[lb0];
+        if (arc0 && typeof arc0.to === 'number' && arc0.to > coveredSoFar) { coveredSoFar = arc0.to; }
       }
-      if (st.blocks.length) { st.adopted = true; }
     }
-    var maxTo = -1;
-    for (var k = 0; k < st.blocks.length; k++) { if (st.blocks[k].to > maxTo) { maxTo = st.blocks[k].to; } }
-    if (maxTo > st.covered) { st.covered = maxTo; }
-    st.pins.sort(function (a, b) { return a - b; });
+    if (Array.isArray(ledger && ledger.pending)) {
+      for (var lp0 = 0; lp0 < ledger.pending.length; lp0++) {
+        var rng0 = ledger.pending[lp0];
+        if (rng0 && typeof rng0.to === 'number' && rng0.to > coveredSoFar) { coveredSoFar = rng0.to; }
+      }
+    }
+    var entriesAll = rawEntryList(entryMap);
+    for (var en0 = 0; en0 < entriesAll.length; en0++) {
+      var one0 = entriesAll[en0];
+      if (!one0 || typeof one0.comment !== 'string') { continue; }
+      var pn0 = parseBlockName(LB_BLOCK_PREFIX, one0.comment);
+      if (pn0 && pn0.to > coveredSoFar) { coveredSoFar = pn0.to; }
+    }
+    if (len && coveredSoFar >= 0) {
+      /* 读的区间必须盖住 hiddenByUs 里的每一楼（否则下面按"没读到=没隐藏"裁剪会误删记录） */
+      var scanTop = coveredSoFar;
+      if (Array.isArray(ledger && ledger.hiddenByUs)) {
+        for (var hu0 = 0; hu0 < ledger.hiddenByUs.length; hu0++) {
+          if (typeof ledger.hiddenByUs[hu0] === 'number' && ledger.hiddenByUs[hu0] > scanTop) { scanTop = ledger.hiddenByUs[hu0]; }
+        }
+      }
+      var readTop = Math.min(scanTop, len - 1);
+      try {
+        var list = getChatMessages('0-' + readTop) || [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && list[i].is_hidden) { hiddenFloors.push(list[i].message_id); }
+        }
+      } catch (e) { hiddenFloors = []; }
+    }
+
+    var plan = reconcileBlocks({
+      prefix: LB_BLOCK_PREFIX,
+      entries: entriesAll,
+      ledger: ledger,
+      pins: st.pins,
+      hiddenFloors: hiddenFloors,
+      len: len,
+      keep: cfg.keep
+    });
+    st.blocks = plan.blocks;
+    st.pending = plan.pending;
+    st.covered = plan.covered;
+    st.hiddenByUs = plan.hiddenByUs;
+    st.pins = plan.pins;
+    st.adopted = plan.adopted;
+    st.orphan = plan.orphan;
+    st.dup = plan.dup;
+    st.suspect = plan.suspect;
+    if (ledger && typeof ledger.updatedAt === 'number') { st.updatedAt = ledger.updatedAt; }
+
+    /* 给面板的一句人话汇总（文案在 COPY 表里，纯逻辑不认识文案） */
+    if (st.pending.length) { st.notice.push(COPY.blocks.pendingNote.replace('{n}', countFloors(st.pending))); }
+    if (st.orphan.length) { st.notice.push(COPY.blocks.orphanNote.replace('{n}', countFloors(st.orphan))); }
+    if (st.dup.length) { st.notice.push(COPY.blocks.dupNote.replace('{n}', st.dup.length)); }
+    if (st.suspect.length) { st.notice.push(COPY.blocks.suspectNote.replace('{n}', st.suspect.length)); }
+    if (!st.blocks.length && !st.pending.length && !st.error && (ledger || entriesAll.length)) {
+      /* 有账本却没块：账本被手工清过。不算错误，面板显示空态即可。 */
+      log('账本里没有任何块档案（曾被手工改动？）');
+    }
     return st;
   }
 
   /* 块条目：一个块一个条目。名字带楼层范围（账本丢失时按名字收养），
      正文 = 一行头 + 提要文本；位置 @D⚙ 按深度注入，深度 = 块尾楼层之后的
      未隐藏楼层数（块锚在自己最后一名"住户"正后方，详见头部注释）。 */
-  function blockContent(b) {
-    return '【剧情提要｜楼层 ' + b.from + '-' + b.to + '】\n' + b.text;
-  }
+  /* 块条目的正文/名字：格式归脚本，正文归用户（blockContent / stripBlockHeader
+     在 _summarize-pure.js 里，这里只留名字这一件带前缀的事） */
   function blockComment(index, b) {
     return LB_BLOCK_PREFIX + (index + 1) + '｜楼层 ' + b.from + '-' + b.to;
-  }
-  function stripBlockHeader(content) {
-    var s = String(content || '');
-    var m = s.match(/^【剧情提要｜楼层 \d+-\d+】\s*\n?/);
-    return m ? s.slice(m[0].length) : s;
   }
   /* 深度计数器：suffix[f] = 楼层 f 及之后还有多少未隐藏楼层。
      块尾是 F → 注入深度 = suffix[F+1]（藏在 F 与下一个未隐藏楼层之间）。 */
@@ -824,31 +942,50 @@
       }
     }
 
-    var created = 0, updated = 0;
+    var created = 0, updated = 0, keptText = 0;
     for (var i = 0; i < st.blocks.length; i++) {
       var b = st.blocks[i];
       b.depth = depthAfter(b.to);
       var fields = {
-        comment: blockComment(i, b), content: blockContent(b),
+        comment: blockComment(i, b),
         constant: true, disable: false, position: 4, role: 0,
         depth: b.depth, order: 1000000 - b.from,
         probability: 100, useProbability: true, ignoreBudget: true, addMemo: true
       };
       var key = (b.uid !== null && b.uid !== undefined && entryMap[b.uid]) ? b.uid : null;
-      if (key !== null) { Object.assign(entryMap[key], fields); updated++; }
-      else {
+      var cur = (key !== null) ? entryMap[key] : null;
+      if (cur) {
+        /* 正文以**世界书里的当下内容**为准：面板开着的时候你刚改过条目，
+           这里的 st.blocks 还是旧的 —— 照抄旧的就把你的手改覆盖了。
+           正文只在两种情况下由脚本写：条目是新建的，或者连格式头都没有。 */
+        var curText = stripBlockHeader(String(cur.content || ''));
+        if (curText.trim()) { if (curText !== b.text) { keptText++; } b.text = curText; }
+        Object.assign(cur, fields);
+        var want = blockContent(b.from, b.to, b.text);
+        if (String(cur.content || '') !== want) { cur.content = want; }
+        updated++;
+      } else {
         maxUid++; maxDisplay++;
         b.uid = maxUid;
         var ne = Object.assign({ uid: maxUid, displayIndex: maxDisplay }, WI_TEMPLATE);
         Object.assign(ne, fields);
+        ne.content = blockContent(b.from, b.to, b.text);
         entryMap[maxUid] = ne;
         created++;
       }
     }
-    /* 账本：关闭状态（disable:true），永不进提示词；JSON 里带每个块的条目 uid */
-    var stateJson = JSON.stringify(
-      { v: 2, updatedAt: st.updatedAt, covered: st.covered, pins: st.pins, blocks: st.blocks },
-      null, 2);
+    /* 账本：关闭状态（disable:true），永不进提示词。
+       v3 起**不存正文**（正文的真相在块条目里，两份副本必然不一致）：
+       只记结构 —— 前沿 / 例外楼层 / 我们隐藏过哪些楼 / 待重做段 / 每块的档案（范围 + 条目 uid）。 */
+    var ledgerBlocks = [];
+    for (var lb2 = 0; lb2 < st.blocks.length; lb2++) {
+      var bb = st.blocks[lb2];
+      ledgerBlocks.push({ from: bb.from, to: bb.to, at: bb.at || null, uid: (bb.uid === undefined ? null : bb.uid) });
+    }
+    var stateJson = JSON.stringify({
+      v: 3, updatedAt: st.updatedAt, covered: st.covered, pins: st.pins,
+      hiddenByUs: st.hiddenByUs, pending: st.pending, blocks: ledgerBlocks
+    }, null, 2);
     var stateEntry = findRawEntry(entryMap, LB_STATE);
     if (stateEntry) {
       st.stateUid = stateEntry.uid;
@@ -1135,12 +1272,54 @@
     return s.slice(0, max) + '……（本楼过长，已截断）';
   }
 
+  /* 从返回值里取正文。三种形状：
+       ① 字符串（绝大多数接口）；
+       ② 对象带 content（酒馆助手在「带着工具且模型真调了工具」时会返回它）；
+       ③ 对象只有 tool_calls —— Claude 那条路：服务端把 json_schema 变成一个**强制工具**，
+          content 恒为空串，JSON 在工具参数里（这是「Claude + json_schema」唯一正确的读法）。
+       顺带认一下反截断的占位工具形状（参数是 {content:'…'}）。 */
+  function responseTextOf(res) {
+    if (typeof res === 'string') { return res; }
+    if (!res || typeof res !== 'object') { return ''; }
+    if (typeof res.content === 'string' && res.content.trim()) { return res.content; }
+    var calls = res.tool_calls;
+    if (Array.isArray(calls) && calls.length) {
+      var pick = null, i, one;
+      for (i = 0; i < calls.length; i++) {
+        one = calls[i];
+        var nm = one && one.function && one.function.name;
+        if (nm === SUMMARY_SCHEMA.name) { pick = one; break; }
+        if (!pick) { pick = one; }
+      }
+      var args = pick && pick.function && typeof pick.function.arguments === 'string' ? pick.function.arguments : '';
+      if (args) {
+        try {
+          var o = JSON.parse(args);
+          if (o && typeof o === 'object' && typeof o.content === 'string' && o.content.trim()) { return o.content; }
+        } catch (e) { }
+        return args;
+      }
+    }
+    return typeof res.content === 'string' ? res.content : '';
+  }
+
+  /* 块摘要请求：材料 → 结构化输出 → 人话正文。
+     返回 {text}，失败一律抛错（**绝不把没通过校验的东西交出去**）。
+     两段式：先带 json_schema 试一次，解析不过/请求被拒就退回「只靠提示词约束」再试一次 ——
+     有些反代不认 response_format，不留这条路会让压缩对它永久失效。
+     注意：解析标准全程不放宽，第二次也一样只认合法 JSON。 */
   async function summarizeChunk(chunk, pinsInRange) {
     var mats = [];
     mats.push('【历史压缩块】');
-    if (!st.blocks.length) { mats.push('（无，这是第一块）'); }
-    for (var i = 0; i < st.blocks.length; i++) {
-      var b = st.blocks[i];
+    /* 只带**在本块之前**的块：补块时 st.blocks 里可能有更晚的块（时间在后面的
+       剧情不该出现在"历史"里，否则模型会提前总结还没发生的事）。 */
+    var hist = [];
+    for (var h = 0; h < st.blocks.length; h++) {
+      if (st.blocks[h].to < chunk[0]) { hist.push(st.blocks[h]); }
+    }
+    if (!hist.length) { mats.push('（无，这是第一块）'); }
+    for (var i = 0; i < hist.length; i++) {
+      var b = hist[i];
       mats.push('—— 块（楼层 ' + b.from + '-' + b.to + '）——\n' + b.text);
     }
     mats.push('');
@@ -1162,62 +1341,98 @@
     }
     /* 请求组合：头条目 → 任务 → 材料（固定 user）→ 尾条目。空内容的头尾条目跳过。 */
     var msgs = [];
-    var i, e;
-    for (i = 0; i < cfg.prompts.head.length; i++) {
-      e = cfg.prompts.head[i];
+    var i2, e;
+    for (i2 = 0; i2 < cfg.prompts.head.length; i2++) {
+      e = cfg.prompts.head[i2];
       if (e.content && e.content.trim()) { msgs.push({ role: e.role, content: e.content }); }
     }
     if (cfg.prompts.task && cfg.prompts.task.trim()) { msgs.push({ role: cfg.prompts.taskRole, content: cfg.prompts.task }); }
     msgs.push({ role: 'user', content: mats.join('\n\n') });
-    for (i = 0; i < cfg.prompts.tail.length; i++) {
-      e = cfg.prompts.tail[i];
+    for (i2 = 0; i2 < cfg.prompts.tail.length; i2++) {
+      e = cfg.prompts.tail[i2];
       if (e.content && e.content.trim()) { msgs.push({ role: e.role, content: e.content }); }
     }
+    /* 输出格式契约永远压在最后一条：它不依赖用户的任务正文（自定义模板也管用） */
+    msgs.push({ role: 'system', content: OUTPUT_CONTRACT });
     if (typeof generateRaw !== 'function') { throw new Error(COPY.toasts.noGenerate); }
     /* 占位工具 + tool_choice:'none'：酒馆助手的标准生成路径只有在带 tools 时
        才把 tool_choice 注入请求体（responseGenerator.ts 的 optionsInjector 只认
-       hasTools||jsonSchema），而反截断只认请求体里的 tool_choice:'none' 才会放手。
-       所以带一个不会被调用的占位工具，把 'none' 送进请求体，两边都稳。
+       hasTools 才写 tool_choice，光有 json_schema 不写），而反截断只认请求体里的
+       tool_choice:'none' 才会放手。所以占位工具**必须留着**，别以为有了 json_schema
+       就能把它删掉 —— 删了反截断会接管这次摘要请求。
        自定义接口（source:'custom'）同样在 toolCallCompat 的支持名单里。 */
-    var req = {
+    var baseReq = {
       generation_id: 'kami-summarize-' + Date.now(),
       ordered_prompts: msgs,
       should_silence: true,
       tools: [{ type: 'function', function: { name: 'kami_noop', description: '占位工具，不要调用。', parameters: { type: 'object', properties: {}, required: [] } } }],
       tool_choice: 'none'
     };
-    var finish = function (res) {
-      var text = (typeof res === 'string') ? res : (res && res.content) ? res.content : '';
-      text = String(text || '').trim();
-      text = text.replace(/^```[a-zA-Z]*\s*/, '').replace(/```\s*$/, '').trim();
-      if (!text) { throw new Error(COPY.toasts.emptyReply); }
-      return text;
-    };
-    var send = function () { return generateRaw(req); };
+    /* 自定义接口的临时参数：每次尝试都要带上（Object.assign 出去的对象各自独立） */
+    var customApi = null;
     if (cfg.sumModel.mode === 'custom') {
       var cc = currentSumConfig();
       if (cc && cc.apiurl && cc.key && cc.model) {
-        req.custom_api = {
+        customApi = {
           apiurl: cc.apiurl,
           key: cc.key,
           model: cc.model,
           source: cc.source || 'custom'   // 请求格式跟所选接口格式走（custom=OpenAI 兼容自定义）
         };
-        var res = await send();
-        return finish(res);
+      } else { toast('warning', COPY.model.customHint); }
+    }
+    var send = async function (useSchema) {
+      var req = {
+        generation_id: baseReq.generation_id + (useSchema ? '' : '-plain'),
+        ordered_prompts: baseReq.ordered_prompts,
+        should_silence: true,
+        tools: baseReq.tools,
+        tool_choice: 'none'
+      };
+      if (useSchema) { req.json_schema = summaryJsonSchema(); }
+      if (customApi) { req.custom_api = customApi; }
+      if (customApi) { return generateRaw(req); }
+      if (cfg.sumModel.tavernPick) {
+        var got = null;
+        await withTavernProfile(cfg.sumModel.tavernPick, async function () { got = await generateRaw(req); });
+        return got;
       }
-      toast('warning', COPY.model.customHint);
-      var res2 = await send();
-      return finish(res2);
+      return generateRaw(req);
+    };
+    /* 上次哪一种模式通过，下次就先试它（省一次往返）；失败会自己换边再试。 */
+    var order = (schemaMode === 'off') ? [false, true] : [true, false];
+    var lastErr = '';
+    for (var attempt = 0; attempt < order.length; attempt++) {
+      var useSchema = order[attempt];
+      var res = null;
+      try {
+        res = await send(useSchema);
+      } catch (err) {
+        lastErr = msgOf(err);
+        if (useSchema) { log('带 json_schema 的摘要请求被拒（' + lastErr + '），改用提示词约束重试'); }
+        continue;
+      }
+      var parsed = parseSummaryResponse(responseTextOf(res));
+      if (parsed.ok) {
+        if (useSchema) { schemaMode = 'on'; }
+        else if (attempt > 0) { schemaMode = 'off'; }
+        return parsed.text;
+      }
+      lastErr = COPY.toasts.schemaBad
+        .replace('{why}', COPY.toasts.schemaWhy[parsed.reason] || parsed.reason)
+        .replace('{head}', parsed.rawHead || '（空）');
+      /* 只在「模型给了东西但不是我们的 JSON」时才怀疑结构化输出这条路走不通。
+         如果是接口报错、空回复这类**传输层**问题，json_schema 是无辜的 ——
+         乱翻模式只会让后面的块白丢一次 json_schema 强制（探测脚本抓到的真实行为）。 */
+      var formatTrouble = (parsed.reason === 'noJson' || parsed.reason === 'badJson' || parsed.reason === 'noFields');
+      if (useSchema && formatTrouble) {
+        schemaMode = 'off';
+        log('带 json_schema 的摘要响应没通过校验（' + parsed.reason + '），改用提示词约束重试：' + parsed.rawHead);
+      } else {
+        log('摘要响应没通过校验（' + parsed.reason + '）：' + parsed.rawHead);
+      }
     }
-    if (cfg.sumModel.tavernPick) {
-      /* 直接用酒馆那套连接配置：借用活设置跑一次，跑完还原 */
-      var res3 = null;
-      await withTavernProfile(cfg.sumModel.tavernPick, async function () { res3 = await send(); });
-      return finish(res3);
-    }
-    var res4 = await send();
-    return finish(res4);
+    throw new Error(lastErr || COPY.toasts.emptyReply);
   }
   function chatMsg(i) {
     try {
@@ -1244,6 +1459,12 @@
     }
     if (!ids.length) { toast('info', COPY.toasts.noHidden); return; }
     await setFloorHidden(ids, false);
+    /* 取消隐藏之后这些楼不再由我们隐藏：hiddenByUs 必须跟着清空，
+       否则下次对账会把它们当成「我们隐藏的孤儿楼层」自动重新总结一遍。 */
+    st.hiddenByUs = [];
+    if (st.lbName) {
+      try { await saveChatState(); } catch (e) { log('取消隐藏后落盘失败（不影响显示）：' + msgOf(e)); }
+    }
     toast('success', COPY.toasts.unhideDone.replace('{n}', ids.length));
   }
 
@@ -1264,13 +1485,22 @@
       var chunkSize = Math.max(1, Math.min(200, cfg.chunk));
       var end = len - 1 - keep;
       var start = st.covered + 1;
-      if (end < start) {
-        toast('info', COPY.toasts.nothing.replace('{n}', keep));
-        return;
-      }
       var all = getChatMessages('0-' + (len - 1)) || [];
       var pinMap = {};
       for (var p = 0; p < st.pins.length; p++) { pinMap[st.pins[p]] = 1; }
+      var pinsInRange = [];
+      for (var pi = 0; pi < st.pins.length; pi++) { if (st.pins[pi] <= end) { pinsInRange.push(st.pins[pi]); } }
+
+      /* ① 补块：账本里有档案、条目却没了的段（你把块条目删了/清空了 = 要求这段重来）。
+            这些楼层基本都已经被隐藏 —— 它们正是被那个丢掉的块隐藏的，
+            不把原文读回来，这段剧情就永远补不上（用户报的「缺块不补」就是这条）。 */
+      var repairChunks = [];
+      for (var pr = 0; pr < st.pending.length; pr++) {
+        var pf = pendingFloors(st.pending[pr], len, st.pins);
+        for (var pt = 0; pt < pf.length; pt += chunkSize) { repairChunks.push(pf.slice(pt, pt + chunkSize)); }
+      }
+
+      /* ② 常规：前沿之后、保留区之前、未隐藏、非例外楼层 */
       var targets = [];
       for (var i = start; i <= end; i++) {
         var m = all[i];
@@ -1278,36 +1508,82 @@
         if (pinMap[i]) { continue; }
         targets.push(i);
       }
-      var pinsInRange = [];
-      for (var pi = 0; pi < st.pins.length; pi++) { if (st.pins[pi] <= end) { pinsInRange.push(st.pins[pi]); } }
-      if (!targets.length) {
-        /* 范围里全被隐藏或全是例外楼层：前沿推进到本轮末尾，避免下次重复扫同一段 */
-        st.covered = end;
-        await saveChatState();
-        toast('info', COPY.toasts.onlyPins.replace('{n}', end));
-        return;
-      }
       /* 按每块楼数切块（纯按数量切；楼号可能有例外楼层造成的空洞，没关系） */
       var chunks = [];
       for (var t = 0; t < targets.length; t += chunkSize) {
         chunks.push(targets.slice(t, t + chunkSize));
       }
-      pipeline.total = chunks.length;
+      if (!chunks.length && !repairChunks.length) {
+        if (end < start) {
+          toast('info', COPY.toasts.nothing.replace('{n}', keep));
+        } else {
+          /* 范围里全被隐藏或全是例外楼层：前沿推进到本轮末尾，避免下次重复扫同一段 */
+          st.covered = end;
+          await saveChatState();
+          toast('info', COPY.toasts.onlyPins.replace('{n}', end));
+        }
+        return;
+      }
+      pipeline.total = repairChunks.length + chunks.length;
+      if (repairChunks.length) {
+        log('先补 ' + repairChunks.length + ' 段缺失的压缩块（共 ' + countFloors(st.pending) + ' 楼）');
+      }
       var coveredNow = st.covered;
-      for (var c = 0; c < chunks.length; c++) {
+      var doneCount = 0;
+      var bumpProgress = function () {
+        pipeline.done = doneCount;
+        var bRun = panelHead ? panelHead.querySelector('[data-kami-act="run-now"]') : null;
+        if (bRun) { bRun.textContent = COPY.grand.running + ' ' + pipeline.done + '/' + pipeline.total; }
+        renderStatus();
+      };
+
+      /* ③ 补块先跑（历史补齐了，新材料才接得上） */
+      var rc = 0, pendingLeft = [];
+      for (; rc < st.pending.length && !failMsg; rc++) {
+        var rng = st.pending[rc];
+        var rfloors = pendingFloors(rng, len, st.pins);
+        var rq = 0;
+        for (; rq < rfloors.length; rq += chunkSize) {
+          if (disposed) { failMsg = '脚本已注销'; break; }
+          var piece = rfloors.slice(rq, rq + chunkSize);
+          try {
+            var rtext = await summarizeChunk(piece, pinsInRange);
+            var rblk = { from: piece[0], to: piece[piece.length - 1], at: Date.now(), text: rtext };
+            st.blocks.push(rblk);
+            st.blocks.sort(function (x, y) { return x.from - y.from || x.to - y.to; });
+            newBlocks.push(rblk);
+            doneCount++;
+            log('补块完成（楼层 ' + rblk.from + '-' + rblk.to + '）');
+            bumpProgress();
+          } catch (e) {
+            failMsg = COPY.toasts.repairFail
+              .replace('{range}', rng.from + '-' + rng.to)
+              .replace('{err}', msgOf(e));
+            /* 这一段没做完的部分留着，下次接着来 */
+            pendingLeft.push({ from: piece[0], to: rfloors[rfloors.length - 1] });
+            break;
+          }
+        }
+        if (failMsg) {
+          /* 后面还没轮到的段原样留着 */
+          for (var rest = rc + 1; rest < st.pending.length; rest++) { pendingLeft.push(st.pending[rest]); }
+          break;
+        }
+      }
+
+      /* ④ 常规块 */
+      for (var c = 0; c < chunks.length && !failMsg; c++) {
         if (disposed) { failMsg = '脚本已注销'; break; }
         try {
-          /* st.blocks 里带着本轮已完成的块（summarizeChunk 会全部带上） */
+          /* st.blocks 里带着本轮已完成的块（summarizeChunk 只会带上本块之前的） */
           var text = await summarizeChunk(chunks[c], pinsInRange);
           var blk = { from: chunks[c][0], to: chunks[c][chunks[c].length - 1], at: Date.now(), text: text };
           st.blocks.push(blk);
           newBlocks.push(blk);
           coveredNow = Math.max(coveredNow, blk.to);
-          pipeline.done = c + 1;
+          doneCount++;
           log('块 ' + (c + 1) + '/' + chunks.length + ' 完成（楼层 ' + blk.from + '-' + blk.to + '）');
-          var bRun2 = panelHead ? panelHead.querySelector('[data-kami-act="run-now"]') : null;
-          if (bRun2) { bRun2.textContent = COPY.grand.running + ' ' + pipeline.done + '/' + pipeline.total; }
-          renderStatus();
+          bumpProgress();
         } catch (e) {
           failMsg = '第 ' + (c + 1) + ' 块（楼层 ' + chunks[c][0] + '-' + chunks[c][chunks[c].length - 1] + '）总结失败：' + msgOf(e);
           break;
@@ -1316,17 +1592,34 @@
       if (disposed) {
         /* 注销后不再写盘、不再隐藏（F1：跑批中途脚本被关，已算出的块留在内存里即可） */
         log('流水线进行中脚本被注销：放弃本次落盘与隐藏');
-      } else if (newBlocks.length) {
-        /* 前沿只推进到**成功块**的末尾：失败块连同后面的楼层，下次触发从断点继续 */
-        st.covered = coveredNow;
-        await saveChatState();
-        /* 只隐藏「这次成功块覆盖的」未隐藏楼层（例外楼层天然不在 targets 里） */
-        var coveredMap = {};
-        for (var b2 = 0; b2 < newBlocks.length; b2++) {
-          for (var f = newBlocks[b2].from; f <= newBlocks[b2].to; f++) { coveredMap[f] = 1; }
+      } else {
+        var pendingChanged = JSON.stringify(st.pending) !== JSON.stringify(pendingLeft);
+        st.pending = pendingLeft;
+        if (newBlocks.length) {
+          /* 前沿只推进到**成功块**的末尾：失败块连同后面的楼层，下次触发从断点继续 */
+          st.covered = coveredNow;
+          /* 这次成功块覆盖的楼层：可见的藏起来；全部记进 hiddenByUs（= 我们隐藏的，
+             将来它们万一丢了块，脚本才敢自动把原文读回来重做）。
+             ⚠️ hiddenByUs 必须在这句 saveChatState **之前**填好 —— 否则账本里没有
+             「这些楼是我们隐藏的」这条记录，等用户删掉块条目时脚本就认不出它们，
+             只能退化成"报个警等用户点按钮"。 */
+          var ownedMap = {};
+          for (var b2 = 0; b2 < newBlocks.length; b2++) {
+            for (var f = newBlocks[b2].from; f <= newBlocks[b2].to; f++) { if (!pinMap[f]) { ownedMap[f] = 1; } }
+          }
+          for (var t2 = 0; t2 < targets.length; t2++) { if (ownedMap[targets[t2]]) { hideIds.push(targets[t2]); } }
+          for (var ok in ownedMap) {
+            if (Object.prototype.hasOwnProperty.call(ownedMap, ok) && st.hiddenByUs.indexOf(Number(ok)) < 0) {
+              st.hiddenByUs.push(Number(ok));
+            }
+          }
+          st.hiddenByUs.sort(function (x, y) { return x - y; });
+          await saveChatState();
+          await setFloorHidden(hideIds, true);
+        } else if (pendingChanged) {
+          /* 补块一段都没成（或只是清理了空段）：把剩余待办落盘，别等下次重新推 */
+          await saveChatState();
         }
-        for (var t2 = 0; t2 < targets.length; t2++) { if (coveredMap[targets[t2]]) { hideIds.push(targets[t2]); } }
-        await setFloorHidden(hideIds, true);
       }
     } catch (e) {
       failMsg = failMsg || msgOf(e);
@@ -1369,6 +1662,59 @@
       renderStatus();
       return syncBlockDepths('切换聊天');
     });
+  }
+  /* 面板与世界书对齐：重新读一遍世界书（块条目是正文的唯一真相），
+     顺带体检（待重做段 / 孤儿隐藏楼层 / 疑似报错内容）。
+     · 打开面板时调用（进来就是最新的）；
+     · 酒馆保存世界书后调用（WORLDINFO_UPDATED，手动改完 1 秒内面板跟着变）；
+     · 面板上「刷新」按钮兜底（拿不到那个事件时）。 */
+  async function refreshState(reason) {
+    if (disposed || pipeline.running) { return; }
+    await loadChatState();
+    if (reason === 'autosync') {
+      log('世界书有变动，已重新对账（块 ' + st.blocks.length + '，待重做 ' + st.pending.length + ' 段）');
+    } else if (reason === 'manual') {
+      toast('info', COPY.toasts.refreshed);
+    }
+    if (panelRoot) { renderContent(); }
+    renderStatus();
+  }
+  /* 世界书事件：用户在世界书面板里改条目（ST 1.18 是输入即存，没有保存按钮），
+     保存完发 worldinfo_updated。只认当前聊天绑的世界书，别被别的世界书刷屏。
+     防抖 400ms：ST 自己就是 1 秒防抖，连续打字会连着触发。 */
+  var wiSyncTimer = null;
+  function onWorldInfoUpdated(name) {
+    if (disposed) { return; }
+    var mine = null;
+    try { mine = getChatLorebook(); } catch (e) { return; }
+    if (!mine || String(name || '') !== String(mine)) { return; }
+    try { if (wiSyncTimer) { clearTimeout(wiSyncTimer); } } catch (e) { }
+    wiSyncTimer = setTimeout(function () {
+      wiSyncTimer = null;
+      refreshState('autosync').catch(function (e) { log('世界书同步失败：' + msgOf(e)); });
+    }, 400);
+  }
+  /* 把「已被隐藏、却没有压缩块管着」的楼层纳入待重做。
+     只由用户点按钮触发：这些楼可能是用户自己 /hide 的，脚本不替他做主。 */
+  async function repairOrphans() {
+    await loadChatState();
+    if (!st.orphan.length) { toast('info', COPY.toasts.noOrphan); return; }
+    var floors = [];
+    for (var i = 0; i < st.orphan.length; i++) {
+      for (var f = st.orphan[i].from; f <= st.orphan[i].to; f++) { floors.push(f); }
+    }
+    if (!floors.length) { return; }
+    st.pending = mergeRanges(st.pending.concat(st.orphan));
+    for (var j = 0; j < floors.length; j++) {
+      if (st.hiddenByUs.indexOf(floors[j]) < 0) { st.hiddenByUs.push(floors[j]); }
+    }
+    st.hiddenByUs.sort(function (x, y) { return x - y; });
+    await saveChatState();
+    toast('success', COPY.toasts.repairQueued.replace('{n}', floors.length));
+    /* 重新对账一遍：notice / orphan / suspect 全部回到真实状态（别手搓面板文案） */
+    await loadChatState();
+    if (panelRoot) { renderContent(); }
+    renderStatus();
   }
   function onMessagesChanged() {
     /* 删除楼层会让楼层号漂移（酒馆不报被删序号），这里只把越界的引用收进来并提示 */
@@ -1448,6 +1794,14 @@
   }
 
   function tavernSingleColumn() {
+    /* ① 酒馆自己的移动布局开关：body 被钉住 = 已进单栏
+          （public/css/mobile-styles.css:98-102，≤1000px 时 body{position:fixed}）。
+          它比「小锁被藏起来」活得长 —— 本仓库那份 1.13 的源码里已经没有藏小锁的规则，
+          真机 1.18 上小锁常显会让下面的老判定误报成「非单栏」。 */
+    try {
+      var view0 = HDOC.defaultView || HOST;
+      if (view0.getComputedStyle(HDOC.body).position === 'fixed') { return true; }
+    } catch (e) { }
     var any = false;
     try {
       var ids = ['lm_button_panel_pin_div', 'rm_button_panel_pin_div'];
@@ -1463,6 +1817,12 @@
     try { return !!(HOST.matchMedia && HOST.matchMedia('(max-width: 1000px)').matches); } catch (e) { return false; }
   }
   function sheetMode() { return tavernSingleColumn(); }
+
+  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二，与 30 号同一处原因）：
+     舞台锚在文档原点，可视窗口漂走时面板会落在可视区外。桌面无感。 */
+  function bringViewportHome() {
+    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
+  }
 
   function restoreGeometry() {
     if (!panelRoot || !panelDrop) { return; }
@@ -1494,6 +1854,11 @@
     panelRoot.style.inset = '0';
     panelRoot.style.zIndex = String(Z);
     panelRoot.style.pointerEvents = 'none';
+    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：
+       窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0 ⇒ 舞台 top:0;bottom:0 归零。
+       内联兜底，dvh 不认时落回上一行 vh。 */
+    panelRoot.style.minHeight = '100vh';
+    panelRoot.style.minHeight = '100dvh';
 
     panelDrop = mk('div', 'kami-drop kami-surface');
     panelDrop.setAttribute('data-kami-open', '0');
@@ -1572,11 +1937,6 @@
     var body = mk('div', 'kami-card-body');
     card.appendChild(body);
     return { card: card, body: body };
-  }
-  function noteLine(parent, text) {
-    var n = mk('div', 'kami-card-note', text);
-    parent.appendChild(n);
-    return n;
   }
   function noteLine(parent, text) {
     var n = mk('div', 'kami-card-note', text);
@@ -1851,21 +2211,50 @@
     bodyEl.appendChild(sec5.card);
 
     /* ⑥ 压缩块 */
-    var sec6 = sectionCard(COPY.blocks.section + '（' + st.blocks.length + '）');
+    var secTitle = COPY.blocks.section + '（' + st.blocks.length + '）';
+    if (st.pending.length) { secTitle += ' ｜ ' + COPY.blocks.pendingTag + ' ' + countFloors(st.pending); }
+    var sec6 = sectionCard(secTitle);
     if (st.error) {
       noteLine(sec6.body, COPY.blocks.errHint.replace('{err}', st.error));
       noteLine(sec6.body, COPY.blocks.errFix);
     }
+    /* 刷新：重新读一遍世界书（你在世界书里手改的正文立刻反映到面板上）。
+       正常情况下 WORLDINFO_UPDATED 会自动刷，这颗按钮是拿不到那个事件时的兜底。 */
+    var refreshRow = fieldRow(sec6.body, '', null);
+    refreshRow.setAttribute('data-kami-role', 'block-refresh');
+    var bRefresh = mk('button', 'kami-btn kami-btn--ghost', COPY.blocks.refresh);
+    bRefresh.type = 'button';
+    bRefresh.title = COPY.blocks.refreshTip;
+    bRefresh.setAttribute('data-kami-act', 'blocks-refresh');
+    refreshRow.appendChild(bRefresh);
+    /* 对账结果的一句话汇总（待重做 / 孤儿隐藏楼层 / 重复条目 / 疑似报错内容） */
+    for (var nt = 0; nt < st.notice.length; nt++) { noteLine(sec6.body, st.notice[nt]); }
+    if (st.orphan.length) {
+      var bRepair = mk('button', 'kami-btn kami-btn--ghost', COPY.blocks.orphanBtn);
+      bRepair.type = 'button';
+      bRepair.setAttribute('data-kami-act', 'repair-orphans');
+      sec6.body.appendChild(bRepair);
+    }
     if (st.blocks.length) {
       for (var b = 0; b < st.blocks.length; b++) {
         var blk = mk('div');
+        var susp = st.suspect.indexOf(b) >= 0;
         var bt = mk('div', 'kami-card-title', COPY.blocks.blockTag + ' ' + (b + 1) + ' ｜ 楼层 ' + st.blocks[b].from + '-' + st.blocks[b].to +
-          (st.blocks[b].depth !== null && st.blocks[b].depth !== undefined ? (' ｜ ' + COPY.blocks.depthTag + ' ' + st.blocks[b].depth) : ''));
+          (st.blocks[b].depth !== null && st.blocks[b].depth !== undefined ? (' ｜ ' + COPY.blocks.depthTag + ' ' + st.blocks[b].depth) : '') +
+          (susp ? (' ｜ ⚠ ' + COPY.blocks.suspectTag) : ''));
         var bb = mk('div', 'kami-card-body', st.blocks[b].text);
         bb.setAttribute('data-kami-role', 'block-text');
         blk.appendChild(bt);
         blk.appendChild(bb);
         sec6.body.appendChild(blk);
+      }
+      noteLine(sec6.body, COPY.blocks.note.replace('{lb}', st.lbName || COPY.blocks.lbNone));
+    } else if (st.pending.length) {
+      /* 一块都没有但有待重做段：别显示「暂无压缩块」，那会让人以为数据没了 */
+      for (var pd = 0; pd < st.pending.length; pd++) {
+        var pblk = mk('div');
+        pblk.appendChild(mk('div', 'kami-card-title', COPY.blocks.pendingTag + ' ｜ 楼层 ' + st.pending[pd].from + '-' + st.pending[pd].to));
+        sec6.body.appendChild(pblk);
       }
       noteLine(sec6.body, COPY.blocks.note.replace('{lb}', st.lbName || COPY.blocks.lbNone));
     } else if (!st.error) {
@@ -2282,6 +2671,8 @@
           if (act === 'prompt-del') { removePromptEntry(t.getAttribute('data-kami-prompt'), Number(t.getAttribute('data-kami-pi'))); return; }
           if (act === 'task-reset') { resetTask(); return; }
           if (act === 'run-now') { runPipeline('manual'); return; }
+          if (act === 'blocks-refresh') { refreshState('手动刷新').catch(function (e) { toast('error', msgOf(e)); }); return; }
+          if (act === 'repair-orphans') { repairOrphans().catch(function (e) { toast('error', msgOf(e)); }); return; }
           if (act === 'unhide-all') { unhideAll().catch(function (e) { toast('error', msgOf(e)); }); return; }
           if (act === 'clear-data') {
             /* 删除性操作：两段式确认（第一次点变成待确认，4 秒内再点才执行）。
@@ -2437,7 +2828,9 @@
     panelRoot.style.display = open ? '' : 'none';
     if (open) {
       restoreGeometry();
-      loadChatState().then(function () { renderContent(); });
+      bringViewportHome();
+      /* 每次打开都重新对账：你在世界书里手改过正文的话，面板进来就是最新的 */
+      refreshState('open').catch(function (e) { log('打开面板时读状态失败：' + msgOf(e)); });
       renderStatus();
     }
   }
@@ -2493,6 +2886,10 @@
       grandOn: cfg.grandOn, threshold: cfg.threshold, keep: cfg.keep, chunk: cfg.chunk,
       roll: roll, summaryEntry: info,
       lorebook: st.lbName, blocks: st.blocks.length, covered: st.covered, pins: st.pins.slice(),
+      pending: st.pending.map(function (p) { return p.from + '-' + p.to; }),
+      orphan: st.orphan.map(function (p) { return p.from + '-' + p.to; }),
+      suspect: st.suspect.length, dup: st.dup.length,
+      hiddenByUs: st.hiddenByUs.length, schemaMode: schemaMode,
       measured: measure.last, pipeline: { running: pipeline.running, done: pipeline.done, total: pipeline.total },
       lastError: lastError,
       panelOpen: isOpen(), regexWrites: regexWrites, entryWrites: entryWrites, disposed: disposed
@@ -2501,7 +2898,13 @@
   function inspect() {
     return {
       cfg: JSON.parse(JSON.stringify(cfg)),
-      state: { lbName: st.lbName, covered: st.covered, pins: st.pins.slice(), updatedAt: st.updatedAt, error: st.error || null, adopted: !!st.adopted, blocks: st.blocks.map(function (b) { return { from: b.from, to: b.to, at: b.at, uid: b.uid, depth: b.depth, chars: b.text.length }; }) },
+      state: {
+        lbName: st.lbName, covered: st.covered, pins: st.pins.slice(), updatedAt: st.updatedAt,
+        error: st.error || null, adopted: !!st.adopted, notice: st.notice.slice(),
+        pending: JSON.parse(JSON.stringify(st.pending)), orphan: JSON.parse(JSON.stringify(st.orphan)),
+        dup: st.dup.slice(), hiddenByUs: st.hiddenByUs.slice(), schemaMode: schemaMode,
+        blocks: st.blocks.map(function (b) { return { from: b.from, to: b.to, at: b.at, uid: b.uid, depth: b.depth, chars: b.text.length, suspect: looksLikeProviderError(b.text) }; })
+      },
       blockTexts: st.blocks.map(function (b) { return b.text; })
     };
   }
@@ -2521,6 +2924,8 @@
       removePin: function (n) { return addPin(n, true); },
       unhideAll: function () { return unhideAll(); },
       clearChatData: function () { return clearChatData(); },
+      refresh: function () { return refreshState('manual'); },
+      repairOrphans: function () { return repairOrphans(); },
       shutdown: function () { teardown(); }
     };
     try { HOST[API_NAME] = api; } catch (e) { }
@@ -2536,6 +2941,7 @@
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } } catch (e) { }
     try { if (armTimer) { clearTimeout(armTimer); armTimer = null; } } catch (e) { }   /* R1：两段确认的 4 秒定时器 */
+    try { if (wiSyncTimer) { clearTimeout(wiSyncTimer); wiSyncTimer = null; } } catch (e) { }   /* 世界书同步的 400ms 防抖 */
     for (var i = 0; i < unsubs.length; i++) { try { if (unsubs[i] && unsubs[i].stop) { unsubs[i].stop(); } } catch (e) { } }
     unsubs = [];
     disposeMeasureHook();
@@ -2577,6 +2983,11 @@
       try { unsubs.push(eventOn(tavern_events.GENERATION_STARTED, onGenerationStarted)); } catch (e) { log('挂生成事件失败：' + msgOf(e)); }
       try { unsubs.push(eventOn(tavern_events.CHAT_CHANGED, onChatChanged)); } catch (e) { }
       try { unsubs.push(eventOn(tavern_events.MESSAGE_DELETED, onMessagesChanged)); } catch (e) { }
+      /* 世界书条目被改动（ST 1.18 世界书面板是输入即存，1 秒防抖后发这个事件）：
+         面板跟着刷新，用户手改的块正文立刻反映出来。 */
+      try {
+        if (tavern_events.WORLDINFO_UPDATED) { unsubs.push(eventOn(tavern_events.WORLDINFO_UPDATED, onWorldInfoUpdated)); }
+      } catch (e) { log('挂世界书事件失败（面板刷新按钮仍可用）：' + msgOf(e)); }
     } else {
       log('拿不到 eventOn/tavern_events：自动触发不可用（面板的手动触发不受影响）');
     }

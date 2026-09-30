@@ -218,8 +218,34 @@ export function expandPresetCards(root, code) {
 export function expandPanelGestures(root, code) {
   code = expandPresetCards(root, code);
   code = expandPresetMerge(root, code);
+  code = expandSummarizePure(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 压缩脚本的纯逻辑（src/scripts/_summarize-pure.js）：摘要响应解析器 +
+ * 世界书对账器。挂在手势入口里，于是 build/build.mjs 与 test/harness/server.mjs
+ * 两侧同时生效；离线单测（test/harness/summarize-pure.mjs）直接 import 那份源码。
+ * 内联规则同上：只去掉行首的 export 前缀。
+ * ──────────────────────────────────────────────────────────── */
+export const SUMMARIZE_PURE_MARK = '/* @@KAMI_SUMMARIZE_PURE@@ */';
+
+export function summarizePureSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_summarize-pure.js'), 'utf8');
+  return inlineModuleSource(raw, '_summarize-pure.js');
+}
+
+/** 把脚本源码里的纯逻辑占位换成 _summarize-pure.js 的源码（已去掉行首 export）。
+ *  占位不存在时原样返回（幂等）。硬检查：模块源码里若出现占位符字面量，内联会自我复制。 */
+export function expandSummarizePure(root, code) {
+  if (code.indexOf(SUMMARIZE_PURE_MARK) < 0) { return code; }
+  const src = summarizePureSource(root);
+  if (src.indexOf(SUMMARIZE_PURE_MARK) >= 0) {
+    throw new Error('_summarize-pure.js 里出现了自己的占位符 ' + SUMMARIZE_PURE_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(SUMMARIZE_PURE_MARK, () => src);
 }
 
 /* ────────────────────────────────────────────────────────────
