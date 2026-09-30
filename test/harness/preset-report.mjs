@@ -504,10 +504,10 @@ table(['变量条目', '变量名', '当前值', '判成什么卡片', '依据']
 add('');
 add('**配对明细**');
 add('');
-add('- ' + code('🧩 正文字数 | var') + ' → ' + code('content_word_count_min=1500') + ' + ' + code('content_word_count_max=3000') + ' → 去掉后缀后同名（' + code('content_word_count') + '）→ **1 张范围卡**（2 个数字框）。');
+add('- ' + code('🧩 正文token量 | var') + ' → ' + code('content_token_min=1200') + ' + ' + code('content_token_max=2400') + ' → 去掉后缀后同名（' + code('content_token') + '）→ **1 张范围卡**（2 个数字框）。');
 add('- ' + code('🧩 插图数量 | var') + ' → ' + code('image_count_min=4') + ' + ' + code('image_count_max=8') + ' → 去掉后缀后同名（' + code('image_count') + '）→ **1 张范围卡**（2 个数字框）。');
 add('- ' + code('🧩 推理预算 | var') + ' → 只有 ' + code('cot_budget=6000') + '，没有 _min/_max 配对 → **1 张数字卡**（1 个数字框）。');
-add('- 合计：**2 组被判成范围卡片**（正文字数、插图数量），1 张数字卡片（推理预算），共 5 个变量。');
+add('- 合计：**2 组被判成范围卡片**（正文token量、插图数量），1 张数字卡片（推理预算），共 5 个变量。');
 add('');
 const allSetvars = tree.tabs.find((t) => t.name === '🧩 设置变量').varCards.map((v) => v).map((v) => v.allVars.length);
 add('**被「纯数字」这道闸挡掉的片段**（这条规则很关键，实测数据如下）：');

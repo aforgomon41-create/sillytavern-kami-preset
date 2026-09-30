@@ -54,6 +54,7 @@
 <pre id="diag" style="font-size:11px;color:#8f8fa0;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="pdiag" style="font-size:11px;color:#8fb0d0;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="mdiag" style="font-size:11px;color:#9fd8b0;white-space:pre-wrap;margin:0 0 8px"></pre>
+<pre id="iosdiag" style="font-size:12px;color:#f0e0a0;white-space:pre-wrap;margin:0 0 8px;font-weight:bold"></pre>
 <pre id="gdiag" style="font-size:11px;color:#d0b08f;white-space:pre-wrap;margin:0 0 8px"></pre>
 <pre id="btnrepro" style="font-size:11px;color:#d8c08f;white-space:pre-wrap;margin:0 0 8px"></pre>
 <div id="chat">
@@ -110,6 +111,12 @@ function installMocks(w, scriptId) {
   w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
   w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
   w.eventClearAll = () => STATE.handlers.clear();
+  /* 角色名包裹（35 号）只有拿到「提示词已就绪」才有活干。**只给这一个 iframe**：
+     45/50/60 号原本就没拿到 tavern_events，一起给会改变它们既有的验收读数，
+     那是另一件事，不在这轮范围里。事件名与酒馆 events.js:59 一致。 */
+  if (scriptId === 'namewrap') {
+    w.tavern_events = { CHAT_COMPLETION_PROMPT_READY: 'chat_completion_prompt_ready' };
+  }
   w.getAllEnabledScriptButtons = () => { const o = {}; for (const [i, l] of STATE.buttons) o[i] = l.map(b => ({ button_id: b.name, button_name: b.name })); return o; };
   w.getScriptTrees = () => [];
   /* 酒馆助手的 predefine.js 把父窗口的整个 API 合并进脚本 iframe，其中就包括这两个版本读数
@@ -125,6 +132,26 @@ function installMocks(w, scriptId) {
         next 的下载地址 → 本地夹具（setupMergeProbe 准备的 window.__MERGE_FIXTURE）；
      ② importRawPreset / triggerSlash / getPresetNames 的替身：
         importRawPreset 记下两次写盘（备份 + 合并结果）并把核对读数打进 #mdiag。 */
+  if (window.__INHERIT_FIXTURE && scriptId === 'updater') {
+    const fx = window.__INHERIT_FIXTURE;
+    w.getPresetNames = function () { return Object.keys((window.SillyTavern.presetNames) || {}); };
+    w.importRawPreset = function (name, content) {
+      let bytes = 0;
+      try { bytes = content.length; } catch (e) { }
+      fx.imports.push({ name: name, bytes: bytes, content: content });
+      return true;
+    };
+    /* jsDelivr 一律拒绝：base 取不到就走退化模式（用户连不上 GitHub 时就是这个处境） */
+    const origFetch = w.fetch.bind(w);
+    w.fetch = function (url) {
+      const u = String(url);
+      if (u.indexOf('cdn.jsdelivr.net') >= 0 || u.indexOf('api.github.com') >= 0) {
+        fx.fetches.push(u);
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      return origFetch(url);
+    };
+  }
   if (window.__MERGE_FIXTURE && scriptId === 'updater') {
     const fx = window.__MERGE_FIXTURE;
     fx.imports = fx.imports || [];
@@ -275,18 +302,157 @@ async function setupSillyTavern() {
           st.presetSaves.push({ apiId: apiId, name: name, secondArg: second === undefined ? null : String(second).slice(0, 40) });
           st.seq.push('savePreset:' + name);
           return name;
+        },
+        /* ?inherit=1 才有：getPresetList() 是「继承旧预设设置」读旧预设的唯一正路
+           （getPresetSettings 在 openai 上返回空对象，那条坑路我们不走）。
+           真酒馆里这个数组就是 openai_settings 本身，每一格是磁盘上那份 JSON 原样解析出来的。 */
+        getPresetList: () => ({
+          presets: st.presets || [settings],
+          preset_names: st.presetNames || (function () { const m = {}; m[settings.name || '预览台预设'] = 0; return m; })(),
+          settings: settings,
+        }),
+        /* 「酒馆当前选中的是哪一份」——resolvePresetName 的第 1 层读的就是它，
+           restorePresetSelection 也靠它判断选择有没有被挪走。真酒馆里这三个读的是
+           #settings_preset_openai 上的选中项（preset-manager.js:379/361/387）。 */
+        getSelectedPresetName: () => st.selectedPresetName || settings.name || '',
+        findPreset: (name) => {
+          const m = st.presetNames || {};
+          return Object.prototype.hasOwnProperty.call(m, name) ? m[name] : undefined;
+        },
+        selectPreset: (value) => {
+          const m = st.presetNames || {};
+          const hit = Object.keys(m).find(k => String(m[k]) === String(value));
+          st.selectedPresetName = hit || String(value);
+          st.selectionRestored = (st.selectionRestored || 0) + 1;
         }
-      })
+      }),
+      /* 全局变量（st-context.js:204 的 variables.global + variables.js:84 那张表）。
+         35 号「角色名包裹」把档位存在这里，所以预览台必须给同一套接口，否则
+         面板那一行会降级成「脚本没在运行」的说明 —— 那是验收不到的假象。 */
+      extensionSettings: { variables: { global: {} } },
+      variables: {
+        global: {
+          get: (n) => {
+            const g = st.ctx.extensionSettings.variables.global;
+            return Object.prototype.hasOwnProperty.call(g, n) ? g[n] : null;
+          },
+          set: (n, v) => { st.ctx.extensionSettings.variables.global[n] = v; }
+        }
+      }
     }
   };
   st.getContext = () => st.ctx;
   window.SillyTavern = st;
-  /* 观测用：某条目现在的 enabled（从活的 order 里现读，不是缓存） */
+  /* 观测用：某条目现在的 enabled。**每次都从活设置里现读** —— 继承那套会把整个
+     prompt_order 换成合并后的新对象，渲染时抓下来的那个引用会变成旧数组（第一版就踩了这个，
+     开关继承判成了 false）。 */
   window.__stEnabled = (identifier) => {
-    const e = (st.order.order || []).find(x => x.identifier === identifier);
+    const s = st.ctx.chatCompletionSettings;
+    const o = (s.prompt_order || []).find(x => x.character_id === 100001) || (s.prompt_order || [])[0];
+    const e = o && (o.order || []).find(x => x.identifier === identifier);
     return e ? e.enabled : undefined;
   };
   return st;
+}
+/* ?inherit=1：「继承旧预设设置」的端到端夹具（只读 src/preset.base.json，不写任何文件）。
+   刻意造得**没有待裁决项**，好让整条链路一次跑通（不然会停在裁决页等人点）：
+   旧预设的条目与顺序跟当前这份逐字相同，只有规则 A「一律以用户为准」的那几类字段不同 ——
+   条目开关、顺序开关、顶层参数、脚本设置、正则开关。继承要的正是这些「设置」。
+   另外摆一份**不是卡密预设**的预设，用来验收那句警告。
+   网络替身：jsDelivr 一律拒绝 ⇒ base 取不到 ⇒ 退化模式（这条路的真实处境，用户本来就连不上）；
+   退化模式下条目逐字相同 ⇒ 零冲突，直接合并。 */
+async function setupInheritProbe(ST) {
+  const cur = ST.ctx.chatCompletionSettings;
+  const curName = cur.name || '预览台预设';
+  const fx = { imports: [], fetches: [], picks: [] };
+  const orderE = (cur.prompt_order || []).find(o => o.character_id === 100001) || (cur.prompt_order || [])[0];
+
+  /* 旧预设：拷一份当前的，然后只动「设置」类字段 */
+  const old = JSON.parse(JSON.stringify(cur));
+  old.name = 'kami-v0.90-100-20260925';
+  fx.oldName = old.name;
+  fx.oldTemp = 0.37;
+  old.temperature = fx.oldTemp;                       // 顶层参数（规则 A.5）
+  fx.oldSwitchId = null;
+  const oldOrder = (old.prompt_order || []).find(o => o.character_id === 100001) || (old.prompt_order || [])[0];
+  if (oldOrder && oldOrder.order && oldOrder.order.length) {
+    /* 挑一枚**当前是关着的**顺序开关：继承之后它必须变成开的，断言才有意义。
+       全开着就退而求其次：把当前这份的某一枚关掉（旧预设那份仍是开的）。 */
+    let ent = oldOrder.order.find(x => x.enabled === false);
+    if (!ent) {
+      ent = oldOrder.order[0];
+      if (orderE && orderE.order) {
+        const curEnt = orderE.order.find(x => x.identifier === ent.identifier);
+        if (curEnt) {
+          curEnt.enabled = false;
+          const cp = cur.prompts.find(x => x.identifier === ent.identifier);
+          if (cp) { cp.enabled = false; }
+        }
+      }
+      ent.enabled = true;
+      const op = old.prompts.find(x => x.identifier === ent.identifier);
+      if (op) { op.enabled = true; }
+    } else {
+      ent.enabled = true;                            // 条目开关（规则 A.1/A.2）
+      const p = old.prompts.find(x => x.identifier === ent.identifier);
+      if (p) { p.enabled = true; }
+    }
+    fx.oldSwitchId = ent.identifier;
+  }
+  if (old.extensions && old.extensions.tavern_helper && old.extensions.tavern_helper.scripts &&
+    old.extensions.tavern_helper.scripts.length) {
+    old.extensions.tavern_helper.scripts[0].data = Object.assign({}, old.extensions.tavern_helper.scripts[0].data, { inheritProbe: '来自旧预设' });
+    fx.scriptDataMark = '来自旧预设';                 // 脚本设置（规则 A.3）
+  }
+
+  /* 第三份：故意不是卡密预设（名字里认不出 vX.YY-NN-日期） */
+  const other = JSON.parse(JSON.stringify(cur));
+  other.name = '我自己的旧预设';
+  fx.otherName = other.name;
+
+  const presets = [cur, old, other];
+  const presetNames = {};
+  presets.forEach((p, i) => { presetNames[p.name] = i; });
+  ST.presets = presets;
+  ST.presetNames = presetNames;
+
+  window.__INHERIT_FIXTURE = fx;
+
+  /* 酒馆原生「更新当前预设」按钮：真酒馆里有这一颗，保存通道就是点它。
+     只有 ?inherit=1 才摆出来（其它验收跑不摆，免得改变它们既有的读数）。 */
+  const btn = document.createElement('button');
+  btn.id = 'update_oai_preset';
+  btn.type = 'button';
+  btn.style.cssText = 'position:absolute;left:-9999px;top:0';
+  btn.textContent = '更新当前预设';
+  btn.addEventListener('click', () => {
+    fx.presetButtonClicks = (fx.presetButtonClicks || 0) + 1;
+    /* ★ 故意模拟真机上那个毛病：保存通道会把酒馆的预设选择挪到别的一份上去
+       （用户 2026-09-28 报的「点完继承预设跳走了」）。我们要验的正是「挪了我们能拨回来」。 */
+    ST.selectedPresetName = fx.otherName;
+    fx.selectionMovedBySave = (fx.selectionMovedBySave || 0) + 1;
+    fetch('/api/presets/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset: ST.ctx.chatCompletionSettings, name: ST.ctx.chatCompletionSettings.name, apiId: 'openai' }),
+    });
+  });
+  document.body.appendChild(btn);
+  /* 当前选中的预设：一开始就是「现在这一份」 */
+  ST.selectedPresetName = curName;
+  /* 把 /api/presets/save 拦成本地 200：真打过去会 404，watchSave 会把这次写盘判成失败。 */
+  const origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const u = String((typeof input === 'string') ? input : ((input && input.url) || ''));
+    if (u.indexOf('/api/presets/save') >= 0) {
+      fx.fetches.push(u);
+      return Promise.resolve(new Response(JSON.stringify({ name: ST.ctx.chatCompletionSettings.name }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      }));
+    }
+    return origFetch(input, init);
+  };
+  return fx;
 }
 async function setupMergeProbe(ST) {
   /* 三方合并端到端夹具（只读 src/preset.base.json，不写任何文件）：
@@ -614,6 +780,12 @@ function installSpresetHost(ST) {
     step('准备合并探针夹具');
     await setupMergeProbe(ST);
   }
+  /* ?inherit=1：「继承旧预设设置」端到端夹具（2026-09-28 加）。在预设列表里摆一份
+     「只有设置不同」的旧预设 + 一份不是卡密预设的，然后由人工/自动化点完整条链路。 */
+  if (ST.ctx && params.get('inherit') === '1') {
+    step('准备继承探针夹具');
+    await setupInheritProbe(ST);
+  }
   /* ?spreset=1：排查第三方脚本 SPreset（收到的文件/regex_bind_inject.js）与本预设前端的冲突，
      把它装进**宿主页**（与真机同层级：它就是往酒馆页面 body 挂 <script> 的那类代码）。
      只在带这个参数时启用，不影响日常预览台验证；见 .audit/SPreset冲突调查.md。 */
@@ -626,6 +798,42 @@ function installSpresetHost(ST) {
   await new Promise(r => setTimeout(r, 200));
   /* ?noskin=1：不加载皮肤管理 —— 用来验收「皮肤管理没运行时面板的兜底皮肤」 */
   if (params.get('noskin') !== '1') { step('装皮肤管理'); await loadScript('/dev/30-皮肤管理.js', 'skinmgr'); }
+  /* 角色名包裹（35 号）：不是外观脚本，是「发给 AI 前把 <n>…</n> 换成当前档位」的改写。
+     预设设置面板那一行与引导页那一块都读它的 API，所以两个面板之前就得装好。
+     ?nowrap=1：故意不装 —— 验收「脚本没在运行时两处都降级成说明」。 */
+  if (params.get('nowrap') !== '1') { step('装角色名包裹'); await loadScript('/dev/35-角色名包裹.js', 'namewrap'); }
+  /* 角色名包裹探针（2026-09-28）：三档各发一次「提示词已就绪」，看 <n>…</n> 是不是真的
+     被换成了对应符号、有没有残留；顺带核对文生图条目被整条跳过、两个全局变量写对了。
+     这一条是端到端的：走的就是酒馆真机上那条链路（事件 → 改写将要发出的消息数组）。 */
+  if (params.get('nowrap') !== '1') {
+    step('角色名包裹探针');
+    await new Promise(r => setTimeout(r, 200));
+    (function () {
+      const api = window.KamiNameWrap;
+      if (!api) { console.log('角色名包裹探针|✗ 拿不到 KamiNameWrap（没挂到父窗口？）'); return; }
+      const SAMPLE = '桌下的<n>诸葛雷</n>借着酒意暴起发难。';
+      const IMG = '<image_task>tags: 1girl, <n>不该动的</n></image_task>';
+      const want = { bt: '`诸葛雷`', ul: '__诸葛雷__', none: '诸葛雷' };
+      const rows = [];
+      let bad = 0;
+      ['bt', 'ul', 'none'].forEach(id => {
+        api.set(id);
+        const chat = [{ role: 'system', content: SAMPLE }, { role: 'system', content: IMG }];
+        STATE.emit('chat_completion_prompt_ready', { chat, dryRun: true });
+        const got = chat[0].content.indexOf(want[id]) >= 0 && chat[0].content.indexOf('<n>') < 0;
+        const imgOk = chat[1].content === IMG;
+        if (!got || !imgOk) { bad++; }
+        rows.push(id + (got ? '✓' : '✗') + (imgOk ? '' : '/图✗'));
+      });
+      const g = window.SillyTavern.getContext().extensionSettings.variables.global;
+      const varOk = g.kami_name_wrap === 'none' && g.kami_name_wrap_rule === '一律直接书写、不加包裹';
+      api.set('bt');
+      const back = window.SillyTavern.getContext().extensionSettings.variables.global;
+      if (!varOk || back.kami_name_wrap !== 'bt') { bad++; }
+      console.log('角色名包裹探针|' + rows.join(' ') + '|图跳过=' + (bad ? '见上' : 'OK') +
+        '|变量=' + JSON.stringify(g) + '|' + (bad ? '✗ ' + bad + ' 项' : '三档与文生图保护全部 OK'));
+    })();
+  }
   step('等皮肤管理就绪');
   await new Promise(r => setTimeout(r, 1800));
   step('建消息楼层');
@@ -634,7 +842,7 @@ function installSpresetHost(ST) {
   /* ?updater=1：把「🔄 远程更新」也装进来。它是纯后台脚本，唯一产物是宿主窗口上的
      全局 KamiUpdate，「ℹ️ 关于」页的检查更新按钮靠它。默认不装：大多数皮肤/面板验证
      用不到它，而且装了它会真的去连 GitHub。 */
-  if (params.get('updater') === '1' || params.get('merge') === '1') {
+  if (params.get('updater') === '1' || params.get('merge') === '1' || params.get('inherit') === '1') {
     step('装远程更新脚本');
     await loadScript('/dev/70-远程更新.js', 'updater');
     console.log('更新脚本| KamiUpdate全局=' + !!(window.KamiUpdate && window.KamiUpdate.check));
@@ -672,6 +880,42 @@ function installSpresetHost(ST) {
     step('装引导面板');
     try { await loadScript('/dev/50-引导.js', 'guide', { 'kami-guide': { seen: 0 } }); }
     catch (e) { console.log('面板装载失败|50-引导|' + ((e && e.message) || e)); }
+    /* 引导页的「角色名样式」区：翻到皮肤页，数一数那段说明与三枚分段按钮在不在。
+       必须在 50 号装完之后查 —— 这块是它渲染出来的。
+       翻页方式与真人一致：免责声明页得先点「确认」，「下一步」才动得了。 */
+    if (params.get('nowrap') !== '1') {
+      try {
+        await new Promise(r => setTimeout(r, 300));
+        window.KamiGuide.open();
+        const pane = () => document.querySelector('#kami-guide-panel');
+        const clickByText = (re) => {
+          const b = [...pane().querySelectorAll('button')].find(x => re.test(x.textContent || ''));
+          if (b) { b.click(); }
+          return !!b;
+        };
+        await new Promise(r => setTimeout(r, 250));
+        clickByText(/确认/);
+        await new Promise(r => setTimeout(r, 200));
+        clickByText(/下一步/);
+        await new Promise(r => setTimeout(r, 400));
+        const p = pane();
+        const cur = (window.KamiGuide.status() || {}).cur;
+        const segs = p ? p.querySelectorAll('.kami-seg-item') : [];
+        const txt = p ? p.textContent : '';
+        const hasRow = txt.indexOf('角色名样式') >= 0;
+        const hasNote = txt.indexOf('更改角色名外面的包裹符号，切换后立刻对新生成的回复生效。') >= 0;
+        /* 用户裁定：引导页只要一句简单的话，且与皮肤面板那句是同一句；
+           长篇说明（旧版的「这是用来调整角色名字在聊天里长什么样的开关…」）不该再出现 */
+        const noLong = txt.indexOf('习惯老样子的保持默认就好') < 0;
+        console.log('角色名包裹探针|引导页|停在第 ' + (Number(cur) + 1) + ' 页|那一行=' + (hasRow ? '在' : '不在') +
+          ' 那句话=' + (hasNote ? '在' : '不在') + ' 无长篇=' + (noLong ? 'OK' : '✗') +
+          ' 分段按钮=' + segs.length + '|' +
+          (hasRow && hasNote && noLong && segs.length === 3 ? 'OK' : '✗ 要查'));
+        window.KamiGuide.close();
+      } catch (e) { console.log('角色名包裹探针|引导页检查失败：' + ((e && e.message) || e)); }
+    }
+    /* 皮肤管理面板「显示」卡里的那一行：等皮肤面板建好之后在下面的 setTimeout 里统一查
+       （这里 DOM 里还没有那张卡，查了必然是「不在」）。 */
   }
   if (noload.indexOf('compress') < 0) {
     step('装压缩面板');
@@ -785,6 +1029,155 @@ function installSpresetHost(ST) {
     console.log('预览台|' + panelLine);
     var pl = document.getElementById('panels');
     if (pl) { pl.textContent = panelLine; }
+    /* 继承旧预设设置的端到端探针：按真人路径点完整条链路 ——
+       关于页 → 选择旧预设 → 取消（防误触）→ 再开 → 点非卡密那份（警告）→ 换一个 → 点旧预设 → 继承。 */
+    if (params.get('inherit') === '1') {
+      (async function () {
+        const fx = window.__INHERIT_FIXTURE;
+        const say = (s) => console.log('继承探针|' + s);
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        const cardEl = () => [...document.querySelectorAll('#kami-preset-panel .kami-card')]
+          .find(c => (c.textContent || '').indexOf('继承旧预设设置') >= 0);
+        const btnOf = (root, re) => [...root.querySelectorAll('button')].find(b => re.test(b.textContent || ''));
+        /* ⚠️ 必须挑「带按钮」的那一行：继承成功之后，「这一份继承自 XXX」那一行里也有旧预设名，
+           不筛按钮就会抓到它，然后 .click() 直接炸（第一版就是这么挂的）。 */
+        const rowOf = (root, needle) => [...root.querySelectorAll('.kami-field')]
+          .filter(r => (r.textContent || '').indexOf(needle) >= 0 && r.querySelector('button'))[0];
+        try {
+          if (!fx) { say('✗ 没有夹具（要用 ?inherit=1 打开）'); return; }
+          const tab = document.querySelector('#kami-preset-panel [data-kami-tab="ABOUT"]');
+          if (!tab) { say('✗ 面板里找不到「关于」页'); return; }
+          tab.click();
+          await wait(300);
+          const c = cardEl();
+          if (!c) { say('✗ 关于页里没有「继承旧预设设置」这张卡'); return; }
+          const txt = () => c.textContent || '';
+          /* ① 打开清单 → 取消（用户点名要的防误触） */
+          btnOf(c, /选择旧预设/).click();
+          await wait(160);
+          const listed = txt().indexOf(fx.oldName) >= 0;
+          const listedOther = txt().indexOf(fx.otherName) >= 0;
+          btnOf(c, /^取消$/).click();
+          await wait(140);
+          const closed = txt().indexOf(fx.oldName) < 0;
+          /* ② 非卡密那份：先警告，再「换一个」回到清单 */
+          btnOf(c, /选择旧预设/).click();
+          await wait(160);
+          btnOf(rowOf(c, fx.otherName), /继承/).click();
+          await wait(160);
+          const warned = txt().indexOf('这个看起来不是卡密预设') >= 0;
+          btnOf(c, /换一个/).click();
+          await wait(160);
+          const backList = txt().indexOf(fx.oldName) >= 0;
+          /* ③ 真的继承 */
+          btnOf(rowOf(c, fx.oldName), /^继承$/).click();
+          await wait(1500);
+          const live = window.SillyTavern.getContext().chatCompletionSettings;
+          const tempOk = live.temperature === fx.oldTemp;
+          const switchOk = fx.oldSwitchId ? window.__stEnabled(fx.oldSwitchId) === true : true;
+          const scriptOk = !fx.scriptDataMark || JSON.stringify(live.extensions || {}).indexOf(fx.scriptDataMark) >= 0;
+          const backup = (fx.imports || []).find(i => /继承前备份$/.test(i.name));
+          const wrote = (fx.presetButtonClicks || 0) > 0 && (fx.fetches || []).length > 0;
+          const doneOk = txt().indexOf('设置已经搬过来了') >= 0;
+          /* ⑤ 身份与选择（用户真机报的「点完继承预设跳走了」）：
+                夹具故意在保存时把酒馆的选择挪走，我们要看到它被拨回当前这一份；
+                面板上还要写明「这一份继承自」哪份旧预设，并说清为什么没问条目差异。 */
+          const curName = window.SillyTavern.settings.name;
+          const movedBySave = (fx.selectionMovedBySave || 0) > 0;
+          const selBack = movedBySave && window.SillyTavern.selectedPresetName === curName;
+          const nameKept = window.SillyTavern.getContext().chatCompletionSettings.name === curName;
+          const srcOk = txt().indexOf('这一份继承自') >= 0 && txt().indexOf(fx.oldName) >= 0;
+          const noAskOk = txt().indexOf('没有条目需要你裁决') >= 0;
+          const allOk = listed && listedOther && closed && warned && backList && tempOk && switchOk && scriptOk &&
+            backup && wrote && doneOk && movedBySave && selBack && nameKept && srcOk && noAskOk;
+          say('清单列出旧预设=' + listed + ' 非卡密也在=' + listedOther + ' 取消收起=' + closed +
+            ' | 非卡密警告=' + warned + ' 换一个回清单=' + backList +
+            ' | 温度继承=' + tempOk + ' 开关继承=' + switchOk + ' 脚本设置继承=' + scriptOk +
+            ' 先备份=' + (backup ? backup.name : '✗') + ' 走酒馆通道写盘=' + wrote + ' 成功提示=' + doneOk +
+            ' | 保存挪了选择=' + movedBySave + ' 已拨回=' + selBack + ' 预设名没被改=' + nameKept +
+            ' 写明来源=' + srcOk + ' 没问原因说清了=' + noAskOk +
+            ' | ' + (allOk ? 'OK' : '✗ 要查'));
+          /* ④ 有待裁决项那一趟：把旧预设里某条条目正文改一下，逼出冲突 →
+             裁决页必须开在「继承」措辞上（不是「合并到新版本」）→ 关掉面板 = 中止，什么都不写。
+             ⚠️ 得重新抓一次卡片元素：上面那次写盘会让酒馆重载预设，面板跟着重画，旧节点已经脱离文档。 */
+          const old2 = window.SillyTavern.presets.find(x => x.name === fx.oldName);
+          const anyPrompt = old2 && old2.prompts.find(p => typeof p.content === 'string' && p.content.length > 20);
+          if (anyPrompt) { anyPrompt.content += '（旧预设手改）'; }
+          const beforeTemp = live.temperature;
+          const c2 = cardEl();
+          if (!c2) { say('✗ 重画之后找不到那张卡了'); return; }
+          btnOf(c2, /选择旧预设/).click();
+          await wait(200);
+          const row2 = rowOf(c2, fx.oldName);
+          if (!row2) { say('✗ 清单里没有旧预设那一行'); return; }
+          btnOf(row2, /^继承$/).click();
+          await wait(1200);
+          const mt = document.querySelector('#kami-preset-panel [data-kami-tab="MERGE"]');
+          const paneTxt = (document.querySelector('#kami-preset-panel [data-kami-pane="MERGE"]') || {}).textContent || '';
+          const tabOk = !!mt && (mt.textContent || '').indexOf('继承旧预设') >= 0;
+          const wordOk = paneTxt.indexOf('保留旧预设') >= 0 && paneTxt.indexOf('用现在这份') >= 0 &&
+            paneTxt.indexOf('合并到当前预设') >= 0;
+          window.KamiPreset.close();
+          await wait(400);
+          const cancOk = txt().indexOf('你在裁决页里没有完成') >= 0;
+          const noWrite = live.temperature === beforeTemp;
+          say('冲突那趟|裁决页开在继承措辞=' + (tabOk && wordOk) + '（tab=' + tabOk + ' 措辞=' + wordOk + '）' +
+            ' 关掉面板=中止且没写=' + (cancOk && noWrite) +
+            ' | ' + ((tabOk && wordOk && cancOk && noWrite) ? 'OK' : '✗ 要查'));
+        } catch (e) { say('✗ 异常：' + ((e && e.message) || e)); }
+      })();
+    }
+    /* 「iOS 面板打不开」诊断读数（2026-09-29 加，只读不改）。
+       用法：PC 上 node test/harness/server.mjs --port 8775 --lan，手机连同一 Wi-Fi 打开打出来的地址。
+       判读：舞台高=0 → 根因是「html 盒塌了」；layout=floating 而 mm768=true → 判定分家；
+             vv.scale≠1 或 vv.offsetTop≠0 → 可视视口偏移；祖先有 transform → fixed 不锚视口。 */
+    (function () {
+      const d = document, w = window, de = d.documentElement;
+      const cs = (el, prop) => { try { return getComputedStyle(el)[prop]; } catch (e) { return '?'; } };
+      const rectOf = (el) => { try { const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + '@' + Math.round(r.left) + ',' + Math.round(r.top); } catch (e) { return '?'; } };
+      const stage = d.querySelector('[data-kami-comp="panel"]');
+      const drop = d.querySelector('.kami-drop');
+      const vv = w.visualViewport || {};
+      const lines = [];
+      lines.push('视口 inner=' + w.innerWidth + 'x' + w.innerHeight);
+      lines.push('html client=' + de.clientWidth + 'x' + de.clientHeight + ' scrollHeight=' + de.scrollHeight);
+      lines.push('body rect=' + rectOf(d.body) + ' pos=' + cs(d.body, 'position'));
+      lines.push('html transform=' + cs(de, 'transform'));
+      lines.push('vv height=' + Math.round(vv.height || 0) + ' offsetTop=' + Math.round(vv.offsetTop || 0) + ' offsetLeft=' + Math.round(vv.offsetLeft || 0) + ' scale=' + (vv.scale || 1));
+      lines.push('舞台 rect=' + (stage ? rectOf(stage) : '无') + ' minHeight=' + (stage ? cs(stage, 'minHeight') : '?') + ' open=' + (stage ? (stage.querySelector('.kami-drop') || {}).getAttribute('data-kami-open') : '?'));
+      lines.push('面板 rect=' + (drop ? rectOf(drop) : '无') + ' layout=' + (drop ? drop.getAttribute('data-kami-layout') : '?') + ' height=' + (drop ? cs(drop, 'height') : '?'));
+      lines.push('令牌=' + ['x', 'y', 'w', 'h'].map(k => { try { return stage ? (stage.style.getPropertyValue('--kami-panel-' + k) || '(空)') : '?'; } catch (e) { return '?'; } }).join('/'));
+      const skin = de.getAttribute('data-kami-skin');
+      lines.push('皮肤=' + (skin || '(无)') + ' matchMedia768=' + (w.matchMedia('(max-width: 768px)').matches ? '中' : '否') + ' matchMedia1000=' + (w.matchMedia('(max-width: 1000px)').matches ? '中' : '否'));
+      const lock = ['lm_button_panel_pin_div', 'rm_button_panel_pin_div'].map(id => {
+        const el = d.getElementById(id);
+        return el ? (id + '=' + cs(el, 'display')) : (id + '=不存在');
+      }).join(' ');
+      lines.push('小锁 ' + lock);
+      console.log('iOS诊断|' + lines.join(' ｜ '));
+      /* 也写进页面，手机上截图就能发回来 */
+      try {
+        const box = d.getElementById('iosdiag');
+        if (box) { box.textContent = 'iOS诊断|' + lines.join('\n'); }
+      } catch (e) { }
+    })();
+    /* 皮肤管理面板「显示」卡里的那一行（2026-09-28 用户裁定从预设面板搬到这里）。
+       必须等皮肤面板建好再查 —— 上面那次查得太早，DOM 里还没有这张卡。 */
+    if (params.get('nowrap') !== '1' && !noskin) {
+      try {
+        const skinPane = document.querySelector('[data-kami-pane="skin"]');
+        const rows = skinPane ? [...skinPane.querySelectorAll('.kami-field')] : [];
+        const row = rows.find(r => (r.textContent || '').indexOf('角色名样式') >= 0);
+        const segs = row ? row.querySelectorAll('.kami-seg-item') : [];
+        const labels = [...segs].map(b => b.textContent).join('/');
+        const labelOk = labels === '反引号/双下划线/无包裹';
+        const noteOk = skinPane ? skinPane.textContent.indexOf(
+          '更改角色名外面的包裹符号，切换后立刻对新生成的回复生效。') >= 0 : false;
+        console.log('角色名包裹探针|皮肤面板显示卡|那一行=' + (row ? '在' : '不在') + ' 按钮=' + segs.length +
+          '(' + labels + ') 说明=' + (noteOk ? '在' : '不在') + '|' +
+          (row && labelOk && noteOk ? 'OK' : '✗ 要查'));
+      } catch (e) { console.log('角色名包裹探针|皮肤面板检查失败：' + ((e && e.message) || e)); }
+    }
     if (!okHub || !okPreset || (!okSkin && !noskin)) {
       var b = document.createElement('div');
       b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#7a1020;color:#fff;padding:6px 12px;font-size:13px';

@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1';
+  var VERSION = '0.3';
   var TAG = 'data-kami-skin';
   var STYLE_ID = 'kami-skin';
   var USER_STYLE_ID = 'kami-skin-user';
@@ -304,6 +304,15 @@
      没有任何 JS 去动它们的显隐，所以「计算样式 = 酒馆那份媒体查询的投影」——
      酒馆哪天改断点，我们跟着一起改，不用回来改这个文件。 */
   function tavernSingleColumn() {
+    /* ① 酒馆自己的移动布局开关：body 被钉住 = 已进单栏
+          （public/css/mobile-styles.css:98-102，≤1000px 时 body{position:fixed}）。
+          它比「小锁被藏起来」活得长 —— 本仓库那份 1.13 的源码里已经没有藏小锁的规则
+          （style.css:2686-2692 反而是 display:inline），真机 1.18 上小锁常显会让
+          下面的老判定误报成「非单栏」，于是手机上被摆成悬浮窗。 */
+    try {
+      var view0 = HDOC.defaultView || HOST;
+      if (view0.getComputedStyle(HDOC.body).position === 'fixed') { return true; }
+    } catch (e) { }
     var any = false;
     try {
       /* 只认这两个：酒馆自己那条 ≤1000px 的规则隐藏的就是它们
@@ -323,6 +332,14 @@
     try { return !!(HOST.matchMedia && HOST.matchMedia('(max-width: 1000px)').matches); } catch (e) { return false; }
   }
   function sheetMode() { return tavernSingleColumn(); }
+
+  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二）：
+     舞台锚在文档原点（酒馆给 html 上了变换，public/style.css:139-144），
+     可视窗口带着偏移漂走时（工具栏伸缩、键盘、弹性回弹），面板会整块落在可视区外。
+     桌面档页面本来就不滚（body 高度锁死），此调用无感；移动档 body 被 pin 住也滚不动。 */
+  function bringViewportHome() {
+    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
+  }
 
   /* ───────── 消息排版的「第三方宿主」标记 ────────
      ⛔ **已停用**（2026-09-26 用户裁定删掉消息楼层美化）。它配合「把皮肤字号/面铺到消息楼层」
@@ -631,6 +648,14 @@
     panelRoot.style.inset = '0';
     panelRoot.style.zIndex = String(Z);
     panelRoot.style.pointerEvents = 'none';
+    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一）：
+       酒馆给 html 上了变换（public/style.css:139-144）⇒ fixed 的定位参考是 html 盒子；
+       窄屏酒馆又把 body 钉住（public/css/mobile-styles.css:98-102）⇒ html 盒高塌成 0。
+       舞台 top:0;bottom:0 因此归零，抽屉（高=舞台的 78%）跟着只剩一条细线 ——
+       真机记录过：舞台=[0,0,390,0]、面板=[317,171,643,1]。
+       这里内联兜底（内联优先级最高，皮肤/注入顺序压不住它）；dvh 不认时自动落回上一行 vh。 */
+    panelRoot.style.minHeight = '100vh';
+    panelRoot.style.minHeight = '100dvh';
 
     panelDrop = mk('div', 'kami-drop kami-surface');
     panelDrop.setAttribute('data-kami-open', '0');
@@ -990,6 +1015,15 @@
     /* 风险提示（用户 2026-09-26 给的定稿文案，逐字照抄，不要再改词）—— 用已登记的 .kami-card-note */
     g.appendChild(mk('div', 'kami-card-note',
       '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。'));
+    /* 角色名样式（2026-09-28 用户裁定：从「🌟 预设设置」搬到这张「显示」卡里 ——
+       两件事都是显示相关，不涉及预设本身的调整）。
+       它不是皮肤参数：档位存在酒馆全局变量里，真正的实现在 35-角色名包裹.js
+       （发出去之前把预设正文里的 <n>…</n> 换成当前档位的包裹符）。
+       与「🧭 引导 → 皮肤页」那一块是同一个状态（KamiNameWrap.get()/set()）。
+       零新增类名：沿用 flagRow 那套 .kami-field / .kami-field-label / .kami-field-value，
+       右边换成契约已登记的 .kami-seg / .kami-seg-item。 */
+    g.appendChild(nameWrapRow());
+    g.appendChild(mk('div', 'kami-card-note', NAME_WRAP_NOTE));
     g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
     g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
     g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
@@ -1035,6 +1069,57 @@
       b.setAttribute('data-kami-act', 'flag:' + key + '=' + o[0]);
       seg.appendChild(b);
     });
+    val.appendChild(seg);
+    row.appendChild(val);
+    return row;
+  }
+
+  /* ── 角色名样式这一行 ──
+     档位不在皮肤 state 里，而在酒馆**全局变量** `kami_name_wrap` 里（跨聊天、跨角色跟账号走），
+     读写都走 35 号脚本的 API。脚本没在跑时这一行只留标签，不摆一颗点了没反应的按钮。
+     下面那句说明与引导页那一块是**同一句话**（唯一真相 design/copy/guide-copy.json 的
+     nameWrapNote，构建期守卫会核对两处一字不差）。 */
+  var NAME_WRAP_NOTE = '更改角色名外面的包裹符号，切换后立刻对新生成的回复生效。';
+
+  function nameWrapApi() {
+    try { if (HOST.KamiNameWrap) { return HOST.KamiNameWrap; } } catch (e) { }
+    try { if (window.KamiNameWrap) { return window.KamiNameWrap; } } catch (e) { }
+    return null;
+  }
+
+  function nameWrapRow() {
+    var api = nameWrapApi();
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', '角色名样式'));
+    if (!api || typeof api.get !== 'function' || typeof api.set !== 'function' ||
+      !api.MODES || !api.MODES.length) {
+      row.appendChild(mk('span', 'kami-field-value', '脚本未运行'));
+      return row;
+    }
+    var val = mk('span', 'kami-field-value');
+    var seg = mk('span', 'kami-seg');
+    var btns = {};
+    function paint() {
+      var cur = '';
+      try { cur = String(api.get()); } catch (e) { }
+      api.MODES.forEach(function (m) {
+        if (btns[m.id]) { btns[m.id].className = 'kami-seg-item' + (cur === m.id ? ' is-on' : ''); }
+      });
+    }
+    api.MODES.forEach(function (m) {
+      var b = mk('button', 'kami-seg-item', m.label);
+      b.setAttribute('type', 'button');
+      b.addEventListener('click', function () {
+        var ok = false;
+        try { ok = api.set(m.id) === true; } catch (e) { ok = false; }
+        if (!ok) { toast('error', '切换失败：写不进酒馆的全局变量，档位没变。'); return; }
+        paint();
+        log('角色名样式 → ' + m.label);
+      });
+      btns[m.id] = b;
+      seg.appendChild(b);
+    });
+    paint();
     val.appendChild(seg);
     row.appendChild(val);
     return row;
@@ -1272,6 +1357,7 @@
       panelDrop.setAttribute('data-kami-open', '1');
       panelRoot.style.display = '';
       restoreGeometry();
+      bringViewportHome();
       logGeom('打开');
       /* 每次打开面板都跟酒馆正则对一次账：用户可能在酒馆原生面板里改过这条正则，
          开关的位置必须是**当前真实状态**，不是我们上次记住的状态。 */

@@ -1,5 +1,6 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from '../../build/kami-doc.mjs';
@@ -199,4 +200,28 @@ http.createServer((req, res) => {
     if (err) { send(404, 'text/plain', 'not found: ' + p); return; }
     send(200, MIME[path.extname(file)] || 'application/octet-stream', buf);
   });
-}).listen(PORT, '127.0.0.1', () => console.log('harness http://127.0.0.1:' + PORT + '/  |  /doc/<think|options>  /dev/<脚本>  /built/<脚本>  /skins  /regex'));
+});
+
+/* --lan：绑到所有网卡，手机/平板连同一个 Wi-Fi 就能打开预览台
+   （2026-09-29 加：iOS 面板打不开那条 bug 的诊断读数要在真机上读）。
+   默认仍只绑 127.0.0.1，不把开发用的服务暴露到局域网。 */
+const OPEN_LAN = process.argv.includes('--lan');
+function lanAddresses() {
+  const out = [];
+  const ifs = os.networkInterfaces();
+  for (const name of Object.keys(ifs)) {
+    for (const it of ifs[name] || []) {
+      if (it.family === 'IPv4' && !it.internal) { out.push('http://' + it.address + ':' + PORT + '/');
+      }
+    }
+  }
+  return out;
+}
+if (OPEN_LAN) {
+  const urls = lanAddresses();
+  console.log('（--lan）手机连同一个 Wi-Fi 后打开：');
+  urls.forEach(u => console.log('   ' + u + 'test/harness/preview.html?iosdiag=1'));
+  if (!urls.length) { console.log('   （没找到局域网 IPv4 地址）'); }
+}
+.listen(PORT, OPEN_LAN ? '0.0.0.0' : '127.0.0.1',
+  () => console.log('harness http://127.0.0.1:' + PORT + '/  |  /doc/<think|options>  /dev/<脚本>  /built/<脚本>  /skins  /regex'));

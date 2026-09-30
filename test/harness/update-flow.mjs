@@ -429,7 +429,18 @@ console.log('--- reset / shutdown ---');
   await settle();
   const s = env.api().reset();
   ok(env.scriptVars['kami-update'].skipped === '' && env.scriptVars['kami-update'].imported === '', 'reset 清空版本记录');
-  ok(s.version === '1.4' && s.configured === true, 'status() 有版本与仓库配置');
+  /* ⚠️ 别把版本号写死：脚本版本一升，这条就会假失败（v1.4→1.5 时踩过）。
+     期望值从 src/scripts/meta.json 里那条脚本名现读（「🔄 远程更新 v1.5」→ 1.5），
+     这样既不会被升版绊倒，又能挡住「脚本里的 VERSION 忘了跟名字一起改」。 */
+  const wantVer = (function () {
+    try {
+      const meta = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scripts', 'meta.json'), 'utf8'));
+      const row = meta.find(x => String(x.name).indexOf('远程更新') >= 0) || {};
+      return (String(row.name).match(/v(\d+\.\d+)\s*$/) || [, ''])[1];
+    } catch (e) { return ''; }
+  })();
+  ok(!!wantVer && s.version === wantVer && s.configured === true,
+    'status() 有版本与仓库配置', '脚本 ' + s.version + ' / 名字里 ' + (wantVer || '读不到'));
   env.api().shutdown();
   ok(env.W.KamiUpdate === undefined, 'shutdown 收回全局 API');
   const before = env.fetchCalls.length;

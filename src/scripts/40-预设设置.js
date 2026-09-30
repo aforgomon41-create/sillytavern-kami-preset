@@ -43,7 +43,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.6';
+  var VERSION = '0.8';
   var HUB_NAME = '🌟卡密预设';
   /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
   var HUB_ORDER = 30;
@@ -63,6 +63,34 @@
   var SWIPE_SWITCH = 48;  // 切上一个/下一个 tab 的位移阈值
   var SHEET_CLOSE_DY = 90; // 贴底抽屉下拉关闭的距离（与皮肤管理面板一致）
   var TAP_SLOP = 6;       // 拖动 tab 行时允许的「按下不动」容差
+
+  /* 「继承旧预设设置」这一张卡的文案（2026-09-28 由 Gemini 出稿，用户点名的流程）。
+     它干的事：用户自己手动下载导入新版（网络到 GitHub 不通时只能这样），
+     那条路不会触发远程更新里的合并，于是把同一台合并引擎再开一次 ——
+     theirs = 他挑的那份旧预设，next = 当前这份，结果覆盖回当前预设、立刻生效。 */
+  var INHERIT_COPY = {
+    title: '继承旧预设设置',
+    note: '手动导入新版本后，可以用它把旧预设里你改过的设置搬过来。',
+    pickHint: '请从下面选一个你之前用过的旧预设。',
+    notKamiWarn: '这个看起来不是卡密预设，强行搬过来可能会出问题。你想继续继承它，还是换一个？',
+    working: '正在搬运设置...',
+    done: '设置已经搬过来了，并且立刻生效。当前的预设已经提前备份了一份，名字里带有“继承前备份”。',
+    failHead: '搬运设置失败：',
+    noOthers: '没有找到其他预设，需要先有旧预设才能搬运设置。',
+    degrade: '这个功能需要远程更新脚本运行才能用。请先启动脚本。',
+    /* 2026-09-28 用户看完真机效果后补的两句：这一份是从哪继承来的要写在面板上（免得看标题栏误会），
+       以及「为什么没问我要不要保留条目修改」得说清楚（没问 = 本来就没有冲突，不是漏问了）。 */
+    sourceLabel: '这一份继承自',
+    sourceNone: '还没继承过',
+    sourceNote: '上面那一行是「这一份的设置是从哪份旧预设搬来的」，只做记录，不影响任何功能；面板标题栏显示的名字仍是当前这份预设自己的名字。',
+    noAsk: '这次没有条目需要你裁决：你的旧预设和这一版之间，没有同一条内容被两边都改过，所以直接搬完了。',
+    asked: '其中 {n} 处两边都改过，已按你在裁决页里的选择处理。',
+    selMoved: '注意：写完之后酒馆的预设选择被挪到了别处，已经自动拨回当前这一份；如果界面看着不对，切一下预设即可。',
+    selFailed: '注意：写完之后酒馆的预设选择被挪到了别处，自动拨回没成功，请手动切回当前这一份。'
+  };
+  /* 「这一份继承自」：跟着预设走（存在脚本变量里，而脚本变量就写在预设文件里） */
+  var inheritFromName = '';
+  var inheritAtText = '';
 
   /* 面板手势（标题栏下拉收回 / 内容区滚到顶下拉收回 / 左右滑切 tab）只有一份实现：
      src/scripts/_panel-gestures.js，构建期内联到这里（见 build/kami-doc.mjs）。
@@ -433,7 +461,7 @@
     return out;
   }
 
-  function watchSave(name, from, plan) {
+  function watchSave(name, from, plan, onFail) {
     var target = HOST || window;
     var orig = null, done = false, patched = null;
     var r = {
@@ -474,6 +502,10 @@
           revertVarInputs(plan);
           toast('error', '预设没写进去（HTTP ' + r.status + '），改动已退回');
         } catch (e) { log('退回活设置失败：' + ((e && e.message) || e)); }
+      } else if (r.ok === false && typeof onFail === 'function') {
+        /* 不是「改一个数字」那种 plan（例如整份继承写回）：退回动作由调用方给，
+           它自己知道刚才覆盖了哪些字段、原值是什么。 */
+        try { onFail(r); } catch (e) { log('退回活设置失败：' + ((e && e.message) || e)); }
       }
     }
     patched = function (input, init) {
@@ -562,9 +594,14 @@
        按钮保存用的名字就是活设置里的 preset_settings_openai（openai.js:6767），
        与上面兜底链的第 1 层（官方 getSelectedPresetName）同源。
      拿不到名字 / 拿不到通道，就如实报错，并把活设置里的改动**回滚**（宁可什么都没发生，也不留半截状态）。 */
-  function savePresetFile(ctx, settings, plan) {
+  function savePresetFile(ctx, settings, plan, onFail, forcedName) {
     var pm = presetManagerOf(ctx);
-    var info = resolvePresetName(ctx, settings, pm);
+    /* forcedName：调用方在**动活设置之前**就抓好的当前预设名（继承那条路要用）。
+       为什么不让这里现解析：解析的第 1 层读的是酒馆下拉框的选中项、第 2/3 层读活设置字段，
+       而继承刚刚把活设置里一大堆字段换成了合并结果 —— 现解析有可能认成别的一份预设。 */
+    var info = forcedName
+      ? { name: cleanName(forcedName), from: '调用方在动活设置之前抓下来的当前预设名', layer: 0 }
+      : resolvePresetName(ctx, settings, pm);
     lastNameInfo = info;
     if (!info.name) { return { ok: false, msg: '拿不到当前预设名，改动没有写盘' }; }
 
@@ -584,7 +621,7 @@
       }
       if (!liveName) { return { ok: false, msg: '拿不到当前预设名，改动没有写盘' }; }
       if (liveName !== info.name) { log('注意：兜底链解析到「' + info.name + '」，活设置 preset_settings_openai 是「' + liveName + '」，按后者写盘'); }
-      watchSave(liveName, info.from, plan);
+      watchSave(liveName, info.from, plan, onFail);
       try {
         btn.click();                       // 就是酒馆自己那颗保存按钮
       } catch (e) {
@@ -923,7 +960,8 @@
   /* 「更新合并」页的定义：只在 70 号传来计划时存在（openMergeReview 建 / 关掉撤）。
      它不依赖预设解析结果 —— 读不到预设时也要能出（裁决与解析是两回事，见 renderTabs）。 */
   function mergeTab() {
-    return { key: 'MERGE', title: '🔀 更新合并', special: 'merge', cards: [], own: [] };
+    var inh = !!(mergeCtx && mergeCtx.plan && mergeCtx.plan.inherit);
+    return { key: 'MERGE', title: inh ? '🔀 继承旧预设' : '🔀 更新合并', special: 'merge', cards: [], own: [] };
   }
 
   /* 「关于」页的定义：固定页，任何预设、任何解析结果下都在（连读不到预设时也建得出来）。 */
@@ -984,6 +1022,14 @@
      （酒馆在 ≤1000px 把「把侧栏钉住」的小锁藏起来 = 进单栏；读不到控件就用同一个断点兜底）。
      与 30-皮肤管理.js 同一套判断，皮肤管理在跑时两边下的模式也一致。 */
   function tavernSingleColumn() {
+    /* ① 酒馆自己的移动布局开关：body 被钉住 = 已进单栏
+          （public/css/mobile-styles.css:98-102，≤1000px 时 body{position:fixed}）。
+          它比「小锁被藏起来」活得长 —— 本仓库那份 1.13 的源码里已经没有藏小锁的规则，
+          真机 1.18 上小锁常显会让下面的老判定误报成「非单栏」。 */
+    try {
+      var view0 = HDOC.defaultView || HOST;
+      if (view0.getComputedStyle(HDOC.body).position === 'fixed') { return true; }
+    } catch (e) { }
     var any = false;
     try {
       var ids = ['lm_button_panel_pin_div', 'rm_button_panel_pin_div'];
@@ -1000,6 +1046,12 @@
   }
   function sheetMode() { return tavernSingleColumn(); }
 
+  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二，与 30 号同一处原因）：
+     舞台锚在文档原点，可视窗口漂走时面板会落在可视区外。桌面无感。 */
+  function bringViewportHome() {
+    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
+  }
+
   function buildPanel() {
     if (panelRoot) { return; }
     panelRoot = mk('div', 'kami-root');
@@ -1010,6 +1062,11 @@
     panelRoot.style.inset = '0';
     panelRoot.style.zIndex = String(Z);
     panelRoot.style.pointerEvents = 'none';
+    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：
+       窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0 ⇒ 舞台 top:0;bottom:0 归零。
+       内联兜底，dvh 不认时落回上一行 vh。 */
+    panelRoot.style.minHeight = '100vh';
+    panelRoot.style.minHeight = '100dvh';
 
     panelDrop = mk('div', 'kami-drop kami-surface');
     panelDrop.setAttribute('data-kami-open', '0');
@@ -1446,6 +1503,11 @@
     }
   }
 
+  /* ── 角色名样式这一行 ──
+     ⚠️ 2026-09-28 用户裁定：它**不在这块面板里了**，搬去了「🎨 皮肤管理面板 → 显示」那张卡
+     （理由：两件事都是显示相关，不涉及预设本身的调整）。实现与 API 见 src/scripts/35-角色名包裹.js，
+     它的界面归 30-皮肤管理.js 的 nameWrapRow()。这里一个字都不留，免得两处各长一份。 */
+
   /* 一张模型卡片：整张卡由共享模块的 buildModelCard 建（src/scripts/_preset-cards.js），
      结构 = div.kami-card + 可点卡头 button.kami-card-head.kami-btn--ghost（含「当前」小标签）
      + 卡内 .kami-card-body > .kami-grid 的条目卡。引导面板的模型页调的是同一个函数。
@@ -1561,9 +1623,37 @@
       regex: '正则两边都改过' }[kind] || '两边都改过';
   }
 
+  /* 裁决页的措辞有两套（2026-09-28 加「继承旧预设设置」时抽出来的）：
+     · 平时（远程更新）：theirs = 你现在这份，next = 刚下载的新版 → 「保留我的 / 用新版」；
+     · 继承旧预设：theirs = 你挑的那份**旧**预设，next = 现在这份 →
+       再说「保留我的」会让人以为现在这份才是「我的」，必须换成「保留旧预设 / 用现在这份」。
+     两份措辞只在这里定义一次，卡片与页头都读它，免得改一处漏一处。 */
+  function mergeWords() {
+    var inh = !!(mergeCtx && mergeCtx.plan && mergeCtx.plan.inherit);
+    if (inh) {
+      return {
+        title: '合并到当前预设',
+        mine: '保留旧预设', next: '用现在这份',
+        allMine: '全部保留旧预设', allNext: '全部用现在这份',
+        lead: '每一项二选一：保留旧预设 / 用现在这份。',
+        tail: '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你挑的那份旧预设为准，' +
+          '不会被现在这份覆盖。'
+      };
+    }
+    return {
+      title: '合并到新版本',
+      mine: '保留我的', next: '用新版',
+      allMine: '全部保留我的', allNext: '全部用新版',
+      lead: '每一项二选一：保留我的 / 用新版。',
+      tail: '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你现在' +
+        '的预设为准，不会被新版覆盖。'
+    };
+  }
+
   /* 一张待裁决卡：条目名 + 「改了什么」+ 二选一分段（默认保留我的）。
      update-plan 后只就地配料（paintMergeCard），不重画整页。 */
   function mergeCardEl(c) {
+    var W = mergeWords();
     var box = mk('div', 'kami-card');
     box.setAttribute('data-kami-conflict', c.key);
     var head = mk('div', 'kami-card-head');
@@ -1576,7 +1666,7 @@
     var seg = mk('div', 'kami-seg');
     seg.setAttribute('role', 'group');
     seg.setAttribute('aria-label', c.name || c.id);
-    var opts = [['mine', '保留我的'], ['next', '用新版']];
+    var opts = [['mine', W.mine], ['next', W.next]];
     for (var i = 0; i < opts.length; i++) {
       var choice = (c.choice || 'mine') === opts[i][0];
       var btn = mk('button', 'kami-seg-item' + (choice ? ' is-on' : ''), opts[i][1]);
@@ -1597,15 +1687,15 @@
       return;
     }
     /* 摘要卡：这一版从哪儿来、要裁决多少项、怎么选全说清 */
+    var W = mergeWords();
     var box = mk('div', 'kami-card');
     var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', '合并到新版本'));
+    head.appendChild(mk('span', 'kami-card-title', W.title));
     if (plan.degraded) { head.appendChild(mk('span', 'kami-chip', '旧版认不出')); }
     box.appendChild(head);
     var body = mk('div', 'kami-card-body',
-      '要你裁决的差异 ' + plan.conflicts.length + ' 项。每一项二选一：保留我的 / 用新版。' +
-      '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你现在' +
-      '的预设为准，不会被新版覆盖。' + (plan.degraded ? '（你的旧版认不出来，所有差异都当成' +
+      '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W.lead +
+      W.tail + (plan.degraded ? '（你的旧版认不出来，所有差异都当成' +
       '「两边都改过」处理，宁可少更新也不动你的东西。）' : ''));
     box.appendChild(body);
     pane.appendChild(box);
@@ -1615,9 +1705,9 @@
     var row = mk('div', 'kami-field');
     row.appendChild(mk('span', 'kami-field-label', '一键'));
     var vals = mk('span', 'kami-field-value');
-    var bMine = mk('button', 'kami-btn', '全部保留我的');
+    var bMine = mk('button', 'kami-btn', W.allMine);
     bMine.type = 'button'; bMine.setAttribute('data-kami-act', 'merge-all-mine');
-    var bNext = mk('button', 'kami-btn', '全部用新版');
+    var bNext = mk('button', 'kami-btn', W.allNext);
     bNext.type = 'button'; bNext.setAttribute('data-kami-act', 'merge-all-next');
     vals.appendChild(bMine);
     vals.appendChild(bNext);
@@ -1887,6 +1977,252 @@
       out: outRow.querySelector('.kami-field-value'),
       last: lastRow.querySelector('.kami-field-value')
     };
+
+    /* ③ 继承旧预设设置（2026-09-28 用户点名） */
+    renderInheritCard(pane);
+  }
+
+  /* ── 「继承旧预设设置」这一张卡 ──
+     交互三层，每层都有退路（用户点名要「取消键防误触」）：
+       闲置 → 点「选择旧预设」展开清单 → 点某个预设（非卡密预设先弹一句警告）→ 真的开始搬。
+     搬的三步都在 70 号：算合并计划 → 打开裁决页（47 项以内一般没有）→ 先备份再交回来。
+     本脚本只负责最后一棒：把结果**覆盖到当前预设**并用酒馆自己的保存通道写盘。 */
+  function renderInheritCard(pane) {
+    var up = kamiUpdateApi();
+    var box = mk('div', 'kami-card');
+    var head = mk('div', 'kami-card-head');
+    head.appendChild(mk('span', 'kami-card-title', INHERIT_COPY.title));
+    box.appendChild(head);
+    box.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.note));
+
+    var body = mk('div', 'kami-card-body');
+    /* 「这一份继承自」——用户 2026-09-28 点名要写在这里，免得看标题栏的预设名时误会 */
+    var srcRow = aboutRow(INHERIT_COPY.sourceLabel, inheritFromName
+      ? (inheritFromName + (inheritAtText ? ('（' + inheritAtText + '）') : ''))
+      : INHERIT_COPY.sourceNone, '');
+    body.appendChild(srcRow);
+    body.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.sourceNote));
+    var outRow = aboutRow('继承结果', '还没用过', '');
+    var out = outRow.querySelector('.kami-field-value');
+
+    if (!up) {
+      var row0 = mk('div', 'kami-field');
+      row0.appendChild(mk('span', 'kami-field-label', '手动导入新版之后'));
+      row0.appendChild(mk('span', 'kami-field-value', '不可用'));
+      body.appendChild(row0);
+      body.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.degrade));
+      body.appendChild(outRow);
+      box.appendChild(body);
+      pane.appendChild(box);
+      return;
+    }
+
+    var btn = mk('button', 'kami-btn kami-btn--primary', '选择旧预设');
+    btn.type = 'button';
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', '手动导入新版之后'));
+    var val = mk('span', 'kami-field-value');
+    val.appendChild(btn);
+    row.appendChild(val);
+    body.appendChild(row);
+
+    /* 清单容器：默认收起。用现成的 .kami-card-note 包外框，列表本身只给滚动用的内联排版
+       （契约里没有「可滚动清单」这一类，不为一次性的东西新增类名）。 */
+    var pick = mk('div', 'kami-card-note');
+    pick.hidden = true;
+    pick.style.maxHeight = '42vh';
+    pick.style.overflowY = 'auto';
+    body.appendChild(pick);
+    body.appendChild(outRow);
+    box.appendChild(body);
+    pane.appendChild(box);
+
+    function say(text) { out.textContent = text; }
+    function closePick() { pick.hidden = true; pick.textContent = ''; btn.disabled = false; }
+
+    /* 把结果讲清楚：搬了哪几类东西、有没有需要裁决的条目、预设选择有没有被挪走。
+       用户真机上问过「怎么没问我要不要保留条目修改」—— 没问就是**本来就没冲突**，
+       那就得说出来，不能让人以为是漏问了。 */
+    function summarize(r, w) {
+      var rep = (r && r.report) || {};
+      var kinds = { prompts: '条目内容', prompt_order: '条目开关与顺序', extensions: '脚本设置与正则开关' };
+      var names = [];
+      for (var i = 0; i < ((w && w.changed) || []).length; i++) {
+        names.push(kinds[w.changed[i]] || w.changed[i]);
+      }
+      var s = INHERIT_COPY.done + '（从「' + r.oldName + '」搬来：' + (names.join('、') || '没有变化') +
+        '；先备份成「' + r.backupName + '」）';
+      s += rep.conflicts > 0
+        ? (' ' + INHERIT_COPY.asked.replace('{n}', String(rep.conflicts)) +
+          '（保留旧预设 ' + (rep.decidedMine || 0) + ' / 用现在这份 ' + (rep.decidedNext || 0) + '）')
+        : (' ' + INHERIT_COPY.noAsk);
+      if (r.decidedVia === 'popup' || r.decidedVia === 'popup-failed') { s += '（裁决走的是酒馆原生弹窗）'; }
+      if (w && w.sel && w.sel.checked && !w.sel.ok) { s += ' ' + INHERIT_COPY.selFailed; }
+      else if (w && w.sel && w.sel.moved && w.sel.ok) { s += ' ' + INHERIT_COPY.selMoved; }
+      return s;
+    }
+
+    /* 真的开搬。整个流程里按钮一律禁用，避免连点开两份合并。 */
+    function start(name) {
+      btn.disabled = true;
+      closePick();
+      say(INHERIT_COPY.working + '（' + name + '）');
+      var p = null;
+      try { p = up.inheritFrom(name); } catch (e) { p = Promise.reject(e); }
+      Promise.resolve(p).then(function (r) {
+        btn.disabled = false;
+        if (!r || !r.ok) {
+          if (r && r.cancelled) { say('你在裁决页里没有完成，这次什么都不会写。'); return; }
+          say(INHERIT_COPY.failHead + ((r && r.msg) || '没拿到结果'));
+          return;
+        }
+        var w = applyInheritedToLive(r.merged, r.targetName);
+        if (!w.ok) { say(INHERIT_COPY.failHead + w.msg); return; }
+        /* 记下「这一份是从哪继承来的」——跟着预设走（脚本变量就写在预设文件里） */
+        inheritFromName = r.oldName || '';
+        inheritAtText = nowText();
+        saveVars();
+        try { srcRow.querySelector('.kami-field-value').textContent = inheritFromName + '（' + inheritAtText + '）'; } catch (e) { }
+        say(summarize(r, w));
+        toast('success', '已从「' + r.oldName + '」继承设置，立刻生效');
+      })['catch'](function (e) {
+        btn.disabled = false;
+        say(INHERIT_COPY.failHead + ((e && e.message) || e));
+      });
+    }
+
+    /* 非卡密预设先警告一句（用户点名：「如果不是卡密预设，用户点击需要提示一下」） */
+    function warnThenStart(name) {
+      pick.textContent = '';
+      var w = mk('div', 'kami-card-note', INHERIT_COPY.notKamiWarn);
+      pick.appendChild(w);
+      var wrow = mk('div', 'kami-field');
+      wrow.appendChild(mk('span', 'kami-field-label', name));
+      var wval = mk('span', 'kami-field-value');
+      var go = mk('button', 'kami-btn kami-btn--primary', '仍然继承');
+      go.type = 'button';
+      go.addEventListener('click', function () { start(name); });
+      var back = mk('button', 'kami-btn', '换一个');
+      back.type = 'button';
+      back.addEventListener('click', function () { openPick(); });
+      wval.appendChild(go);
+      wval.appendChild(back);
+      wrow.appendChild(wval);
+      pick.appendChild(wrow);
+      pick.hidden = false;
+    }
+
+    function openPick() {
+      pick.textContent = '';
+      var info = { names: [], current: '' };
+      try { info = up.otherPresetNames() || info; } catch (e) { }
+      var names = info.names || [];
+      pick.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.pickHint +
+        (info.current ? ('（当前这一份是「' + info.current + '」，不列在下面）') : '')));
+      if (!names.length) {
+        pick.appendChild(mk('div', 'kami-empty', INHERIT_COPY.noOthers));
+        pick.hidden = false;
+        return;
+      }
+      for (var i = 0; i < names.length; i++) {
+        (function (n) {
+          var kami = true;
+          try { kami = up.isKamiName(n) === true; } catch (e) { kami = true; }
+          var brow = mk('div', 'kami-field');
+          brow.appendChild(mk('span', 'kami-field-label', n));
+          var bval = mk('span', 'kami-field-value');
+          var b = mk('button', 'kami-btn', kami ? '继承' : '继承（非卡密）');
+          b.type = 'button';
+          b.addEventListener('click', function () { if (kami) { start(n); } else { warnThenStart(n); } });
+          bval.appendChild(b);
+          brow.appendChild(bval);
+          pick.appendChild(brow);
+        })(names[i]);
+      }
+      var crow = mk('div', 'kami-field');
+      crow.appendChild(mk('span', 'kami-field-label', '不继承了'));
+      var cval = mk('span', 'kami-field-value');
+      var cancel = mk('button', 'kami-btn', '取消');
+      cancel.type = 'button';
+      cancel.addEventListener('click', function () { closePick(); say('还没用过'); });
+      cval.appendChild(cancel);
+      crow.appendChild(cval);
+      pick.appendChild(crow);
+      pick.hidden = false;
+    }
+
+    btn.addEventListener('click', function () { if (pick.hidden) { openPick(); } else { closePick(); } });
+  }
+
+  /* 写完之后核对：酒馆自己的预设选择有没有被挪走。
+     用户真机撞到过（2026-09-28）：点完继承，酒馆的预设跳到了列表里**另一份**上去。
+     不管是谁挪的（保存通道自己会 updateList + trigger change），这里统一拨回来：
+     findPreset 按下拉框的**显示名**找 value，selectPreset 会触发 change，
+     把刚写进去的那份重新载回活设置 —— 内存与磁盘因此还是同一份。 */
+  function restorePresetSelection(ctx, wantName) {
+    var pm = presetManagerOf(ctx);
+    if (!pm || typeof pm.getSelectedPresetName !== 'function' || !wantName) { return { checked: false }; }
+    var now = '';
+    try { now = cleanName(pm.getSelectedPresetName()); } catch (e) { return { checked: false }; }
+    if (now === wantName) { return { checked: true, moved: false, now: now, ok: true }; }
+    log('⚠ 写完之后酒馆的预设选择是「' + now + '」，不是「' + wantName + '」→ 拨回来');
+    var moved = false;
+    try {
+      if (typeof pm.findPreset === 'function' && typeof pm.selectPreset === 'function') {
+        var val = pm.findPreset(wantName);
+        if (val !== undefined && val !== null && val !== '') { pm.selectPreset(val); moved = true; }
+      }
+    } catch (e) { log('拨回预设选择失败：' + ((e && e.message) || e)); }
+    var after = '';
+    try { after = cleanName(pm.getSelectedPresetName()); } catch (e) { }
+    return { checked: true, moved: moved, now: now, after: after, ok: after === wantName };
+  }
+
+  /* 把合并结果**覆盖到当前预设**（活的设置对象）并走酒馆自己的保存通道写盘。
+     为什么不像远程更新那样导入成一个新预设：用户就是想让**现在这一份**把旧设置捡回来，
+     再让他切来切去等于没省事。写盘前 70 号已经先把当前预设备份过了。
+     覆盖前把要动的键各存一份，写盘失败就退回去 —— 不然内存与磁盘就分家了。 */
+  function applyInheritedToLive(merged, targetName) {
+    if (!merged || typeof merged !== 'object') { return { ok: false, msg: '合并结果不是一份预设' }; }
+    var ctx = stCtx();
+    if (!ctx) { return { ok: false, msg: '拿不到酒馆上下文，改动没有写盘' }; }
+    var s = settingsOf(ctx);
+    if (!s) { return { ok: false, msg: '读不到活设置，改动没有写盘' }; }
+    /* ⚠️ 身份/管道字段一律不覆盖：它们回答的是「这是哪一份预设」，不是「设置了什么」。
+       70 号那边已经钉过一道，这里再来一道 —— 这类字段一旦被别的预设的值盖掉，
+       酒馆就会把预设切到别处去（真机撞到过的那个毛病）。 */
+    var SKIP = { name: 1, preset_settings_openai: 1, preset_settings_novel: 1, preset_settings: 1 };
+    var keys = [], k;
+    for (k in merged) {
+      if (!Object.prototype.hasOwnProperty.call(merged, k)) { continue; }
+      if (SKIP[k]) { continue; }
+      keys.push(k);
+    }
+    if (!keys.length) { return { ok: false, msg: '合并结果是空的，什么都没做' }; }
+    var before = {}, changed = [];
+    var i;
+    for (i = 0; i < keys.length; i++) {
+      before[keys[i]] = s[keys[i]];
+      var same = false;
+      try { same = JSON.stringify(s[keys[i]]) === JSON.stringify(merged[keys[i]]); } catch (e) { same = false; }
+      if (!same) { changed.push(keys[i]); }
+      try { s[keys[i]] = merged[keys[i]]; } catch (e) { }
+    }
+    var r = savePresetFile(ctx, s, null, function () {
+      /* 写盘失败（服务端没成功）：把刚覆盖的字段一个个放回去，内存与磁盘不能分家 */
+      for (var j = 0; j < keys.length; j++) { try { s[keys[j]] = before[keys[j]]; } catch (e) { } }
+      toast('error', '继承结果没写进预设，已退回，你的设置没有变');
+    }, targetName);
+    if (!r.ok) {
+      for (i = 0; i < keys.length; i++) { try { s[keys[i]] = before[keys[i]]; } catch (e) { } }
+      return { ok: false, msg: (r.msg || '写盘失败') + '（已退回，改动一个字都没留下）' };
+    }
+    /* 写完之后把酒馆的预设选择钉回当前这一份（保存通道自己会挪它） */
+    var sel = restorePresetSelection(ctx, r.name || targetName);
+    log('继承写盘完成：覆盖 ' + changed.length + ' 个字段（' + (changed.join('、') || '无变化') +
+      '）→ 酒馆自己的通道落到「' + (r.name || targetName) + '」' +
+      (sel.checked ? ('；预设选择=' + (sel.ok ? '正确' : '没拨回来')) : ''));
+    return { ok: true, name: r.name || targetName, count: changed.length, changed: changed, sel: sel };
   }
 
   /* 把一次检查的结果翻成一句人话（动作名与 70-远程更新.js 的 last.action 一一对应） */
@@ -1997,18 +2333,30 @@
   }
 
   /* 点模型卡片头 = 选中这个模型：开它名下全部条目 + 关掉归属集合与它毫无交集的条目。
-     共用的那条（归属集合里有本模型）**不动它的开关**，只是留着（用户裁定）。 */
+     共用的那条（归属集合里有本模型）**不动它的开关**，只是留着（用户裁定）。
+     ⚠️ 标签约定（2026-09-28 用户点名）：条目标题里带 **(非必要不开)** 的，
+     **选模型时一律不跟着开** —— 它们是破限/抗审这类「平时不该开」的条目，
+     要用的时候自己去条目卡上点开。别的模型条目照旧跟着模型开关走。
+     为什么用标题标签而不是加个字段：标签本来就是给用户看的同一件事，
+     两者合一才不会出现「名字写着非必要不开、选模型却把它开了」这种自相矛盾。 */
+  function isOptionalOff(it) {
+    return String((it && it.name) || '').indexOf('非必要不开') >= 0;
+  }
   function selectModel(emoji) {
     if (!emoji) { return; }
-    var pairs = [], seen = {}, i;
+    var pairs = [], seen = {}, i, skipped = [];
     eachItem(function (it) {
       var m = it.models || [];
       if (!m.length) { return; }                       // 非模型条目：不动
       if (seen[it.identifier]) { return; }
       seen[it.identifier] = true;
       var hit = m.indexOf(emoji) >= 0;
-      if (hit) { if (it.enabled === false) { pairs.push({ identifier: it.identifier, value: true }); } }
-      else if (it.enabled !== false) { pairs.push({ identifier: it.identifier, value: false }); }
+      if (hit) {
+        if (it.enabled === false) {
+          if (isOptionalOff(it)) { skipped.push(it.name); }   /* 标了「非必要不开」：不跟着开 */
+          else { pairs.push({ identifier: it.identifier, value: true }); }
+        }
+      } else if (it.enabled !== false) { pairs.push({ identifier: it.identifier, value: false }); }
     });
     var res = commit(pairs);
     if (!res.ok) { toast('error', res.msg); renderStatus(); return; }
@@ -2021,7 +2369,8 @@
     paintModelHeads();
     saveVars();
     renderStatus();
-    log('选中模型 ' + emoji + '（改动 ' + pairs.length + ' 条，当前模型闸门已重刷）');
+    log('选中模型 ' + emoji + '（改动 ' + pairs.length + ' 条，当前模型闸门已重刷）' +
+      (skipped.length ? '；按「非必要不开」跳过 ' + skipped.length + ' 条：' + skipped.join('、') : ''));
   }
 
   /* 点一下条目卡 = 翻转它。单选卡片组：开一条就自动关掉同组其它条（写之前一起提交）。 */
@@ -2108,6 +2457,10 @@
     }
     /* 当前模型（闸门）与面板几何存在同一个键里；没存过就等 refresh 时从数据推断 */
     if (typeof saved.currentModel === 'string' && saved.currentModel) { currentModel = saved.currentModel; }
+    /* 「这一份继承自哪份旧预设」——跟着预设走（脚本变量就存在预设文件里），
+       用户 2026-09-28 点名要在面板里写明，免得看标题栏的名字时误会。 */
+    if (typeof saved.inheritFrom === 'string' && saved.inheritFrom) { inheritFromName = saved.inheritFrom; }
+    if (typeof saved.inheritAt === 'string' && saved.inheritAt) { inheritAtText = saved.inheritAt; }
   }
   function saveVars() {
     if (saveTimer) { try { clearTimeout(saveTimer); } catch (e) { } }
@@ -2119,7 +2472,12 @@
         var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};
         /* ① 位置与大小一起存（键名与皮肤管理面板一致：x/y/w/h）；
            当前模型（🤖 模型 tab 的闸门）与它们放同一个键里，换页面也记得 */
-        all[VARS_KEY] = { panel: { x: geom.x, y: geom.y, w: geom.w, h: geom.h }, currentModel: currentModel || null };
+        all[VARS_KEY] = {
+          panel: { x: geom.x, y: geom.y, w: geom.w, h: geom.h },
+          currentModel: currentModel || null,
+          inheritFrom: inheritFromName || null,
+          inheritAt: inheritAtText || null
+        };
         replaceVariables(all, { type: 'script' });
       } catch (e) { log('写脚本变量失败：' + ((e && e.message) || e)); }
     }, 250);
@@ -2135,6 +2493,7 @@
     panelRoot.style.display = open ? '' : 'none';
     if (open) {
       restoreGeometry();
+      bringViewportHome();
       refresh(true);
       /* 读不到设置时，除了面板里的说明再补一次 toast：绝不静默失败 */
       if (liveData && !liveData.ok) { toast('warning', liveData.error); }

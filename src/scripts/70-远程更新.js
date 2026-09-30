@@ -72,7 +72,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.4';
+  var VERSION = '1.5';
   var API_NAME = 'KamiUpdate';
   var VARS_KEY = 'kami-update';
   /* 本产物的正式分发名（打包时写进来，例如 kami-v0.91-46-20260926）。
@@ -1132,6 +1132,168 @@
     });
   }
 
+  /* ───────── 「继承旧预设设置」（手动更新之后的补偿，2026-09-28 用户点名）─────────
+
+     正常升级走的是「弹出提示 → 下载新版 → 三方合并 → 导入」，所以用户不用重设。
+     可要是他网络到 GitHub 不通，只能自己去仓库下载、手动导入，那条路根本不会触发合并，
+     于是他只能把手动改过的东西一个个再设一遍 —— 这个入口就是给那种情况兜底的。
+
+     本质还是**同一台合并引擎再开一次**（computeMergePlan / applyMergePlan / decidePlan 全部复用），
+     只是三个角色的来源换了个方向：
+
+       theirs = 用户在列表里挑的那份**旧预设**（他自己改过的那一份）
+       next   = **当前正在用的这一份**（= 他刚手动导入的新版）
+       base   = 按旧预设名解析出版本号，去仓库镜像取那一版的**原始内容**
+                （取不到就退化：差异全进待裁决、默认保留他的，宁可少动）
+
+     ⚠️ 与远程更新的关键差别：这里**不新建预设**。合并结果交回给 40 号，
+     覆盖到当前预设上并用酒馆自己的保存通道写盘，所以是**立刻生效、不用切来切去**。
+     ⚠️ 写之前先备份当前预设（名字形如「当前预设名 · 继承前备份」）；备份失败就中止，绝不硬写。 */
+
+  /* 本机装着的其它 OpenAI 预设名（面板拿它摆「继承哪一个」的清单）。当前那一份不列进来。 */
+  function otherPresetNames() {
+    var cur = cleanStr(resolvePresetName().name);
+    var all = installedNames();
+    var out = [], i, n;
+    for (i = 0; i < all.length; i++) {
+      n = cleanStr(all[i]);
+      if (n && n !== cur && out.indexOf(n) < 0) { out.push(n); }
+    }
+    return { current: cur, names: out };
+  }
+
+  /* 这个名字看起来是不是卡密预设（面板用它决定要不要先警告一句） */
+  function isKamiName(name) { return !!parseVersion(name); }
+
+  /* 读一份**没被选中**的预设的完整内容。
+     ⚠️ 绝不能走 getPresetManager('openai').getPresetSettings(name)：preset-manager.js:617
+     那个 switch 里**根本没有 openai 分支**，走到 default 会返回空对象（40 号里有同源的血泪注释）。
+     正路是 getPresetList()：它把 openai_settings 这个数组原样给出来，而那个数组每一格就是
+     磁盘上那份 JSON 解析出来的对象（public/scripts/openai.js:3317-3320 启动时填的），
+     字段一个都不少 —— 白名单重建那套坑在这里不存在。
+     取到后**深拷一份**再用，绝不改内存里那一格。 */
+  function readPresetSnapshot(name) {
+    var ctx = stCtx();
+    if (!ctx || typeof ctx.getPresetManager !== 'function') { return null; }
+    var pm = null;
+    try { pm = ctx.getPresetManager('openai'); } catch (e) { return null; }
+    if (!pm || typeof pm.getPresetList !== 'function') { return null; }
+    var list = null;
+    try { list = pm.getPresetList(); } catch (e) { return null; }
+    var names = list && list.preset_names;
+    var presets = list && list.presets;
+    if (!names || !presets || !presets.length) { return null; }
+    var idx = Object.prototype.hasOwnProperty.call(names, name) ? names[name] : -1;
+    if (idx < 0 || !presets[idx]) { return null; }
+    try { return JSON.parse(JSON.stringify(presets[idx])); } catch (e) { return null; }
+  }
+
+  /* 备份当前预设。失败就抛 —— 调用方据此中止，绝不在没有退路的时候覆盖用户的东西。 */
+  function backupCurrentPreset(snap) {
+    var curName = cleanStr(resolvePresetName().name);
+    if (!curName) { return Promise.reject(new Error('拿不到当前预设名，没法先备份，本次没有写盘')); }
+    var backupName = safePresetName(curName + ' · 继承前备份');
+    var text = JSON.stringify(snap);
+    log('第 1 步 · 先备份当前预设为「' + backupName + '」');
+    return writePreset(backupName, JSON.parse(text), text).then(function () {
+      return { backupName: backupName };
+    })['catch'](function (e) {
+      throw new Error('备份当前预设失败（' + ((e && e.message) || e) + '），已经中止，你的东西一个字都没动');
+    });
+  }
+
+  /* 合并结果里的「身份字段」必须由**当前预设**说了算，绝不能跟着旧预设走。
+     为什么（2026-09-28 用户真机撞出来的）：`name` / `preset_settings_openai` 这类字段回答的是
+     「这是哪一份预设」，不是「设置了什么」。合并口径里名字本该取 next，但 next 是活设置、
+     字段未必齐；一旦它们被旧预设的值盖掉，写盘时解析出来的预设名就变了 ——
+     用户在酒馆里会看到预设选择跳到别的一份上去。这里在下发之前再钉一道：
+     名字一律用当前预设名，其余身份/管道字段直接删掉不继承。 */
+  var IDENTITY_KEYS = ['preset_settings_openai', 'preset_settings_novel', 'preset_settings'];
+  function pinIdentity(merged, targetName) {
+    if (!merged || typeof merged !== 'object') { return merged; }
+    var i;
+    for (i = 0; i < IDENTITY_KEYS.length; i++) {
+      try { delete merged[IDENTITY_KEYS[i]]; } catch (e) { }
+    }
+    if (targetName) { merged.name = targetName; }
+    return merged;
+  }
+
+  /* 继承主流程。返回 Promise：
+       { ok:true, merged, report, oldName, targetName, backupName, decidedVia }  → 交给 40 号写回当前预设
+       { ok:false, cancelled:true }                      → 用户在裁决页关掉了面板
+       { ok:false, msg }                                 → 读不到 / 失败（msg 是人话） */
+  function inheritFrom(oldName) {
+    var name = cleanStr(oldName);
+    if (!name) { return Promise.resolve({ ok: false, msg: '没给要继承的预设名' }); }
+    if (busy) { return Promise.resolve({ ok: false, msg: '更新脚本正忙着（在下载或检查），稍等一下再试' }); }
+
+    /* ★ 当前预设名**必须在动任何东西之前**抓好：写盘那一步要靠它把结果放回原处，
+       而动过活设置之后再解析，万一解析层读到刚被覆盖的字段就会认成别的预设。 */
+    var targetName = cleanStr(resolvePresetName().name);
+    if (!targetName) {
+      return Promise.resolve({ ok: false, msg: '拿不到当前预设名，不知道要把设置搬回哪一份，已中止' });
+    }
+
+    var theirs = readPresetSnapshot(name);
+    if (!theirs || !Array.isArray(theirs.prompts) || !theirs.prompts.length) {
+      return Promise.resolve({ ok: false, msg: '读不到「' + name + '」的内容（酒馆没把它装进内存，或者它不像一份预设）' });
+    }
+    if (name === targetName) {
+      return Promise.resolve({ ok: false, msg: '「' + name + '」就是你现在用的这一份，没法从自己继承自己' });
+    }
+    var next = currentPresetSnapshot();
+    if (!next || !Array.isArray(next.prompts) || !next.prompts.length) {
+      return Promise.resolve({ ok: false, msg: '读不到当前预设的完整内容，做不了合并' });
+    }
+
+    var v = parseVersion(name);
+    var cfg = repoConfig();
+    busy = true;
+    last.action = 'inherit';
+    log('继承旧预设设置：theirs =「' + name + '」（' + theirs.prompts.length + ' 条）· next =「' + targetName +
+      '」（' + next.prompts.length + ' 条）· base = ' + (v ? versionLabel(v) : '认不出（退化模式）'));
+
+    return fetchBaseSnapshot(v ? versionLabel(v) : '', cfg, name).then(function (base) {
+      var plan = computeMergePlan(base, theirs, next);
+      plan.inherit = true;   /* 让裁决页把措辞换成「你的旧预设 / 现在这份」 */
+      log('继承合并计划就绪：待裁决 ' + plan.conflicts.length + ' 处 / 新版新增 ' + plan.stats.added +
+        ' 条 / 应用 ' + plan.stats.applied + ' 处' + (plan.degraded ? '（退化模式：base 取不到）' : ''));
+      return decidePlan(plan).then(function (chosen) {
+        if (!chosen) {
+          busy = false;
+          last.action = 'inherit-cancelled';
+          log('你在裁决页里没有完成，本次继承中止（什么都不会写）');
+          return { ok: false, cancelled: true };
+        }
+        var applied = applyMergePlan(base, theirs, next, chosen.plan);
+        pinIdentity(applied.merged, targetName);
+        return backupCurrentPreset(next).then(function (b) {
+          busy = false;
+          last.action = 'inherit-ready';
+          last.merge = {
+            degraded: !!applied.report.degraded, applied: applied.report.applied, kept: applied.report.kept,
+            added: applied.report.added, conflicts: applied.report.conflicts,
+            decidedMine: applied.report.decidedMine, decidedNext: applied.report.decidedNext
+          };
+          log('继承方案已就绪（' + mergeReportText(applied.report) + '；名字钉成「' + targetName +
+            '」）→ 交给 40 号写回当前预设');
+          return {
+            ok: true, merged: applied.merged, report: applied.report,
+            oldName: name, targetName: targetName, backupName: b.backupName,
+            decidedVia: chosen.via || null,
+            oldPrompts: theirs.prompts.length, currentPrompts: next.prompts.length
+          };
+        });
+      });
+    })['catch'](function (e) {
+      busy = false;
+      var msg = (e && e.message) || String(e);
+      warn('继承旧预设设置失败：' + msg);
+      return { ok: false, msg: msg };
+    });
+  }
+
   /* ───────── 全局 API ───────── */
 
   function status() {
@@ -1172,6 +1334,12 @@
       },
       /* 手动查一次；force=true 时忽略「已拒绝/已写入/已安装」记录 */
       check: function (force) { return check(!!force); },
+      /* ── 「继承旧预设设置」（2026-09-28 用户点名，给手动更新的用户兜底）──
+         面板那条链路：otherPresetNames() 摆清单 → isKamiName() 决定要不要先警告 →
+         inheritFrom(名) 跑同一台合并引擎（结果由 40 号写回当前预设）。 */
+      otherPresetNames: otherPresetNames,
+      isKamiName: isKamiName,
+      inheritFrom: inheritFrom,
       /* 清掉「拒绝过 / 已写入」的记录（下次启动会重新弹） */
       reset: function () {
         saveVars({ skipped: '', imported: '' });

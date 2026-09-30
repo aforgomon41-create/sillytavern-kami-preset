@@ -709,7 +709,12 @@ html:not([data-kami-skin]) .kami-root[data-kami-comp="panel"] {
   position: fixed;
   inset: 0;
   top: 0; right: 0; bottom: 0; left: 0;
-  width: auto; height: auto; min-height: 0;
+  width: auto; height: auto;
+  /* 高度下限（2026-09-29）：窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0，
+     top:0;bottom:0 会把舞台压成一条线。这里给足下限（dvh 不认时落回 vh）。
+     2026-09-29 之前写的是 min-height:0 —— 皮肤管理没跑时三个面板在手机上会塌。 */
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   z-index: 30000;
   pointer-events: none;

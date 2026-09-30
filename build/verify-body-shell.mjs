@@ -128,6 +128,25 @@ ok(syncHits >= 3, '⑤ 开关位置与真实启用位对账至少挂 3 处（启
 ok(skin.indexOf('syncBodyFront: function ()') >= 0, '⑤ 对账接口对引导页可见');
 ok(guide.indexOf('api.syncBodyFront()') >= 0, '⑤ 引导页渲染皮肤卡之前先对一次账');
 
+/* ⑥ 流式输出时不许来回重画（2026-09-28 用户反馈的「闪」）：
+      生成期间扫都不扫，等生成结束再一次性补上；标志位必须有兜底与注销，
+      否则报错 / 中断会让刷新被永久关死。 */
+const shellSrc = String((scripts.find(s => /正文外壳/.test(String(s.name))) || {}).content || '');
+const stripC = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+const shellCode = stripC(shellSrc);
+ok(shellSrc.indexOf('function setGenerating') >= 0, '⑥ 有「正在生成」这个标志位');
+ok(/if \(generating\) \{ return; \}/.test(shellCode), '⑥ 生成期间 soon() 直接返回（重画不排队）');
+ok(/tavern_events\[pair\[0\]\]/.test(shellCode) && /'GENERATION_STARTED'/.test(shellCode) &&
+  /'GENERATION_ENDED'/.test(shellCode),
+  '⑥ 订阅了生成开始与生成结束（用的就是酒馆那两个事件）');
+ok(shellSrc.indexOf('function finishGeneration') >= 0 && /setGenerating\(false\)/.test(shellCode),
+  '⑥ 生成结束会把标志位放下来并补一次');
+ok(shellSrc.indexOf('GEN_WATCHDOG_MS') >= 0 && shellCode.indexOf('genWatchdog') >= 0,
+  '⑥ 有看门狗：结束信号没来也不会把刷新永久关死');
+ok(/shutdown: function \(\)[\s\S]{0,400}generating = false;/.test(shellCode), '⑥ 注销时把标志位与定时器都收干净');
+ok(shellSrc.indexOf('generating: generating') >= 0, '⑥ 状态读数里带上了它（排查时看得见）');
+ok(!/setTimeout\(refresh, 400\)/.test(shellCode), '⑥ 事件回调里没有那种「生成中也硬刷」的写法');
+
 console.log('');
 console.log(bad ? '★ 正文外壳链路验证失败 ' + bad + ' 条' : '正文外壳链路验证全部通过（产物 ' + path.basename(p) + '）');
 process.exit(bad ? 1 : 0);

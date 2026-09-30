@@ -87,6 +87,9 @@ window.tavern_events = {
   MESSAGE_RENDERED: 'message_rendered', CHARACTER_MESSAGE_RENDERED: 'character_message_rendered',
   USER_MESSAGE_RENDERED: 'user_message_rendered', MESSAGE_UPDATED: 'message_updated',
   MESSAGE_SWIPED: 'message_swiped', CHAT_CHANGED: 'chat_changed',
+  /* 流式那一条要用的两个（酒馆 events.js 里的真名） */
+  GENERATION_STARTED: 'generation_started', GENERATION_ENDED: 'generation_ended',
+  GENERATION_AFTER_COMMANDS: 'GENERATION_AFTER_COMMANDS', MESSAGE_RECEIVED: 'message_received',
 };
 var HANDLERS = {};
 window.eventOn = function (ev, cb) { (HANDLERS[ev] = HANDLERS[ev] || []).push(cb); return { stop: function () { } }; };
@@ -182,6 +185,50 @@ function check() {
   flush();
   document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
   skinCheck();
+  genCheck();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   四之二、流式输出时不许来回重画（2026-09-28 用户反馈的「闪」）
+   现象：流式输出时酒馆一批批重画这一楼，脚本跟着一次次套壳 → 「渲染出来又被拆掉」来回横跳。
+   契约：GENERATION_STARTED 之后不再套壳；GENERATION_ENDED 之后补齐。
+   这一条只验「生成期间没动」，不改被测代码的任何行为。
+   ───────────────────────────────────────────────────────────── */
+function genCheck() {
+  if (!window.KamiBodyShell) { say('探针|流式|★ 没有 KamiBodyShell，验不了'); return; }
+  var chat = document.getElementById('chat');
+  var fire = function (name) {
+    (HANDLERS[name] || []).forEach(function (cb) { try { cb(); } catch (e) { } });
+  };
+  var dolls = function () { return chat.querySelectorAll('[data-kami-body-host]').length; };
+  var base = dolls();
+
+  /* ① 生成中：新来一楼（带标记）也不许套壳 */
+  fire('generation_started');
+  var mes = document.createElement('div');
+  mes.className = 'mes';
+  mes.setAttribute('mesid', '99');
+  mes.innerHTML = '<div class="mes_text"><div data-kami-body-start></div>\n\n流式中的正文\n\n<div data-kami-body-end></div></div>';
+  chat.appendChild(mes);
+  /* 再敲一下 DOM（MutationObserver 那条路），并等够 soon() 的窗口 */
+  chat.appendChild(document.createElement('span'));
+  setTimeout(function () {
+    var during = dolls();
+    var st = window.KamiBodyShell.status();
+    say('探针|流式|生成期间：新楼套壳数 ' + base + ' → ' + during + '（应不变）｜generating=' + (st.generating === true));
+
+    /* ② 生成结束：必须补齐 */
+    fire('generation_ended');
+    setTimeout(function () {
+      var after2 = dolls();
+      var st2 = window.KamiBodyShell.status();
+      var ok = (during === base) && (st.generating === true) && (after2 === base + 1) && (st2.generating === false);
+      say('探针|流式|生成结束后：套壳数 ' + during + ' → ' + after2 + '（应 +1）｜generating=' + (st2.generating === true) +
+        '｜' + (ok ? 'OK（生成中不重画、结束后补齐）' : '★ 要查'));
+      flush();
+      document.title = lines.filter(function (l) { return l.indexOf('探针|') === 0; }).join(' ｜ ');
+    }, 900);
+  }, 700);
 }
 
 /* ─────────────────────────────────────────────────────────────

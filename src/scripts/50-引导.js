@@ -103,6 +103,13 @@
     bodyFrontOff: '已关闭',
     bodyFrontWarn: '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。',
     bodyFrontDegrade: '皮肤管理脚本没有在运行，这个开关暂时点不动。启用 🎨 皮肤管理后即可正常切换。',
+    /* 角色名样式区（2026-09-28 新增，紧跟在正文前端区**下面**）。
+       用户裁定：引导页不要长篇说明，**一句简单的话就够，直接复用皮肤面板那句**。
+       唯一真相是 design/copy/guide-copy.json 的 nameWrapNote，这里只是缺表时的兜底，
+       两处措辞必须一字不差（构建期守卫 verify-name-wrap.mjs 会核对）。 */
+    nameWrapTitle: '角色名样式',
+    nameWrapBody: '更改角色名外面的包裹符号，切换后立刻对新生成的回复生效。',
+    nameWrapDegrade: '角色名包裹脚本没有在运行，这里只能看说明。启用 🏷 角色名包裹 之后就能在这里切换。',
     modelPageTitle: '你在用什么模型',
     modelPageIntro: '选一个模型，引导会自动开好它名下的条目、关掉其它模型的。以后随时可以在 🌟卡密预设 里换。',
     modelCurrent: '当前',
@@ -859,6 +866,51 @@
     return row;
   }
 
+  /* ── 三档选择行（「角色名样式」专用）──
+     开关行工厂只处理「开/关」两态，这里是三选一，结构照抄面板那一行的 .kami-seg /
+     .kami-seg-item（契约 §4.2 已登记，零新增类名），外面套引导页现成的排版类。
+     语义与开关行一致：点谁就是谁，写失败只提示、不改界面。 */
+  function buildSegRow(opt) {
+    var o = opt || {};
+    var box = el('div', 'kami-guide-switchrow');
+    box.appendChild(el('span', 'kami-guide-rowname', copyOf(o.labelKey)));
+    var stateEl = null;
+    if (typeof o.textOf === 'function') {
+      stateEl = el('span', 'kami-guide-rowstate', '');
+      box.appendChild(stateEl);
+    }
+    var btns = {};
+    function paint() {
+      var cur = '';
+      try { cur = String(o.read()); } catch (e) { }
+      o.options.forEach(function (m) {
+        if (btns[m.id]) { btns[m.id].className = 'kami-seg-item' + (cur === m.id ? ' is-on' : ''); }
+      });
+      if (stateEl) { stateEl.textContent = o.textOf(cur); }
+    }
+    if (o.disabled) {
+      box.setAttribute('aria-disabled', 'true');
+      return box;
+    }
+    var seg = el('span', 'kami-seg');
+    o.options.forEach(function (m) {
+      var b = el('button', 'kami-seg-item', m.label);
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        var ok = false;
+        try { ok = o.write(m.id) === true; } catch (e) { ok = false; }
+        if (!ok) { toast('error', copyOf('applyFail')); return; }
+        paint();
+        log(o.labelKey + ' → ' + m.label);
+      });
+      btns[m.id] = b;
+      seg.appendChild(b);
+    });
+    paint();
+    box.appendChild(seg);
+    return box;
+  }
+
   function renderDisclaimer(st) {
     panelBody.appendChild(el('p', 'kami-guide-offnote', st.intro));
     panelBody.appendChild(el('p', 'kami-guide-offnote', copyOf('disclaimerConfirmHint')));
@@ -903,6 +955,34 @@
       card.appendChild(el('p', 'kami-guide-offnote', copyOf('bodyFrontWarn')));
       if (!hasApi) { card.appendChild(el('p', 'kami-guide-offnote', copyOf('bodyFrontDegrade'))); }
       panelBody.appendChild(card);
+    })();
+
+    /* ── 角色名样式区（紧跟在正文前端区**下面**，用户 2026-09-28 点名）──
+       三档切换角色名的包裹符号。它不是外观开关：真正的实现在 35-角色名包裹.js ——
+       在把提示词发给 AI 之前，把预设里的 <n>…</n> 标记换成当前档位的写法。
+       与「🎨 皮肤管理面板 → 显示 → 角色名样式」是**同一个状态**（同一对全局变量），
+       两处随便哪边改都算数。
+       用户后来裁定：引导页**不要长篇说明**，一句简单的话就够，且直接复用皮肤面板那句；
+       所以这里只有「一句话 + 一行三档按钮」，连卡片标题都不再重复一遍。
+       脚本没在跑时只留说明，不给点了没反应的按钮。 */
+    (function () {
+      var wapi = null;
+      try { wapi = HOST.KamiNameWrap || null; } catch (e) { }
+      var card2 = el('div', 'kami-card');
+      card2.appendChild(el('p', 'kami-guide-lead', copyOf('nameWrapBody')));
+      var usable = !!(wapi && wapi.MODES && wapi.MODES.length &&
+        typeof wapi.get === 'function' && typeof wapi.set === 'function');
+      if (usable) {
+        card2.appendChild(buildSegRow({
+          labelKey: 'nameWrapTitle',
+          options: wapi.MODES,
+          read: function () { return wapi.get(); },
+          write: function (id) { return wapi.set(id); }
+        }));
+      } else {
+        card2.appendChild(el('p', 'kami-guide-offnote', copyOf('nameWrapDegrade')));
+      }
+      panelBody.appendChild(card2);
     })();
     var list = [], curId = null;
     try { list = api.skins() || []; curId = api.skin; } catch (e) { }
@@ -1578,6 +1658,12 @@
 
   /* ───────── 面板骨架 ───────── */
 
+  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二，与 30 号同一处原因）：
+     舞台锚在文档原点，可视窗口漂走时引导会落在可视区外。桌面无感。 */
+  function bringViewportHome() {
+    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
+  }
+
   function buildPanel() {
     if (panelRoot) { return; }
     panelRoot = el('div', 'kami-root');
@@ -1585,6 +1671,12 @@
     panelRoot.setAttribute('data-kami-comp', 'panel');
     panelRoot.setAttribute(GUIDE_TAG, '1');
     panelRoot.style.zIndex = String(Z);
+    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：
+       窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0 ⇒ 舞台 top:0;bottom:0 归零。
+       本脚本自己不写舞台的定位规则，全靠 base.css / 皮肤，所以这里内联最稳；
+       dvh 不认时自动落回上一行 vh。 */
+    panelRoot.style.minHeight = '100vh';
+    panelRoot.style.minHeight = '100dvh';
 
     panelDrop = el('div', 'kami-drop kami-surface');
     panelDrop.setAttribute('data-kami-open', '1');
@@ -1643,6 +1735,7 @@
     buildPanel();
     if (!panelRoot) { return; }
     injectCss();
+    bringViewportHome();
     confirmed = false;
     cur = 0;
     paintDots();

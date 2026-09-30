@@ -31,7 +31,7 @@
  * ========================================================================== */
 (function () {
   var NL = String.fromCharCode(10);
-  var VERSION = '0.1';
+  var VERSION = '0.2';
   var MARK_START = 'data-kami-body-start';
   var MARK_END = 'data-kami-body-end';
   var HOST_ATTR = 'data-kami-body-host';
@@ -228,11 +228,46 @@
   }
 
   /* ───────── 订阅：新楼层 / 重新渲染 / 切换聊天 ───────── */
+
+  /* ★ 「正在生成」时一律不套壳、不刷新（2026-09-28 用户反馈的「闪」）。
+     现象：流式输出时酒馆会一批一批地重画这一楼，我们每重画一次就跟着套一次壳，
+     于是「渲染出来 → 又被拆掉 → 再渲染」来回横跳。
+     做法：生成期间把重量级的 DOM 操作全关掉（只留一个标志位），等生成结束再一次性补上。
+     ⚠️ 标志位必须有兜底：报错 / 手动中断 / 切走页面都可能让 GENERATION_ENDED 不来，
+     那样刷新会被永久关死 —— 所以另配一个看门狗，超时按「已结束」处理。 */
+  var generating = false;
+  var genWatchdog = null;
+  var GEN_WATCHDOG_MS = 180000;
+
+  function setGenerating(on) {
+    generating = !!on;
+    try { if (genWatchdog) { clearTimeout(genWatchdog); genWatchdog = null; } } catch (e) { }
+    if (!generating) { return; }
+    try {
+      genWatchdog = setTimeout(function () {
+        genWatchdog = null;
+        if (!generating) { return; }
+        warn('生成状态超过 ' + Math.round(GEN_WATCHDOG_MS / 1000) + ' 秒没收到结束信号，按已结束处理');
+        setGenerating(false);
+        scan(); refresh();
+      }, GEN_WATCHDOG_MS);
+    } catch (e) { }
+  }
+
   var unsubs = [];
   var timer = null;
   function soon(ms) {
+    /* 生成中不排队：这一趟的重画本来就会被下一趟覆盖，套了也是白套（还闪） */
+    if (generating) { return; }
     if (timer) { return; }
     timer = setTimeout(function () { timer = null; scan(); }, ms || 120);
+  }
+
+  /* 生成结束：把这一楼补上壳。给酒馆留一点收尾时间（它可能还在写最后一段 DOM）。 */
+  function finishGeneration() {
+    setGenerating(false);
+    soon(120);
+    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 400);
   }
 
   function boot() {
@@ -241,6 +276,18 @@
     log('首次扫描：套壳 ' + n + ' 楼');
     try {
       if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
+        /* 生成开关（必须最先订阅：这两个事件决定后面那些重画要不要理） */
+        [['GENERATION_STARTED', true], ['GENERATION_AFTER_COMMANDS', true],
+          ['GENERATION_ENDED', false], ['MESSAGE_RECEIVED', false]].forEach(function (pair) {
+            var ev = tavern_events[pair[0]];
+            if (!ev) { return; }
+            try {
+              unsubs.push(eventOn(ev, function () {
+                if (pair[1]) { setGenerating(true); log('开始生成：暂停套壳与刷新'); }
+                else { finishGeneration(); }
+              }));
+            } catch (e) { }
+          });
         var evs = [
           tavern_events.MESSAGE_RENDERED, tavern_events.CHARACTER_MESSAGE_RENDERED,
           tavern_events.USER_MESSAGE_RENDERED, tavern_events.MESSAGE_UPDATED,
@@ -251,7 +298,9 @@
           try {
             unsubs.push(eventOn(ev, function () {
               soon(60);
-              setTimeout(refresh, 400);   /* 流式/编辑之后原文会变，字数要跟上 */
+              /* 流式/编辑之后原文会变，字数要跟上 —— 但生成中不跟（那正是「闪」的来源），
+                 生成结束那一趟会把字数一并补齐。 */
+              if (!generating) { setTimeout(function () { if (!generating) { refresh(); } }, 400); }
             }));
           } catch (e) { }
         });
@@ -260,7 +309,8 @@
       }
     } catch (e) { warn('订阅事件失败：' + ((e && e.message) || e)); }
 
-    /* DOM 兜底：有些版本不发事件；另外插件插完按钮也会动 DOM，一并重扫（scan 是幂等的） */
+    /* DOM 兜底：有些版本不发事件；另外插件插完按钮也会动 DOM，一并重扫（scan 是幂等的）。
+       ⚠️ 流式输出期间这一路最凶（每批 token 都要动 DOM），soon() 里已经按 generating 挡掉了。 */
     try {
       var MO = HOST.MutationObserver || window.MutationObserver;
       if (MO && HDOC.getElementById('chat')) {
@@ -274,9 +324,9 @@
       }
     } catch (e) { }
 
-    /* 气泡：正文渲染可能比脚本启动晚 */
-    setTimeout(function () { scan(); refresh(); }, 600);
-    setTimeout(function () { scan(); refresh(); }, 2000);
+    /* 气泡：正文渲染可能比脚本启动晚（生成中就跳过，结束那趟会补） */
+    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 600);
+    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 2000);
   }
 
   var api = {
@@ -287,11 +337,17 @@
       var chat = HDOC.getElementById('chat');
       var roots = chat ? chat.querySelectorAll('[' + HOST_ATTR + ']') : [];
       var marks = chat ? chat.querySelectorAll('[' + MARK_START + ']') : [];
-      return { version: VERSION, dressed: roots.length, pendingMarks: marks.length, chat: !!chat };
+      return {
+        version: VERSION, dressed: roots.length, pendingMarks: marks.length, chat: !!chat,
+        generating: generating, pending: !!timer
+      };
     },
     shutdown: function () {
       unsubs.forEach(function (u) { try { u.stop(); } catch (e) { } });
       unsubs = [];
+      try { if (timer) { clearTimeout(timer); timer = null; } } catch (e) { }
+      try { if (genWatchdog) { clearTimeout(genWatchdog); genWatchdog = null; } } catch (e) { }
+      generating = false;
       log('已注销');
     }
   };
