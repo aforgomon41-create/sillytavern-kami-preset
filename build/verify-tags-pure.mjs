@@ -102,9 +102,13 @@ ok(code.indexOf('tagFixGroupHtml(TAGFIX_COPY.closeLead') >= 0 &&
   code.indexOf('tagFixGroupHtml(TAGFIX_COPY.removeLead') >= 0,
   '⑦ 窗里分「要补上的结尾 / 要删掉的标签」两组列条目');
 ok(code.indexOf('res.changes') >= 0 && code.indexOf('tagFixListText') < 0,
-  '⑦ 已经不再往窗里塞「我管哪些标签」那张表（tagFixListText 已删）');
+  '⑦ 已经不再往窗里塞「我管哪些标签」那张表');
 ok(code.indexOf('root.style.zIndex = \'1\'') >= 0,
   '⑦ 弹确认窗时把面板临时压到下面（否则同层级 + DOM 顺序在后 = 被盖住，用户实测点名）');
+ok(code.indexOf("tagFixAsk.lastReason = 'noPopup'") >= 0 && code.indexOf('TAGFIX_COPY.noPopup') >= 0,
+  '⑦ 拿不到弹窗时**什么都不改**并把原因说出来（不许没问过用户就动聊天记录）');
+ok(/view = \[[\s\S]{0,220}toolboxTab\(\)[\s\S]{0,100}aboutTab\(\)/.test(code),
+  '⑦ 读不到预设时「🧰 其他功能」照旧在（它不依赖预设结构）');
 ok(code.indexOf('strayNote.replace') >= 0, '⑦ 有落单的结尾标签时在窗里说明没动它们');
 
 /* ⑧ 自动那一条路：事件、Promise、写回、重画 */

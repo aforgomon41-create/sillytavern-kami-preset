@@ -712,6 +712,17 @@ function report() {
     code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
     const baseCss = await (await fetch('/src/skin/base.css')).text();
     code = code.split('/* @@KAMI_BASE_CSS_JS@@ */').join('var KAMI_BASE_CSS = ' + JSON.stringify(baseCss) + ';');
+    /* ⑤ 共享卡片构建器（`_preset-cards.js`）：不展开的话面板一建卡片就 ReferenceError。
+       2026-09-30 补：这里原先漏了它（也漏了同一天新增的 `_tags-pure.js`），
+       而这条分支的面板用例本来就是已知失败项，所以一直没人发现。规矩见
+       docs/功能复用.md §四「构建与校验」——40/50 号用到的内联占位，测试台都要手动展开一遍。 */
+    const cardsSrc = await (await fetch('/src/scripts/_preset-cards.js')).text();
+    code = code.split('/* @@KAMI_PRESET_CARDS@@ */').join(
+      cardsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
+    /* ⑥ 标签处理纯逻辑（`_tags-pure.js`，🧰 其他功能 → 自动标签处理） */
+    const tagsSrc = await (await fetch('/src/scripts/_tags-pure.js')).text();
+    code = code.split('/* @@KAMI_TAGS_PURE@@ */').join(
+      tagsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
     w.eval(code);
     FRAMES.preset = { iframe, w };
     await sleep(1200);

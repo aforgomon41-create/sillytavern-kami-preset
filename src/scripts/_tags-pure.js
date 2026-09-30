@@ -66,6 +66,8 @@ export var TAG_SPECS = [
   { tag: 'god', label: '指令（god）', sibling: true }
 ];
 
+/* 档位清单（off / close / del）。**目前只有单测与文档引用它**：面板那边的三档表叫 `TAGFIX_MODES`、
+   带中文按钮文字（在 40 号里），两边靠「档位 id 同名」对上，没有代码级依赖。 */
 export var FIX_MODES = ['off', 'close', 'del'];
 
 export function tagSpecOf(name, specs) {
@@ -324,7 +326,10 @@ function uniq(arr) {
   return out;
 }
 
-/* 面板上「管哪些标签」那一行：直接由登记表生成，改表就跟着变 */
+/* 把登记表说成人话（`<content>（正文块）、…`）。
+   ⚠️ **生产代码目前没有调用方**：面板上的说明是静态文案（ⓘ 里那段），确认窗报的是**实际改动**
+   （`describeChanges`）而不是这张表（用户 2026-09-30 的第三条意见）。留着它是给单测比对标表用，
+   以及将来要做「查看我管哪些标签」入口时可以直接捡。别因为它没被调用就当成死代码删掉。 */
 export function tagListText(specs) {
   var list = specs || TAG_SPECS;
   return list.map(function (s) { return '<' + s.tag + '>（' + s.label + '）'; }).join('、');

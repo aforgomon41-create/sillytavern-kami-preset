@@ -38,7 +38,7 @@
  *   或者把配不上对的标签删掉（三档：关闭 / 补全 / 删除，设置存在脚本变量 kami-preset.tagFix 里）。
  *   认标签、判定往哪儿补、删哪一段的逻辑全在 src/scripts/_tags-pure.js（构建期内联，
  *   离线单测 test/harness/tags-pure.mjs）；本脚本只管设置、挂 MESSAGE_RECEIVED、
- *   把结果显示到面板上（外加一颗「扫一遍当前聊天」给老聊天补课）。
+ *   把结果显示到面板上（外加一颗「处理当前楼层」做手动处理）。
  *   标签名单的唯一真相是预设条目「🧩 标签格式」，逐个对应关系与"未闭合会坏什么"
  *   见 .audit/标签调研.md 与 _tags-pure.js 的头部注释。
  *
@@ -1387,11 +1387,14 @@
 
     var foot0 = panelDrop.querySelector('.kami-foot');
     /* 出错 / 解析不出来：面板照常打开，但只有一页人话说明，不白屏。
-       「关于」页照旧排在最后 —— 三个版本读数与检查更新都不依赖预设能不能解析。 */
+       「关于」页照旧排在最后 —— 三个版本读数与检查更新都不依赖预设能不能解析。
+       「🧰 其他功能」也一样要留：它收的是**与预设结构无关**的功能入口（自动标签处理就不读预设），
+       预设读不出来时更应该让用户还能用到它，而不是跟着一起消失。 */
     if (!liveData || !liveData.ok) {
       var msg = (liveData && liveData.error) ? liveData.error : '读不到当前预设';
       view = [
         { key: 'ERR', title: '读不到预设', special: 'err', error: msg, cards: [], own: [] },
+        toolboxTab(),
         aboutTab()
       ];
       /* 「更新合并」页不依赖解析结果：正在裁决时也要在（裁决的是预设文件之间的合并，
@@ -1980,7 +1983,7 @@
    *   思维链/正文/行动选项三个前端都是正则跑在消息文本上的，文本不修，显示就一直坏着。
    *
    * 标签名单与「补在哪儿」的规则全在 _tags-pure.js（构建期内联在文件头），这里只管：
-   *   读设置、挂事件、把结果显示到面板上。手动按钮「扫一遍当前聊天」是给老聊天补课用的。
+   *   读设置、挂事件、把结果显示到面板上。手动按钮「处理当前楼层」先扫再问。
    * ══════════════════════════════════════════════════════════════════════ */
 
   var TAGFIX_VAR = 'tagFix';
@@ -2022,6 +2025,7 @@
     confirmDone: '处理完了，聊天记录里的显示会立刻更新。',
     confirmFail: '处理失败：',
     noFloor: '找不到可处理的楼层。',
+    noPopup: '因为弹不出确认提示，所以什么都没改。',
     needApi: '这个功能需要酒馆助手提供消息读写接口，当前版本拿不到。'
   };
   var tagFixMode = 'off';
@@ -2132,8 +2136,14 @@
 
   /* 确认窗：必须在预设面板**上面**。酒馆原生弹窗的层级与面板同为 30000，
      而面板是脚本后挂进 body 的、DOM 顺序在后面 —— 不处理就会被盖住（用户实测点名）。
-     做法：弹窗期间把面板舞台临时压到 1，弹完恢复。只动自己那个元素的层级，不碰酒馆 DOM。 */
+     做法：弹窗期间把面板舞台临时压到 1，弹完恢复。只动自己那个元素的层级，不碰酒馆 DOM。
+
+     ⚠️ 拿不到弹窗接口时**返回 false（什么都不改）**，不返回 true —— 确认窗是用户点名的硬要求，
+     「问不到就不动手」比「没问就改了他的聊天记录」安全。面板上会写一句为什么没动
+     （用户 2026-09-30 的第三条意见：窗里报实际改动，前提是**真有窗**）。
+     调用方拿到的除了布尔值，还可以调 tagFixAsk.lastReason 看是哪条路退化的。 */
   function tagFixAsk(html) {
+    tagFixAsk.lastReason = '';
     var root = panelRoot, oldZ = '';
     try {
       if (root) { oldZ = root.style.zIndex; root.style.zIndex = '1'; }
@@ -2144,11 +2154,16 @@
     var c = stCtx();
     if (!c || typeof c.callPopup !== 'function') {
       restore();
-      return Promise.resolve(HOST.confirm ? HOST.confirm(html.replace(/<[^>]*>/g, '')) : true);
+      /* 只有宿主真有 confirm 时才算「问到了」；没有就只能放弃这次手动处理 */
+      if (HOST && typeof HOST.confirm === 'function') {
+        return Promise.resolve(!!HOST.confirm(html.replace(/<[^>]*>/g, '')));
+      }
+      tagFixAsk.lastReason = 'noPopup';
+      return Promise.resolve(false);
     }
     return Promise.resolve(c.callPopup(html, 'confirm', null,
       { okButton: TAGFIX_COPY.confirmOk, cancelButton: TAGFIX_COPY.confirmCancel }))
-      ['catch'](function () { return false; })
+      ['catch'](function (e) { tagFixAsk.lastReason = 'popupError'; log('确认窗出错：' + ((e && e.message) || e)); return false; })
       .then(function (r) { restore(); return !!r; }, function (e) { restore(); throw e; });
   }
 
@@ -2183,7 +2198,15 @@
     ask += '<div style="margin-top:8px;opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
     ask += '</div>';
     var yes = await tagFixAsk(ask);
-    if (!yes) { return; }
+    if (!yes) {
+      /* 没确认就不动手。区分「用户点了取消」与「根本弹不出窗」：后者要告诉用户为什么没反应 */
+      if (tagFixAsk.lastReason === 'noPopup' || tagFixAsk.lastReason === 'popupError') {
+        toast('warning', TAGFIX_COPY.noPopup);
+        if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.noPopup); }
+        log('手动处理中止：' + tagFixAsk.lastReason);
+      }
+      return;
+    }
     try {
       await setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
       tagFixStat.fixed++;
@@ -2218,7 +2241,7 @@
     saveVars();
     log('自动标签处理 → ' + spec.label);
     paintTagFixStat();
-    /* 面板上的三档按钮与卡片右上角那枚标签都要跟着亮 */
+    /* 面板上的三档按钮与卡片头右端那枚标签都要跟着亮（noteMark 是行内记号，不带 data-kami-corner） */
     if (tagFixEls && tagFixEls.seg) {
       var btns = tagFixEls.seg.querySelectorAll('[data-kami-tagfix]');
       for (var i = 0; i < btns.length; i++) {
@@ -3216,7 +3239,7 @@
       if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined' ||
         !tavern_events.MESSAGE_RECEIVED) {
         log('自动标签处理：拿不到 eventOn/tavern_events.MESSAGE_RECEIVED，' +
-          '只保留面板上的手动「扫一遍当前聊天」');
+          '只保留面板上的手动「处理当前楼层」');
         return;
       }
       /* 监听器返回 Promise：酒馆的 emit 会 await 它，于是「改完消息」跑在渲染之前，
