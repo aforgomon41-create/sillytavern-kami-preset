@@ -111,11 +111,52 @@ function installMocks(w, scriptId) {
   w.eventOn = (e, cb) => { if (!STATE.handlers.has(e)) STATE.handlers.set(e, new Map()); STATE.handlers.get(e).set(cb, cb); return { stop: () => STATE.handlers.get(e).delete(cb) }; };
   w.eventRemoveListener = (e, cb) => { const m = STATE.handlers.get(e); if (m) m.delete(cb); };
   w.eventClearAll = () => STATE.handlers.clear();
-  /* 角色名包裹（35 号）只有拿到「提示词已就绪」才有活干。**只给这一个 iframe**：
+  /* 角色名包裹（35 号）只有拿到「提示词已就绪」才有活干。**只给这两个 iframe**：
      45/50/60 号原本就没拿到 tavern_events，一起给会改变它们既有的验收读数，
-     那是另一件事，不在这轮范围里。事件名与酒馆 events.js:59 一致。 */
-  if (scriptId === 'namewrap') {
-    w.tavern_events = { CHAT_COMPLETION_PROMPT_READY: 'chat_completion_prompt_ready' };
+     那是另一件事，不在这轮范围里。事件名与酒馆 events.js:59 一致。
+     40 号（presetmgr）额外要 MESSAGE_RECEIVED：「🧰 其他功能 → 自动标签处理」靠它做自动那一条路，
+     预览台里由探针显式 STATE.emit 触发（没人 emit 时它什么都不做，所以不影响既有读数）。 */
+  if (scriptId === 'namewrap' || scriptId === 'presetmgr') {
+    w.tavern_events = {
+      CHAT_COMPLETION_PROMPT_READY: 'chat_completion_prompt_ready',
+      MESSAGE_RECEIVED: 'message_received'
+    };
+  }
+  /* 酒馆助手的消息读写替身（2026-09-30 加，只给 presetmgr）：
+     自动标签处理要读一楼、改一楼、再让界面重画 —— 原先预览台一个消息接口都没给，
+     那条路在浏览器里就没法验。这里给一个真数组 + 真读写（深浅拷贝照真接口的语义），
+     探针可以用 window.__KAMI_PREVIEW_CHAT 塞坏消息、再 STATE.emit('message_received', id) 看结果。 */
+  if (scriptId === 'presetmgr') {
+    w.__chat = window.__KAMI_PREVIEW_CHAT || (window.__KAMI_PREVIEW_CHAT = [
+      { message_id: 0, is_user: true, message: '（用户）旁白' },
+      { message_id: 1, is_user: false, message: '<nyaruko_think>想好了</nyaruko_think><content>正文写完整了</content>' }
+    ]);
+    w.getChatMessages = (range) => {
+      const arr = w.__chat;
+      let from = 0, to = arr.length - 1;
+      if (typeof range === 'number') { from = to = range; }
+      else if (typeof range === 'string' && range) {
+        if (range.indexOf('-') > 0) {
+          const seg = range.split('-');
+          from = parseInt(seg[0], 10) || 0;
+          to = seg[1] === '' ? arr.length - 1 : (parseInt(seg[1], 10) || 0);
+        } else { from = to = parseInt(range, 10) || 0; }
+      }
+      const out = [];
+      for (let i = Math.max(0, from); i <= to && i < arr.length; i++) { out.push(JSON.parse(JSON.stringify(arr[i]))); }
+      return out;
+    };
+    w.setChatMessages = async (payload, opts) => {
+      const list = Array.isArray(payload) ? payload : [payload];
+      for (const it of list) {
+        const m = w.__chat[it.message_id];
+        if (m) { Object.assign(m, it); }
+      }
+      console.log('消息替身| setChatMessages ' + list.length + ' 条 refresh=' + ((opts && opts.refresh) || 'affected') +
+        '| 第 ' + list.map(x => x.message_id).join(',') + ' 楼现在是：' +
+        list.map(x => String(w.__chat[x.message_id] && w.__chat[x.message_id].message).slice(-24)).join(' / '));
+      return true;
+    };
   }
   w.getAllEnabledScriptButtons = () => { const o = {}; for (const [i, l] of STATE.buttons) o[i] = l.map(b => ({ button_id: b.name, button_name: b.name })); return o; };
   w.getScriptTrees = () => [];

@@ -219,6 +219,7 @@ export function expandPanelGestures(root, code) {
   code = expandPresetCards(root, code);
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
+  code = expandTagsPure(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
@@ -276,6 +277,30 @@ export function expandSummarizePure(root, code) {
       '（内联会自我复制）：请在注释里避开这串字面量');
   }
   return code.replace(SUMMARIZE_PURE_MARK, () => src);
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 「自动标签处理」的纯逻辑（src/scripts/_tags-pure.js）：认出未闭合的标签、决定往哪儿补、
+ * 或者把配不上对的标签删掉。内联进 40-预设设置.js（面板那一页要用），同样挂在手势入口里，
+ * 构建与预览台两侧同时生效；离线单测（test/harness/tags-pure.mjs）直接 import 那份源码。
+ * 内联规则同上：只去掉行首的 export 前缀。
+ * ──────────────────────────────────────────────────────────── */
+export const TAGS_PURE_MARK = '/* @@KAMI_TAGS_PURE@@ */';
+
+export function tagsPureSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_tags-pure.js'), 'utf8');
+  return inlineModuleSource(raw, '_tags-pure.js');
+}
+
+/** 把脚本源码里的标签逻辑占位换成 _tags-pure.js 的源码（已去掉行首 export）。幂等。 */
+export function expandTagsPure(root, code) {
+  if (code.indexOf(TAGS_PURE_MARK) < 0) { return code; }
+  const src = tagsPureSource(root);
+  if (src.indexOf(TAGS_PURE_MARK) >= 0) {
+    throw new Error('_tags-pure.js 里出现了自己的占位符 ' + TAGS_PURE_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(TAGS_PURE_MARK, () => src);
 }
 
 /* ────────────────────────────────────────────────────────────

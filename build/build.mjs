@@ -372,4 +372,11 @@ if (dry) {
     console.error('  [中止] 状态栏悬浮球验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 自动标签处理：纯逻辑内联 + 新页位置 + MESSAGE_RECEIVED 接线（漏了只有真机才看得出来）。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-tags-pure.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 自动标签处理接线验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
 }
