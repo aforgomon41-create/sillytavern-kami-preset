@@ -90,9 +90,9 @@ ok(rc.indexOf('所有出现的角色名必须使用反引号包裹') < 0, '③ �
 
 /* ④ 代码：35 号 */
 const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
-const wrap = scripts.find(s => String(s.name).indexOf('角色名包裹') >= 0);
+const wrap = scripts.find(s => String(s.name).indexOf('提示词发送修改') >= 0);
 const wc = wrap ? String(wrap.content || '') : '';
-ok(!!wrap, '④ 产物里有「🏷 角色名包裹」脚本', wrap ? wrap.name : '找不到');
+ok(!!wrap, '④ 产物里有「✍️ 提示词发送修改」脚本', wrap ? wrap.name : '找不到');
 ok(wrap && wrap.enabled !== false, '④ 它是开着的（默认关掉的话这功能就等于不存在）');
 ok(wc.indexOf('tavern_events.CHAT_COMPLETION_PROMPT_READY') >= 0, '④ 订阅了「提示词已就绪」（真正干活的时机）');
 ['bt', 'ul', 'none'].forEach(id => {
