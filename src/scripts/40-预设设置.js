@@ -2009,12 +2009,16 @@
     manualHint: '手动对当前楼层执行一次检查和处理',
     statLabel: '本次会话',
     statNone: '等待处理',
-    confirmLead: '这次将处理当前楼层的这些标签：',
+    /* 确认窗短句：2026-09-30 由文案 Agent（Gemini）出稿。用户裁定「窗里报的是**这一次实际会改什么**」，
+       所以这些引子后面拼的是扫出来的真实条目，不是「我管哪些标签」那张表。 */
+    scanLead: '刚刚扫出的结果，请确认：',
+    closeLead: '要补上的结尾：',
+    removeLead: '要删掉的标签：',
+    strayNote: '另有 %n% 处落单的结尾标签没动。',
     confirmNote: '这会直接修改当前楼层的文字，操作没法撤销。',
     confirmOk: '确认执行',
     confirmCancel: '取消',
-    confirmNoTags: '这次没有要处理的标签。',
-    confirmNothing: '这一楼没有需要处理的标签。',
+    nothing: '这层很干净，不用改。',
     confirmDone: '处理完了，聊天记录里的显示会立刻更新。',
     confirmFail: '处理失败：',
     noFloor: '找不到可处理的楼层。',
@@ -2148,7 +2152,9 @@
       .then(function (r) { restore(); return !!r; }, function (e) { restore(); throw e; });
   }
 
-  /* 手动「处理当前楼层」：先只算不改 → 弹确认窗（窗里列出这次会处理哪些标签）→ 才写 */
+  /* 手动「处理当前楼层」：**先扫一遍** → 把这一次实际会改的标签列给用户看 → 确认才写。
+     用户 2026-09-30 点名：「确认窗是改成先扫描一遍，确认好这一次实际上会改哪些标签跟用户说一声，
+     而不是告诉用户会扫哪些标签」。所以窗里拼的是 res.changes（真实改动），不是登记表。 */
   async function tagFixCurrentFloor() {
     if (tagFixMode === 'off') { return; }
     if (!tagFixApiReady()) { toast('warning', TAGFIX_COPY.needApi); return; }
@@ -2157,18 +2163,27 @@
     var m = chatMsgAt(idx);
     if (!m) { toast('warning', TAGFIX_COPY.noFloor); return; }
     var res = tagFixText(m.message);
-    var ask = '<div style="text-align:left;line-height:1.6;">';
-    ask += '<div>' + tagFixEsc(TAGFIX_COPY.confirmLead) + '</div>';
-    ask += '<div style="margin:6px 0 8px;opacity:.85;">' + tagFixEsc(tagFixListText()) + '</div>';
-    ask += '<div style="opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
+    /* 扫出来没东西要改：不弹窗，只在面板上说一句 */
+    if (!res) {
+      if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.nothing); }
+      toast('success', TAGFIX_COPY.nothing);
+      return;
+    }
+    var rows = describeChanges(res, 8), closes = [], removes = [], i;
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i].kind === 'close') { closes.push(rows[i]); } else { removes.push(rows[i]); }
+    }
+    var ask = '<div style="text-align:left;line-height:1.65;">';
+    ask += '<div>' + tagFixEsc(TAGFIX_COPY.scanLead) + '</div>';
+    if (closes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.closeLead, closes); }
+    if (removes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.removeLead, removes); }
+    if (res.strayLeft && res.strayLeft.length) {
+      ask += '<div style="opacity:.8;">' + tagFixEsc(TAGFIX_COPY.strayNote.replace('%n%', String(res.strayLeft.length))) + '</div>';
+    }
+    ask += '<div style="margin-top:8px;opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
     ask += '</div>';
     var yes = await tagFixAsk(ask);
     if (!yes) { return; }
-    if (!res) {
-      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.confirmNothing; }
-      toast('success', TAGFIX_COPY.confirmNothing);
-      return;
-    }
     try {
       await setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
       tagFixStat.fixed++;
@@ -2179,18 +2194,23 @@
       log('手动处理第 ' + idx + ' 楼：' + tagFixStat.lastText);
     } catch (e) {
       toast('error', TAGFIX_COPY.confirmFail + ((e && e.message) || e));
-      if (tagFixEls && tagFixEls.stat) { tagFixEls.stat.textContent = TAGFIX_COPY.confirmFail + ((e && e.message) || e); }
+      if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.confirmFail + ((e && e.message) || e)); }
     }
   }
 
-  /* 确认窗里那份「这次会处理哪些标签」= 当前登记表（含自定义）逐个人话列出 */
-  function tagFixListText() {
-    var specs = tagFixSpecs(), out = [], i;
-    for (i = 0; i < specs.length; i++) {
-      out.push('<' + specs[i].tag + '> ' + specs[i].label);
+  /* 确认窗里的一组条目：引子 + 逐条「标签 + 用途」 */
+  function tagFixGroupHtml(lead, rows) {
+    var h = '<div style="margin:6px 0 0;">' + tagFixEsc(lead) + '</div><ul style="margin:2px 0 0 18px;padding:0;">';
+    for (var i = 0; i < rows.length; i++) {
+      h += '<li style="margin:1px 0;">' + tagFixEsc(rows[i].text) +
+        (rows[i].label ? ('　' + tagFixEsc(rows[i].label)) : '') + '</li>';
     }
-    return out.join('、');
+    return h + '</ul>';
   }
+
+  /* 确认窗里那份「这次会处理哪些标签」= 当前登记表（含自定义）逐个人话列出。
+     2026-09-30 用户裁定后**不再用它**：窗里改成报这一次实际会改的条目（describeChanges 的结果）。
+     留着这段注释是为了记住那张表去哪了 —— 要是哪天想做成「查看我管哪些标签」的入口，可以从这里捡回去。 */
 
   function setTagFixMode(id) {
     var spec = tagFixModeSpec(id);

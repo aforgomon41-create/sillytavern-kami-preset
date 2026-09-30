@@ -6,7 +6,7 @@
  * 它测的是 src/scripts/_tags-pure.js —— 构建期内联进 40-预设设置.js 的那份。
  * 这里只碰纯函数：给一段 AI 回复，看它认不认得出没闭合的标签、补在哪儿、删得对不对。
  */
-import { TAG_SPECS, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom } from '../../src/scripts/_tags-pure.js';
+import { TAG_SPECS, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges } from '../../src/scripts/_tags-pure.js';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -145,7 +145,31 @@ function ok(cond, label) { eq(!!cond, true, label); }
     '<content>正文<note>备注</note></content>', '⑫ 自定义标签不会被当成兄弟块分界');
 }
 
-/* ── ⑬ 面板上的文案与登记表联动 ── */{
+/* ── ⑭ 确认窗要报「这一次实际会改什么」（用户 2026-09-30 要求） ── */
+{
+  const r1 = repairTags('<content>甲', 'close');
+  eq(r1.changes.length, 1, '⑭ 一处改动 = 一条');
+  eq(r1.changes[0].kind + '|' + r1.changes[0].tag + '|' + r1.changes[0].from + '|' + r1.changes[0].label,
+    'close|content|</content>|正文块', '⑭ 补全条目说清补的是什么、补哪个标签');
+  const r2 = repairTags('<content>甲<summary>乙', 'close');
+  eq(r2.changes.map(c => c.from).join(','), '</summary>,</content>', '⑭ 两处补全各一条');
+  const r3 = repairTags('<content>甲<content>乙', 'close');
+  eq(r3.changes.length, 1, '⑭ 同一种改动合并成一条');
+  eq(r3.changes[0].n, 2, '⑭ 合并后带上条数');
+  eq(describeChanges(r3)[0].text, '</content> ×2', '⑭ 说人话时带 ×N');
+  const r4 = repairTags('<content>甲</options>乙', 'del');
+  eq(r4.changes.map(c => c.kind + ':' + c.from).join(','), 'remove:<content>,remove:</options>', '⑭ 删除条目给出被删掉的原文（分得清头尾）');
+  const r5 = repairTags('<content>甲<options>乙</content>丙</options>', 'close');
+  eq(r5.changes[0].from, '</options>', '⑭ 交错写法报的是补进去的那一个');
+  eq(r5.strayLeft.join(','), 'options', '⑭ 补全档另外报出没管的孤立闭合标签');
+  eq(describeChanges(repairTags('甲', 'close')).length, 0, '⑭ 没改动就没有条目');
+  const many = repairTags('<a1><a2><a3><a4><a5><a6><a7><a8><a9><a10>', 'close', TAG_SPECS.concat(
+    Array.from({ length: 10 }, (_, i) => ({ tag: 'a' + (i + 1), label: '自定义', sibling: false }))));
+  eq(describeChanges(many, 3).length, 4, '⑭ 超过上限时并成一句「还有 N 处」');
+  eq(describeChanges(many, 3)[3], '还有 7 处', '⑭ 那句的数目对得上');
+}
+
+/* ── ⑮ 面板上的文案与登记表联动 ── */{
   ok(tagListText().includes('<content>（正文块）'), '⑨ 标签清单由登记表生成');
   ok(tagListText().includes('<options>（行动选项）'), '⑨ 标签清单里有行动选项');
   ok(TAG_SPECS.length >= 10, '⑨ 登记表至少有 10 个标签');

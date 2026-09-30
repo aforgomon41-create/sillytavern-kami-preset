@@ -95,11 +95,17 @@ ok(code.indexOf('specsWithCustom(tagFixCustom)') >= 0 && code.indexOf('parseCust
   '⑦ 自定义标签并进登记表（parseCustomTags → specsWithCustom）');
 ok(code.indexOf('tagFixCustom: tagFixCustom.slice()') >= 0 && code.indexOf('saved[TAGFIX_CUSTOM_VAR]') >= 0,
   '⑦ 自定义标签存进脚本变量（读回来 + 写回去都在）');
-/* ⑦-c 确认窗：列标签 + 抬到面板上层 */
-ok(code.indexOf('tagFixAsk(') >= 0 && code.indexOf('confirmLead') >= 0 && code.indexOf('tagFixListText()') >= 0,
-  '⑦ 确认窗里列出了这次会处理哪些标签');
-ok(code.indexOf("root.style.zIndex = '1'") >= 0,
+/* ⑦-c 确认窗：先扫一遍、报这一次**实际会改**的条目（用户 2026-09-30 点名），再抬到面板上层 */
+ok(code.indexOf('tagFixAsk(') >= 0 && code.indexOf('describeChanges(res, 8)') >= 0,
+  '⑦ 确认窗拼的是扫描结果（describeChanges），不是登记表');
+ok(code.indexOf('tagFixGroupHtml(TAGFIX_COPY.closeLead') >= 0 &&
+  code.indexOf('tagFixGroupHtml(TAGFIX_COPY.removeLead') >= 0,
+  '⑦ 窗里分「要补上的结尾 / 要删掉的标签」两组列条目');
+ok(code.indexOf('res.changes') >= 0 && code.indexOf('tagFixListText') < 0,
+  '⑦ 已经不再往窗里塞「我管哪些标签」那张表（tagFixListText 已删）');
+ok(code.indexOf('root.style.zIndex = \'1\'') >= 0,
   '⑦ 弹确认窗时把面板临时压到下面（否则同层级 + DOM 顺序在后 = 被盖住，用户实测点名）');
+ok(code.indexOf('strayNote.replace') >= 0, '⑦ 有落单的结尾标签时在窗里说明没动它们');
 
 /* ⑧ 自动那一条路：事件、Promise、写回、重画 */
 ok(code.indexOf('tavern_events.MESSAGE_RECEIVED') >= 0, '⑧ 挂在 MESSAGE_RECEIVED 上');

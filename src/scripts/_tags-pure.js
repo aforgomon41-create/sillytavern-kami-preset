@@ -228,15 +228,20 @@ export function closeAt(text, item, scan, specs) {
 }
 
 /* 主函数：按档位改写文本。
-   返回 { text, mode, closed:[标签名], removed:[标签名], strayLeft:[标签名], changed } */
+   返回 { text, mode, closed:[标签名], removed:[标签名], strayLeft:[标签名], changes:[…], changed }
+   `changes` 是**这一次实际会动的东西**（用户 2026-09-30 要求确认窗报这个，而不是「我管哪些标签」）：
+     { kind:'close'|'remove', tag, label, from:<原文片段>, n:<合并后的条数> }
+   —— close 的 from 就是将要插进去的那个闭合标签（`</content>`）；
+      remove 的 from 是被删掉的那一段原文（`<options>` 或 `</options>`，一眼能看出删的是头还是尾）。 */
 export function repairTags(text, mode, specs) {
   var src = String(text == null ? '' : text);
-  var res = { text: src, mode: mode, closed: [], removed: [], strayLeft: [], changed: false };
+  var res = { text: src, mode: mode, closed: [], removed: [], strayLeft: [], changes: [], changed: false };
   if (mode !== 'close' && mode !== 'del') { return res; }
   var scan = scanTags(src, specs);
+  var i, spec;
   if (mode === 'close') {
     /* 没闭合的：由内向外补（列表里后面的先开，所以倒着补位置从大到小，插入不会互相挪位） */
-    var todo = [], i;
+    var todo = [];
     for (i = 0; i < scan.unclosed.length; i++) {
       var it = scan.unclosed[i];
       todo.push({ at: closeAt(src, it, scan, specs), insert: '</' + it.tag + '>', tag: it.tag });
@@ -251,21 +256,56 @@ export function repairTags(text, mode, specs) {
     /* 补全模式不动孤立的闭合标签，只把它们报出来（面板上提醒用户可以切档位） */
     for (i = 0; i < scan.stray.length; i++) { res.strayLeft.push(scan.stray[i].tag); }
     res.changed = !!res.closed.length;
-    return res;
+    /* changes 按**它在最终文本里的先后**排（人读的顺序）：位置小的在前；
+       同一个位置的，后插进去的反而更靠前（内层先补）。插入本身是倒着做的，所以这里要重排。 */
+    var ordered = todo.map(function (t, idx) { return { at: t.at, seq: idx, insert: t.insert, tag: t.tag }; });
+    ordered.sort(function (a, b) { return (a.at !== b.at) ? (a.at - b.at) : (b.seq - a.seq); });
+    for (i = 0; i < ordered.length; i++) {
+      spec = tagSpecOf(ordered[i].tag, specs);
+      res.changes.push({ kind: 'close', tag: ordered[i].tag, label: (spec && spec.label) || '', from: ordered[i].insert, n: 1 });
+    }
+  } else {
+    /* 删除模式：配不上对的开始标签与孤立的闭合标签，删掉标签本身，内容原样留着 */
+    var cuts = [], c;
+    for (c = 0; c < scan.unclosed.length; c++) { cuts.push([scan.unclosed[c].start, scan.unclosed[c].end, scan.unclosed[c].tag]); }
+    for (c = 0; c < scan.stray.length; c++) { cuts.push([scan.stray[c].start, scan.stray[c].end, scan.stray[c].tag]); }
+    /* 先按**文档先后**留一份给 changes（人读的顺序），再倒着删（倒着删才不会挪动前面的位置） */
+    var inDoc = cuts.slice().sort(function (a, b) { return a[0] - b[0]; });
+    for (c = 0; c < inDoc.length; c++) {
+      spec = tagSpecOf(inDoc[c][2], specs);
+      res.changes.push({ kind: 'remove', tag: inDoc[c][2], label: (spec && spec.label) || '', from: src.slice(inDoc[c][0], inDoc[c][1]), n: 1 });
+    }
+    cuts.sort(function (a, b) { return b[0] - a[0]; });
+    var out2 = src;
+    for (c = 0; c < cuts.length; c++) {
+      out2 = out2.slice(0, cuts[c][0]) + out2.slice(cuts[c][1]);
+      res.removed.push(cuts[c][2]);
+    }
+    res.text = out2;
+    res.changed = !!res.removed.length;
   }
-  /* 删除模式：配不上对的开始标签与孤立的闭合标签，删掉标签本身，内容原样留着 */
-  var cuts = [], c;
-  for (c = 0; c < scan.unclosed.length; c++) { cuts.push([scan.unclosed[c].start, scan.unclosed[c].end, scan.unclosed[c].tag]); }
-  for (c = 0; c < scan.stray.length; c++) { cuts.push([scan.stray[c].start, scan.stray[c].end, scan.stray[c].tag]); }
-  cuts.sort(function (a, b) { return b[0] - a[0]; });
-  var out2 = src;
-  for (c = 0; c < cuts.length; c++) {
-    out2 = out2.slice(0, cuts[c][0]) + out2.slice(cuts[c][1]);
-    res.removed.push(cuts[c][2]);
+  /* 同一档位里同一种改动合并计数（两处都补 </content> 就写成一条 ×2），确认窗才看得清 */
+  var merged = [], seen = {};
+  for (i = 0; i < res.changes.length; i++) {
+    var ch = res.changes[i], key = ch.kind + '|' + ch.tag + '|' + ch.from;
+    if (seen[key] === undefined) { seen[key] = merged.length; merged.push({ kind: ch.kind, tag: ch.tag, label: ch.label, from: ch.from, n: 1 }); }
+    else { merged[seen[key]].n++; }
   }
-  res.text = out2;
-  res.changed = !!res.removed.length;
+  res.changes = merged;
   return res;
+}
+
+/* 把 changes 说成人话（一行一条），面板的确认窗直接列出来。
+   limit 是保险丝：真出现离谱的一堆改动时只列前几条，其余并成一句「还有 N 处」。 */
+export function describeChanges(res, limit) {
+  var max = limit || 8, out = [], i;
+  if (!res || !res.changes || !res.changes.length) { return out; }
+  for (i = 0; i < res.changes.length; i++) {
+    var ch = res.changes[i];
+    if (i >= max) { out.push('还有 ' + (res.changes.length - max) + ' 处'); break; }
+    out.push({ kind: ch.kind, text: ch.from + (ch.n > 1 ? (' ×' + ch.n) : ''), label: ch.label });
+  }
+  return out;
 }
 
 /* 给面板用的一句话描述：把结果说成人话 */

@@ -1,0 +1,1 @@
+(function(){try{window.__POPUP_LOG=[];var pane=document.querySelector('#kami-preset-panel [data-kami-pane="BOX"]');var floor=pane.querySelector('[data-kami-act="tagfix-floor"]');if(floor){floor.click();}return JSON.stringify({phase:'again-clean'});}catch(e){return JSON.stringify({error:String((e&&e.message)||e)});}})()

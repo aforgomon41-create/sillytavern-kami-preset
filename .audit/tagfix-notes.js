@@ -1,0 +1,1 @@
+(function(){try{var l=window.__POPUP_LOG||[];var p=document.querySelector('#kami-preset-panel [data-kami-pane="BOX"]');var notes=Array.prototype.map.call(p.querySelectorAll('.kami-card-note'),function(n){return n.textContent.slice(0,34);});return JSON.stringify({popups:l.length,notes:notes});}catch(e){return JSON.stringify({error:String((e&&e.message)||e)});}})()
