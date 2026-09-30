@@ -145,6 +145,8 @@ def scaled(rgba_arr, size, circle=False):
 
 cut = scaled(rgba, CUT_SIZE)
 cut.save(os.path.join(HERE, 'icon-cutout.png'))
+# 全分辨率版（1254 宽）留给用户自己拿去用（README / 别处当图标），不参与构建内联
+Image.fromarray(rgba.astype(np.uint8), 'RGBA').save(os.path.join(HERE, 'icon-cutout-full.png'))
 ball = scaled(rgba, BALL_SIZE, circle=True)
 ball.save(os.path.join(HERE, 'icon-ball.png'))
 for f in ('icon-cutout.png', 'icon-ball.png'):
