@@ -2504,6 +2504,14 @@
     gRowTxt.appendChild(gValTxt);
     gBody.appendChild(gRowTxt);
 
+    /* ⚠️ 事件必须在这里绑上。卡片渲染出来不等于功能在：2026-10-01 用户真机报
+       「开关点不动、内容关掉面板就丢」，根因就是这两个函数写好了却没有任何地方调用
+       （守卫原来只查 data-kami-godcmd-* 钩子存在，查不出「没人听」）。 */
+    gOn.addEventListener('change', function () { toggleGodCmd(); });
+    gTxt.addEventListener('input', function () { setGodCmdText(gTxt.value); });
+    /* blur 再补一次：有些输入法与粘贴只触发 change，不触发 input */
+    gTxt.addEventListener('change', function () { setGodCmdText(gTxt.value); });
+
     gBox.appendChild(gBody);
     pane.appendChild(gBox);
 

@@ -962,6 +962,61 @@ function installSpresetHost(ST) {
   step('装预设设置面板');
   await loadScript('/dev/40-预设设置.js', 'presetmgr');
   step('预设设置已装');
+  /* 常驻指令 · 面板卡片行为探针（2026-10-01 加，用户真机报「开关无效、内容丢」之后补）：
+     上面那条探针走的是注入链路，**不碰面板**；而真机这次炸的恰恰是面板 ——
+     卡片渲染出来了、开关却点不动，因为事件没绑。所以这条按真人路径走一遍：
+     往输入框打字 → 点开关 → 切走 tab 再切回来 → 再点一次关掉，四步都看全局变量与控件本身。 */
+  if (window.KamiNameWrap && window.KamiPreset) {
+    step('常驻指令卡片探针');
+    try {
+      window.KamiPreset.open();
+      await new Promise(r => setTimeout(r, 500));
+      const boxTab = () => document.querySelector('#kami-preset-panel [data-kami-tab="BOX"]');
+      const modelTab = () => document.querySelector('#kami-preset-panel [data-kami-tab="model"]');
+      if (boxTab()) { boxTab().click(); }
+      await new Promise(r => setTimeout(r, 350));
+      const txt = () => document.querySelector('#kami-preset-panel [data-kami-godcmd-text]');
+      const sw = () => document.querySelector('#kami-preset-panel [data-kami-godcmd-on]');
+      if (!txt() || !sw()) {
+        console.log('常驻指令卡片探针|✗ 卡片没渲染出控件（输入框/开关缺一个）');
+      } else {
+        const G = window.SillyTavern.getContext().extensionSettings.variables.global;
+        const SAY = '永远用简体中文回复。';
+        G.kami_god_cmd_on = '0'; G.kami_god_cmd = '';
+        await new Promise(r => setTimeout(r, 200));
+
+        txt().value = SAY;
+        txt().dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 250));
+        const okType = G.kami_god_cmd === SAY;
+
+        sw().click();
+        await new Promise(r => setTimeout(r, 250));
+        const okOn = G.kami_god_cmd_on === '1' && sw().checked === true;
+
+        /* 切走再切回：卡片要按全局变量把自己重画出来（用户就是关掉面板再打开，内容没了） */
+        if (modelTab()) { modelTab().click(); }
+        await new Promise(r => setTimeout(r, 250));
+        if (boxTab()) { boxTab().click(); }
+        await new Promise(r => setTimeout(r, 350));
+        const okBack = (txt() && txt().value === SAY) && (sw() && sw().checked === true);
+
+        if (sw()) { sw().click(); }
+        await new Promise(r => setTimeout(r, 250));
+        const okOff = G.kami_god_cmd_on === '0' && sw().checked === false;
+
+        G.kami_god_cmd = '';
+        const bad = [okType, okOn, okBack, okOff].filter(x => !x).length;
+        console.log('常驻指令卡片探针|打字存档=' + (okType ? '✓' : '✗') +
+          ' 开关生效=' + (okOn ? '✓' : '✗') +
+          ' 切回还在=' + (okBack ? '✓' : '✗') +
+          ' 能关掉=' + (okOff ? '✓' : '✗') +
+          '|' + (bad ? '✗ ' + bad + ' 项' : '四项全 OK'));
+      }
+    } catch (e) {
+      console.log('常驻指令卡片探针|✗ ' + ((e && e.message) || e));
+    }
+  }
   /* ?merge=1：排好夹具之后（此时 70 与 40 都在跑），真发一次 KamiUpdate.check(true)。
      冲突项会经 KamiPreset.openMergeReview 打开「更新合并」裁决页 —— 由真人/自动化去点
      「应用并完成更新」；点完后 importRawPreset 的替身会把核对读数打进 #mdiag。 */

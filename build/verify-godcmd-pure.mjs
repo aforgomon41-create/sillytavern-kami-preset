@@ -85,7 +85,18 @@ ok(/appendGodCmd\(/.test(wrapCode), '⑥ 追加走 appendGodCmd（幂等，一�
 /* ⑦ 面板卡片：挂在「其他功能」页，默认折叠，用现成零件 */
 ok(barePanel.indexOf('data-kami-godcmd-on') >= 0 && barePanel.indexOf('data-kami-godcmd-text') >= 0,
   '⑦ 面板有输入框与开关的钩子（data-kami-godcmd-*）');
-ok(panelCode.indexOf('kami-collapse') >= 0, '⑦ 那张卡是折叠卡（contract §4.3 现成机制）');
+ok(barePanel.indexOf('kami-collapse') >= 0, '⑦ 那张卡是折叠卡（contract §4.3 现成机制）');
+
+/* ⑧ **钩子在、没人听**也算没接上 —— 2026-10-01 真机就是这么炸的：卡片渲染出来了，
+     toggleGodCmd / setGodCmdText 也写好了，可全项目没有任何一处调用它们，
+     表现是「开关点不动、内容关掉面板就丢」。所以下面数的是**调用次数**：
+     定义算一次，至少还要再有一次真调用（addEventListener 里那次）。 */
+const callToggle = (barePanel.match(/toggleGodCmd\(/g) || []).length;
+const callSetText = (barePanel.match(/setGodCmdText\(/g) || []).length;
+ok(callToggle >= 2, '⑧ toggleGodCmd 有真调用（不是只有定义）', '出现 ' + callToggle + ' 次');
+ok(callSetText >= 2, '⑧ setGodCmdText 有真调用（不是只有定义）', '出现 ' + callSetText + ' 次');
+ok(/addEventListener\('change'/.test(barePanel) && /addEventListener\('input'/.test(barePanel),
+  '⑧ 开关挂了 change、输入框挂了 input/change（只写函数不挂事件同样不生效）');
 
 console.log(bad ? ('★ 验证失败 ' + bad + ' 条') : '常驻附加指令接线验证全部通过（产物 ' + path.basename(p) + '）');
 process.exit(bad ? 1 : 0);
