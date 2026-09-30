@@ -344,6 +344,13 @@ if (dry) {
     console.error('  [中止] 角色名包裹验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 常驻附加指令：纯逻辑内联进 35 号、注入原地改 content、面板那一对钩子都在。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-godcmd-pure.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 常驻附加指令验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
   /* 继承旧预设设置：复用同一台合并引擎、读对 API、先备份再覆盖。 */
   try {
     execFileSync(process.execPath, [path.join(__dirname, 'verify-inherit.mjs'), outPath], { stdio: 'inherit' });

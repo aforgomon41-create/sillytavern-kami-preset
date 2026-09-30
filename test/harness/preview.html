@@ -892,6 +892,51 @@ function installSpresetHost(ST) {
         '|变量=' + JSON.stringify(g) + '|' + (bad ? '✗ ' + bad + ' 项' : '三档与文生图保护全部 OK'));
     })();
   }
+  /* 常驻附加指令探针（2026-09-30）：和上面同一条真链路 —— emit「提示词已就绪」→
+     脚本把 <god>…</god> 包块**原地**接到最后一条 user 消息末尾。四件事必须同时成立：
+     ① 开着、最后一条是 user → 接上去了，且包块形状是「换行 + <god> + 换行 + 正文 + 换行 + </god>」；
+     ② 同一趟再 emit 一次 → 不叠段（这个事件一轮会派发不止一次，数 token 那趟也在）；
+     ③ 最后一条是 system（60-压缩 的 generateRaw 走的就是这条）→ 一个字都不动；
+     ④ 关掉开关 → 什么都不加。开关与正文都在全局变量里，和 40 号那张卡读写的是同两个键。 */
+  if (window.KamiNameWrap) {
+    step('常驻附加指令探针');
+    (function () {
+      const G = window.SillyTavern.getContext().extensionSettings.variables.global;
+      const TXT = '永远用简体中文回复。';
+      const BASE = '我推开门走了进去。';
+      const BLOCK = '\n<god>\n' + TXT + '\n</god>';
+      let bad = 0;
+      const fire = (chat) => STATE.emit('chat_completion_prompt_ready', { chat, dryRun: true });
+
+      G.kami_god_cmd_on = '1';
+      G.kami_god_cmd = TXT;
+
+      /* ① 最后一条是 user → 接上去，形状还得对 */
+      const c1 = [{ role: 'user', content: BASE }];
+      fire(c1);
+      const okAppend = c1[0].content === BASE + BLOCK;
+      /* ② 同一趟再 emit 一次 → 不许叠成两段 */
+      fire(c1);
+      const okOnce = c1[0].content === BASE + BLOCK;
+      /* ③ 最后一条是 system → 一个字都不动（压缩摘要那条路） */
+      const c3 = [{ role: 'user', content: BASE }, { role: 'system', content: '总结用' }];
+      fire(c3);
+      const okSkip = c3[1].content === '总结用' && c3[0].content === BASE;
+      /* ④ 关掉开关 → 什么都不加 */
+      G.kami_god_cmd_on = '0';
+      const c4 = [{ role: 'user', content: BASE }];
+      fire(c4);
+      const okOff = c4[0].content === BASE;
+
+      [okAppend, okOnce, okSkip, okOff].forEach(x => { if (!x) { bad++; } });
+      G.kami_god_cmd = '';
+      console.log('常驻附加指令探针|追加=' + (okAppend ? '✓' : '✗') +
+        ' 不叠段=' + (okOnce ? '✓' : '✗') +
+        ' system不碰=' + (okSkip ? '✓' : '✗') +
+        ' 关闭不动=' + (okOff ? '✓' : '✗') +
+        '|' + (bad ? '✗ ' + bad + ' 项' : '四项全 OK'));
+    })();
+  }
   step('等皮肤管理就绪');
   await new Promise(r => setTimeout(r, 1800));
   step('建消息楼层');

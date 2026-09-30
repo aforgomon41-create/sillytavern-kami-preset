@@ -2041,10 +2041,29 @@
     noPopup: '因为弹不出确认提示，所以什么都没改。',
     needApi: '这个功能需要酒馆助手提供消息读写接口，当前版本拿不到。'
   };
+  /* 「🧰 其他功能 → 常驻附加指令」那张卡的文案。**用户 2026-09-30 本人逐字给定**，
+     实现者一字未改（留档见 design/copy/godcmd-copy.json）。它管的是 35 号脚本里那套注入，
+     面板只负责读写两个全局变量：kami_god_cmd（正文）/ kami_god_cmd_on（'1' 开）。
+     为什么不存脚本变量：脚本变量是每个脚本各自一份，35 号读不到（跨脚本只能走全局变量）。 */
+  var GODCMD_COPY = {
+    title: '常驻附加指令',
+    note: '打开后，你每发一条消息，脚本都会把下面这段内容接在最后，一起发给模型。' +
+      '它只进提示词，聊天记录里看不见，也不会动你的输入框。' +
+      '这段内容会用预设里的最高权限标签包起来，适合把长期不变的规矩钉住，不用每轮手打。' +
+      '内容留空就等于没开。',
+    switchLabel: '开关',
+    modeOff: '关闭',
+    modeOn: '开启',
+    textLabel: '指令内容',
+    textHint: '会包在 <god> 标签里，接在你每条消息的末尾',
+    emptyWarn: '内容还是空的，先填点什么再打开'
+  };
+
   var tagFixMode = 'off';
   var tagFixCustom = [];                       // 用户自定义标签（面板上那个输入框）
   var tagFixStat = { fixed: 0, lastFloor: -1, lastText: '' };
   var tagFixEls = null;
+  var godcmdEls = null;                     // 「常驻附加指令」那张卡的元素（每次渲染重建）
   var tagFixCurFloor = -1;                     // 「当前楼层」= 用户最后点过的那一楼（没有就退回最新一楼）
 
   function tagFixModeSpec(id) {
@@ -2293,6 +2312,72 @@
       (tagFixStat.lastFloor + 1) + ' 楼 ' + tagFixStat.lastText + '）';
   }
 
+  /* ───────── 常驻附加指令（第二张卡；第一张是「自动标签处理」） ─────────
+     档位与文本存在**酒馆全局变量**里：真正的注入在 35-提示词发送修改.js（那边只读），
+     面板这里只读写；两边共用的键名写死在这两处，改一个另一个也得改。 */
+  var VAR_GODCMD = 'kami_god_cmd';
+  var VAR_GODCMD_ON = 'kami_god_cmd_on';
+
+  function godVarRead(name) {
+    var ctx = stCtx();
+    if (!ctx) { return null; }
+    try {
+      if (ctx.variables && ctx.variables.global && typeof ctx.variables.global.get === 'function') {
+        var v = ctx.variables.global.get(name);
+        return (v === undefined || v === null) ? null : String(v);
+      }
+    } catch (e) { }
+    try {
+      var g = ctx.extensionSettings && ctx.extensionSettings.variables && ctx.extensionSettings.variables.global;
+      if (g && Object.prototype.hasOwnProperty.call(g, name)) { return String(g[name]); }
+    } catch (e) { }
+    return null;
+  }
+
+  function godVarWrite(name, value) {
+    var ctx = stCtx();
+    if (!ctx) { return false; }
+    try {
+      if (ctx.variables && ctx.variables.global && typeof ctx.variables.global.set === 'function') {
+        ctx.variables.global.set(name, value);
+      } else {
+        if (!ctx.extensionSettings) { return false; }
+        if (!ctx.extensionSettings.variables) { ctx.extensionSettings.variables = {}; }
+        if (!ctx.extensionSettings.variables.global) { ctx.extensionSettings.variables.global = {}; }
+        ctx.extensionSettings.variables.global[name] = value;
+      }
+    } catch (e) {
+      log('写全局变量失败：' + ((e && e.message) || e));
+      return false;
+    }
+    try { if (typeof ctx.saveSettingsDebounced === 'function') { ctx.saveSettingsDebounced(); } } catch (e) { }
+    return true;
+  }
+
+  /* 两个全局变量的当前值。开关缺省即关（拿不到酒馆上下文也按关处理：绝不假装开着）。 */
+  function readGodCmd() {
+    return { on: godVarRead(VAR_GODCMD_ON) === '1', text: (godVarRead(VAR_GODCMD) || '') };
+  }
+  function toggleGodCmd(force) {
+    var want = (force === undefined) ? !readGodCmd().on : !!force;
+    /* 用户点名：内容还是空的就先别打开，并说清原因（两处都要照顾到） */
+    if (want && !readGodCmd().text.replace(/\s/g, '')) {
+      toast('warning', GODCMD_COPY.emptyWarn);
+      paintGodCmdCard();
+      return false;
+    }
+    godVarWrite(VAR_GODCMD_ON, want ? '1' : '0');
+    log('常驻附加指令 → ' + (want ? '开启' : '关闭'));
+    paintGodCmdCard();
+    return true;
+  }
+  function setGodCmdText(text) {
+    var v = (text === null || text === undefined) ? '' : String(text);
+    godVarWrite(VAR_GODCMD, v);
+    log('常驻附加指令正文已保存（' + v.length + ' 字）');
+    paintGodCmdCard();
+  }
+
   function renderToolboxTab(pane) {
     tagFixEls = null;
 
@@ -2370,6 +2455,74 @@
 
     tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp };
     paintTagFixStat();
+
+    /* ② 常驻附加指令（用户 2026-09-30 裁定：固定放这一页的第二张卡）。
+       默认折叠，写法与第一张卡逐字同构（契约 §4.3）：折叠体始终在 DOM，只切 data-kami-open。 */
+    godcmdEls = null;
+    var gBox = mk('div', 'kami-card kami-collapse');
+    gBox.setAttribute('data-kami-open', '0');
+    var gHead = mk('div', 'kami-card-head kami-head kami-collapse-head');
+    gHead.setAttribute('data-kami-collapse-head', '1');
+    gHead.appendChild(mk('span', 'kami-chev', '▸'));
+    gHead.appendChild(mk('span', 'kami-card-title', GODCMD_COPY.title));
+    gHead.appendChild(noteMark(GODCMD_COPY.note));
+    var gChip = mk('span', 'kami-chip');
+    gHead.appendChild(gChip);
+    gBox.appendChild(gHead);
+
+    var gNoteBox = noteText(GODCMD_COPY.note);
+    gNoteBox.hidden = true;
+    gBox.appendChild(gNoteBox);
+
+    var gBody = mk('div', 'kami-card-body kami-collapse-body');
+    /* 设置项一行（契约 §4.2：开关用现成的 .kami-switch 系列）。 */
+    var gRowSw = mk('div', 'kami-field');
+    gRowSw.appendChild(mk('span', 'kami-field-label', GODCMD_COPY.switchLabel));
+    var gValSw = mk('span', 'kami-field-value');
+    var gSw = mk('label', 'kami-switch');
+    var gOn = mk('input', 'kami-switch-input');
+    gOn.type = 'checkbox';
+    gOn.setAttribute('data-kami-godcmd-on', '1');
+    gOn.setAttribute('aria-label', GODCMD_COPY.switchLabel);
+    var gTrack = mk('span', 'kami-switch-track');
+    gTrack.appendChild(mk('span', 'kami-switch-knob'));
+    gSw.appendChild(gOn); gSw.appendChild(gTrack);
+    gValSw.appendChild(gSw);
+    gRowSw.appendChild(gValSw);
+    gBody.appendChild(gRowSw);
+
+    /* 指令正文。空内容时也让它可写（否则「先填内容再打开」这条路走不通）；
+       开着的时候才置只读，改内容要先关掉开关 —— 用户点名要「内容留空就等于没开」。 */
+    var gRowTxt = mk('div', 'kami-field');
+    gRowTxt.appendChild(mk('span', 'kami-field-label', GODCMD_COPY.textLabel));
+    var gValTxt = mk('span', 'kami-field-value');
+    var gTxt = mk('textarea', 'kami-textarea');
+    gTxt.setAttribute('data-kami-godcmd-text', '1');
+    gTxt.setAttribute('placeholder', GODCMD_COPY.textHint);
+    gTxt.setAttribute('aria-label', GODCMD_COPY.textLabel);
+    gValTxt.appendChild(gTxt);
+    gRowTxt.appendChild(gValTxt);
+    gBody.appendChild(gRowTxt);
+
+    gBox.appendChild(gBody);
+    pane.appendChild(gBox);
+
+    godcmdEls = { box: gBox, head: gHead, chip: gChip, on: gOn, txt: gTxt };
+    paintGodCmdCard();
+  }
+
+  /* 卡片上的开关态与两个控件同步。读的是**全局变量**（唯一真值），不是内存里的影子状态。 */
+  function paintGodCmdCard() {
+    var cur = readGodCmd();
+    if (!godcmdEls) { return; }
+    if (godcmdEls.on) { godcmdEls.on.checked = cur.on; }
+    if (godcmdEls.chip) { godcmdEls.chip.textContent = cur.on ? GODCMD_COPY.modeOn : GODCMD_COPY.modeOff; }
+    if (godcmdEls.txt) {
+      if (document.activeElement !== godcmdEls.txt) { godcmdEls.txt.value = cur.text; }
+      /* 只置只读、不置 disabled：契约 §4.2 的置灰规则写的是 textarea[readonly]，
+         用 disabled 反而顶不掉皮肤给 readonly 的样式。 */
+      godcmdEls.txt.readOnly = cur.on;
+    }
   }
 
   function renderAboutTab(pane) {

@@ -220,6 +220,7 @@ export function expandPanelGestures(root, code) {
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
   code = expandTagsPure(root, code);
+  code = expandGodCmdPure(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
@@ -301,6 +302,31 @@ export function expandTagsPure(root, code) {
       '（内联会自我复制）：请在注释里避开这串字面量');
   }
   return code.replace(TAGS_PURE_MARK, () => src);
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 「常驻附加指令」的纯逻辑（src/scripts/_godcmd-pure.js）：把用户那段话包成 <god>…</god>、
+ * 判断最后一条是不是 user、幂等地接到正文末尾。内联进 35-提示词发送修改.js（面板那张卡
+ * 只读写全局变量，不碰这套逻辑），同样挂在手势入口里，构建与预览台两侧同时生效；
+ * 离线单测（test/harness/godcmd-pure.mjs）直接 import 那份源码。
+ * 内联规则同上：只去掉行首的 export 前缀。
+ * ──────────────────────────────────────────────────────────── */
+export const GODCMD_PURE_MARK = '/* @@KAMI_GODCMD_PURE@@ */';
+
+export function godcmdPureSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_godcmd-pure.js'), 'utf8');
+  return inlineModuleSource(raw, '_godcmd-pure.js');
+}
+
+/** 把脚本源码里的附加指令逻辑占位换成 _godcmd-pure.js 的源码（已去掉行首 export）。幂等。 */
+export function expandGodCmdPure(root, code) {
+  if (code.indexOf(GODCMD_PURE_MARK) < 0) { return code; }
+  const src = godcmdPureSource(root);
+  if (src.indexOf(GODCMD_PURE_MARK) >= 0) {
+    throw new Error('_godcmd-pure.js 里出现了自己的占位符 ' + GODCMD_PURE_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(GODCMD_PURE_MARK, () => src);
 }
 
 /* ────────────────────────────────────────────────────────────

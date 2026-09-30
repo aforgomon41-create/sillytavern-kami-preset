@@ -33,9 +33,11 @@
  *    角色名样式」那一行与 50 号的引导页都在读它，改名没有用户可见收益、只会多冒一份风险。
  * ========================================================================== */
 (function () {
-  var VERSION = '0.1';
+  var VERSION = '1.0';
   var VAR_MODE = 'kami_name_wrap';        /* 档位（唯一真值来源） */
   var VAR_RULE = 'kami_name_wrap_rule';   /* 输出规范那句的措辞（由档位派生） */
+  var VAR_GODCMD = 'kami_god_cmd';        /* 常驻附加指令的正文（面板在 40 号里写） */
+  var VAR_GODCMD_ON = 'kami_god_cmd_on';  /* 它的开关：'1' 开 / 其余（含缺省）关 */
   var MARK_RE = /<n>([^<]*)<\/n>/g;
   var SKIP_MARK = '<image_task>';         /* 文生图条目指纹：见到它整条不改 */
   var DEFAULT_MODE = 'bt';
@@ -77,6 +79,11 @@
     } catch (e) { }
     return null;
   }
+
+  /* ── 「常驻附加指令」的纯逻辑（唯一真相：src/scripts/_godcmd-pure.js，构建期内联） ──
+     它的判据与包块形状全在那份模块里（可离线单测），本脚本只负责：读两个全局变量开关、
+     在提示词已就绪时把包块**原地接到最后一条 user 消息末尾**。面板在 40 号「🧰 其他功能」。 */
+  /* @@KAMI_GODCMD_PURE@@ */
 
   /* ───────── 全局变量：优先走酒馆自己的通道（st-context.js:204 的 variables.global） ───────── */
   function readGlobal(name) {
@@ -157,6 +164,7 @@
         }
         m.content = applyMode(m.content, mode, counter);
       }
+      injectGodCmd(data);
       if (counter.n > 0 || skipped > 0) {
         log('本次替换 ' + counter.n + ' 处角色名标记 → ' + mode.label +
           (skipped ? ('；跳过 ' + skipped + ' 条文生图条目') : '') + (data && data.dryRun ? '（试算）' : ''));
@@ -166,11 +174,40 @@
     }
   }
 
+  /* ───────── 常驻附加指令：把用户那段话接到最后一条 user 消息末尾 ─────────
+     开关与文本存在**全局变量**里（kami_god_cmd_on / kami_god_cmd），面板在 40 号那张卡里写，
+     这里只读 —— 跨脚本只能走全局变量（脚本变量是每个脚本各自一份，读不到别的脚本的）。
+     ⚠️ 必须**原地改 content**：写成 data.chat = [...] 整体替换会静默失效
+     （酒馆 openai.js 派发后回读的是它自己闭包里的数组），还会把上面角色名包裹的改动一起丢掉。
+     ⚠️ 本函数也挂在 dryRun（酒馆自己数 token 的那趟）上：照改，改的是当趟临时数组；
+     幂等由模块的 appendGodCmd 保证，一轮派发两次也不会叠成两段。 */
+  function injectGodCmd(data) {
+    try {
+      if (readGlobal(VAR_GODCMD_ON) !== '1') { return; }
+      var text = readGlobal(VAR_GODCMD);
+      if (!text || !shouldInject(data && data.chat)) { return; }
+      var last = data.chat[data.chat.length - 1];
+      if (typeof last.content !== 'string') { return; }
+      var next = appendGodCmd(last.content, text);
+      if (next === last.content) { return; }
+      last.content = next;
+      /* 这条属于另一件事，不能顶着「[角色名包裹]」前缀 —— 用户看控制台会以为是包裹功能 */
+      console.log('[常驻指令] 已把附加指令接到最后一条 user 消息末尾（' + text.length + ' 字）');
+    } catch (e) {
+      warn('追加常驻附加指令失败：' + ((e && e.message) || e));
+    }
+  }
+
   var unsubs = [];
   function subscribe() {
     try {
       if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined' && tavern_events.CHAT_COMPLETION_PROMPT_READY) {
-        unsubs.push(eventOn(tavern_events.CHAT_COMPLETION_PROMPT_READY, onPromptReady));
+        /* 新老版本 eventOn 的返回值形状不一样：有的返回函数、有的返回带 .stop() 的对象。
+           统一包成 { stop } 再收，否则注销时 .stop() 取不到，而且会被 catch 吞掉（既有缺陷）。
+           写法照 40-预设设置.js 的 bindTagFixEvents（那边两种形状都认）。 */
+        var stop = eventOn(tavern_events.CHAT_COMPLETION_PROMPT_READY, onPromptReady);
+        if (typeof stop === 'function') { unsubs.push({ stop: stop }); }
+        else if (stop && typeof stop.stop === 'function') { unsubs.push(stop); }
         log('已订阅「提示词已就绪」');
       } else {
         warn('拿不到 eventOn / tavern_events.CHAT_COMPLETION_PROMPT_READY：角色名包裹切换不会生效');
