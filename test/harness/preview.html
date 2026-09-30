@@ -922,6 +922,13 @@ function installSpresetHost(ST) {
     try { await loadScript('/dev/60-压缩.js', 'compress'); }
     catch (e) { console.log('面板装载失败|60-压缩|' + ((e && e.message) || e)); }
   }
+  /* 状态栏（实验）：meta.json 里默认关闭，但那说的是**预设里的开关**；
+     预览台要看它就得手动装一次（?nostatus=1 可以不装）。 */
+  if (noload.indexOf('status') < 0 && params.get('nostatus') !== '1') {
+    step('装状态栏悬浮球');
+    try { await loadScript('/dev/80-状态栏.js', 'statusbar'); }
+    catch (e) { console.log('装载失败|80-状态栏|' + ((e && e.message) || e)); }
+  }
   step('等面板就绪');
   await new Promise(r => setTimeout(r, 1200));
   if (params.get('presetclosed') !== '1') { try { window.KamiPreset.open(); } catch (e) { } }

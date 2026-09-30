@@ -149,7 +149,7 @@ function builtScript(file) {
   return (i >= 0 && scripts[i]) ? scripts[i].content : null;
 }
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   let p = decodeURIComponent(url.pathname);
   const send = (code, type, body) => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
@@ -223,5 +223,5 @@ if (OPEN_LAN) {
   urls.forEach(u => console.log('   ' + u + 'test/harness/preview.html?iosdiag=1'));
   if (!urls.length) { console.log('   （没找到局域网 IPv4 地址）'); }
 }
-.listen(PORT, OPEN_LAN ? '0.0.0.0' : '127.0.0.1',
+server.listen(PORT, OPEN_LAN ? '0.0.0.0' : '127.0.0.1',
   () => console.log('harness http://127.0.0.1:' + PORT + '/  |  /doc/<think|options>  /dev/<脚本>  /built/<脚本>  /skins  /regex'));

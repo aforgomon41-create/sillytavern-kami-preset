@@ -365,4 +365,11 @@ if (dry) {
     console.error('  [中止] 压缩纯逻辑内联验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 状态栏悬浮球：默认必须关、图标必须真内联进产物（漏了就是一颗空白球）。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-status-ball.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 状态栏悬浮球验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
 }

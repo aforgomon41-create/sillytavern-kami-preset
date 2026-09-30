@@ -219,8 +219,38 @@ export function expandPanelGestures(root, code) {
   code = expandPresetCards(root, code);
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
+  code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 状态栏（实验）的悬浮球图标（design/icon/kami-statusbar.png）：
+ * 构建期内联成 data URI 常量。为什么不在脚本源码里直接贴 base64 ——
+ * 一坨 6 万字符的字面量会让那份源码没法读、也没法 review，而且图标一换就得重贴；
+ * 内联之后「图片文件的唯一真相」是 design/icon/ 里那张 PNG，脚本里只留一个占位注释。
+ * 挂在手势入口里，于是 build/build.mjs 与 test/harness/server.mjs 两侧同时生效。
+ * ──────────────────────────────────────────────────────────── */
+export const ICON_STATUS_MARK = '/* @@KAMI_ICON_STATUS@@ */';
+export const ICON_STATUS_FILE = 'kami-statusbar.png';
+
+export function iconStatusDataUri(root) {
+  const p = path.join(root, 'design', 'icon', ICON_STATUS_FILE);
+  if (!fs.existsSync(p)) {
+    throw new Error('找不到悬浮球图标：design/icon/' + ICON_STATUS_FILE +
+      '（它是构建期内联的唯一真相，缺了产出的脚本就只剩一个空 img）');
+  }
+  return 'data:image/png;base64,' + fs.readFileSync(p).toString('base64');
+}
+
+/** 把脚本里的图标占位换成 data URI 常量。占位不存在时原样返回（幂等）。 */
+export function expandIconStatus(root, code) {
+  if (code.indexOf(ICON_STATUS_MARK) < 0) { return code; }
+  const src = iconStatusDataUri(root);
+  if (src.indexOf(ICON_STATUS_MARK) >= 0) {
+    throw new Error('图标 data URI 里出现了占位符字面量（不可能，但拦住为妙）');
+  }
+  return code.replace(ICON_STATUS_MARK, () => 'var ICON_STATUS = ' + JSON.stringify(src) + ';');
 }
 
 /* ────────────────────────────────────────────────────────────
