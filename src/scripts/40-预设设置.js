@@ -1207,6 +1207,8 @@
           if (t.getAttribute('data-kami-choice')) { setMergeChoice(t, t.getAttribute('data-kami-choice')); return; }
           /* 🧰 其他功能 → 自动标签处理：三档切换 + 手动处理当前楼层 */
           if (t.getAttribute('data-kami-tagfix')) { setTagFixMode(t.getAttribute('data-kami-tagfix')); return; }
+          /* 折叠卡头：点一下就翻 data-kami-open（契约 §4.3；实现见 toggleFold） */
+          if (t.getAttribute('data-kami-collapse-head')) { toggleFold(t); return; }
           if (t.getAttribute('data-kami-act') === 'tagfix-floor') { tagFixCurrentFloor(); return; }
         }
         t = t.parentNode;
@@ -1580,6 +1582,17 @@
   function noteMark(note) { return noteMarkEl(HDOC, note); }
   function noteText(note) { return noteBoxEl(HDOC, note); }
   /* 点标记：只切它所在那一组里的注释正文，别的一律不动（也不重画面板） */
+  /* 点折叠卡头：翻转它所在那张卡的开合状态。
+     ⚠️ 必须读 DOM 上**当前**的 data-kami-open 再翻，不能读渲染时算出来的值 ——
+     老坑（交接.md:263）：照闭包里的初始态取反，表现是「只能开合一次，
+     必须切走再切回来才能再折」。首版不记状态：每次进页都是收起的。 */
+  function toggleFold(headEl) {
+    var card = (headEl && headEl.closest) ? headEl.closest('.kami-collapse') : null;
+    if (!card) { return; }
+    var open = card.getAttribute('data-kami-open') === '1';
+    card.setAttribute('data-kami-open', open ? '0' : '1');
+  }
+
   function toggleNote(el) {
     /* 注释正文有两个落点：条目卡外面包的那一层 `.kami-item-note` 里（标题栏下方），
        以及卡片组 / 变量卡的 `.kami-card` 里（卡片头下面、正文上面）。两种都认。 */
@@ -2284,8 +2297,11 @@
     tagFixEls = null;
 
     /* ① 自动标签处理。屏幕上只留短标签；说明全部折叠进 ⓘ（用户 2026-09-30 裁定）。 */
-    var box = mk('div', 'kami-card');
-    var head = mk('div', 'kami-card-head');
+    var box = mk('div', 'kami-card kami-collapse');
+    box.setAttribute('data-kami-open', '0');   /* 默认折叠（契约 §4.3；首版不持久化，每次进页都是收起的） */
+    var head = mk('div', 'kami-card-head kami-head kami-collapse-head');
+    head.setAttribute('data-kami-collapse-head', '1');
+    head.appendChild(mk('span', 'kami-chev', '▸'));
     head.appendChild(mk('span', 'kami-card-title', TAGFIX_COPY.title));
     head.appendChild(noteMark(TAGFIX_COPY.note));          /* ⓘ 与预设条目的注释同一套结构 */
     var modeSpec = tagFixModeSpec(tagFixMode);
@@ -2297,7 +2313,7 @@
     noteBox.hidden = true;
     box.appendChild(noteBox);
 
-    var body = mk('div', 'kami-card-body');
+    var body = mk('div', 'kami-card-body kami-collapse-body');
 
     /* 三档：关闭 / 补全 / 删除 */
     var rowMode = mk('div', 'kami-field');
