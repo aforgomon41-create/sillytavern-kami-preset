@@ -5,8 +5,11 @@
  *
  * 它测的是 src/scripts/_tags-pure.js —— 构建期内联进 40-预设设置.js 的那份。
  * 这里只碰纯函数：给一段 AI 回复，看它认不认得出没闭合的标签、补在哪儿、删得对不对。
+ *
+ * ⑯ 那一段是**覆盖模式**（用户 2026-10-01 点名「无论是什么标签都会处理」）：
+ *   打开后登记表外的标签也按当前档位处理，唯一豁免是 HTML 自带标签（HTML_TAGS）。
  */
-import { TAG_SPECS, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges } from '../../src/scripts/_tags-pure.js';
+import { TAG_SPECS, HTML_TAGS, isHtmlTag, coverSpec, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges } from '../../src/scripts/_tags-pure.js';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -188,6 +191,137 @@ function ok(cond, label) { eq(!!cond, true, label); }
   const long = '甲'.repeat(20000);
   eq(repairTags(long, 'close').text.length, 20000, '⑩ 两万字无标签文本原样返回');
   eq(tokenize(long).length, 0, '⑩ 两万字无标签文本切出 0 个记号');
+}
+
+/* ── ⑯ 覆盖模式（用户 2026-10-01 点名「无论是什么标签都会处理」） ──
+   第 4 个参数 coverage 为真时，登记表里没登记的标签也参与处理；HTML 自带标签照旧豁免。
+   覆盖进来的标签 label 统一「其他标签」、sibling 一律 false（不给人当分界，补位一律消息末尾）。 */
+{
+  /* ⑯-a 不开覆盖：登记表外的标签一动不动（回归保护，老调用方零影响） */
+  eq(repairTags('<foo>甲', 'close', TAG_SPECS, false).text, '<foo>甲', '⑯ 不开覆盖：未知开始标签不补');
+  eq(repairTags('<foo>甲', 'del', TAG_SPECS, false).text, '<foo>甲', '⑯ 不开覆盖：未知开始标签不删');
+  eq(repairTags('甲</foo>', 'del', TAG_SPECS, false).text, '甲</foo>', '⑯ 不开覆盖：未知闭合标签不删');
+  eq(repairTags('<foo>甲', 'close').text, '<foo>甲', '⑯ 省掉 coverage 时按关闭处理');
+  eq(scanTags('<foo>甲<bar>乙', TAG_SPECS, false).ok, true, '⑯ 不开覆盖：扫描器一个记号都不认');
+  eq(tokenize('<foo>甲', TAG_SPECS, false).length, 0, '⑯ 不开覆盖：切出 0 个记号');
+
+  /* ⑯-b 开启后：未闭合的未知开始标签补在消息末尾 */
+  const c1 = repairTags('<foo>甲', 'close', TAG_SPECS, true);
+  eq(c1.text, '<foo>甲</foo>', '⑯ 覆盖 + 补全：未知标签补在消息末尾');
+  eq(c1.closed.join(','), 'foo', '⑯ 覆盖进来的标签也报进 closed');
+  eq(c1.changes[0].kind + '|' + c1.changes[0].tag + '|' + c1.changes[0].label + '|' + c1.changes[0].from,
+    'close|foo|其他标签|</foo>', '⑯ 确认窗里叫它「其他标签」');
+  eq(repairTags('<aaa>甲<bbb>乙', 'close', TAG_SPECS, true).text,
+    '<aaa>甲<bbb>乙</bbb></aaa>', '⑯ 两个未知标签层层没闭合：由内向外补');
+  eq(describeFix(c1), '补全 1 处（foo）', '⑯ 说人话时也认覆盖进来的标签');
+
+  /* ⑯-c HTML 自带标签无论开关都不动（补 </br> 只会往正文里塞乱码、删了会把卡片拆散） */
+  for (const src of [
+    '甲<br>乙',
+    '甲<BR>乙',
+    '<img src="x.png">甲',
+    '<div class="x">甲</div><span>乙<span>',
+    '<a href="/x">甲</a><table><tr>',
+    '<DIV>甲'
+  ]) {
+    eq(repairTags(src, 'close', TAG_SPECS, true).text, src, '⑯ HTML 自带标签不补：' + src.slice(0, 18));
+    eq(repairTags(src, 'del', TAG_SPECS, true).text, src, '⑯ HTML 自带标签不删：' + src.slice(0, 18));
+  }
+  eq(tokenize('<div>甲</div>', TAG_SPECS, true).length, 0, '⑯ HTML 自带标签连覆盖模式也切不出记号');
+
+  /* ⑯-d 代码块（``` 与 ~~~）里的未知标签不动，块外的照常处理 */
+  const fence = '<foo>甲\n```\n<bar>乙\n```\n';
+  eq(repairTags(fence, 'close', TAG_SPECS, true).text, fence + '</foo>', '⑯ 代码块里的未知标签不碰，块外照补');
+  eq(repairTags(fence, 'del', TAG_SPECS, true).text, '甲\n```\n<bar>乙\n```\n', '⑯ 删除档也不碰代码块里的未知标签');
+  const tilde = '甲\n~~~\n<bar>乙\n~~~\n';
+  eq(repairTags(tilde, 'close', TAG_SPECS, true).text, tilde, '⑯ ~~~ 围起来的代码块同样豁免');
+
+  /* ⑯-e <medium> / <medium_content> / <details> 区间里的未知标签不动 */
+  const card = '<medium><foo>甲</foo></medium>';
+  eq(repairTags(card, 'close', TAG_SPECS, true).text, card, '⑯ 卡片里的未知标签不补');
+  eq(repairTags(card, 'del', TAG_SPECS, true).text, card, '⑯ 卡片里的未知标签不删');
+  const card2 = '<medium_content><foo>甲</foo></medium_content>';
+  eq(repairTags(card2, 'close', TAG_SPECS, true).text, card2, '⑯ medium_content 区间同样豁免');
+  const det = '<details><foo>甲</foo></details>';
+  eq(repairTags(det, 'del', TAG_SPECS, true).text, det, '⑯ details 区间同样豁免（删除档）');
+  eq(repairTags('<medium><foo>甲', 'close', TAG_SPECS, true).text, '<medium><foo>甲</medium>',
+    '⑯ 卡片自己没闭合：里面的未知标签不算数');
+  eq(repairTags('<medium><details><summary>面板</summary></details></medium><foo>甲', 'close', TAG_SPECS, true).text,
+    '<medium><details><summary>面板</summary></details></medium><foo>甲</foo>', '⑯ 卡片外面的未知标签照补');
+
+  /* ⑯-f 自闭合 <foo/> 不参与配对（不许平白补出一个 </foo>） */
+  eq(repairTags('<foo/>甲', 'close', TAG_SPECS, true).text, '<foo/>甲', '⑯ 自闭合不补出 </foo>');
+  eq(repairTags('<foo a="1"/>甲', 'close', TAG_SPECS, true).text, '<foo a="1"/>甲', '⑯ 带属性的自闭合也不补');
+  eq(repairTags('<foo/>甲<bar>乙', 'close', TAG_SPECS, true).text,
+    '<foo/>甲<bar>乙</bar>', '⑯ 自闭合与没闭合混在一起：只补该补的');
+  eq(repairTags('<foo/>甲', 'del', TAG_SPECS, true).text, '<foo/>甲', '⑯ 自闭合在删除档也不动');
+
+  /* ⑯-g 覆盖 + 删除档：配不上对的标签本身删掉，内容一个字不动 */
+  eq(repairTags('正文</foo>', 'del', TAG_SPECS, true).text, '正文', '⑯ 孤立闭合标签删掉');
+  eq(repairTags('<foo>内容', 'del', TAG_SPECS, true).text, '内容', '⑯ 未闭合的开始标签删掉，内容原样留着');
+  const d1 = repairTags('<foo>甲</bar>乙', 'del', TAG_SPECS, true);
+  eq(d1.text, '甲乙', '⑯ 两个都配不上：都删');
+  eq(d1.changes.map(c => c.kind + ':' + c.from).join(','), 'remove:<foo>,remove:</bar>',
+    '⑯ 删除条目给出被删掉的原文（分得清头尾）');
+  eq(d1.changes[0].label, '其他标签', '⑯ 删掉的覆盖标签也标「其他标签」');
+  eq(describeFix(repairTags('<foo>甲', 'del', TAG_SPECS, true)), '删掉 1 处孤立标签（foo）', '⑯ 删除档的说法');
+
+  /* ⑯-h 覆盖进来的标签不当兄弟块分界：一律补在消息末尾 */
+  eq(repairTags('<foo>甲<content>乙</content>', 'close', TAG_SPECS, true).text,
+    '<foo>甲<content>乙</content></foo>', '⑯ 补在消息末尾，不是 content 前面');
+  eq(repairTags('<foo>甲<options>1. 走</options>', 'close', TAG_SPECS, true).text,
+    '<foo>甲<options>1. 走</options></foo>', '⑯ 面对行动选项块也不当分界');
+
+  /* ⑯-i 登记表里的标签在覆盖模式下行为不变（label 也不变） */
+  const r9 = repairTags('正常 <content>正文', 'close', TAG_SPECS, true);
+  eq(r9.text, '正常 <content>正文</content>', '⑯ 登记表标签照旧补全');
+  eq(r9.changes[0].label, '正文块', '⑯ 登记表标签的 label 不变（不是「其他标签」）');
+  eq(repairTags('<content>甲<options>1. 走\n2. 留</options>', 'close', TAG_SPECS, true).text,
+    '<content>甲</content><options>1. 走\n2. 留</options>', '⑯ 兄弟块分界规则照旧（补在选项块前面）');
+  eq(repairTags('<out_body><content>甲</content>', 'close', TAG_SPECS, true).text,
+    '<out_body><content>甲</content></out_body>', '⑯ 总标签照旧补在末尾');
+  eq(repairTags('<medium>卡片<options>1. 走</options>', 'close', TAG_SPECS, true).text,
+    '<medium>卡片<options>1. 走</options></medium>', '⑯ medium 照旧补在末尾');
+
+  /* ⑯-j 交错写法：不报错，结果说得通 */
+  const x1 = repairTags('<foo><bar></foo>', 'close', TAG_SPECS, true);
+  eq(x1.text, '<foo><bar></bar></foo>', '⑯ 交错写法：被夹住的补在救它的标签前面');
+  eq(x1.changes.map(c => c.from).join(','), '</bar>', '⑯ 交错写法只补一处');
+  const x2 = repairTags('<foo>甲<content>乙</foo>丙</content>', 'close', TAG_SPECS, true);
+  eq(x2.text, '<foo>甲<content>乙</content></foo>丙</content>', '⑯ 混着登记表标签的交错同样处理');
+  eq(x2.strayLeft.join(','), 'content', '⑯ 多出来的闭合标签只报告、不动它');
+  eq(repairTags('<foo><br></foo>', 'close', TAG_SPECS, true).text, '<foo><br></foo>',
+    '⑯ 中间夹着 HTML 标签不影响配对');
+
+  /* ⑯-k 自定义标签与覆盖同时开：不重复、不冲突 */
+  const both = specsWithCustom(['note']);
+  const k1 = repairTags('<note>甲<foo>乙', 'close', both, true);
+  eq(k1.text, '<note>甲<foo>乙</foo></note>', '⑯ 自定义与覆盖的标签都补上');
+  eq(k1.changes.map(c => c.label).sort().join(','), '其他标签,自定义', '⑯ 两边的 label 分得开');
+  eq(specsWithCustom(['note']).length, TAG_SPECS.length + 1, '⑯ 覆盖不往登记表里塞条目（只在扫描时临时造）');
+  eq(repairTags('<note>甲</note>', 'close', both, true).changed, false, '⑯ 写完整的一句话都不动');
+  eq(repairTags('<foo>甲</foo>', 'close', specsWithCustom(['foo']), true).closed.length, 0,
+    '⑯ 同一个名字既是自定义又被覆盖：不会补两遍');
+  eq(repairTags('<div>甲', 'close', specsWithCustom(['div']), true).text, '<div>甲</div>',
+    '⑯ 用户显式登记的自定义标签优先于 HTML 豁免（点名要管就管）');
+
+  /* ⑯-l 接口级断言（HTML_TAGS / isHtmlTag / coverSpec / 覆盖下的扫描读数） */
+  ok(Array.isArray(HTML_TAGS) && HTML_TAGS.length > 0, '⑯ HTML_TAGS 是非空数组');
+  eq(HTML_TAGS.length, 127, '⑯ HTML 自带标签共 127 个');
+  eq(HTML_TAGS.filter(n => n !== n.toLowerCase()).length, 0, '⑯ 豁免名单全小写');
+  eq(new Set(HTML_TAGS).size, HTML_TAGS.length, '⑯ 豁免名单没有重复项');
+  eq(TAG_SPECS.map(s => s.tag).filter(n => isHtmlTag(n)).length, 0, '⑯ 登记表里的标签一个都没被误列进豁免名单');
+  eq(isHtmlTag('DIV'), true, '⑯ isHtmlTag 认大写形式');
+  eq(isHtmlTag('content'), false, '⑯ 预设的正文块不是 HTML 标签');
+  eq(isHtmlTag('medium'), false, '⑯ 预设的 medium 不是 HTML 标签');
+  eq(isHtmlTag(null), false, '⑯ isHtmlTag(null) 不炸');
+  eq(coverSpec('x').sibling, false, '⑯ 覆盖进来的标签没有「给别人当分界」的权力');
+  eq(coverSpec('x').label, '其他标签', '⑯ 覆盖进来的标签统一叫「其他标签」');
+  eq(coverSpec('x').tag, 'x', '⑯ coverSpec 记住标签名');
+  eq(scanTags('<foo>甲<bar>乙', TAG_SPECS, true).unclosed.map(x => x.tag).join(','), 'foo,bar',
+    '⑯ 覆盖模式下扫描器报出未知标签');
+  eq(scanTags('<foo>甲</foo>', TAG_SPECS, true).ok, true, '⑯ 覆盖模式下写完整的判定为「没问题」');
+  eq(repairTags('<正文>甲', 'close', TAG_SPECS, true).text, '<正文>甲', '⑯ 中文尖括号不算标签');
 }
 
 console.log('=== 「自动标签处理」纯逻辑单测 ===');

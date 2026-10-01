@@ -33,6 +33,15 @@
  *   close 补全：给没闭合的开始标签补上闭合标签
  *   del   删除：把配不上对的标签本身删掉（内容原样保留）
  *
+ * 覆盖模式（面板上那颗开关，2026-10-01 用户点名「无论是什么标签都会处理」）：
+ *   打开后不再只看登记表 —— 正文里任何像标签的东西（`<foo>` / `</foo>`）都按当前档位处理，
+ *   于是以后预设加新标签、或者别的角色卡带自己的标签，都不用再来登记。
+ *   唯一豁免是**浏览器自带的 HTML 标签**（见 HTML_TAGS：br / div / span / a / img 这类）：
+ *   它们要么根本没有闭合写法（空元素），要么是 AI 拿来写卡片的骨架 ——
+ *   补结尾只会在正文里塞乱码（`<br>` → `<br></br>`），删除档更会把卡片拆散。
+ *   覆盖进来的标签与自定义标签同一待遇：sibling 一律 false（不当作别人的分界，补位一律消息末尾）。
+ *   标签名仍守 XML 那条规则（字母开头，字母数字下划线），**中文尖括号不算标签**。
+ *
  * 「补在哪儿」的规则（用户 2026-09-30 裁定：补到紧挨着标签的前面或后面）：
  *   ① 默认补在**消息末尾**（被截断的回复就是这种情况：内容一直写到最后，闭合标签没来得及写）；
  *   ② 如果这个没闭合的块后面紧跟着一个**写完整的兄弟块**（标签格式里与它平级的那几块：
@@ -69,6 +78,33 @@ export var TAG_SPECS = [
 /* 档位清单（off / close / del）。**目前只有单测与文档引用它**：面板那边的三档表叫 `TAGFIX_MODES`、
    带中文按钮文字（在 40 号里），两边靠「档位 id 同名」对上，没有代码级依赖。 */
 export var FIX_MODES = ['off', 'close', 'del'];
+
+/* ── 覆盖模式（2026-10-01 用户点名「无论是什么标签都会处理」） ──
+   打开后不看登记表：任何 `<名字>` / `</名字>` 都按当前档位处理。
+   唯一豁免是**浏览器自带的 HTML 标签**，名单按 HTML 标准列：
+     · 空元素（br / img / hr / input…）压根没有闭合写法，补一个 </br> 就是往正文里塞乱码；
+     · 常见排版与结构标签（div / span / a / table…）是 AI 写卡片的骨架，补结尾会把后面正文圈进去，
+       删除档更会把卡片拆散。
+   小写比对，所以 <DIV> 也认。**登记表里的标签优先** —— <summary> 是预设的摘要块，不在豁免之列
+   （它本来就在 <details> 区间里被跳过）。 */
+export var HTML_TAGS = ('area base br col embed hr img input link meta param source track wbr ' +
+  'a abbr address article aside audio b bdi bdo big blockquote body button canvas caption cite ' +
+  'code colgroup data dd del dfn dialog div dl dt em fieldset figcaption figure font footer form ' +
+  'h1 h2 h3 h4 h5 h6 head header hgroup html i iframe ins kbd label legend li main map mark menu ' +
+  'meter nav noscript object ol optgroup option output p picture pre progress q rp rt ruby s samp ' +
+  'script section select slot small span strike strong style sub sup table tbody td template ' +
+  'textarea tfoot th thead time title tr tt u ul var video svg path circle rect line polygon ' +
+  'polyline ellipse defs use symbol g text tspan').split(' ');
+
+export function isHtmlTag(name) {
+  return HTML_TAGS.indexOf(String(name == null ? '' : name).toLowerCase()) >= 0;
+}
+
+/* 覆盖进来的标签临时造一条 spec：没有中文用途（label 统一「其他标签」），
+   sibling 一律 false —— 与自定义标签同理，拿不准的新标签不该有「给别人当分界」的权力。 */
+export function coverSpec(name) {
+  return { tag: name, label: '其他标签', sibling: false, cover: true };
+}
 
 export function tagSpecOf(name, specs) {
   var list = specs || TAG_SPECS;
@@ -157,17 +193,22 @@ function inRanges(ranges, at) {
   return false;
 }
 
-/* 把文本切成标签记号流。只有登记表里的标签才算记号，其余尖括号（`<div>`、`<br>` 之类）一律忽略。
+/* 把文本切成标签记号流。默认只有登记表里的标签才算记号，其余尖括号（`<div>`、`<br>` 之类）一律忽略；
+   coverage 为真时改成「全认」，但仍豁免 HTML_TAGS 里那些浏览器自带标签。
    属性段排掉 `<`（挡掉嵌套尖括号，也避免 `<a<a<a…` 把正则拖进回溯），并且**不许吃掉结尾那个 `/`** ——
    写成 `/(?!>)` + `[^<>"'/]` 才认得出 `<MakeImage prompt="a>b"/>` 是自闭合（用贪婪的 `[^<>"']` 时
    那段会把 `/` 吞进属性里，于是自闭合被当成开始标签，平白补出一个 `</MakeImage>`，实测踩过）。 */
-export function tokenize(text, specs) {
+export function tokenize(text, specs, coverage) {
   var out = [], re = /<(\/?)([A-Za-z][A-Za-z0-9_]*)((?:"[^"]*"|'[^']*'|\/(?!>)|[^<>"'\/])*)(\/?)>/g, m;
   var skip = skipRanges(text);
   while ((m = re.exec(text))) {
     if (inRanges(skip, m.index)) { continue; }
     var spec = tagSpecOf(m[2], specs);
-    if (!spec) { continue; }
+    if (!spec) {
+      /* 覆盖模式：登记表里没有的也认，HTML 自带标签除外（见 HTML_TAGS） */
+      if (!coverage || isHtmlTag(m[2])) { continue; }
+      spec = coverSpec(m[2]);
+    }
     if (m[4] === '/') { continue; }                 /* 自闭合：不参与配对 */
     out.push({
       tag: m[2], label: spec.label, sibling: !!spec.sibling,
@@ -181,8 +222,8 @@ export function tokenize(text, specs) {
 /* 扫一遍：谁没闭合、谁是孤立的闭合标签。
    交错写法（`<甲><乙></甲></乙>`）里被夹住的那个，补位点记在**救它的那个闭合标签前面**
    （`item.at`）—— 那正是用户说的「补到紧挨着标签的前面」。 */
-export function scanTags(text, specs) {
-  var toks = tokenize(text, specs);
+export function scanTags(text, specs, coverage) {
+  var toks = tokenize(text, specs, coverage);
   var stack = [], unclosed = [], stray = [], pairs = [], i, k;
   for (i = 0; i < toks.length; i++) {
     var t = toks[i];
@@ -235,18 +276,18 @@ export function closeAt(text, item, scan, specs) {
      { kind:'close'|'remove', tag, label, from:<原文片段>, n:<合并后的条数> }
    —— close 的 from 就是将要插进去的那个闭合标签（`</content>`）；
       remove 的 from 是被删掉的那一段原文（`<options>` 或 `</options>`，一眼能看出删的是头还是尾）。 */
-export function repairTags(text, mode, specs) {
+export function repairTags(text, mode, specs, coverage) {
   var src = String(text == null ? '' : text);
   var res = { text: src, mode: mode, closed: [], removed: [], strayLeft: [], changes: [], changed: false };
   if (mode !== 'close' && mode !== 'del') { return res; }
-  var scan = scanTags(src, specs);
+  var scan = scanTags(src, specs, coverage);
   var i, spec;
   if (mode === 'close') {
     /* 没闭合的：由内向外补（列表里后面的先开，所以倒着补位置从大到小，插入不会互相挪位） */
     var todo = [];
     for (i = 0; i < scan.unclosed.length; i++) {
       var it = scan.unclosed[i];
-      todo.push({ at: closeAt(src, it, scan, specs), insert: '</' + it.tag + '>', tag: it.tag });
+      todo.push({ at: closeAt(src, it, scan, specs), insert: '</' + it.tag + '>', tag: it.tag, label: it.label });
     }
     todo.sort(function (a, b) { return b.at - a.at; });
     var out = src;
@@ -260,22 +301,22 @@ export function repairTags(text, mode, specs) {
     res.changed = !!res.closed.length;
     /* changes 按**它在最终文本里的先后**排（人读的顺序）：位置小的在前；
        同一个位置的，后插进去的反而更靠前（内层先补）。插入本身是倒着做的，所以这里要重排。 */
-    var ordered = todo.map(function (t, idx) { return { at: t.at, seq: idx, insert: t.insert, tag: t.tag }; });
+    var ordered = todo.map(function (t, idx) { return { at: t.at, seq: idx, insert: t.insert, tag: t.tag, label: t.label }; });
     ordered.sort(function (a, b) { return (a.at !== b.at) ? (a.at - b.at) : (b.seq - a.seq); });
     for (i = 0; i < ordered.length; i++) {
       spec = tagSpecOf(ordered[i].tag, specs);
-      res.changes.push({ kind: 'close', tag: ordered[i].tag, label: (spec && spec.label) || '', from: ordered[i].insert, n: 1 });
+      res.changes.push({ kind: 'close', tag: ordered[i].tag, label: ordered[i].label || (spec && spec.label) || '', from: ordered[i].insert, n: 1 });
     }
   } else {
     /* 删除模式：配不上对的开始标签与孤立的闭合标签，删掉标签本身，内容原样留着 */
     var cuts = [], c;
-    for (c = 0; c < scan.unclosed.length; c++) { cuts.push([scan.unclosed[c].start, scan.unclosed[c].end, scan.unclosed[c].tag]); }
-    for (c = 0; c < scan.stray.length; c++) { cuts.push([scan.stray[c].start, scan.stray[c].end, scan.stray[c].tag]); }
+    for (c = 0; c < scan.unclosed.length; c++) { cuts.push([scan.unclosed[c].start, scan.unclosed[c].end, scan.unclosed[c].tag, scan.unclosed[c].label]); }
+    for (c = 0; c < scan.stray.length; c++) { cuts.push([scan.stray[c].start, scan.stray[c].end, scan.stray[c].tag, scan.stray[c].label]); }
     /* 先按**文档先后**留一份给 changes（人读的顺序），再倒着删（倒着删才不会挪动前面的位置） */
     var inDoc = cuts.slice().sort(function (a, b) { return a[0] - b[0]; });
     for (c = 0; c < inDoc.length; c++) {
       spec = tagSpecOf(inDoc[c][2], specs);
-      res.changes.push({ kind: 'remove', tag: inDoc[c][2], label: (spec && spec.label) || '', from: src.slice(inDoc[c][0], inDoc[c][1]), n: 1 });
+      res.changes.push({ kind: 'remove', tag: inDoc[c][2], label: inDoc[c][3] || (spec && spec.label) || '', from: src.slice(inDoc[c][0], inDoc[c][1]), n: 1 });
     }
     cuts.sort(function (a, b) { return b[0] - a[0]; });
     var out2 = src;

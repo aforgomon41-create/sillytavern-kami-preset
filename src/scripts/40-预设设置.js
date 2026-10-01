@@ -1223,6 +1223,7 @@
       if (!t || !t.getAttribute) { return; }
       if (t.getAttribute('data-kami-var')) { applyVar(t); return; }
       if (t.getAttribute('data-kami-tagfix-custom')) { setTagFixCustom(t.value); }
+      if (t.getAttribute('data-kami-tagfix-all')) { setTagFixAll(!!t.checked); return; }
     });
     panelDrop.addEventListener('keydown', function (ev) {
       /* 契约 §4.4 硬规则 1：注释标记与预设面板逐属性同构 → 键盘也必须同构。
@@ -2001,6 +2002,7 @@
 
   var TAGFIX_VAR = 'tagFix';
   var TAGFIX_CUSTOM_VAR = 'tagFixCustom';
+  var TAGFIX_ALL_VAR = 'tagFixAll';
   var TAGFIX_MODES = [
     { id: 'off', label: '关闭' },
     { id: 'close', label: '补全' },
@@ -2013,11 +2015,14 @@
   var TAGFIX_COPY = {
     title: '自动标签处理',
     note: 'AI 忘写结尾标签会导致正文或选项不显示，也会让摘要压缩失效。' +
+      '你可以在下面填入需要自动收拾的标签名，打开覆盖模式管得更宽，所有标签都管，HTML 标签除外。' +
       '补全模式会在消息末尾帮你补上结尾，遇到其他完整的标签会补在它们前面，免得把它们吞进正文。' +
-      '删除模式会直接扔掉没配对的标签，关闭则保持原样。' +
-      '你还可以在下面填入其他需要自动收拾的标签名。',
+      '删除模式会直接扔掉没配对的标签，关闭则保持原样。',
     modeLabel: '处理方式',
     modeHint: '关闭不干预，补全自动加结尾，删除清掉多余的标签',
+    allLabel: '覆盖模式',
+    allHint: '正文里任何标签都按当前档位处理，网页自带的 HTML 标签（如 br、div）除外。',
+    allChip: '全覆盖',
     customLabel: '自定义标签',
     customHint: '填入其他要处理的标签，用空格隔开',
     manualLabel: '手动处理',
@@ -2061,6 +2066,7 @@
 
   var tagFixMode = 'off';
   var tagFixCustom = [];                       // 用户自定义标签（面板上那个输入框）
+  var tagFixAll = false;                       // 覆盖模式：登记表之外的标签也按当前档位处理
   var tagFixStat = { fixed: 0, lastFloor: -1, lastText: '' };
   var tagFixEls = null;
   var godcmdEls = null;                     // 「常驻附加指令」那张卡的元素（每次渲染重建）
@@ -2128,12 +2134,13 @@
     } catch (e) { }
   }
 
-  /* 处理一条文本：返回 repairTags 的结果；关闭档或没变化时返回 null */
+  /* 处理一条文本：返回 repairTags 的结果；关闭档或没变化时返回 null。
+     第 4 个参数是「覆盖模式」：为真时登记表之外的标签也一起处理（HTML 自带标签除外）。 */
   function tagFixText(text, mode) {
     var m = mode || tagFixMode;
     if (m === 'off') { return null; }
     var res = null;
-    try { res = repairTags(text, m, tagFixSpecs()); } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
+    try { res = repairTags(text, m, tagFixSpecs(), tagFixAll); } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
     return (res && res.changed) ? res : null;
   }
 
@@ -2282,7 +2289,23 @@
         btns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     }
-    if (tagFixEls && tagFixEls.chip) { tagFixEls.chip.textContent = spec.label; }
+    if (tagFixEls && tagFixEls.chip) { tagFixEls.chip.textContent = tagFixChipText(); }
+  }
+
+  /* 卡片头那枚 chip 的文字：只显示档位；覆盖开着时补一句「全覆盖」。
+     三处共用：初次渲染、切档（setTagFixMode）、翻转覆盖开关（setTagFixAll）。 */
+  function tagFixChipText() {
+    return tagFixModeSpec(tagFixMode).label + (tagFixAll ? (' · ' + TAGFIX_COPY.allChip) : '');
+  }
+
+  /* 覆盖模式开关：登记表之外的标签也按当前档位处理（HTML 自带标签除外，由纯逻辑那边放行）。
+     状态跟着预设走，所以翻转后要 saveVars()；开关本体与卡片头 chip 一起刷新。 */
+  function setTagFixAll(on) {
+    tagFixAll = !!on;
+    saveVars();
+    log('自动标签处理 → 覆盖模式' + (tagFixAll ? '开启' : '关闭'));
+    if (tagFixEls && tagFixEls.all) { tagFixEls.all.checked = tagFixAll; }
+    if (tagFixEls && tagFixEls.chip) { tagFixEls.chip.textContent = tagFixChipText(); }
   }
 
   /* 自定义标签输入框：失焦或回车时解析并存盘（不重建面板，免得正在打字时被打断） */
@@ -2389,8 +2412,7 @@
     head.appendChild(mk('span', 'kami-chev', '▸'));
     head.appendChild(mk('span', 'kami-card-title', TAGFIX_COPY.title));
     head.appendChild(noteMark(TAGFIX_COPY.note));          /* ⓘ 与预设条目的注释同一套结构 */
-    var modeSpec = tagFixModeSpec(tagFixMode);
-    var chip = mk('span', 'kami-chip', modeSpec.label);
+    var chip = mk('span', 'kami-chip', tagFixChipText());
     head.appendChild(chip);
     box.appendChild(head);
 
@@ -2419,6 +2441,25 @@
     rowMode.appendChild(valMode);
     body.appendChild(rowMode);
     body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.modeHint));
+
+    /* 覆盖模式：登记表之外的标签也按当前档位处理（HTML 自带标签除外）。
+       控件照抄「常驻附加指令」那张卡的 .kami-switch 写法（契约 §4.2，不新增类名与令牌）。 */
+    var rowAll = mk('div', 'kami-field');
+    rowAll.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.allLabel));
+    var valAll = mk('span', 'kami-field-value');
+    var swAll = mk('label', 'kami-switch');
+    var allOn = mk('input', 'kami-switch-input');
+    allOn.type = 'checkbox';
+    allOn.setAttribute('data-kami-tagfix-all', '1');
+    allOn.setAttribute('aria-label', TAGFIX_COPY.allLabel);
+    allOn.checked = !!tagFixAll;
+    var allTrack = mk('span', 'kami-switch-track');
+    allTrack.appendChild(mk('span', 'kami-switch-knob'));
+    swAll.appendChild(allOn); swAll.appendChild(allTrack);
+    valAll.appendChild(swAll);
+    rowAll.appendChild(valAll);
+    body.appendChild(rowAll);
+    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.allHint));
 
     /* 自定义标签：用户自己往里填，逗号 / 空格 / 换行都算分隔 */
     var rowCus = mk('div', 'kami-field');
@@ -2453,7 +2494,7 @@
     box.appendChild(body);
     pane.appendChild(box);
 
-    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp };
+    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp, all: allOn };
     paintTagFixStat();
 
     /* ② 常驻附加指令（用户 2026-09-30 裁定：固定放这一页的第二张卡）。
@@ -3072,6 +3113,7 @@
     if (Object.prototype.toString.call(saved[TAGFIX_CUSTOM_VAR]) === '[object Array]') {
       tagFixCustom = parseCustomTags(saved[TAGFIX_CUSTOM_VAR].join(' '));
     }
+    if (saved[TAGFIX_ALL_VAR] === '1') { tagFixAll = true; }
     /* 「这一份继承自哪份旧预设」——跟着预设走（脚本变量就存在预设文件里），
        用户 2026-09-28 点名要在面板里写明，免得看标题栏的名字时误会。 */
     if (typeof saved.inheritFrom === 'string' && saved.inheritFrom) { inheritFromName = saved.inheritFrom; }
@@ -3093,7 +3135,8 @@
           inheritFrom: inheritFromName || null,
           inheritAt: inheritAtText || null,
           tagFix: tagFixMode,
-          tagFixCustom: tagFixCustom.slice()
+          tagFixCustom: tagFixCustom.slice(),
+          tagFixAll: tagFixAll ? '1' : '0'
         };
         replaceVariables(all, { type: 'script' });
       } catch (e) { log('写脚本变量失败：' + ((e && e.message) || e)); }

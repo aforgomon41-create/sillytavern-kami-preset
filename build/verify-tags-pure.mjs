@@ -8,6 +8,8 @@
  *   ③ 自动那一条路要真挂在 MESSAGE_RECEIVED 上，而且监听器必须**返回 Promise**
  *      （酒馆的 emit 会 await 它，非流式回复才来得及在渲染前改完 —— 不返回就等于
  *       用户会先看到一版坏的、再跳成好的）。
+ *   ④ 覆盖模式（用户 2026-10-01 点名「无论是什么标签都会处理」）：纯逻辑新出口、
+ *      开关传参、面板接线、存读、文案、复用控件 —— 六样缺一不可（见 ⑩）。
  * 这三样任何一样漏了，构建都照样全绿：脚本护栏只做 `new Function(code)` 不执行；
  * 离线单测直接 import 源码、压根不看产物；面板页少一栏也不会报错。
  *
@@ -125,6 +127,25 @@ ok(code.indexOf('unsubs.push({ stop: stop })') >= 0, '⑧ 注销时订阅会被�
 /* ⑨ 离线单测文件必须在（否则这份守卫会掩盖"纯逻辑没人测"） */
 ok(fs.existsSync(path.join(ROOT, 'test', 'harness', 'tags-pure.mjs')),
   '⑨ 离线单测还在（test/harness/tags-pure.mjs）');
+
+/* ⑩ 覆盖模式（用户 2026-10-01 点名「无论是什么标签都会处理」）：
+      纯逻辑新出口 + 开关真的传进去 + 面板接线 + 存读 + 文案 + 复用控件，六样缺一不可。
+      任何一样漏掉，构建都一样全绿：这功能是「静默失效」型的 —— 开关点得动、正文全不动。 */
+ok(code.indexOf('HTML_TAGS') >= 0 && code.indexOf('isHtmlTag(') >= 0 && code.indexOf('coverSpec(') >= 0,
+  '⑩ 覆盖模式的纯逻辑出口进了产物（HTML_TAGS / isHtmlTag / coverSpec）');
+ok(code.indexOf('repairTags(text, m, tagFixSpecs(), tagFixAll)') >= 0,
+  '⑩ 覆盖开关真的传进了纯逻辑（repairTags 的第 4 个参数）');
+ok(code.indexOf('data-kami-tagfix-all') >= 0 && code.indexOf('setTagFixAll(') >= 0,
+  '⑩ 覆盖开关接上了（data-kami-tagfix-all → setTagFixAll）');
+ok(code.indexOf('saved[TAGFIX_ALL_VAR]') >= 0 && code.indexOf('tagFixAll: tagFixAll') >= 0,
+  '⑩ 覆盖开关存进脚本变量（读回来 + 写回去都在）');
+ok(code.indexOf('TAGFIX_COPY.allHint') >= 0,
+  '⑩ 覆盖开关的说明文案被用上（TAGFIX_COPY.allHint）');
+ok(code.indexOf('kami-switch-input') >= 0,
+  '⑩ 开关复用契约里登记过的控件（kami-switch-input）');
+ok((code.match(/tagFixAll/g) || []).length >= 4,
+  '⑩ 覆盖开关在产物里多处出现（状态 / 渲染 / 事件 / 存读，不是只写了个字符串）',
+  '出现 ' + ((code.match(/tagFixAll/g) || []).length) + ' 次');
 
 console.log('');
 console.log(bad ? '★ 验证失败 ' + bad + ' 条' : '自动标签处理接线验证全部通过（产物 ' + path.basename(p) + '）');
