@@ -1,0 +1,1 @@
+(() => { const c = window.__KAMI_PREVIEW_CHAT; c[0].message = '<foo>甲<content>乙'; return { restored: c[0].message }; })()
