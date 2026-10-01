@@ -147,6 +147,17 @@ ok((code.match(/tagFixAll/g) || []).length >= 4,
   '⑩ 覆盖开关在产物里多处出现（状态 / 渲染 / 事件 / 存读，不是只写了个字符串）',
   '出现 ' + ((code.match(/tagFixAll/g) || []).length) + ' 次');
 
+/* ⑩-b 中文标签名（2026-10-01 用户真机反馈「不会识别中文标签」）：
+      字符集放开在**两处** —— tokenize 的正则与 parseCustomTags 的校验。
+      只放一处就只有一半能用（正文认、输入框不认，或反过来），构建照样全绿。
+      原先只认 [A-Za-z]，被改回去时这条立刻红。 */
+const CN_NAME_CLASS = '[A-Za-z\\u4e00-\\u9fff\\u3400-\\u4dbf]';
+ok(code.indexOf(CN_NAME_CLASS) >= 0,
+  '⑩ 标签名认汉字（tokenize 正则的字符集含 \\u4e00-\\u9fff / \\u3400-\\u4dbf）');
+ok((code.split(CN_NAME_CLASS).length - 1) >= 2,
+  '⑩ 自定义标签输入框也放开汉字（两处字符集都在，防只放开一半）',
+  '出现 ' + (code.split(CN_NAME_CLASS).length - 1) + ' 次');
+
 console.log('');
 console.log(bad ? '★ 验证失败 ' + bad + ' 条' : '自动标签处理接线验证全部通过（产物 ' + path.basename(p) + '）');
 process.exit(bad ? 1 : 0);

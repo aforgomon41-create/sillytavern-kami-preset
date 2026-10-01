@@ -40,7 +40,9 @@
  *   它们要么根本没有闭合写法（空元素），要么是 AI 拿来写卡片的骨架 ——
  *   补结尾只会在正文里塞乱码（`<br>` → `<br></br>`），删除档更会把卡片拆散。
  *   覆盖进来的标签与自定义标签同一待遇：sibling 一律 false（不当作别人的分界，补位一律消息末尾）。
- *   标签名仍守 XML 那条规则（字母开头，字母数字下划线），**中文尖括号不算标签**。
+ *   标签名允许中文：首字是字母或汉字，其余是字母数字下划线或汉字（`<状态栏>` / `<心声>` 都认）。
+ *   范围是汉字基本区与扩展 A（\u4e00-\u9fff / \u3400-\u4dbf）；日文假名、韩文不在内。
+ *   注意：没开覆盖模式、又没把它填进自定义标签时，正文里的中文尖括号照旧不算标签。
  *
  * 「补在哪儿」的规则（用户 2026-09-30 裁定：补到紧挨着标签的前面或后面）：
  *   ① 默认补在**消息末尾**（被截断的回复就是这种情况：内容一直写到最后，闭合标签没来得及写）；
@@ -126,7 +128,7 @@ export function parseCustomTags(text) {
   for (i = 0; i < parts.length; i++) {
     name = parts[i].replace(/[<>\/]/g, '');
     if (!name) { continue; }
-    if (!/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(name)) { continue; }
+    if (!/^[A-Za-z\u4e00-\u9fff\u3400-\u4dbf][A-Za-z0-9_\u4e00-\u9fff\u3400-\u4dbf]{0,31}$/.test(name)) { continue; }
     if (tagSpecOf(name, TAG_SPECS)) { continue; }
     if (seen[name]) { continue; }
     seen[name] = 1;
@@ -199,7 +201,7 @@ function inRanges(ranges, at) {
    写成 `/(?!>)` + `[^<>"'/]` 才认得出 `<MakeImage prompt="a>b"/>` 是自闭合（用贪婪的 `[^<>"']` 时
    那段会把 `/` 吞进属性里，于是自闭合被当成开始标签，平白补出一个 `</MakeImage>`，实测踩过）。 */
 export function tokenize(text, specs, coverage) {
-  var out = [], re = /<(\/?)([A-Za-z][A-Za-z0-9_]*)((?:"[^"]*"|'[^']*'|\/(?!>)|[^<>"'\/])*)(\/?)>/g, m;
+  var out = [], re = /<(\/?)([A-Za-z\u4e00-\u9fff\u3400-\u4dbf][A-Za-z0-9_\u4e00-\u9fff\u3400-\u4dbf]*)((?:"[^"]*"|'[^']*'|\/(?!>)|[^<>"'\/])*)(\/?)>/g, m;
   var skip = skipRanges(text);
   while ((m = re.exec(text))) {
     if (inRanges(skip, m.index)) { continue; }

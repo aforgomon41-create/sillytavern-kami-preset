@@ -8,6 +8,9 @@
  *
  * ⑯ 那一段是**覆盖模式**（用户 2026-10-01 点名「无论是什么标签都会处理」）：
  *   打开后登记表外的标签也按当前档位处理，唯一豁免是 HTML 自带标签（HTML_TAGS）。
+ *
+ * ⑰ 那一段是**中文标签名**（用户 2026-10-01 真机反馈「不会识别中文标签」）：
+ *   标签名放开汉字（基本区 + 扩展 A）；没开覆盖又没填自定义时，中文尖括号照旧不算标签。
  */
 import { TAG_SPECS, HTML_TAGS, isHtmlTag, coverSpec, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges } from '../../src/scripts/_tags-pure.js';
 
@@ -321,7 +324,85 @@ function ok(cond, label) { eq(!!cond, true, label); }
   eq(scanTags('<foo>甲<bar>乙', TAG_SPECS, true).unclosed.map(x => x.tag).join(','), 'foo,bar',
     '⑯ 覆盖模式下扫描器报出未知标签');
   eq(scanTags('<foo>甲</foo>', TAG_SPECS, true).ok, true, '⑯ 覆盖模式下写完整的判定为「没问题」');
-  eq(repairTags('<正文>甲', 'close', TAG_SPECS, true).text, '<正文>甲', '⑯ 中文尖括号不算标签');
+  eq(repairTags('<正文>甲', 'close', TAG_SPECS, true).text, '<正文>甲</正文>', '⑯ 中文标签名也认（2026-10-01 用户真机反馈后放开）');
+}
+
+/* ── ⑰ 中文标签名（用户 2026-10-01 真机反馈「不会识别中文标签」，Lead 放开字符集） ──
+   标签名首字：ASCII 字母或汉字（基本区 \u4e00-\u9fff / 扩展 A \u3400-\u4dbf）；
+   其余字符：ASCII 字母 / 数字 / 下划线或汉字。假名、韩文、扩展 B、全角尖括号都不算。
+   放开落在两处：tokenize 的正则与 parseCustomTags 的校验。
+   **安全默认不变**：没开覆盖又没填自定义时，正文里的中文尖括号照旧不当标签看。 */
+{
+  const CJK_A = '\u3400';            /* 汉字扩展 A 区的第一个字 */
+  const KANA = '\u3042';             /* 日文平假名「あ」 */
+  const HANGUL = '\ud55c\uae00';    /* 韩文「한글」 */
+  const EXT_B = '\u{20000}';         /* 扩展 B 区（本次没放开） */
+
+  /* ⑰-a 覆盖模式：中文标签照常按档位处理 */
+  const cn = repairTags('<状态栏>甲', 'close', TAG_SPECS, true);
+  eq(cn.text, '<状态栏>甲</状态栏>', '⑰ 覆盖 + 补全：中文标签补在消息末尾');
+  eq(cn.changes[0].tag + '|' + cn.changes[0].label + '|' + cn.changes[0].from, '状态栏|其他标签|</状态栏>',
+    '⑰ 补的是中文闭合标签，label 仍是「其他标签」');
+  eq(describeFix(cn), '补全 1 处（状态栏）', '⑰ 说人话时中文标签名照念');
+  eq(repairTags('</状态栏>甲', 'del', TAG_SPECS, true).text, '甲', '⑰ 覆盖 + 删除：孤立的中文闭合标签删掉');
+  eq(repairTags('<状态栏>甲', 'del', TAG_SPECS, true).text, '甲', '⑰ 覆盖 + 删除：未闭合的中文开始标签删掉，内容留着');
+  eq(repairTags('<状态栏>甲<心声>乙', 'close', TAG_SPECS, true).text,
+    '<状态栏>甲<心声>乙</心声></状态栏>', '⑰ 两个中文标签层层没闭合：由内向外补');
+
+  /* ⑰-b 安全默认：没开覆盖又没填自定义时，中文尖括号照旧不算标签 */
+  eq(repairTags('<状态栏>甲', 'close', TAG_SPECS, false).text, '<状态栏>甲', '⑰ 不开覆盖：中文标签一动不动（补全档）');
+  eq(repairTags('<状态栏>甲', 'del', TAG_SPECS, false).text, '<状态栏>甲', '⑰ 不开覆盖：中文标签一动不动（删除档）');
+  eq(tokenize('<状态栏>甲', TAG_SPECS, false).length, 0, '⑰ 不开覆盖：中文标签一个记号都切不出来');
+  eq(scanTags('<状态栏>甲', TAG_SPECS, false).ok, true, '⑰ 不开覆盖：扫描器不认中文标签');
+
+  /* ⑰-c 自定义标签输入框：填中文也认 */
+  eq(parseCustomTags('状态栏 心声,<好感度>').join(','), '状态栏,心声,好感度',
+    '⑰ 输入框里中文名照收（空格 / 逗号 / 尖括号都能写）');
+  eq(parseCustomTags('状态栏，心声').join(','), '状态栏,心声', '⑰ 中文逗号也当分隔符');
+  eq(parseCustomTags('状态栏 状态栏').join(','), '状态栏', '⑰ 中文名重复的只留一个');
+  eq(repairTags('<状态栏>甲', 'close', specsWithCustom(['状态栏']), false).text, '<状态栏>甲</状态栏>',
+    '⑰ 填了自定义：不开覆盖也能补中文标签');
+  eq(repairTags('<状态栏>甲', 'close', specsWithCustom(['状态栏']), false).changes[0].label, '自定义',
+    '⑰ 自定义的中文标签 label 是「自定义」（不是「其他标签」）');
+  eq(repairTags('</状态栏>甲', 'del', specsWithCustom(['状态栏']), false).text, '甲', '⑰ 自定义的中文标签也能删');
+  eq(repairTags('<状态栏>甲</状态栏>', 'close', specsWithCustom(['状态栏']), true).changed, false,
+    '⑰ 中文标签已经配对：一个都不动');
+
+  /* ⑰-d 属性、自闭合、兄弟块规矩照旧 */
+  eq(repairTags('<状态栏 颜色="红">甲', 'close', TAG_SPECS, true).text, '<状态栏 颜色="红">甲</状态栏>',
+    '⑰ 带属性的中文标签照补（补的是 </状态栏>）');
+  eq(repairTags('<状态栏/>甲', 'close', TAG_SPECS, true).text, '<状态栏/>甲', '⑰ 中文标签自闭合不配对');
+  eq(repairTags('<状态栏v2>甲', 'close', TAG_SPECS, true).text, '<状态栏v2>甲</状态栏v2>', '⑰ 中英混名认得出来');
+  eq(repairTags('<状态栏2号>甲', 'close', TAG_SPECS, true).text, '<状态栏2号>甲</状态栏2号>', '⑰ 名字中间夹数字也认');
+  eq(repairTags('<状态栏>甲<content>乙</content>', 'close', TAG_SPECS, true).text,
+    '<状态栏>甲<content>乙</content></状态栏>', '⑰ 中文标签不当兄弟块分界（补消息末尾）');
+  eq(repairTags('正文</状态栏>', 'close', TAG_SPECS, true).strayLeft.join(','), '状态栏',
+    '⑰ 补全档把中文孤立闭合标签报出来（不动它）');
+
+  /* ⑰-e 区间豁免照旧：代码块、卡片里的中文标签一个字都不动 */
+  const cnFence = '<状态栏>甲\n```\n<心声>乙\n```\n';
+  eq(repairTags(cnFence, 'close', TAG_SPECS, true).text, cnFence + '</状态栏>', '⑰ 代码块里的中文标签不碰，块外照补');
+  const cnTilde = '甲\n~~~\n<心声>乙\n~~~\n';
+  eq(repairTags(cnTilde, 'del', TAG_SPECS, true).text, cnTilde, '⑰ ~~~ 代码块里的中文标签也不碰');
+  const cnCard = '<medium><状态栏>甲</状态栏></medium>';
+  eq(repairTags(cnCard, 'close', TAG_SPECS, true).text, cnCard, '⑰ 卡片里的中文标签不补');
+  const cnDet = '<details><状态栏>甲</状态栏></details>';
+  eq(repairTags(cnDet, 'del', TAG_SPECS, true).text, cnDet, '⑰ details 区间里的中文标签不删');
+  eq(repairTags('<div 颜色="红">甲', 'close', TAG_SPECS, true).text, '<div 颜色="红">甲',
+    '⑰ HTML 标签照旧豁免（属性值里是中文也一样）');
+
+  /* ⑰-f 边界：只放开汉字基本区与扩展 A，别的字符集一律不算标签 */
+  eq(repairTags('<' + CJK_A + '>甲', 'close', TAG_SPECS, true).text,
+    '<' + CJK_A + '>甲</' + CJK_A + '>', '⑰ 扩展 A 区的「' + CJK_A + '」认');
+  eq(repairTags('<' + KANA + '>甲', 'close', TAG_SPECS, true).text, '<' + KANA + '>甲', '⑰ 日文假名「' + KANA + '」不认');
+  eq(repairTags('<' + HANGUL + '>甲', 'close', TAG_SPECS, true).text, '<' + HANGUL + '>甲', '⑰ 韩文「' + HANGUL + '」不认');
+  eq(repairTags('<' + EXT_B + '>甲', 'close', TAG_SPECS, true).text, '<' + EXT_B + '>甲',
+    '⑰ 扩展 B 区不认（本次只放开基本区与扩展 A）');
+  eq(repairTags('\uff1c状态栏\uff1e甲', 'close', TAG_SPECS, true).text, '\uff1c状态栏\uff1e甲',
+    '⑰ 全角尖括号不认（只认半角尖括号）');
+  eq(repairTags('<2状态栏>甲', 'close', TAG_SPECS, true).text, '<2状态栏>甲', '⑰ 首字是数字不认');
+  eq(parseCustomTags('状态栏'.repeat(10) + '心声').length, 1, '⑰ 自定义中文名到 32 字（上限）照收');
+  eq(parseCustomTags('状态栏'.repeat(11)).length, 0, '⑰ 自定义中文名 33 字超长丢弃');
 }
 
 console.log('=== 「自动标签处理」纯逻辑单测 ===');
