@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from '../../build/kami-doc.mjs';
+import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandTagsPure, expandGodCmdPure } from '../../build/kami-doc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -140,6 +140,11 @@ function devScript(file) {
   /* 与 build.mjs 一致：引导文案表（design/copy/guide-copy.json）。漏了它，预览台里的引导
      只会说脚本内置的中性兜底文案，看到的就不是真机上的样子。 */
   code = expandGuideCopy(ROOT, code);
+  /* 与 build.mjs 一致：两个纯逻辑模块（标签处理 _tags-pure.js、常驻附加指令 _godcmd-pure.js）。
+     漏了它们，/dev 出口里这两段是空的：面板点开就报 repairTags is not defined，
+     2026-10-01 覆盖模式那轮实测踩到（端到端只能绕道 /built 产物验）。 */
+  code = expandTagsPure(ROOT, code);
+  code = expandGodCmdPure(ROOT, code);
   return code;
 }
 function builtScript(file) {
