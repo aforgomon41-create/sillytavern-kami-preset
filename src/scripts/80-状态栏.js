@@ -118,7 +118,12 @@
      ⚠️ 这里**不注入兜底皮肤**（40/50/60 号都注入，本脚本刻意不注入）：
      悬浮球一个 .kami-* 组件样式都不用，注进来就是白背 50KB。 */
   var BALL_CSS = [
-    '#' + PANEL_ID + ' .kami-ball{position:absolute;left:var(--kami-ball-x,0px);top:var(--kami-ball-y,0px);width:var(--kami-ball-size,' + DEF_SIZE + 'px);height:var(--kami-ball-size,' + DEF_SIZE + 'px);margin:0;padding:0;border:0;background:none;cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}',
+        /* 位置走 transform 而不是 left/top（2026-10-01 拖动卡顿修复，调研见 .audit/悬浮球性能-调研.md）：
+       left/top 是布局属性 ⇒ 每帧都要主线程 style→layout；transform 只更新合成器。
+       几何令牌一个都没改（仍是 --kami-ball-x/-y，仍是「左上角坐标 + px」语义），
+       clampGeom 与脚本变量读写照旧 —— 只是把它们喂给 transform 而已。
+       will-change:transform 提前把球提成自己的合成层，拖动时不再每帧重新判定合成。 */
+    '#' + PANEL_ID + ' .kami-ball{position:absolute;left:0;top:0;transform:translate3d(var(--kami-ball-x,0px),var(--kami-ball-y,0px),0);will-change:transform;width:var(--kami-ball-size,' + DEF_SIZE + 'px);height:var(--kami-ball-size,' + DEF_SIZE + 'px);margin:0;padding:0;border:0;background:none;cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}',
     '#' + PANEL_ID + ' .kami-ball:active{cursor:grabbing;}',
     '#' + PANEL_ID + ' .kami-ball:focus-visible{outline:2px solid var(--kami-accent,rgba(128,128,128,.9));outline-offset:3px;border-radius:50%;}',
     '#' + PANEL_ID + ' .kami-ball-img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;filter:drop-shadow(var(--kami-ball-shadow,0 2px 6px rgba(0,0,0,.30)));}'
@@ -150,24 +155,55 @@
     if (text !== undefined && text !== null) { el.textContent = text; }
     return el;
   }
+  /* 拖动节的拍子（2026-10-01）：pointermove 只更新坐标并**请求一帧**，真正写样式挪进 rAF 回调，
+     一帧最多写一次。⚠️ rAF 必须向**宿主窗口**要：脚本跑在隐藏 iframe 里，
+     不可见 iframe 自己的 requestAnimationFrame 不跳，用错了球会完全不动。
+     两层兜底都拿不到时退回 setTimeout —— 宁可少顺滑一点，也不能不动。 */
+  function raf(fn) {
+    try {
+      if (HOST && typeof HOST.requestAnimationFrame === 'function') {
+        return HOST.requestAnimationFrame(fn);
+      }
+    } catch (e) { }
+    try { if (typeof requestAnimationFrame === 'function') { return requestAnimationFrame(fn); } } catch (e) { }
+    try { return setTimeout(fn, 16); } catch (e) { return 0; }
+  }
+  function cancelRaf(id) {
+    if (!id) { return; }
+    try { if (HOST && typeof HOST.cancelAnimationFrame === 'function') { HOST.cancelAnimationFrame(id); return; } } catch (e) { }
+    try { if (typeof cancelAnimationFrame === 'function') { cancelAnimationFrame(id); return; } } catch (e) { }
+    try { clearTimeout(id); } catch (e) { }
+  }
   function viewW() { try { return HOST.innerWidth || HDOC.documentElement.clientWidth || 0; } catch (e) { return 0; } }
   function viewH() { try { return HOST.innerHeight || HDOC.documentElement.clientHeight || 0; } catch (e) { return 0; } }
 
+  /* 视口尺寸缓存：拖动时每帧现读 innerWidth/innerHeight 会强制读布局，
+     而窗口尺寸只在 resize / 转屏 / 页面回前台时变 ⇒ 缓存起来，那三处各刷一次。 */
+  var viewCache = { w: 0, h: 0 };
+  function refreshView() { viewCache.w = viewW(); viewCache.h = viewH(); }
+
   /* 夹到可视区里：至少留 EDGE_KEEP 像素能点到（x 为 null 表示还没定过位） */
   function clampGeom() {
-    var w = viewW(), h = viewH(), s = geom.size;
+    var w = viewCache.w || viewW(), h = viewCache.h || viewH(), s = geom.size;
     if (!w || !h) { return; }
     if (geom.x === null || geom.x === undefined) { geom.x = w - s - 16; }   // 首次：右上角往里缩 16px
     if (geom.y === null || geom.y === undefined) { geom.y = DEF_Y; }
     geom.x = Math.min(Math.max(geom.x, EDGE_KEEP - s), w - EDGE_KEEP);
     geom.y = Math.min(Math.max(geom.y, EDGE_KEEP - s), h - EDGE_KEEP);
   }
+  /* 把几何写进舞台的 CSS 变量。拖动时每帧都会调它，所以尺寸**没变就不写**
+     （每帧从 3 次 setProperty 降到 2 次；setProperty 是纯主线程操作）。 */
+  var lastPaintedSize = 0;
   function paint() {
     if (!stage) { return; }
     try {
       stage.style.setProperty('--kami-ball-x', Math.round(geom.x) + 'px');
       stage.style.setProperty('--kami-ball-y', Math.round(geom.y) + 'px');
-      stage.style.setProperty('--kami-ball-size', Math.round(geom.size) + 'px');
+      var s = Math.round(geom.size);
+      if (s !== lastPaintedSize) {
+        stage.style.setProperty('--kami-ball-size', s + 'px');
+        lastPaintedSize = s;
+      }
     } catch (e) { }
   }
 
@@ -211,6 +247,7 @@
 
   /* 拖动：pointer 事件 + 捕获（照面板那一套；触屏上必须先 touch-action:none 才拖得动） */
   var lastDragEnd = 0;   // 刚拖完的那一下不算点击
+  var rafId = 0;         // 拖动节流用的那一帧（0 = 没有待执行帧）
   function bindDrag() {
     if (!ball) { return; }
     ball.addEventListener('pointerdown', function (ev) {
@@ -226,8 +263,16 @@
       drag.moved = true;
       geom.x = drag.ox + dx;
       geom.y = drag.oy + dy;
-      clampGeom();
-      paint();
+      /* 采样点只更新坐标，写样式交给下一帧：一帧里来多少次 move 都只写一次。
+         抬手那一下不依赖这里 —— endDrag 里还有一次 clampGeom + paint 兜底。 */
+      if (!rafId) {
+        rafId = raf(function () {
+          rafId = 0;
+          if (!drag) { return; }
+          clampGeom();
+          paint();
+        });
+      }
     });
     var endDrag = function (ev) {
       if (!drag || (ev && ev.pointerId !== drag.id)) { return; }
@@ -236,6 +281,9 @@
       drag = null;
       if (moved) {
         lastDragEnd = Date.now();
+        /* 先把没跑完的那一帧掐掉，再按**最终坐标**画一次：
+           否则待执行帧会按抬手前的位置补画，球就停在最后一帧而不是落点。 */
+        if (rafId) { cancelRaf(rafId); rafId = 0; }
         clampGeom();
         paint();
         saveVars();
@@ -259,6 +307,7 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    try { if (rafId) { cancelRaf(rafId); rafId = 0; } } catch (e) { }
     try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } } catch (e) { }
     try { if (resizeHandler) { HOST.removeEventListener('resize', resizeHandler); } } catch (e) { }
     resizeHandler = null;
@@ -279,9 +328,9 @@
   function api() {
     return {
       version: VERSION,
-      show: function () { if (!stage) { build(); } else { stage.style.display = ''; } clampGeom(); paint(); return true; },
+      show: function () { if (!stage) { build(); } else { stage.style.display = ''; } refreshView(); clampGeom(); paint(); return true; },
       hide: function () { if (stage) { stage.style.display = 'none'; } return true; },
-      reset: function () { geom.x = null; geom.y = DEF_Y; clampGeom(); paint(); saveVars(); return { x: geom.x, y: geom.y }; },
+      reset: function () { geom.x = null; geom.y = DEF_Y; refreshView(); clampGeom(); paint(); saveVars(); return { x: geom.x, y: geom.y }; },
       status: function () {
         return {
           version: VERSION, mounted: !!stage, disposed: disposed,
@@ -297,9 +346,10 @@
     readVars();
     build();
     injectCss();
+    refreshView();   /* 首次夹取前先量一次视口（clampGeom 平时只读缓存） */
     clampGeom();
     paint();
-    resizeHandler = function () { if (!disposed) { clampGeom(); paint(); } };
+    resizeHandler = function () { if (!disposed) { refreshView(); clampGeom(); paint(); } };
     try { HOST.addEventListener('resize', resizeHandler); } catch (e) { }
     hideHandler = function () { try { teardown(); } catch (e) { } };
     try { window.addEventListener('pagehide', hideHandler); } catch (e) { }
