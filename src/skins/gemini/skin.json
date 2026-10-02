@@ -1,96 +1,90 @@
 {
   "id": "gemini",
-  "name": "双子座",
-  "button": "双子",
+  "name": "Gemini",
+  "button": "Gemini",
   "scheme": "dark",
-  "tagline": "竖直轴线将面板对半分开，左侧青绿，右侧品红，双色向中轴扩散淡出，在轴心汇聚成一枚冷暖各半的小珠。",
+  "tagline": "干净的深色大圆角画布，卡片无描边，全靠明暗分层。顶缘横着一道四色光谱细带，头端清晰、尾端淡出，全屏仅此一处彩色。",
   "effects": [
     {
-      "id": "twin",
-      "label": "冷暖极边",
-      "desc": "面板左右两侧边缘分别呈现冷色与暖色，左右成对对称。",
+      "id": "spectrum",
+      "label": "顶缘光谱",
+      "desc": "面板顶缘横过一道四色光谱细带，头端清晰锐利，尾端自然扩散淡出。",
       "default": true
     },
     {
-      "id": "axis",
-      "label": "中轴分流",
-      "desc": "在面板正中画出一条竖直分流线，清晰隔开左右冷暖两半。",
+      "id": "bloom",
+      "label": "顶部微光",
+      "desc": "光谱带下方漫开一层极淡的彩色光晕，像幕布从上方被轻轻照亮。",
       "default": true
     },
     {
-      "id": "halo",
-      "label": "轴心小珠",
-      "desc": "在分流轴线交汇处显出一枚小珠，左边冷色与右边暖色各占一半。",
-      "default": true
-    },
-    {
-      "id": "drift",
-      "label": "呼吸流动",
-      "desc": "左右冷暖两色在面板上缓慢呼吸流动，轻柔起伏不晃眼。",
+      "id": "rings",
+      "label": "同心圆环",
+      "desc": "面板角落浮出一组极淡的同心圆环，伴随节奏轻柔缓慢地呼吸起伏。",
       "default": false
     },
     {
-      "id": "polarity",
-      "label": "冷暖对调",
-      "desc": "一键把左右两侧的冷色与暖色位置对换，整块面板镜像翻转。",
+      "id": "pulse",
+      "label": "状态圆环",
+      "desc": "状态小圆点随状态切换而变化，开启时呈现为一圈四色光谱细圆环。",
       "default": false
     }
   ],
   "params": [
     {
-      "id": "axispos",
-      "label": "中轴位置",
-      "group": "中轴",
-      "token": "--kami-gem-axis",
-      "unit": "%",
-      "min": 30,
-      "max": 70,
-      "step": 1,
-      "value": 50
-    },
-    {
-      "id": "bleed",
-      "label": "色晕扩散",
-      "group": "中轴",
-      "token": "--kami-gem-bleed",
-      "unit": "%",
-      "min": 10,
-      "max": 80,
-      "step": 2,
-      "value": 46
-    },
-    {
-      "id": "edge",
-      "label": "极边粗细",
-      "group": "中轴",
-      "token": "--kami-gem-edge",
+      "id": "radius",
+      "label": "圆角尺度",
+      "group": "圆角",
+      "token": "--kami-gem-radius",
       "unit": "px",
-      "min": 0,
-      "max": 6,
+      "min": 8,
+      "max": 32,
+      "step": 2,
+      "value": 24
+    },
+    {
+      "id": "ribbon",
+      "label": "光谱带高度",
+      "group": "光谱",
+      "token": "--kami-gem-ribbon",
+      "unit": "px",
+      "min": 1,
+      "max": 4,
       "step": 1,
       "value": 2
     },
     {
-      "id": "duoalpha",
-      "label": "双色浓度",
-      "group": "两极",
-      "token": "--kami-gem-alpha",
-      "unit": "",
+      "id": "tail",
+      "label": "光谱收尾位置",
+      "group": "光谱",
+      "token": "--kami-gem-tail",
+      "unit": "%",
       "min": 20,
       "max": 100,
       "step": 5,
-      "value": 65
+      "value": 88
     },
     {
-      "id": "glowsize",
+      "id": "strength",
+      "label": "光谱浓度",
+      "group": "光谱",
+      "token": "--kami-gem-bloom",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 45
+    },
+    {
+      "id": "halo",
       "label": "辉光半径",
-      "group": "两极",
+      "group": "光晕",
       "token": "--kami-glow-size",
       "unit": "px",
       "min": 0,
       "max": 14,
       "step": 1,
-      "value": 6
+      "value": 8
     }
   ]
 }
