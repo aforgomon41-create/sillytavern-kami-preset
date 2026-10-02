@@ -51,9 +51,9 @@
  * ======================================================================== */
 html[data-kami-skin="gemini"] .kami-root {
   /* —— 风格性文案槽位（契约 §3.7；文案由文案 Agent 出稿，一字不改） —— */
-  --kami-label-think-title: 【占位】思维链;
-  --kami-label-think-title-open: 【占位】思维链展开;
-  --kami-label-options-title: 【占位】行动选项;
+  --kami-label-think-title: 双子;
+  --kami-label-think-title-open: 双子展开;
+  --kami-label-options-title: 分支;
 
   /* —— 色彩：底 + 两极 + 强调（强调 = 冷极） —— */
   --kami-fg: #e9edfb;            /* 主文字：16.7:1 */
@@ -1546,9 +1546,9 @@ html[data-kami-skin="gemini"] .kami-root[data-kami-comp="panel"] .kami-field .ka
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="gemini"] {
-  --kami-label-think-title: 【占位】思维链;
-  --kami-label-think-title-open: 【占位】思维链展开;
-  --kami-label-options-title: 【占位】行动选项;
+  --kami-label-think-title: 双子;
+  --kami-label-think-title-open: 双子展开;
+  --kami-label-options-title: 分支;
   --kami-fg: #e9edfb;
   --kami-fg-dim: #b3bbd6;
   --kami-fg-mute: #8892b4;
