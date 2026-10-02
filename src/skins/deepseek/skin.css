@@ -39,9 +39,9 @@
  * ======================================================================== */
 html[data-kami-skin="deepseek"] .kami-root {
   /* —— 风格性文案槽位（契约 §3.7）—— */
-  --kami-label-think-title: 思考记录;
-  --kami-label-think-title-open: 思考记录·展开;
-  --kami-label-options-title: 指令选项;
+  --kami-label-think-title: 深潜;
+  --kami-label-think-title-open: 深潜展开;
+  --kami-label-options-title: 航向;
 
   /* —— 色彩：水面 —— */
   --kami-fg: #1e232c;                    /* 官方 --ds-color-text-primary，14.9:1 */
@@ -616,6 +616,13 @@ html[data-kami-skin="deepseek"] .kami-item.is-done {
 }
 
 html[data-kami-skin="deepseek"] .kami-item[data-kami-busy="1"] { opacity: 0.72; pointer-events: none; }
+/* 忙碌后缀：全屏只有空态与这一处允许俏皮（文案由文案 Agent 出稿） */
+html[data-kami-skin="deepseek"] .kami-item[data-kami-busy="1"] .kami-item-main::after {
+  content: " · 摆尾下潜中";
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-xs);
+  font-weight: var(--kami-fw);
+}
 
 html[data-kami-skin="deepseek"] .kami-item.is-demo { border-style: dashed; }
 
@@ -998,7 +1005,7 @@ html[data-kami-skin="deepseek"] .kami-empty {
 
 /* 全屏唯一允许俏皮的地方之一：空态。界面本身保持安静。 */
 html[data-kami-skin="deepseek"] .kami-body .kami-empty::after {
-  content: "大肥鱼正在下潜…";
+  content: "大肥鱼游去深海了";
   display: block;
   margin-top: 6px;
   font-size: var(--kami-fs-xs);
@@ -1276,9 +1283,9 @@ html[data-kami-skin="deepseek"][data-kami-effects~="abyss"] .kami-surface::after
  * 18 · 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）
  * ======================================================================== */
 html[data-kami-skin="deepseek"] {
-  --kami-label-think-title: 思考记录;
-  --kami-label-think-title-open: 思考记录·展开;
-  --kami-label-options-title: 指令选项;
+  --kami-label-think-title: 深潜;
+  --kami-label-think-title-open: 深潜展开;
+  --kami-label-options-title: 航向;
   --kami-fg: #1e232c;
   --kami-fg-dim: #47505f;
   --kami-fg-mute: #5e6675;
@@ -1379,9 +1386,9 @@ html[data-kami-skin="deepseek"] {
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="deepseek"] {
-  --kami-label-think-title: 思考记录;
-  --kami-label-think-title-open: 思考记录·展开;
-  --kami-label-options-title: 指令选项;
+  --kami-label-think-title: 深潜;
+  --kami-label-think-title-open: 深潜展开;
+  --kami-label-options-title: 航向;
   --kami-fg: #1e232c;
   --kami-fg-dim: #47505f;
   --kami-fg-mute: #5e6675;
