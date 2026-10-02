@@ -1877,6 +1877,12 @@
        再也不需要 order/flex 归零去对抗皮肤。
        第二行的布局由 LAYOUT_CSS（只写布局的一段注入样式，先例 = 50 号 GUIDE_CSS 排版层）负责。 */
     head.appendChild(mk('span', 'kami-dot'));
+    /* 装饰位（契约 §8）：与两个正则前端同形。皮肤声明了 decor 时，皮肤管理往这个空槽里注入装饰；
+       没声明的皮肤由结构层的 .kami-deco{display:none} 收着，一分钱不付。 */
+    var decoSlot = mk('span', 'kami-deco');
+    decoSlot.setAttribute('data-kami-deco', 'd20');
+    decoSlot.setAttribute('aria-hidden', 'true');
+    head.appendChild(decoSlot);
     head.appendChild(mk('span', 'kami-title', '📜 压缩'));
     var acts = mk('span', 'kami-actions');
     var btnClose = mk('button', 'kami-icon-btn', '✕');
