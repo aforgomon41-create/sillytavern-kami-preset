@@ -1,0 +1,79 @@
+{
+  "id": "moonside",
+  "name": "月之暗面",
+  "button": "暗面",
+  "scheme": "dark",
+  "tagline": "摊开的黑胶唱片封套：一道细白光穿透三棱镜散成六色，其余全篇尽是极细线条与编号曲目表，黑底白字，仅此一处彩色。",
+  "effects": [
+    {
+      "id": "prism",
+      "label": "棱镜色散",
+      "desc": "面板顶端一道白光穿过三棱镜散开，呈现全界面唯一的六色光带。",
+      "default": true
+    },
+    {
+      "id": "vinyl",
+      "label": "黑胶刻槽",
+      "desc": "外壳浮现微偏的同心圆细纹，像黑胶唱片在光线下映出的刻槽反光。",
+      "default": true
+    },
+    {
+      "id": "pulse",
+      "label": "心跳波形",
+      "desc": "状态栏旁亮起一条微弱的心电波形，伴随节奏缓慢起伏律动。",
+      "default": true
+    },
+    {
+      "id": "ghost",
+      "label": "失焦拖影",
+      "desc": "题头文字边缘带有轻微散开的虚影，呈现镜头失焦般的重影效果。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "specalpha",
+      "label": "色散浓度",
+      "group": "棱镜",
+      "token": "--kami-moon-spec-alpha",
+      "unit": "",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "value": 92
+    },
+    {
+      "id": "beamlen",
+      "label": "入射光长",
+      "group": "棱镜",
+      "token": "--kami-moon-beam-len",
+      "unit": "%",
+      "min": 20,
+      "max": 46,
+      "step": 2,
+      "value": 40
+    },
+    {
+      "id": "groove",
+      "label": "刻槽深浅",
+      "group": "黑胶",
+      "token": "--kami-moon-groove-alpha",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 42
+    },
+    {
+      "id": "glowsize",
+      "label": "辉光半径",
+      "group": "光晕",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "value": 6
+    }
+  ]
+}
