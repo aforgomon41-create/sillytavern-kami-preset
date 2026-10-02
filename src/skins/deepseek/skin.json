@@ -1,0 +1,73 @@
+{
+  "id": "deepseek",
+  "name": "大肥鱼",
+  "button": "大肥鱼",
+  "scheme": "light",
+  "tagline": "同一支蓝从上往下慢慢变深：面板顶上是水面，越往下越接近深海，层级全靠明度阶梯和 1px 描边分开，一个投影都不用；按钮一律全圆胶囊，底上铺一层极淡的方格网点阵。",
+  "effects": [
+    {
+      "id": "grid",
+      "label": "方格网纹",
+      "desc": "底上铺一层极淡的方格网，格线交点上带小圆点，格边长 150px；纯 CSS 平铺、不参与布局、不吃鼠标；官方首页与下载页用的就是这张网。",
+      "default": true
+    },
+    {
+      "id": "dive",
+      "label": "下潜",
+      "desc": "主内容区从上到下缓慢加深的纵向渐变，单一色相，顶上最浅、底下最深；整屏唯一的身份符号，只出现在主内容区，别处一律纯色。",
+      "default": true
+    },
+    {
+      "id": "abyss",
+      "label": "深海压暗",
+      "desc": "在整个表面上再压一层四周与底部更暗的柔光，把界面往下拽一档；默认关，觉得不够深再开。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "gridstep",
+      "label": "网格间距",
+      "group": "方格网纹",
+      "token": "--kami-ds-grid-step",
+      "unit": "px",
+      "min": 60,
+      "max": 300,
+      "step": 10,
+      "value": 150
+    },
+    {
+      "id": "gridalpha",
+      "label": "网格浓度",
+      "group": "方格网纹",
+      "token": "--kami-ds-grid-alpha",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 45
+    },
+    {
+      "id": "divedepth",
+      "label": "下潜深度",
+      "group": "下潜",
+      "token": "--kami-ds-dive-depth",
+      "unit": "",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "value": 60
+    },
+    {
+      "id": "glow",
+      "label": "焦点辉光",
+      "group": "下潜",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "value": 3
+    }
+  ]
+}

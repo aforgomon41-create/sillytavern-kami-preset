@@ -1,0 +1,1558 @@
+/* ============================================================================
+ * 卡密预设 · 皮肤：大肥鱼（deepseek）
+ * ----------------------------------------------------------------------------
+ * 概念：一次下潜。
+ *   · 同一支蓝，从上往下慢慢变深 —— 面板顶上是水面，越往下越接近深海。
+ *     层级不靠投影，靠明度阶梯 + 1px 描边分开。
+ *   · 按钮一律全圆胶囊；卡片与容器走「横向略扁」的椭圆角：
+ *     官方鲸鱼外接盒 26.906 × 19.771 = 1.36 : 1，横向半径就是纵向的 1.36 倍。
+ *     官方画鲸鱼 71 段三次贝塞尔、0 条直线 —— 所以这里也几乎不出现直角。
+ *   · 底上铺一层极淡的方格网点阵（官方首页 / 下载页 / 新闻页都在用同一张网），
+ *     纯 CSS 平铺，不参与布局、不吃鼠标。
+ *   · 蓝只占极小面积：官方营销页 193 个可见色块里只有 2 个是强蓝。
+ *     底色是无色的 #f9f8f8（官方营销底），蓝只落在主按钮、当前项、焦点环上。
+ *
+ * 身份符号只留一个：下潜渐变（--kami-ds-dive）。
+ *   它只出现在主内容区（.kami-body，含面板的 .kami-drop > .kami-body），
+ *   其余表面一律纯色 —— 整屏就这一处渐变。
+ *
+ * 两个官方蓝，各司其职（都不是我调的色）：
+ *   · #4d6bfe —— 官方 favicon 源码注释里自称「品牌蓝」。用在焦点环、网格交点、
+ *                下潜渐变这类图形场合。（官方 chat 深色主题的焦点环也正是这个值。）
+ *   · #3964fe —— 官方亮档令牌 --dsw-alias-brand-primary / brand-text（deepseek-500）。
+ *                用在主按钮填充与当前项，白字压上去 4.74:1。
+ *
+ * 对比度（WCAG 2.1 实算）：
+ *   亮档 正文 #1e232c on #f9f8f8 ≈ 14.9:1 ｜ 次要 #47505f ≈ 7.7:1 ｜ 最弱 #5e6675 ≈ 5.5:1
+ *   亮档 主按钮 白字 on #3964fe ≈ 4.7:1 ｜ 正文链接 #234792 ≈ 8.3:1（官方 --ds-color-text-link-blue）
+ *   暗档 正文 #f9fafb on #151517 ≈ 17.5:1 ｜ 次要 #cfd3d6 ≈ 12.1:1 ｜ 最弱 #8d9198 ≈ 5.1:1
+ *   暗档 主按钮 #0f1115 on #679efe ≈ 7.0:1 ｜ 链接 #8fb6ff ≈ 8.5:1
+ *
+ * 投影用量：亮档只有一处 0 4px 12px rgba(0,0,0,.08)（官方浅色页唯一的那一个阴影）；
+ *          暗档直接 none（官方深色页零阴影）。行内卡片两档都不投影，只留 1px 描边。
+ * 纯 CSS：零外部请求、无 JS、无 @import、无 @font-face、无 vh、不画鲸鱼轮廓。
+ * 契约：docs/皮肤契约.md（作用域前缀 / 令牌全集 / 风格性文案槽 / 对比度防线）。
+ * ========================================================================== */
+
+/* ==========================================================================
+ * 1 · 令牌全集（默认亮档 = 水面：官方营销站底 #f9f8f8）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-root {
+  /* —— 风格性文案槽位（契约 §3.7）—— */
+  --kami-label-think-title: 思考记录;
+  --kami-label-think-title-open: 思考记录·展开;
+  --kami-label-options-title: 指令选项;
+
+  /* —— 色彩：水面 —— */
+  --kami-fg: #1e232c;                    /* 官方 --ds-color-text-primary，14.9:1 */
+  --kami-fg-dim: #47505f;                /* 次要文字，7.7:1 */
+  --kami-fg-mute: #5e6675;               /* 最弱文字，5.5:1 */
+  --kami-accent: #3964fe;                /* 官方亮档 brand-primary（deepseek-500） */
+  --kami-accent-fg: #ffffff;             /* 压在主按钮上 4.7:1 */
+  --kami-accent-soft: rgba(57, 100, 254, 0.10);
+  --kami-accent-line: rgba(57, 100, 254, 0.46);
+  --kami-bg: #f9f8f8;                    /* 官方营销站底色 */
+  --kami-bg-soft: #f2f4f8;
+  --kami-card: #ffffff;                  /* 卡片比页面浅一档：浮出水面 */
+  --kami-card-2: #f6f8fc;
+  --kami-card-hover: #eef3fe;            /* 官方 --dsw-static-deepseek-50 */
+  --kami-line: rgba(9, 45, 78, 0.16);    /* 官方海军蓝描边族，不是中性灰 */
+  --kami-line-strong: rgba(9, 45, 78, 0.34);
+  --kami-t1: rgba(30, 35, 44, 0.035);
+  --kami-t2: rgba(30, 35, 44, 0.07);
+  --kami-t3: rgba(30, 35, 44, 0.13);
+  --kami-warn: #b4531a;                  /* 4.7:1 */
+  --kami-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);   /* 官方浅色页唯一的那一个阴影 */
+  --kami-shadow-sm: none;
+  --kami-blur: 8px;
+
+  /* —— 本皮肤私有令牌（skin.json 的 params 写这几个）—— */
+  --kami-ds-brand: #4d6bfe;              /* 官方 favicon 自称「品牌蓝」 */
+  --kami-ds-link: #234792;               /* 官方 --ds-color-text-link-blue，8.3:1 */
+  --kami-ds-grid-step: 150px;            /* 网格间距：官方实拍约 150px */
+  --kami-ds-grid-alpha: 45;              /* 网格浓度（无量纲，供 calc 折算透明度）*/
+  --kami-ds-dive-depth: 60;              /* 下潜深度（无量纲）*/
+  --kami-ds-grid-a: calc(var(--kami-ds-grid-alpha) * 0.0012);   /* 45 -> .054，官方那张网几乎看不见 */
+  --kami-ds-dot-a: calc(var(--kami-ds-grid-alpha) * 0.0030);    /* 45 -> .135 */
+  --kami-ds-dive-a: calc(var(--kami-ds-dive-depth) * 0.0016);   /* 60 -> .096 */
+  --kami-ds-grid: rgba(9, 45, 78, var(--kami-ds-grid-a));
+  --kami-ds-dot: rgba(77, 107, 254, var(--kami-ds-dot-a));
+
+  /* —— 布局与尺寸：胶囊 + 横向略扁（鲸鱼 1.36 : 1）—— */
+  --kami-ds-ratio: 1.36;                 /* 官方标记 26.906 / 19.771 */
+  --kami-r-xs: 4px;
+  --kami-r-sm: 6px;
+  --kami-r-md: 10px;
+  --kami-r-lg: 16px;
+  --kami-r-pill: 999px;                  /* 按钮一律全圆胶囊 */
+  --kami-ds-rx: var(--kami-r-lg);                              /* 横向半径 */
+  --kami-ds-ry: calc(var(--kami-r-lg) / var(--kami-ds-ratio)); /* 纵向半径 = 横向 / 1.36 */
+  --kami-border-w: 1px;
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 38px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 236px;
+  --kami-panel-w: 468px;
+  --kami-panel-h: 604px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+
+  /* —— 文本与排版：大标题只有 400 字重，层级靠字距和颜色 —— */
+  --kami-fs-scale: 1;
+  --kami-fs: calc(14px * var(--kami-fs-scale));   /* 官方正文 14px */
+  --kami-fs-xs: calc(var(--kami-fs) * 0.78);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.89);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.14);
+  --kami-lh: 1.62;
+  --kami-ls: 0.01em;
+  --kami-ls-title: 0.16em;               /* 官方首页是 0.4em，面板里收窄到 0.16em */
+  --kami-font: Inter, "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 400;                  /* 官方大标题一律 400 —— 加粗就没有这个味了 */
+  --kami-title-transform: none;
+
+  /* —— 装饰与特效 —— */
+  --kami-texture:
+    radial-gradient(circle at 0 0, var(--kami-ds-dot) 0 1.1px, transparent 1.9px),
+    repeating-linear-gradient(90deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step)),
+    repeating-linear-gradient(0deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step));
+  --kami-ds-dive: linear-gradient(180deg,
+    rgba(77, 107, 254, 0) 0%,
+    rgba(77, 107, 254, calc(var(--kami-ds-dive-a) * 0.40)) 58%,
+    rgba(21, 36, 67, var(--kami-ds-dive-a)) 100%);
+  --kami-glow: rgba(77, 107, 254, 0.42);
+  --kami-glow-size: 3px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+
+  /* —— 动效：官方三档时长 + 官方两条缓动曲线 —— */
+  --kami-dur-fast: 0.1s;
+  --kami-dur: 0.2s;
+  --kami-dur-slow: 0.3s;
+  --kami-ease: cubic-bezier(0.4, 0, 0.2, 1);      /* 官方 --ds-ease-in-out */
+  --kami-ease-out: cubic-bezier(0, 0, 0.2, 1);    /* 官方 --ds-ease-out */
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 0.995;
+  --kami-stagger: 26ms;
+
+  /* —— 语义色：亮底上均 ≥ 4.5:1 —— */
+  --kami-kind-action: #1f5fa8;
+  --kami-kind-persona: #a03a6e;
+  --kami-kind-plot: #1f7a45;
+  --kami-kind-info: #0f6f7a;
+  --kami-kind-fun: #8a5a10;
+  --kami-kind-nsfw: #a33a52;
+  --kami-kind-other: #4a5364;
+
+  box-sizing: border-box;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs);
+  font-weight: var(--kami-fw);
+  line-height: var(--kami-lh);
+  letter-spacing: var(--kami-ls);
+  text-align: left;
+  text-rendering: optimizeLegibility;
+  word-break: break-word;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+ * 2 · 明暗档位：暗档 = 深海（官方产品底 #151517）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-scheme="dark"] .kami-root {
+  --kami-fg: #f9fafb;                    /* 官方暗档 label-primary，17.5:1 */
+  --kami-fg-dim: #cfd3d6;                /* 官方暗档 label-secondary，12.1:1 */
+  --kami-fg-mute: #8d9198;               /* 5.1:1（官方 #81858c 在卡片上只有 4.2:1，提亮一档）*/
+  --kami-accent: #679efe;                /* 官方暗档 brand-text（deepseek-400），6.9:1 */
+  --kami-accent-fg: #0f1115;             /* 深字压亮蓝底，7.0:1 */
+  --kami-accent-soft: rgba(86, 134, 254, 0.14);
+  --kami-accent-line: rgba(86, 134, 254, 0.50);
+
+  --kami-bg: #151517;                    /* 官方产品底 */
+  --kami-bg-soft: #1b1b1c;               /* 官方 neutral-bluish-900 */
+  --kami-card: #232324;                  /* 官方 neutral-bluish-875 */
+  --kami-card-2: #1b1b1c;
+  --kami-card-hover: #2c2c2e;            /* 官方 neutral-bluish-850 */
+  --kami-line: rgba(255, 255, 255, 0.12);        /* 官方 border-l2 暗档 */
+  --kami-line-strong: rgba(255, 255, 255, 0.20); /* 官方 border-l4 暗档 */
+  --kami-t1: rgba(255, 255, 255, 0.04);
+  --kami-t2: rgba(255, 255, 255, 0.07);
+  --kami-t3: rgba(255, 255, 255, 0.12);
+  --kami-warn: #f7ad31;                  /* 9.5:1 */
+  --kami-shadow: none;                   /* 官方深色页零阴影 */
+  --kami-shadow-sm: none;
+  --kami-blur: 12px;
+
+  --kami-ds-link: #8fb6ff;               /* 8.5:1 */
+  --kami-ds-grid: rgba(140, 170, 235, calc(var(--kami-ds-grid-a) * 1.15));
+  --kami-ds-dot: rgba(110, 150, 255, calc(var(--kami-ds-dot-a) * 0.95));
+  --kami-ds-dive: linear-gradient(180deg,
+    rgba(86, 134, 254, calc(var(--kami-ds-dive-a) * 1.45)) 0%,
+    rgba(86, 134, 254, calc(var(--kami-ds-dive-a) * 0.30)) 52%,
+    rgba(6, 10, 20, calc(var(--kami-ds-dive-a) * 4.6)) 100%);
+
+  --kami-glow: rgba(86, 134, 254, 0.50);
+
+  --kami-kind-action: #7fb2ff;
+  --kami-kind-persona: #ff9ecf;
+  --kami-kind-plot: #7fe08f;
+  --kami-kind-info: #6fd8d8;
+  --kami-kind-fun: #ffd166;
+  --kami-kind-nsfw: #ff8fa8;
+  --kami-kind-other: #9ab8a4;
+}
+
+/* ==========================================================================
+ * 3 · 密度档位
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-density="compact"] .kami-root {
+  --kami-pad-x: 9px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 10px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 9px;
+  --kami-row-h: 32px;
+  --kami-fs: calc(13px * var(--kami-fs-scale));
+  --kami-lh: 1.55;
+  --kami-panel-h: 556px;
+}
+
+html[data-kami-skin="deepseek"][data-kami-density="roomy"] .kami-root {
+  --kami-pad-x: 15px;
+  --kami-pad-y: 11px;
+  --kami-pad-lg-x: 20px;
+  --kami-pad-lg-y: 18px;
+  --kami-gap: 10px;
+  --kami-gap-lg: 15px;
+  --kami-row-h: 44px;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-lh: 1.7;
+  --kami-panel-h: 652px;
+}
+
+/* ==========================================================================
+ * 4 · 动效档位与降级
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-motion="calm"] .kami-root {
+  --kami-dur-fast: 0.14s;
+  --kami-dur: 0.24s;
+  --kami-dur-slow: 0.34s;
+  --kami-enter-y: 2px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 16ms;
+}
+
+html[data-kami-skin="deepseek"][data-kami-motion="off"] .kami-root {
+  --kami-dur-fast: 0s;
+  --kami-dur: 0s;
+  --kami-dur-slow: 0s;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+
+/* ==========================================================================
+ * 5 · 基础重置与焦点
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-root *,
+html[data-kami-skin="deepseek"] .kami-root *::before,
+html[data-kami-skin="deepseek"] .kami-root *::after { box-sizing: border-box; }
+
+html[data-kami-skin="deepseek"] .kami-root button,
+html[data-kami-skin="deepseek"] .kami-root input,
+html[data-kami-skin="deepseek"] .kami-root select,
+html[data-kami-skin="deepseek"] .kami-root textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+}
+
+html[data-kami-skin="deepseek"] .kami-root button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-root [hidden] { display: none !important; }
+html[data-kami-skin="deepseek"] .kami-root img { max-width: 100%; }
+
+/* 装饰槽：本皮肤不声明 d20/d10，保持收起 */
+html[data-kami-skin="deepseek"] .kami-root .kami-deco { display: none; }
+
+/* 焦点环：官方 chat 深色主题的焦点环就是一圈 2px 的 #4d6bfe，这里照抄那个值 */
+html[data-kami-skin="deepseek"] .kami-root :focus-visible {
+  outline: 2px solid var(--kami-ds-brand);
+  outline-offset: 2px;
+  border-radius: var(--kami-r-xs);
+}
+
+/* ==========================================================================
+ * 6 · 外壳：水面（长写属性，别用 background 简写洗掉纹理）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-shell {
+  position: relative;
+  max-width: var(--kami-maxw);
+  background-color: var(--kami-bg);
+  background-image: none;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-ds-rx) / var(--kami-ds-ry);   /* 鲸鱼比例：横向 1.36 倍 */
+  box-shadow: var(--kami-shadow);
+  overflow: hidden;
+  transition: border-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-surface {
+  position: relative;
+  clip-path: var(--kami-surface-clip);
+  background-color: transparent;
+  background-position: 0 0, 0 0, 0 0;
+  background-size: var(--kami-ds-grid-step) var(--kami-ds-grid-step), auto, auto;
+  background-repeat: repeat, repeat, repeat;
+}
+
+html[data-kami-skin="deepseek"] .kami-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  min-height: calc(var(--kami-row-h) + var(--kami-pad-y));
+  padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
+}
+
+html[data-kami-skin="deepseek"] .kami-head:not(.kami-collapse-head) {
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+}
+
+html[data-kami-skin="deepseek"] .kami-collapse-head { cursor: pointer; user-select: none; }
+
+/* 标题：400 字重 + 宽字距。不加粗，层级靠字距、字号和满强度颜色。 */
+html[data-kami-skin="deepseek"] .kami-title {
+  font-family: var(--kami-font-title);
+  font-weight: var(--kami-fw-title);
+  font-size: var(--kami-fs-lg);
+  letter-spacing: var(--kami-ls-title);
+  text-transform: var(--kami-title-transform);
+  color: var(--kami-fg);
+  white-space: nowrap;
+}
+
+html[data-kami-skin="deepseek"] .kami-sub {
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+  white-space: nowrap;
+}
+
+html[data-kami-skin="deepseek"] .kami-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  margin-left: auto;
+  flex: none;
+}
+
+/* 状态点：一颗小圆点，就是官方那只鲸鱼眼睛的形状（正圆，无描边） */
+html[data-kami-skin="deepseek"] .kami-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--kami-line-strong);
+  box-shadow: none;
+  transition: background-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-dot[data-kami-on="1"] { background-color: var(--kami-ds-brand); }
+
+html[data-kami-skin="deepseek"] .kami-dots .kami-dot {
+  width: 6px;
+  height: 6px;
+  background-color: transparent;
+  border: var(--kami-border-w) solid var(--kami-line-strong);
+}
+
+html[data-kami-skin="deepseek"] .kami-dots .kami-dot[data-kami-on="1"] {
+  background-color: var(--kami-ds-brand);
+  border-color: var(--kami-ds-brand);
+}
+
+html[data-kami-skin="deepseek"] .kami-body {
+  padding: 0 var(--kami-pad-lg-x) var(--kami-pad-lg-y);
+}
+
+html[data-kami-skin="deepseek"] .kami-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-lg-x);
+  border-top: var(--kami-border-w) solid var(--kami-line);
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+
+html[data-kami-skin="deepseek"] .kami-chev {
+  margin-left: auto;
+  color: var(--kami-fg-mute);
+  transition: transform var(--kami-dur) var(--kami-ease-out);
+}
+
+html[data-kami-skin="deepseek"] .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev { transform: rotate(90deg); }
+
+html[data-kami-skin="deepseek"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
+  animation: none;
+  border-top: var(--kami-border-w) solid var(--kami-line);
+}
+
+/* ==========================================================================
+ * 7 · 按钮系：一律全圆胶囊 + 1px 描边 + 零投影
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-btn,
+html[data-kami-skin="deepseek"] .kami-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) calc(var(--kami-pad-x) + 4px);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: transparent;
+  background-image: none;
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: none;
+  transition: background-color var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-icon-btn {
+  min-width: var(--kami-row-h);
+  padding: 0;
+  font-size: var(--kami-icon);
+  border-color: transparent;
+  color: var(--kami-fg-dim);
+}
+
+@media (hover: hover) {
+  html[data-kami-skin="deepseek"] .kami-btn:hover,
+  html[data-kami-skin="deepseek"] .kami-icon-btn:hover {
+    background-color: var(--kami-t1);
+    border-color: var(--kami-line-strong);
+    color: var(--kami-fg);
+  }
+}
+
+html[data-kami-skin="deepseek"] .kami-btn:active,
+html[data-kami-skin="deepseek"] .kami-icon-btn:active { background-color: var(--kami-t2); }
+
+html[data-kami-skin="deepseek"] .kami-btn[disabled],
+html[data-kami-skin="deepseek"] .kami-icon-btn[disabled] { opacity: 0.45; cursor: default; }
+
+html[data-kami-skin="deepseek"] .kami-btn--ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--kami-fg-dim);
+}
+
+/* 主按钮：官方亮档 brand-primary 填充 + 白字（4.7:1）。零投影，靠填充色说话。 */
+html[data-kami-skin="deepseek"] .kami-root .kami-btn--primary {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+  color: var(--kami-accent-fg);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  html[data-kami-skin="deepseek"] .kami-root .kami-btn--primary:hover {
+    background-color: var(--kami-ds-brand);
+    border-color: var(--kami-ds-brand);
+    color: #ffffff;
+  }
+}
+
+/* 开态：底色染一层极淡的品牌蓝 + 描边转蓝 —— 不靠投影，也不翻转前景 */
+html[data-kami-skin="deepseek"] .kami-btn.is-on {
+  background-color: var(--kami-accent-soft);
+  border-color: var(--kami-accent);
+  color: var(--kami-fg);
+  box-shadow: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-btn.is-done {
+  border-color: var(--kami-accent-line);
+  color: var(--kami-fg-dim);
+}
+
+/* ==========================================================================
+ * 8 · 分段切换：胶囊套胶囊（官方语言切换器就是这个结构）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  box-shadow: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-seg-item {
+  padding: calc(var(--kami-pad-y) - 2px) calc(var(--kami-pad-x) + 2px);
+  border: var(--kami-border-w) solid transparent;
+  border-radius: var(--kami-r-pill);
+  background-color: transparent;
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  transition: background-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-seg-item.is-on {
+  background-color: var(--kami-card);
+  border-color: var(--kami-line);
+  color: var(--kami-fg);
+}
+
+/* ==========================================================================
+ * 9 · 卡片 / 列表 / 网格 / 徽章
+ * ======================================================================== */
+/* 卡片：横向略扁的椭圆角（横半径 = 纵半径 × 1.36），1px 描边，不投影 */
+html[data-kami-skin="deepseek"] .kami-card {
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-ds-rx) / var(--kami-ds-ry);
+  background-color: var(--kami-card);
+  background-image: none;
+  box-shadow: none;
+  transition: background-color var(--kami-dur) var(--kami-ease),
+              border-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+}
+
+html[data-kami-skin="deepseek"] .kami-card-title {
+  font-weight: var(--kami-fw-title);
+  letter-spacing: 0.06em;
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="deepseek"] .kami-card-note {
+  margin-left: auto;
+  font-size: var(--kami-fs-xs);
+  color: var(--kami-fg-mute);
+}
+
+html[data-kami-skin="deepseek"] .kami-card-body { padding: var(--kami-pad-y) var(--kami-pad-x); }
+
+html[data-kami-skin="deepseek"] .kami-list {
+  display: flex;
+  flex-direction: var(--kami-list-dir);
+  justify-content: var(--kami-justify);
+  gap: var(--kami-gap);
+}
+
+html[data-kami-skin="deepseek"] .kami-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--kami-items-min), 1fr));
+  gap: var(--kami-gap);
+}
+
+html[data-kami-skin="deepseek"] .kami-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: calc(var(--kami-r-md) + 2px) / calc((var(--kami-r-md) + 2px) / var(--kami-ds-ratio));
+  background-color: var(--kami-card);
+  background-image: none;
+  box-shadow: none;
+  transition: background-color var(--kami-dur) var(--kami-ease),
+              border-color var(--kami-dur) var(--kami-ease);
+}
+
+@media (hover: hover) {
+  html[data-kami-skin="deepseek"] .kami-item:hover {
+    background-color: var(--kami-card-hover);
+    border-color: var(--kami-accent-line);
+  }
+}
+
+html[data-kami-skin="deepseek"] .kami-item:active { background-color: var(--kami-card-hover); }
+
+/* 选中：描边转蓝 + 左侧一道 3px 品牌蓝标记（官方侧栏选中项的蓝底浅蓝字，这里改成描边版） */
+html[data-kami-skin="deepseek"] .kami-item.is-on,
+html[data-kami-skin="deepseek"] .kami-item[aria-pressed="true"] {
+  background-color: var(--kami-accent-soft);
+  border-color: var(--kami-accent);
+  box-shadow: inset var(--kami-accent-mark) 0 0 0 var(--kami-accent);
+}
+
+html[data-kami-skin="deepseek"] .kami-item.is-done {
+  border-color: var(--kami-line-strong);
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="deepseek"] .kami-item[data-kami-busy="1"] { opacity: 0.72; pointer-events: none; }
+
+html[data-kami-skin="deepseek"] .kami-item.is-demo { border-style: dashed; }
+
+html[data-kami-skin="deepseek"] .kami-item-main { flex: 1 1 auto; min-width: 0; }
+
+html[data-kami-skin="deepseek"] .kami-item-side {
+  flex: none;
+  margin-left: auto;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+}
+
+/* 徽章与胶囊标签：同一套胶囊 */
+html[data-kami-skin="deepseek"] .kami-badge,
+html[data-kami-skin="deepseek"] .kami-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 9px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+html[data-kami-skin="deepseek"] .kami-chip {
+  background-color: transparent;
+  border-style: dashed;
+}
+
+/* 语义色：只用文字色，不铺色块 —— 蓝已经占了很少的面积，语义色也不许抢 */
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="action"] { color: var(--kami-kind-action); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="persona"] { color: var(--kami-kind-persona); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="plot"] { color: var(--kami-kind-plot); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="info"] { color: var(--kami-kind-info); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="fun"] { color: var(--kami-kind-fun); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="nsfw"] { color: var(--kami-kind-nsfw); }
+html[data-kami-skin="deepseek"] .kami-root [data-kami-kind="other"] { color: var(--kami-kind-other); }
+
+html[data-kami-skin="deepseek"] .kami-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+}
+
+html[data-kami-skin="deepseek"] .kami-bar > :last-child { margin-left: auto; }
+
+/* ==========================================================================
+ * 10 · 正文 / markdown / 原文
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-md { color: var(--kami-fg); }
+
+html[data-kami-skin="deepseek"] .kami-md > :first-child { margin-top: 0; }
+html[data-kami-skin="deepseek"] .kami-md > :last-child { margin-bottom: 0; }
+
+html[data-kami-skin="deepseek"] .kami-md p { margin: 0 0 0.72em; }
+
+/* 小标题同样不加粗：字号提一档 + 一点点字距就够了（官方大标题一律 400） */
+html[data-kami-skin="deepseek"] .kami-md h1,
+html[data-kami-skin="deepseek"] .kami-md h2,
+html[data-kami-skin="deepseek"] .kami-md h3 {
+  margin: 1.1em 0 0.5em;
+  font-weight: var(--kami-fw-title);
+  letter-spacing: 0.04em;
+  line-height: 1.42;
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="deepseek"] .kami-md h1 { font-size: calc(var(--kami-fs) * 1.32); }
+html[data-kami-skin="deepseek"] .kami-md h2 { font-size: calc(var(--kami-fs) * 1.18); }
+html[data-kami-skin="deepseek"] .kami-md h3 { font-size: calc(var(--kami-fs) * 1.06); }
+
+html[data-kami-skin="deepseek"] .kami-md code {
+  padding: 0.1em 0.4em;
+  border-radius: var(--kami-r-xs);
+  background-color: var(--kami-t2);
+  font-family: var(--kami-font-mono);
+  font-size: 0.92em;
+}
+
+/* 代码块：官方文档站的 #1e1e1e + 8px 圆角，两档都用深底 */
+html[data-kami-skin="deepseek"] .kami-md pre {
+  margin: 0.8em 0;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  overflow-x: auto;
+}
+
+html[data-kami-skin="deepseek"] .kami-md pre code {
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  font-size: var(--kami-fs-sm);
+}
+
+html[data-kami-skin="deepseek"] .kami-md blockquote {
+  margin: 0.8em 0;
+  padding: 0.2em 0 0.2em var(--kami-pad-x);
+  border-left: var(--kami-accent-mark) solid var(--kami-accent-line);
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="deepseek"] .kami-md ul,
+html[data-kami-skin="deepseek"] .kami-md ol { margin: 0.6em 0; padding-left: 1.5em; }
+
+html[data-kami-skin="deepseek"] .kami-md li { margin: 0.22em 0; }
+html[data-kami-skin="deepseek"] .kami-md li::marker { color: var(--kami-accent); }
+html[data-kami-skin="deepseek"] .kami-md ul ul,
+html[data-kami-skin="deepseek"] .kami-md ul ul ul,
+html[data-kami-skin="deepseek"] .kami-md ol ol,
+html[data-kami-skin="deepseek"] .kami-md ol ol ol { margin: 0.2em 0; }
+html[data-kami-skin="deepseek"] .kami-md li li::marker { color: var(--kami-fg-mute); }
+
+/* 正文里的加粗：官方字重只用 500，不上 700 */
+html[data-kami-skin="deepseek"] .kami-md strong { font-weight: 500; color: var(--kami-fg); }
+html[data-kami-skin="deepseek"] .kami-md em { font-style: italic; color: var(--kami-fg-dim); }
+html[data-kami-skin="deepseek"] .kami-md del { color: var(--kami-fg-mute); }
+
+html[data-kami-skin="deepseek"] .kami-md a {
+  color: var(--kami-ds-link);
+  text-decoration: underline;
+  text-decoration-color: var(--kami-accent-line);
+  text-underline-offset: 2px;
+}
+
+html[data-kami-skin="deepseek"] .kami-md hr {
+  margin: 1em 0;
+  border: none;
+  border-top: var(--kami-border-w) solid var(--kami-line);
+}
+
+html[data-kami-skin="deepseek"] .kami-md table {
+  width: 100%;
+  margin: 0.8em 0;
+  border-collapse: collapse;
+  font-size: var(--kami-fs-sm);
+}
+
+html[data-kami-skin="deepseek"] .kami-md th,
+html[data-kami-skin="deepseek"] .kami-md td {
+  padding: 6px 10px;
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  text-align: left;
+}
+
+html[data-kami-skin="deepseek"] .kami-md img { max-width: 100%; border-radius: var(--kami-r-sm); }
+
+html[data-kami-skin="deepseek"] .kami-raw {
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+  white-space: pre-wrap;
+}
+
+/* ==========================================================================
+ * 11 · 表单控件
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-field {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap);
+  padding: var(--kami-pad-y) 0;
+}
+
+html[data-kami-skin="deepseek"] .kami-field-label { flex: 1 1 auto; min-width: 0; font-size: var(--kami-fs-sm); }
+html[data-kami-skin="deepseek"] .kami-field-value { flex: none; display: flex; align-items: center; gap: 6px; }
+
+/* 输入类：官方令牌是 10px 圆角，不是胶囊（胶囊只留给按钮和标签） */
+html[data-kami-skin="deepseek"] .kami-root .kami-text,
+html[data-kami-skin="deepseek"] .kami-root .kami-textarea {
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  text-align: left;
+  box-shadow: none;
+  transition: border-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-textarea { resize: vertical; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-select {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: var(--kami-row-h);
+  padding: var(--kami-pad-y) calc(var(--kami-pad-x) + 16px) var(--kami-pad-y) var(--kami-pad-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-card);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--kami-fg-mute) 50%),
+    linear-gradient(135deg, var(--kami-fg-mute) 50%, transparent 50%);
+  background-size: 4px 4px, 4px 4px;
+  background-position: calc(100% - 13px) calc(50% + 1px), calc(100% - 9px) calc(50% + 1px);
+  background-repeat: no-repeat, no-repeat;
+  color: var(--kami-fg);
+  font-family: var(--kami-font);
+  font-size: var(--kami-fs-sm);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-number {
+  width: 64px;
+  min-height: 30px;
+  padding: 2px 8px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-sm);
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-family: var(--kami-font-mono);
+  font-size: var(--kami-fs-sm);
+  text-align: right;
+}
+
+html[data-kami-skin="deepseek"] .kami-root input.kami-number[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-text:focus-visible,
+html[data-kami-skin="deepseek"] .kami-root .kami-textarea:focus-visible,
+html[data-kami-skin="deepseek"] .kami-root .kami-select:focus-visible,
+html[data-kami-skin="deepseek"] .kami-root .kami-number:focus-visible {
+  outline: 2px solid var(--kami-ds-brand);
+  outline-offset: 1px;
+  border-color: var(--kami-accent);
+}
+
+/* 对比度防线（契约 §4.4）：面板输入一律满强度前景 */
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-number,
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-text,
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-textarea,
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-select {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card) !important;
+  -webkit-text-fill-color: var(--kami-fg);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-t3);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--kami-accent);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-range::-moz-range-track {
+  height: 3px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-t3);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--kami-accent);
+}
+
+/* 开关：轨道是胶囊，滑块是正圆 */
+html[data-kami-skin="deepseek"] .kami-switch { position: relative; display: inline-flex; align-items: center; }
+html[data-kami-skin="deepseek"] .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+html[data-kami-skin="deepseek"] .kami-switch-track {
+  display: block;
+  width: 38px;
+  height: 22px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-bg-soft);
+  transition: background-color var(--kami-dur) var(--kami-ease),
+              border-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-switch-knob {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 3px;
+  border-radius: 50%;
+  background-color: var(--kami-fg-mute);
+  transition: transform var(--kami-dur) var(--kami-ease-out),
+              background-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-switch-input:checked + .kami-switch-track {
+  background-color: var(--kami-accent);
+  border-color: var(--kami-accent);
+}
+
+html[data-kami-skin="deepseek"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+  transform: translateX(16px);
+  background-color: var(--kami-accent-fg);
+}
+
+html[data-kami-skin="deepseek"] .kami-switch-input:focus-visible + .kami-switch-track {
+  outline: 2px solid var(--kami-ds-brand);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+ * 12 · 标签页 / 滚动区 / 空态 / 提示
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--kami-gap-lg);
+  padding: 0 var(--kami-pad-lg-x);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-tabs::-webkit-scrollbar { display: none; }
+
+/* 标签页用「下划线」而不是胶囊：官方文档站的页签就是蓝色下划线 */
+html[data-kami-skin="deepseek"] .kami-tab {
+  position: relative;
+  flex: none;
+  padding: var(--kami-pad-y) 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+  cursor: pointer;
+  transition: color var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease);
+}
+
+html[data-kami-skin="deepseek"] .kami-tab[aria-selected="true"] {
+  color: var(--kami-fg);
+  border-bottom-color: var(--kami-accent);
+}
+
+html[data-kami-skin="deepseek"] .kami-scroll { overflow: auto; scrollbar-width: thin; }
+
+html[data-kami-skin="deepseek"] .kami-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+html[data-kami-skin="deepseek"] .kami-scroll::-webkit-scrollbar-track { background: transparent; }
+html[data-kami-skin="deepseek"] .kami-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--kami-r-pill);
+  background-clip: content-box;
+  background-color: var(--kami-t3);
+}
+
+html[data-kami-skin="deepseek"] .kami-empty {
+  padding: var(--kami-pad-lg-y) 0;
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-sm);
+}
+
+/* 全屏唯一允许俏皮的地方之一：空态。界面本身保持安静。 */
+html[data-kami-skin="deepseek"] .kami-body .kami-empty::after {
+  content: "大肥鱼正在下潜…";
+  display: block;
+  margin-top: 6px;
+  font-size: var(--kami-fs-xs);
+  letter-spacing: var(--kami-ls-title);
+  color: var(--kami-fg-mute);
+}
+
+html[data-kami-skin="deepseek"] .kami-toast {
+  padding: var(--kami-pad-y) var(--kami-pad-lg-x);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-card);
+  color: var(--kami-fg);
+  font-size: var(--kami-fs-sm);
+  box-shadow: var(--kami-shadow);
+}
+
+html[data-kami-skin="deepseek"] .kami-toast.is-bad {
+  border-color: var(--kami-warn);
+  color: var(--kami-warn);
+}
+
+html[data-kami-skin="deepseek"] .kami-preview { display: flex; align-items: center; gap: 4px; }
+
+html[data-kami-skin="deepseek"] .kami-preview i {
+  display: block;
+  width: 30px;
+  height: 4px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-t3);
+}
+
+html[data-kami-skin="deepseek"] .kami-preview i:first-child { background-color: var(--kami-accent); }
+
+/* ==========================================================================
+ * 13 · 面板专用（契约 §4.4：组件规则一律不挂面板 id）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] .kami-root:not([data-kami-comp="panel"]) { margin: 10px 0 8px; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-drop {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--kami-bg);
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-ds-rx) / var(--kami-ds-ry);
+  box-shadow: var(--kami-shadow);
+  backdrop-filter: blur(var(--kami-blur));
+  -webkit-backdrop-filter: blur(var(--kami-blur));
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-drop > .kami-body { flex: 1 1 auto; min-height: 0; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-drop > .kami-head,
+html[data-kami-skin="deepseek"] .kami-root .kami-drop > .kami-tabs,
+html[data-kami-skin="deepseek"] .kami-root .kami-drop > .kami-foot { flex: 0 0 auto; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-head[data-kami-drag] { cursor: move; }
+
+html[data-kami-skin="deepseek"] .kami-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background-image: linear-gradient(135deg, transparent 46%, var(--kami-line-strong) 46%, var(--kami-line-strong) 54%, transparent 54%);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-drop[data-kami-layout="sheet"] {
+  border-radius: var(--kami-ds-rx) var(--kami-ds-rx) 0 0;
+  border-bottom: none;
+}
+
+/* 贴底抽屉的握把：一颗扁胶囊（鲸鱼比例的最小体现） */
+html[data-kami-skin="deepseek"] .kami-root .kami-drop[data-kami-layout="sheet"] > .kami-head::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 36px;
+  height: 3px;
+  margin-left: -18px;
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-line-strong);
+}
+
+/* 面板里的嵌套卡片不再套一层底：只留描边，避免一层层叠出灰块 */
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.is-on):not([aria-pressed="true"]) {
+  background-color: transparent;
+  border-color: var(--kami-line);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: var(--kami-r-md);
+  text-align: left;
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item {
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+}
+
+/* 面板里没被点亮的条目一律退到背景层：只有 1px 描边，没有填充、没有投影 */
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+  background-color: transparent;
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-item-note { margin-top: 6px; }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-item-note > .kami-card {
+  border-color: var(--kami-line);
+  background-color: var(--kami-card-2);
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-pv,
+html[data-kami-skin="deepseek"] .kami-root .kami-pv-frame,
+html[data-kami-skin="deepseek"] .kami-root .kami-guide-pv,
+html[data-kami-skin="deepseek"] .kami-root .kami-guide-pv-frame {
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-md);
+  background-color: var(--kami-card);
+  box-shadow: none;
+}
+
+html[data-kami-skin="deepseek"] .kami-root .kami-pv,
+html[data-kami-skin="deepseek"] .kami-root .kami-guide-pv { padding: var(--kami-pad-y) var(--kami-pad-x); }
+
+html[data-kami-skin="deepseek"] .kami-root .kami-pv-frame,
+html[data-kami-skin="deepseek"] .kami-root .kami-guide-pv-frame { overflow: hidden; }
+
+/* 卡片备注角标 */
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+  cursor: pointer;
+  color: var(--kami-fg-mute);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+  color: var(--kami-fg);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 0 6px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background-color: var(--kami-card);
+  font-size: var(--kami-fs-xs);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+  margin-top: 6px;
+  padding: var(--kami-pad-y) var(--kami-pad-x);
+  border-left: var(--kami-accent-mark) solid var(--kami-accent-line);
+  background-color: var(--kami-accent-soft);
+  border-radius: var(--kami-r-xs);
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg-dim);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+  position: absolute;
+  top: 6px;
+  font-size: var(--kami-fs-xs);
+}
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] { left: 8px; }
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] { bottom: 6px; top: auto; }
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) { padding-top: 22px; }
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) { padding-bottom: 22px; }
+
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
+html[data-kami-skin="deepseek"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+  opacity: 0.45;
+  background-color: transparent;
+  border-color: var(--kami-line);
+  cursor: default;
+}
+
+/* ==========================================================================
+ * 14 · 特效一：下潜（身份符号，默认开）
+ *      只挂在主内容区。整屏就这一处渐变，别处全是纯色。
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-effects~="dive"] .kami-body {
+  background-image: var(--kami-ds-dive);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: 0 0;
+}
+
+/* 主内容区里的卡片要把自己从渐变里"浮"出来，否则会跟着一起变暗 */
+html[data-kami-skin="deepseek"][data-kami-effects~="dive"] .kami-body .kami-card,
+html[data-kami-skin="deepseek"][data-kami-effects~="dive"] .kami-body .kami-item {
+  background-color: var(--kami-card);
+}
+
+html[data-kami-skin="deepseek"]:not([data-kami-effects~="dive"]) .kami-body { background-image: none; }
+
+/* ==========================================================================
+ * 15 · 特效二：方格网纹（默认开）
+ *      两层 repeating-linear-gradient 画格线，一层 radial-gradient 画交点小圆点。
+ *      它是 background-image，天然不参与布局、不吃鼠标。
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-effects~="grid"] .kami-surface {
+  background-image: var(--kami-texture);
+  background-size: var(--kami-ds-grid-step) var(--kami-ds-grid-step), auto, auto;
+  background-repeat: repeat, repeat, repeat;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+html[data-kami-skin="deepseek"]:not([data-kami-effects~="grid"]) .kami-surface { background-image: none; }
+
+/* ==========================================================================
+ * 16 · 特效三：深海压暗（默认关）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"][data-kami-effects~="abyss"] .kami-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(126% 76% at 50% 0%, rgba(77, 107, 254, 0.07) 0%, rgba(77, 107, 254, 0) 56%),
+    linear-gradient(180deg, rgba(9, 14, 28, 0) 58%, rgba(9, 14, 28, 0.17) 100%);
+}
+
+/* ==========================================================================
+ * 17 · 降级与响应式
+ * ======================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html[data-kami-skin="deepseek"] .kami-root {
+    --kami-dur-fast: 0s;
+    --kami-dur: 0s;
+    --kami-dur-slow: 0s;
+    --kami-enter-y: 0px;
+    --kami-enter-scale: 1;
+    --kami-stagger: 0ms;
+  }
+
+  html[data-kami-skin="deepseek"] .kami-btn,
+  html[data-kami-skin="deepseek"] .kami-icon-btn,
+  html[data-kami-skin="deepseek"] .kami-item,
+  html[data-kami-skin="deepseek"] .kami-card,
+  html[data-kami-skin="deepseek"] .kami-seg-item,
+  html[data-kami-skin="deepseek"] .kami-tab { transition: none; }
+}
+
+@media (max-width: 768px) {
+  html[data-kami-skin="deepseek"] .kami-root {
+    --kami-items-min: 100%;
+    --kami-pad-lg-x: 13px;
+    --kami-pad-lg-y: 12px;
+    --kami-panel-w: 100%;
+  }
+
+  /* 窄屏把网格放稀一点，免得格子挤在文字后面 */
+  html[data-kami-skin="deepseek"] .kami-surface {
+    background-size: calc(var(--kami-ds-grid-step) * 1.4) calc(var(--kami-ds-grid-step) * 1.4), auto, auto;
+  }
+}
+
+/* ==========================================================================
+ * 18 · 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）
+ * ======================================================================== */
+html[data-kami-skin="deepseek"] {
+  --kami-label-think-title: 思考记录;
+  --kami-label-think-title-open: 思考记录·展开;
+  --kami-label-options-title: 指令选项;
+  --kami-fg: #1e232c;
+  --kami-fg-dim: #47505f;
+  --kami-fg-mute: #5e6675;
+  --kami-accent: #3964fe;
+  --kami-accent-fg: #ffffff;
+  --kami-accent-soft: rgba(57, 100, 254, 0.10);
+  --kami-accent-line: rgba(57, 100, 254, 0.46);
+  --kami-bg: #f9f8f8;
+  --kami-bg-soft: #f2f4f8;
+  --kami-card: #ffffff;
+  --kami-card-2: #f6f8fc;
+  --kami-card-hover: #eef3fe;
+  --kami-line: rgba(9, 45, 78, 0.16);
+  --kami-line-strong: rgba(9, 45, 78, 0.34);
+  --kami-t1: rgba(30, 35, 44, 0.035);
+  --kami-t2: rgba(30, 35, 44, 0.07);
+  --kami-t3: rgba(30, 35, 44, 0.13);
+  --kami-warn: #b4531a;
+  --kami-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --kami-shadow-sm: none;
+  --kami-blur: 8px;
+  --kami-ds-brand: #4d6bfe;
+  --kami-ds-link: #234792;
+  --kami-ds-grid-step: 150px;
+  --kami-ds-grid-alpha: 45;
+  --kami-ds-dive-depth: 60;
+  --kami-ds-grid-a: calc(var(--kami-ds-grid-alpha) * 0.0012);
+  --kami-ds-dot-a: calc(var(--kami-ds-grid-alpha) * 0.0030);
+  --kami-ds-dive-a: calc(var(--kami-ds-dive-depth) * 0.0016);
+  --kami-ds-grid: rgba(9, 45, 78, var(--kami-ds-grid-a));
+  --kami-ds-dot: rgba(77, 107, 254, var(--kami-ds-dot-a));
+  --kami-ds-ratio: 1.36;
+  --kami-r-xs: 4px;
+  --kami-r-sm: 6px;
+  --kami-r-md: 10px;
+  --kami-r-lg: 16px;
+  --kami-r-pill: 999px;
+  --kami-ds-rx: var(--kami-r-lg);
+  --kami-ds-ry: calc(var(--kami-r-lg) / var(--kami-ds-ratio));
+  --kami-border-w: 1px;
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 38px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 236px;
+  --kami-panel-w: 468px;
+  --kami-panel-h: 604px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(14px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * 0.78);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.89);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.14);
+  --kami-lh: 1.62;
+  --kami-ls: 0.01em;
+  --kami-ls-title: 0.16em;
+  --kami-font: Inter, "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 400;
+  --kami-title-transform: none;
+  --kami-texture:
+    radial-gradient(circle at 0 0, var(--kami-ds-dot) 0 1.1px, transparent 1.9px),
+    repeating-linear-gradient(90deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step)),
+    repeating-linear-gradient(0deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step));
+  --kami-ds-dive: linear-gradient(180deg,
+    rgba(77, 107, 254, 0) 0%,
+    rgba(77, 107, 254, calc(var(--kami-ds-dive-a) * 0.40)) 58%,
+    rgba(21, 36, 67, var(--kami-ds-dive-a)) 100%);
+  --kami-glow: rgba(77, 107, 254, 0.42);
+  --kami-glow-size: 3px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dur-fast: 0.1s;
+  --kami-dur: 0.2s;
+  --kami-dur-slow: 0.3s;
+  --kami-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --kami-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 0.995;
+  --kami-stagger: 26ms;
+  --kami-kind-action: #1f5fa8;
+  --kami-kind-persona: #a03a6e;
+  --kami-kind-plot: #1f7a45;
+  --kami-kind-info: #0f6f7a;
+  --kami-kind-fun: #8a5a10;
+  --kami-kind-nsfw: #a33a52;
+  --kami-kind-other: #4a5364;
+}
+/* ==== END 全局层令牌上提 ==== */
+
+/* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
+html[data-kami-skin="deepseek"] {
+  --kami-label-think-title: 思考记录;
+  --kami-label-think-title-open: 思考记录·展开;
+  --kami-label-options-title: 指令选项;
+  --kami-fg: #1e232c;
+  --kami-fg-dim: #47505f;
+  --kami-fg-mute: #5e6675;
+  --kami-accent: #3964fe;
+  --kami-accent-fg: #ffffff;
+  --kami-accent-soft: rgba(57, 100, 254, 0.10);
+  --kami-accent-line: rgba(57, 100, 254, 0.46);
+  --kami-bg: #f9f8f8;
+  --kami-bg-soft: #f2f4f8;
+  --kami-card: #ffffff;
+  --kami-card-2: #f6f8fc;
+  --kami-card-hover: #eef3fe;
+  --kami-line: rgba(9, 45, 78, 0.16);
+  --kami-line-strong: rgba(9, 45, 78, 0.34);
+  --kami-t1: rgba(30, 35, 44, 0.035);
+  --kami-t2: rgba(30, 35, 44, 0.07);
+  --kami-t3: rgba(30, 35, 44, 0.13);
+  --kami-warn: #b4531a;
+  --kami-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --kami-shadow-sm: none;
+  --kami-blur: 8px;
+  --kami-ds-brand: #4d6bfe;
+  --kami-ds-link: #234792;
+  --kami-ds-grid-step: 150px;
+  --kami-ds-grid-alpha: 45;
+  --kami-ds-dive-depth: 60;
+  --kami-ds-grid-a: calc(var(--kami-ds-grid-alpha) * 0.0012);
+  --kami-ds-dot-a: calc(var(--kami-ds-grid-alpha) * 0.0030);
+  --kami-ds-dive-a: calc(var(--kami-ds-dive-depth) * 0.0016);
+  --kami-ds-grid: rgba(9, 45, 78, var(--kami-ds-grid-a));
+  --kami-ds-dot: rgba(77, 107, 254, var(--kami-ds-dot-a));
+  --kami-ds-ratio: 1.36;
+  --kami-r-xs: 4px;
+  --kami-r-sm: 6px;
+  --kami-r-md: 10px;
+  --kami-r-lg: 16px;
+  --kami-r-pill: 999px;
+  --kami-ds-rx: var(--kami-r-lg);
+  --kami-ds-ry: calc(var(--kami-r-lg) / var(--kami-ds-ratio));
+  --kami-border-w: 1px;
+  --kami-pad-x: 12px;
+  --kami-pad-y: 8px;
+  --kami-pad-lg-x: 16px;
+  --kami-pad-lg-y: 14px;
+  --kami-gap: 8px;
+  --kami-gap-lg: 12px;
+  --kami-row-h: 38px;
+  --kami-icon: 16px;
+  --kami-maxw: none;
+  --kami-items-min: 236px;
+  --kami-panel-w: 468px;
+  --kami-panel-h: 604px;
+  --kami-list-dir: column;
+  --kami-justify: stretch;
+  --kami-fs-scale: 1;
+  --kami-fs: calc(14px * var(--kami-fs-scale));
+  --kami-fs-xs: calc(var(--kami-fs) * 0.78);
+  --kami-fs-sm: calc(var(--kami-fs) * 0.89);
+  --kami-fs-lg: calc(var(--kami-fs) * 1.14);
+  --kami-lh: 1.62;
+  --kami-ls: 0.01em;
+  --kami-ls-title: 0.16em;
+  --kami-font: Inter, "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --kami-font-title: var(--kami-font);
+  --kami-font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Microsoft YaHei", monospace;
+  --kami-fw: 400;
+  --kami-fw-title: 400;
+  --kami-title-transform: none;
+  --kami-texture: radial-gradient(circle at 0 0, var(--kami-ds-dot) 0 1.1px, transparent 1.9px),
+    repeating-linear-gradient(90deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step)),
+    repeating-linear-gradient(0deg, var(--kami-ds-grid) 0 1px, transparent 1px var(--kami-ds-grid-step));
+  --kami-ds-dive: linear-gradient(180deg,
+    rgba(77, 107, 254, 0) 0%,
+    rgba(77, 107, 254, calc(var(--kami-ds-dive-a) * 0.40)) 58%,
+    rgba(21, 36, 67, var(--kami-ds-dive-a)) 100%);
+  --kami-glow: rgba(77, 107, 254, 0.42);
+  --kami-glow-size: 3px;
+  --kami-surface-clip: none;
+  --kami-accent-mark: 3px;
+  --kami-dur-fast: 0.1s;
+  --kami-dur: 0.2s;
+  --kami-dur-slow: 0.3s;
+  --kami-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --kami-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --kami-enter-y: 4px;
+  --kami-enter-scale: 0.995;
+  --kami-stagger: 26ms;
+  --kami-kind-action: #1f5fa8;
+  --kami-kind-persona: #a03a6e;
+  --kami-kind-plot: #1f7a45;
+  --kami-kind-info: #0f6f7a;
+  --kami-kind-fun: #8a5a10;
+  --kami-kind-nsfw: #a33a52;
+  --kami-kind-other: #4a5364;
+}
+html[data-kami-skin="deepseek"][data-kami-scheme="dark"] {
+  --kami-fg: #f9fafb;
+  --kami-fg-dim: #cfd3d6;
+  --kami-fg-mute: #8d9198;
+  --kami-accent: #679efe;
+  --kami-accent-fg: #0f1115;
+  --kami-accent-soft: rgba(86, 134, 254, 0.14);
+  --kami-accent-line: rgba(86, 134, 254, 0.50);
+  --kami-bg: #151517;
+  --kami-bg-soft: #1b1b1c;
+  --kami-card: #232324;
+  --kami-card-2: #1b1b1c;
+  --kami-card-hover: #2c2c2e;
+  --kami-line: rgba(255, 255, 255, 0.12);
+  --kami-line-strong: rgba(255, 255, 255, 0.20);
+  --kami-t1: rgba(255, 255, 255, 0.04);
+  --kami-t2: rgba(255, 255, 255, 0.07);
+  --kami-t3: rgba(255, 255, 255, 0.12);
+  --kami-warn: #f7ad31;
+  --kami-shadow: none;
+  --kami-shadow-sm: none;
+  --kami-blur: 12px;
+  --kami-ds-link: #8fb6ff;
+  --kami-ds-grid: rgba(140, 170, 235, calc(var(--kami-ds-grid-a) * 1.15));
+  --kami-ds-dot: rgba(110, 150, 255, calc(var(--kami-ds-dot-a) * 0.95));
+  --kami-ds-dive: linear-gradient(180deg,
+    rgba(86, 134, 254, calc(var(--kami-ds-dive-a) * 1.45)) 0%,
+    rgba(86, 134, 254, calc(var(--kami-ds-dive-a) * 0.30)) 52%,
+    rgba(6, 10, 20, calc(var(--kami-ds-dive-a) * 4.6)) 100%);
+  --kami-glow: rgba(86, 134, 254, 0.50);
+  --kami-kind-action: #7fb2ff;
+  --kami-kind-persona: #ff9ecf;
+  --kami-kind-plot: #7fe08f;
+  --kami-kind-info: #6fd8d8;
+  --kami-kind-fun: #ffd166;
+  --kami-kind-nsfw: #ff8fa8;
+  --kami-kind-other: #9ab8a4;
+}
+html[data-kami-skin="deepseek"][data-kami-density="compact"] {
+  --kami-pad-x: 9px;
+  --kami-pad-y: 5px;
+  --kami-pad-lg-x: 12px;
+  --kami-pad-lg-y: 10px;
+  --kami-gap: 6px;
+  --kami-gap-lg: 9px;
+  --kami-row-h: 32px;
+  --kami-fs: calc(13px * var(--kami-fs-scale));
+  --kami-lh: 1.55;
+  --kami-panel-h: 556px;
+}
+html[data-kami-skin="deepseek"][data-kami-density="roomy"] {
+  --kami-pad-x: 15px;
+  --kami-pad-y: 11px;
+  --kami-pad-lg-x: 20px;
+  --kami-pad-lg-y: 18px;
+  --kami-gap: 10px;
+  --kami-gap-lg: 15px;
+  --kami-row-h: 44px;
+  --kami-fs: calc(15px * var(--kami-fs-scale));
+  --kami-lh: 1.7;
+  --kami-panel-h: 652px;
+}
+html[data-kami-skin="deepseek"][data-kami-motion="calm"] {
+  --kami-dur-fast: 0.14s;
+  --kami-dur: 0.24s;
+  --kami-dur-slow: 0.34s;
+  --kami-enter-y: 2px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 16ms;
+}
+html[data-kami-skin="deepseek"][data-kami-motion="off"] {
+  --kami-dur-fast: 0s;
+  --kami-dur: 0s;
+  --kami-dur-slow: 0s;
+  --kami-enter-y: 0px;
+  --kami-enter-scale: 1;
+  --kami-stagger: 0ms;
+}
+/* ==== END 全局层令牌上提 ==== */

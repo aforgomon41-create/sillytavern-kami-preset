@@ -1,0 +1,73 @@
+{
+  "id": "glm",
+  "name": "GLM",
+  "button": "GLM",
+  "scheme": "dark",
+  "tagline": "整站只有黑白灰三级底色，表面压着一层常驻细颗粒，像相纸上的胶片。分区只靠一像素浅线和底色深浅，不用阴影撑场面。",
+  "effects": [
+    {
+      "id": "matte",
+      "label": "哑光罩面",
+      "desc": "给表面叠一层极淡的上亮下暗渐变，模拟胶片单向受光，纯静态无动画。",
+      "default": true
+    },
+    {
+      "id": "halation",
+      "label": "光晕溢出",
+      "desc": "标题与主按钮高光边缘向外洇开极淡一圈，像胶片高光溢出，纯静态。",
+      "default": true
+    },
+    {
+      "id": "vignette",
+      "label": "镜头暗角",
+      "desc": "表面四角向外柔和压暗，模拟镜头边缘失光，画面视觉更聚焦。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "grain",
+      "label": "颗粒浓度",
+      "group": "颗粒",
+      "token": "--kami-glm-grain",
+      "unit": "",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "value": 7
+    },
+    {
+      "id": "grainsize",
+      "label": "颗粒粗细",
+      "group": "颗粒",
+      "token": "--kami-glm-grain-size",
+      "unit": "px",
+      "min": 96,
+      "max": 240,
+      "step": 8,
+      "value": 160
+    },
+    {
+      "id": "vig",
+      "label": "暗角浓度",
+      "group": "镜头",
+      "token": "--kami-glm-vig",
+      "unit": "",
+      "min": 0,
+      "max": 60,
+      "step": 5,
+      "value": 30
+    },
+    {
+      "id": "glow",
+      "label": "辉光半径",
+      "group": "镜头",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "value": 3
+    }
+  ]
+}
