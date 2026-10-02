@@ -46,9 +46,9 @@
  * 1 · 令牌全集（默认暗色：黑白灰三级底 + 一层颗粒）
  * ======================================================================== */
 html[data-kami-skin="glm"] .kami-root {
-  --kami-label-think-title: 智谱;
-  --kami-label-think-title-open: 智谱展开;
-  --kami-label-options-title: 分镜;
+  --kami-label-think-title: 底片;
+  --kami-label-think-title-open: 底片展开;
+  --kami-label-options-title: 画格;
   --kami-fg: #f0f0f0;
   --kami-fg-dim: #b4b4b4;
   --kami-fg-mute: #969696;
@@ -1393,9 +1393,9 @@ html[data-kami-skin="glm"] .kami-root[data-kami-comp="panel"] .kami-field .kami-
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="glm"] {
-  --kami-label-think-title: 智谱;
-  --kami-label-think-title-open: 智谱展开;
-  --kami-label-options-title: 分镜;
+  --kami-label-think-title: 底片;
+  --kami-label-think-title-open: 底片展开;
+  --kami-label-options-title: 画格;
   --kami-fg: #f0f0f0;
   --kami-fg-dim: #b4b4b4;
   --kami-fg-mute: #969696;
