@@ -6,8 +6,9 @@
  * 一条细线收尾，相邻行直接连成一张曲目表。
  *
  * 四个特效（skin.json 的 effects）：
- *   · prism 棱镜事件（默认开）：面板题头一道白光射入玻璃三棱柱、从右侧散成六色。
- *     玻璃有厚度与受光边、白光止于入射面、出射点一枚白热核、六色随距离散开淡出。
+ *   · prism 棱镜事件（默认开）：题头里「别家放骰子」的那个空槽（.kami-deco）画成棱镜 ——
+ *     一条白线斜射入玻璃三角（内边缘一条渐变白条当玻璃厚度）→ 玻璃里一个渐变白的小三角
+ *     越往右越淡直到消失 → 另一面射出七条实色光柱。按《月之暗面》封面的画法，纯 CSS、无 JS。
  *   · vinyl 黑胶刻槽（默认开）：外壳上一层偏心同心圆刻槽 + 一道斜向灯光，像黑胶在灯下。
  *   · pulse 心跳线（默认开）：页脚上方一条频谱细带裁成心电波形，只走状态区，不铺满。
  *   · ghost 失焦拖影（默认关）：题头文字的轻微拖影。
@@ -134,8 +135,9 @@ html[data-kami-skin="moonside"] .kami-root {
   --kami-moon-spec-alpha: 92;         /* 色散浓度 20–100 */
   --kami-moon-beam-len: 40%;          /* 入射光长 20–46（带单位，skin.json 的 unit 是 %） */
   --kami-moon-groove-alpha: 42;       /* 刻槽浓度 0–100 */
-  --kami-moon-stage: 46px;            /* 题头棱镜展示带的高度（题头据此留白） */
-  --kami-moon-stage-sm: 34px;         /* 窄容器里的展示带高度（见 §18 的容器查询） */
+  /* 棱镜展示位（4:1，尺寸随字号缩放；密度档与窄屏另有覆盖，见 §3 / §14 / §18） */
+  --kami-moon-prism-w: calc(var(--kami-fs) * 8.4);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 2.1);
 
   /* —— 基座排版 —— */
   box-sizing: border-box;
@@ -203,7 +205,8 @@ html[data-kami-skin="moonside"][data-kami-density="compact"] .kami-root {
   --kami-gap: 6px;
   --kami-gap-lg: 9px;
   --kami-row-h: 34px;
-  --kami-moon-stage: 38px;
+  --kami-moon-prism-w: calc(var(--kami-fs) * 7);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 1.75);
 }
 
 html[data-kami-skin="moonside"][data-kami-density="roomy"] .kami-root {
@@ -214,7 +217,8 @@ html[data-kami-skin="moonside"][data-kami-density="roomy"] .kami-root {
   --kami-gap: 10px;
   --kami-gap-lg: 15px;
   --kami-row-h: 48px;
-  --kami-moon-stage: 54px;
+  --kami-moon-prism-w: calc(var(--kami-fs) * 9.8);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 2.45);
 }
 
 /* ==========================================================================
@@ -276,7 +280,8 @@ html[data-kami-skin="moonside"] .kami-root [hidden] { display: none !important; 
 
 html[data-kami-skin="moonside"] .kami-root img { max-width: 100%; }
 
-/* 装饰槽：本皮肤不声明 decor，保持收起 */
+/* 装饰槽：本皮肤不声明 decor（不注入骰子 JS），槽位默认收起；
+   开了棱镜特效时由 §14 把它变成棱镜展示位。 */
 html[data-kami-skin="moonside"] .kami-root .kami-deco { display: none; }
 
 html[data-kami-skin="moonside"] .kami-root :focus-visible {
@@ -1413,115 +1418,121 @@ html[data-kami-skin="moonside"] .kami-root[data-kami-comp="panel"] .kami-field .
 }
 
 /* ==========================================================================
- * 14 · 特效一：棱镜事件（prism，身份符号）
- *      题头那道白光：入射光止于棱柱入射面、玻璃有厚度与受光边、出射点一枚白热核、
- *      六色（红在上、紫在下）随距离散开并淡出。三层画在同一个伪元素的多重背景上
- *      （入射光 / 色散扇 / 白热核），玻璃三棱柱是第二个伪元素 —— 它排在光路之后，
- *      所以光束的尾巴被玻璃压住，看上去正好止在入射面上。
+ * 14 · 装饰槽 = 棱镜事件（prism，身份符号）
+ *      按《月之暗面》封面的画法，三段分开画在三个层上：
+ *        槽位本体  ① 一条白线斜着射入 —— 角度渐变的硬边；图层的**宽只有 35.5%**，
+ *                     右缘就是三角的左面，所以白线一斜到底正好停在入射面上，不悬空也不穿透；
+ *                  ② 七条实色光柱 —— 锥形渐变 + 硬断点，条内没有任何渐变、彼此不重叠；
+ *        ::before  ③ 玻璃三角 —— clip-path 裁的 △，内边缘一条渐变白条当玻璃厚度；
+ *        ::after   ④ 玻璃里的折射小三角 —— 渐变白 + 遮罩，越往右越淡直到消失。
  *
- *      为什么浓度参数要除 100：skin.json 的 specalpha 是 20–100 的**数值**（默认 92），
- *      面板把它原样写成 CSS 值；rgba(255,47,47,var(--kami-moon-spec-alpha)) 会得到
- *      非法的 rgba(255,47,47,92)，整条 background 被丢掉 —— 棱镜会整块消失。
+ *      槽位是前端在每个 .kami-head 里留的空 span（别的皮肤在这里放骰子），本皮肤不声明
+ *      decor、不注入 JS，只用 CSS 把它画成棱镜，所以要先压掉结构层的 .kami-deco{display:none}。
+ *      每层楼都渲染一份：这里零 backdrop-filter、零常驻 filter，只有 40×30 上下的
+ *      blur(.4px) 一块，以及一层 mask（右端收口 + 入射光长短）。
  * ======================================================================== */
-html[data-kami-skin="moonside"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head {
+html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"] {
+  display: inline-block;
   position: relative;
-  /* 封套口：题头顶上那条由白（或墨）到透明的细线（与棱镜开关无关，常驻） */
-  background-image: linear-gradient(90deg, var(--kami-accent-line), rgba(255, 255, 255, 0));
-  background-size: 46% 1px;
-  background-position: 0 0;
+  flex: 0 1 auto;
+  width: var(--kami-moon-prism-w);
+  height: var(--kami-moon-prism-h);
+  min-width: calc(var(--kami-fs) * 5.2);
+  margin: 0 2px 0 0;
+  pointer-events: none;
+  /* 白线的斜度与停点：20deg 的图层里，65.9% 那道硬边正好穿过「右缘 × 中线」，
+     也就是三角左面的入射点。四个尺寸档都是 4:1，所以改尺寸不用改这里。 */
+  background-image:
+    linear-gradient(20deg, rgba(255, 255, 255, 0) 62.8%, rgba(255, 255, 255, .55) 64.1%, #fff 65.9%, rgba(255, 255, 255, .5) 67.7%, rgba(255, 255, 255, 0) 69%),
+    conic-gradient(from 78deg at 47% 55%,
+      rgba(255, 45, 45, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.4deg,
+      rgba(255, 140, 26, calc(var(--kami-moon-spec-alpha) / 100)) 3.4deg 6.8deg,
+      rgba(255, 214, 10, calc(var(--kami-moon-spec-alpha) / 100)) 6.8deg 10.2deg,
+      rgba(53, 211, 74, calc(var(--kami-moon-spec-alpha) / 100)) 10.2deg 13.6deg,
+      rgba(34, 199, 214, calc(var(--kami-moon-spec-alpha) / 100)) 13.6deg 17deg,
+      rgba(47, 125, 255, calc(var(--kami-moon-spec-alpha) / 100)) 17deg 20.4deg,
+      rgba(164, 91, 255, calc(var(--kami-moon-spec-alpha) / 100)) 20.4deg 23.8deg,
+      rgba(164, 91, 255, 0) 23.8deg 90deg);
+  background-size: 35.5% 100%, 100% 100%;
+  background-position: 0 0, 0 0;
   background-repeat: no-repeat;
+  /* 两块遮罩求交：一块把光柱右端渐隐收口，一块管入射光的长短（--kami-moon-beam-len）。
+     认不得 mask-composite 的浏览器退化成并集 —— 只是右端收口变硬，构图不受影响。 */
+  -webkit-mask-image:
+    linear-gradient(90deg, #000 0 58%, rgba(0, 0, 0, .45) 84%, rgba(0, 0, 0, 0) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) calc(35.5% - var(--kami-moon-beam-len) - 9%), #000 calc(35.5% - var(--kami-moon-beam-len) + 9%), #000 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, #000 0 58%, rgba(0, 0, 0, .45) 84%, rgba(0, 0, 0, 0) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) calc(35.5% - var(--kami-moon-beam-len) - 9%), #000 calc(35.5% - var(--kami-moon-beam-len) + 9%), #000 100%);
+  mask-composite: intersect;
 }
 
-/* 展示带：题头下缘留出 --kami-moon-stage 高的空档，两个伪元素就在这条带里作画。
-   特效关掉时不预留这条带 —— 题头回到普通高度，只剩上面那条封套口的细线。 */
-html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head {
-  padding-bottom: calc(var(--kami-pad-lg-y) + var(--kami-moon-stage));
-}
-
-/* 光路：入射白光 + 色散扇 + 白热核（三层背景 + screen 混合，画成一个伪元素） */
-html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head::before {
+/* ③ 玻璃三角：118deg 的渐变与左面平行，2px 白条贴着内边缘（玻璃厚度），
+   底下再压一层冷色玻璃体、越往下越暗 —— 就是封面那颗深色玻璃。 */
+html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"]::before {
   content: "";
   position: absolute;
-  left: var(--kami-pad-lg-x);
-  right: var(--kami-pad-lg-x);
-  bottom: 0;
-  height: var(--kami-moon-stage);
-  z-index: 1;
-  pointer-events: none;
-  background:
-    /* ① 入射白光：从左边暗处进来，越靠近棱柱越亮（透明 → 30% 白 → 纯白） */
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, .30) 16%, #fff 74%, #fff),
-    /* ② 色散扇：锥形渐变的顶点就是出射点；红偏上、紫偏下，到 19deg 已经归零 */
-    conic-gradient(from 80deg at 0% 50%,
-      rgba(255, 47, 47, calc(var(--kami-moon-spec-alpha) / 100)) 0deg,
-      rgba(255, 122, 31, calc(var(--kami-moon-spec-alpha) / 100)) 3.2deg,
-      rgba(255, 226, 61, calc(var(--kami-moon-spec-alpha) / 100)) 6.4deg,
-      rgba(63, 219, 118, calc(var(--kami-moon-spec-alpha) / 100)) 9.6deg,
-      rgba(63, 141, 255, calc(var(--kami-moon-spec-alpha) / 100)) 12.8deg,
-      rgba(168, 107, 255, calc(var(--kami-moon-spec-alpha) / 100)) 16deg,
-      rgba(168, 107, 255, 0) 19deg, transparent 90deg),
-    /* ③ 白热核：颜色还没分开的那一点，压在出射口上 */
-    radial-gradient(ellipse at 45% 50%, #fff, rgba(255, 255, 255, .55) 42%, transparent 76%);
-  /* ⚠️ 色散扇那一层是 56% 宽的**背景图层**，而 background-position 的百分比按
-     (盒子宽 − 图宽) 折算：想让它左缘落在展示带的 44%（棱柱出射点），要写 100%
-     —— 写 44% 会把它摆到 19.4% 处，扇面从棱柱左边就开始、又在 75% 处被硬切一刀。
-     遮罩同理：规格里的 96% 是「扇面那 56% 宽」的 96%，搬到整条展示带上要写成 54%。 */
-  background-size: var(--kami-moon-beam-len) 2px, 56% 100%, 22px 13px;
-  background-position: 0 50%, 100% 50%, 44% 50%;
-  background-repeat: no-repeat;
-  background-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 54% 46% at 44% 50%, #000 2%, rgba(0, 0, 0, .9) 34%, rgba(0, 0, 0, .42) 68%, transparent 96%);
-  mask-image: radial-gradient(ellipse 54% 46% at 44% 50%, #000 2%, rgba(0, 0, 0, .9) 34%, rgba(0, 0, 0, .42) 68%, transparent 96%);
-  filter: blur(.6px) saturate(1.18);
-}
-
-/* 玻璃三棱柱（画在光路之上）：左上受光渐变 + 玻璃厚度 + 内部光路亮痕；
-   drop-shadow 让光顺着**裁切后的边**发亮，也就是真实棱镜那道亮边。 */
-html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head::after {
-  content: "";
-  position: absolute;
-  bottom: calc(var(--kami-moon-stage) * .06);
-  /* 29.5% / 15% 是规格给的位置与宽度，这里换算成「扣掉题头左右内边距之后的展示带」 */
-  left: calc(var(--kami-pad-lg-x) + (100% - 2 * var(--kami-pad-lg-x)) * .295);
-  width: calc((100% - 2 * var(--kami-pad-lg-x)) * .15);
-  height: calc(var(--kami-moon-stage) * .88);
-  z-index: 2;
-  pointer-events: none;
+  left: 30%;
+  top: 11%;
+  width: 22%;
+  height: 78%;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  background:
-    linear-gradient(118deg, rgba(255, 255, 255, .50) 0%, rgba(255, 255, 255, .07) 15%, transparent 32%),
-    linear-gradient(155deg, rgba(228, 240, 255, .34) 0%, rgba(150, 180, 220, .14) 26%, rgba(12, 16, 24, .58) 56%, rgba(5, 7, 11, .88) 100%),
-    linear-gradient(78deg, transparent 30%, rgba(255, 255, 255, .20) 46%, rgba(190, 220, 255, .10) 60%, transparent 74%);
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, .5)) drop-shadow(0 0 9px rgba(150, 190, 255, .26));
+  background-image:
+    linear-gradient(118deg, rgba(255, 255, 255, .92) 0 1.6px, rgba(255, 255, 255, .30) 2.6px, rgba(255, 255, 255, 0) 10px),
+    linear-gradient(62deg, rgba(255, 255, 255, .5) 0 1.2px, rgba(255, 255, 255, 0) 8px),
+    linear-gradient(180deg, rgba(190, 215, 255, .10), rgba(6, 9, 14, .55) 70%);
+  background-repeat: no-repeat;
 }
 
-/* 亮档（内页纸）：白线在纸上不成立 —— 入射光印成一道墨线，白热核改成「白核 + 墨环」，
-   色散扇换印刷油墨色；玻璃换成受光的银灰三角。层序也跟着反过来（核在最上）。 */
-html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head::before {
-  background-image:
-    radial-gradient(ellipse at 45% 50%, #fff 0 34%, rgba(255, 255, 255, .78) 46%, rgba(20, 22, 27, .40) 62%, transparent 82%),
-    conic-gradient(from 80deg at 0% 50%,
-      rgba(214, 32, 32, calc(var(--kami-moon-spec-alpha) / 100)) 0deg,
-      rgba(214, 90, 12, calc(var(--kami-moon-spec-alpha) / 100)) 3.2deg,
-      rgba(214, 170, 16, calc(var(--kami-moon-spec-alpha) / 100)) 6.4deg,
-      rgba(28, 160, 74, calc(var(--kami-moon-spec-alpha) / 100)) 9.6deg,
-      rgba(32, 104, 214, calc(var(--kami-moon-spec-alpha) / 100)) 12.8deg,
-      rgba(122, 62, 214, calc(var(--kami-moon-spec-alpha) / 100)) 16deg,
-      rgba(122, 62, 214, 0) 19deg, transparent 90deg),
-    linear-gradient(90deg, transparent, rgba(20, 22, 27, .26) 16%, rgba(20, 22, 27, .95) 74%, rgba(20, 22, 27, .95));
-  background-size: 22px 13px, 56% 100%, var(--kami-moon-beam-len) 2px;
-  background-position: 44% 50%, 100% 50%, 0 50%;
-  background-blend-mode: normal;
-  filter: saturate(1.05);
+/* ④ 玻璃内的折射小三角：顶点就落在白线进玻璃的位置（左面中点），向右下铺开；
+   填充从白渐变到透明，再叠一道 100deg 的遮罩，越往右越淡直到完全消失。 */
+html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"]::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  top: 11%;
+  width: 22%;
+  height: 78%;
+  clip-path: polygon(30% 52%, 92% 94%, 8% 94%);
+  background-image: linear-gradient(100deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .5) 45%, rgba(255, 255, 255, 0) 100%);
+  -webkit-mask-image: linear-gradient(100deg, #000 8%, rgba(0, 0, 0, .5) 52%, rgba(0, 0, 0, 0) 92%);
+  mask-image: linear-gradient(100deg, #000 8%, rgba(0, 0, 0, .5) 52%, rgba(0, 0, 0, 0) 92%);
+  filter: blur(.4px);
 }
 
-html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"]:not([data-kami-guide]) .kami-drop > .kami-head::after {
+/* 亮档（内页纸）：白线印成墨线，七色换印刷油墨色，玻璃改成受光的银灰三角
+   （白条照旧压在灰玻璃上，折射小三角仍是白的 —— 纸上也看得见）。 */
+html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"] {
   background-image:
-    linear-gradient(118deg, rgba(255, 255, 255, .85) 0%, rgba(255, 255, 255, .25) 15%, transparent 32%),
-    linear-gradient(155deg, rgba(255, 255, 255, .90) 0%, rgba(214, 220, 232, .72) 34%, rgba(140, 152, 172, .42) 66%, rgba(255, 255, 255, .55) 100%),
-    linear-gradient(78deg, transparent 30%, rgba(255, 255, 255, .70) 46%, rgba(160, 175, 200, .30) 60%, transparent 74%);
-  filter: drop-shadow(0 0 1px rgba(20, 22, 27, .45)) drop-shadow(0 0 8px rgba(90, 110, 150, .22));
+    linear-gradient(20deg, rgba(20, 22, 27, 0) 62.8%, rgba(20, 22, 27, .5) 64.1%, rgba(20, 22, 27, .92) 65.9%, rgba(20, 22, 27, .45) 67.7%, rgba(20, 22, 27, 0) 69%),
+    conic-gradient(from 78deg at 47% 55%,
+      rgba(208, 38, 31, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.4deg,
+      rgba(201, 106, 6, calc(var(--kami-moon-spec-alpha) / 100)) 3.4deg 6.8deg,
+      rgba(168, 132, 0, calc(var(--kami-moon-spec-alpha) / 100)) 6.8deg 10.2deg,
+      rgba(31, 143, 56, calc(var(--kami-moon-spec-alpha) / 100)) 10.2deg 13.6deg,
+      rgba(15, 143, 156, calc(var(--kami-moon-spec-alpha) / 100)) 13.6deg 17deg,
+      rgba(28, 95, 208, calc(var(--kami-moon-spec-alpha) / 100)) 17deg 20.4deg,
+      rgba(122, 63, 208, calc(var(--kami-moon-spec-alpha) / 100)) 20.4deg 23.8deg,
+      rgba(122, 63, 208, 0) 23.8deg 90deg);
 }
+
+html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"]::before {
+  background-image:
+    linear-gradient(118deg, rgba(255, 255, 255, .95) 0 1.6px, rgba(255, 255, 255, .35) 2.6px, rgba(255, 255, 255, 0) 10px),
+    linear-gradient(62deg, rgba(255, 255, 255, .6) 0 1.2px, rgba(255, 255, 255, 0) 8px),
+    linear-gradient(180deg, rgba(120, 132, 152, .30), rgba(52, 58, 70, .45) 70%);
+}
+
+/* 窄屏兜底：消息楼层就是手机宽度时整块缩到 6.3em 宽（仍是 4:1），
+   别把题头的标题与右侧动作区挤出面板。 */
+@media (max-width: 420px) {
+  html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"] {
+    width: calc(var(--kami-fs) * 6.3);
+    height: calc(var(--kami-fs) * 1.575);
+  }
+}
+
 
 /* ==========================================================================
  * 15 · 特效二：黑胶刻槽（vinyl）
@@ -1622,12 +1633,13 @@ html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="gh
 
 /* ==========================================================================
  * 18 · 窄面板（容器查询）：面板本体是查询容器（container-type 见 §13）
- *      窄到放不下「序号列 + 棱镜展示带」时：展示带收窄一档、序号列隐去，
- *      让标签与控件先活下来。不支持容器查询的浏览器直接吃上面的默认值。
+ *      窄到放不下「序号列 + 棱镜 + 标题」时：棱镜再收一档、序号列隐去，
+ *      让标题与右侧的动作区先活下来。不支持容器查询的浏览器直接吃上面的默认值。
  * ======================================================================== */
 @container (max-width: 340px) {
-  html[data-kami-skin="moonside"] .kami-root[data-kami-comp="panel"] .kami-drop > .kami-head {
-    --kami-moon-stage: var(--kami-moon-stage-sm);
+  html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"] {
+    width: calc(var(--kami-fs) * 5.6);
+    height: calc(var(--kami-fs) * 1.4);
   }
 
   html[data-kami-skin="moonside"] .kami-root[data-kami-comp="panel"] .kami-card-head::before,
@@ -1719,8 +1731,8 @@ html[data-kami-skin="moonside"] {
   --kami-moon-spec-alpha: 92;
   --kami-moon-beam-len: 40%;
   --kami-moon-groove-alpha: 42;
-  --kami-moon-stage: 46px;
-  --kami-moon-stage-sm: 34px;
+  --kami-moon-prism-w: calc(var(--kami-fs) * 8.4);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 2.1);
 }
 html[data-kami-skin="moonside"][data-kami-scheme="light"] {
   --kami-fg: #14161b;
@@ -1761,7 +1773,8 @@ html[data-kami-skin="moonside"][data-kami-density="compact"] {
   --kami-gap: 6px;
   --kami-gap-lg: 9px;
   --kami-row-h: 34px;
-  --kami-moon-stage: 38px;
+  --kami-moon-prism-w: calc(var(--kami-fs) * 7);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 1.75);
 }
 html[data-kami-skin="moonside"][data-kami-density="roomy"] {
   --kami-pad-x: 14px;
@@ -1771,7 +1784,8 @@ html[data-kami-skin="moonside"][data-kami-density="roomy"] {
   --kami-gap: 10px;
   --kami-gap-lg: 15px;
   --kami-row-h: 48px;
-  --kami-moon-stage: 54px;
+  --kami-moon-prism-w: calc(var(--kami-fs) * 9.8);
+  --kami-moon-prism-h: calc(var(--kami-fs) * 2.45);
 }
 html[data-kami-skin="moonside"][data-kami-motion="calm"] {
   --kami-dur-fast: .07s;

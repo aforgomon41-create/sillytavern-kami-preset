@@ -1,0 +1,96 @@
+{
+  "id": "gemini",
+  "name": "双子座",
+  "button": "双子",
+  "scheme": "dark",
+  "tagline": "【文案占位】一条竖直镜像轴把每块面切成两半：左冷右暖，两极在轴心对撞，锐头起笔、扩散尾收。",
+  "effects": [
+    {
+      "id": "twin",
+      "label": "【文案占位】双色分流",
+      "desc": "【文案占位】组件头部下缘浮起一道双色分流条，左右两极向轴心汇拢，锐头起、扩散尾收。",
+      "default": true
+    },
+    {
+      "id": "axis",
+      "label": "【文案占位】镜像轴",
+      "desc": "【文案占位】一条极细的竖直轴线贯穿整块面，冷暖分居两侧，像一张对折过的纸。",
+      "default": true
+    },
+    {
+      "id": "halo",
+      "label": "【文案占位】两极星晕",
+      "desc": "【文案占位】标题与状态标记向左右各散出一层柔光，一侧偏冷、一侧偏暖。",
+      "default": true
+    },
+    {
+      "id": "drift",
+      "label": "【文案占位】缓慢对流",
+      "desc": "【文案占位】两极的柔光极慢地互相推挤、来回呼吸，不抢视线也不闪。",
+      "default": false
+    },
+    {
+      "id": "polarity",
+      "label": "【文案占位】对调两极",
+      "desc": "【文案占位】把冷极与暖极左右互换，整块面连同边条一起镜像翻转。",
+      "default": false
+    }
+  ],
+  "params": [
+    {
+      "id": "axispos",
+      "label": "【文案占位】轴心位置",
+      "group": "轴",
+      "token": "--kami-gem-axis",
+      "unit": "%",
+      "min": 30,
+      "max": 70,
+      "step": 1,
+      "value": 50
+    },
+    {
+      "id": "bleed",
+      "label": "【文案占位】扩散长度",
+      "group": "轴",
+      "token": "--kami-gem-bleed",
+      "unit": "%",
+      "min": 10,
+      "max": 80,
+      "step": 2,
+      "value": 46
+    },
+    {
+      "id": "edge",
+      "label": "【文案占位】边条宽度",
+      "group": "轴",
+      "token": "--kami-gem-edge",
+      "unit": "px",
+      "min": 0,
+      "max": 6,
+      "step": 1,
+      "value": 2
+    },
+    {
+      "id": "duoalpha",
+      "label": "【文案占位】双色浓度",
+      "group": "两极",
+      "token": "--kami-gem-alpha",
+      "unit": "",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "value": 65
+    },
+    {
+      "id": "glowsize",
+      "label": "【文案占位】星晕半径",
+      "group": "两极",
+      "token": "--kami-glow-size",
+      "unit": "px",
+      "min": 0,
+      "max": 14,
+      "step": 1,
+      "value": 6
+    }
+  ]
+}
