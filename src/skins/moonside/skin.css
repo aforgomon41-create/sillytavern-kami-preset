@@ -1422,13 +1422,19 @@ html[data-kami-skin="moonside"] .kami-root[data-kami-comp="panel"] .kami-field .
  *      按《月之暗面》封面的画法，三段分开画在三个层上：
  *        槽位本体  ① 一条白线斜着射入 —— 角度渐变的硬边；图层的**宽只有 35.5%**，
  *                     右缘就是三角的左面，所以白线一斜到底正好停在入射面上，不悬空也不穿透；
- *                  ② 七条实色光柱 —— 锥形渐变 + 硬断点，条内没有任何渐变、彼此不重叠；
+ *                  ② 七条实色光柱 —— 锥形渐变 + 硬断点，条内没有渐变、彼此不重叠；
+ *                     汇聚点在**三角内部**（自入射点沿光路往里 2px），所以七色穿过右面时
+ *                     已经张开到 7.8px 高（不再是尖点），再往右继续变宽、末端渐隐收口；
  *        ::before  ③ 玻璃三角 —— clip-path 裁的 △，内边缘一条渐变白条当玻璃厚度；
- *        ::after   ④ 玻璃里的折射小三角 —— 渐变白 + 遮罩，越往右越淡直到消失。
+ *        ::after   ④ 玻璃内的光路 —— 梯形，进场截面贴左面的入射点、出场截面贴右面的出射带，
+ *                     沿 10° 走（白线 20°），一头接住白线、一头接住七色，是一条连贯光路。
  *
  *      槽位是前端在每个 .kami-head 里留的空 span（别的皮肤在这里放骰子），本皮肤不声明
  *      decor、不注入 JS，只用 CSS 把它画成棱镜，所以要先压掉结构层的 .kami-deco{display:none}。
- *      每层楼都渲染一份：这里零 backdrop-filter、零常驻 filter，只有 40×30 上下的
+ *      几何（槽位 126×31.5 @ fs=15，四个尺寸档同比例）：三角顶点 (41%, 11%)、两底角 (30%, 89%) / (52%, 89%)；
+ *      白线止于左面 y=50% 处的入射点 E；七色汇聚点在 E 沿 10° 光路往里 2px 的三角内部；
+ *      出射带落在右面上 (58.37, 15.35)–(62.75, 23.13)，竖高 7.77px。
+ *      每层楼都渲染一份：零 backdrop-filter、零常驻 filter，只有 40×30 上下的
  *      blur(.4px) 一块，以及一层 mask（右端收口 + 入射光长短）。
  * ======================================================================== */
 html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"] {
@@ -1444,15 +1450,15 @@ html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-dec
      也就是三角左面的入射点。四个尺寸档都是 4:1，所以改尺寸不用改这里。 */
   background-image:
     linear-gradient(20deg, rgba(255, 255, 255, 0) 62.8%, rgba(255, 255, 255, .55) 64.1%, #fff 65.9%, rgba(255, 255, 255, .5) 67.7%, rgba(255, 255, 255, 0) 69%),
-    conic-gradient(from 78deg at 47% 55%,
-      rgba(255, 45, 45, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.4deg,
-      rgba(255, 140, 26, calc(var(--kami-moon-spec-alpha) / 100)) 3.4deg 6.8deg,
-      rgba(255, 214, 10, calc(var(--kami-moon-spec-alpha) / 100)) 6.8deg 10.2deg,
-      rgba(53, 211, 74, calc(var(--kami-moon-spec-alpha) / 100)) 10.2deg 13.6deg,
-      rgba(34, 199, 214, calc(var(--kami-moon-spec-alpha) / 100)) 13.6deg 17deg,
-      rgba(47, 125, 255, calc(var(--kami-moon-spec-alpha) / 100)) 17deg 20.4deg,
-      rgba(164, 91, 255, calc(var(--kami-moon-spec-alpha) / 100)) 20.4deg 23.8deg,
-      rgba(164, 91, 255, 0) 23.8deg 90deg);
+    conic-gradient(from 86.35deg at 37.1% 51.1%,
+      rgba(255, 45, 45, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.9deg,
+      rgba(255, 140, 26, calc(var(--kami-moon-spec-alpha) / 100)) 3.9deg 7.8deg,
+      rgba(255, 214, 10, calc(var(--kami-moon-spec-alpha) / 100)) 7.8deg 11.7deg,
+      rgba(53, 211, 74, calc(var(--kami-moon-spec-alpha) / 100)) 11.7deg 15.6deg,
+      rgba(34, 199, 214, calc(var(--kami-moon-spec-alpha) / 100)) 15.6deg 19.5deg,
+      rgba(47, 125, 255, calc(var(--kami-moon-spec-alpha) / 100)) 19.5deg 23.4deg,
+      rgba(164, 91, 255, calc(var(--kami-moon-spec-alpha) / 100)) 23.4deg 27.3deg,
+      rgba(164, 91, 255, 0) 27.3deg 90deg);
   background-size: 35.5% 100%, 100% 100%;
   background-position: 0 0, 0 0;
   background-repeat: no-repeat;
@@ -1485,8 +1491,11 @@ html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-dec
   background-repeat: no-repeat;
 }
 
-/* ④ 玻璃内的折射小三角：顶点就落在白线进玻璃的位置（左面中点），向右下铺开；
-   填充从白渐变到透明，再叠一道 100deg 的遮罩，越往右越淡直到完全消失。 */
+/* ④ 玻璃内的光路：一个梯形，**进场截面贴在入射点所在的左面上、出场截面贴在出射带所在的右面上**，
+   四角与两条侧面各差 0.00px —— 一头接住白线、一头接住七色带：
+   入射点 E(44.73, 15.75) → 出射带 (58.37, 15.35)–(62.75, 23.13)。
+   走向沿 10° 的光路（白线是 20°），入射点上留一个 10° 的折射折角。
+   填充从 .95 白渐变到 .42：进场处把白线压成白色，出场处七色正好接管。 */
 html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"]::after {
   content: "";
   position: absolute;
@@ -1494,10 +1503,9 @@ html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-dec
   top: 11%;
   width: 22%;
   height: 78%;
-  clip-path: polygon(30% 52%, 92% 94%, 8% 94%);
-  background-image: linear-gradient(100deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .5) 45%, rgba(255, 255, 255, 0) 100%);
-  -webkit-mask-image: linear-gradient(100deg, #000 8%, rgba(0, 0, 0, .5) 52%, rgba(0, 0, 0, 0) 92%);
-  mask-image: linear-gradient(100deg, #000 8%, rgba(0, 0, 0, .5) 52%, rgba(0, 0, 0, 0) 92%);
+  /* 四角 = 玻璃盒坐标：入场上/下、出场上/下（由上面那四个像素坐标换算而来） */
+  clip-path: polygon(27.2% 45.5%, 74.2% 48.4%, 90% 80%, 22.8% 54.5%);
+  background-image: linear-gradient(100deg, rgba(255, 255, 255, .95), rgba(255, 255, 255, .62) 55%, rgba(255, 255, 255, .42) 100%);
   filter: blur(.4px);
 }
 
@@ -1506,15 +1514,15 @@ html[data-kami-skin="moonside"][data-kami-effects~="prism"] .kami-root .kami-dec
 html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"] {
   background-image:
     linear-gradient(20deg, rgba(20, 22, 27, 0) 62.8%, rgba(20, 22, 27, .5) 64.1%, rgba(20, 22, 27, .92) 65.9%, rgba(20, 22, 27, .45) 67.7%, rgba(20, 22, 27, 0) 69%),
-    conic-gradient(from 78deg at 47% 55%,
-      rgba(208, 38, 31, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.4deg,
-      rgba(201, 106, 6, calc(var(--kami-moon-spec-alpha) / 100)) 3.4deg 6.8deg,
-      rgba(168, 132, 0, calc(var(--kami-moon-spec-alpha) / 100)) 6.8deg 10.2deg,
-      rgba(31, 143, 56, calc(var(--kami-moon-spec-alpha) / 100)) 10.2deg 13.6deg,
-      rgba(15, 143, 156, calc(var(--kami-moon-spec-alpha) / 100)) 13.6deg 17deg,
-      rgba(28, 95, 208, calc(var(--kami-moon-spec-alpha) / 100)) 17deg 20.4deg,
-      rgba(122, 63, 208, calc(var(--kami-moon-spec-alpha) / 100)) 20.4deg 23.8deg,
-      rgba(122, 63, 208, 0) 23.8deg 90deg);
+    conic-gradient(from 86.35deg at 37.1% 51.1%,
+      rgba(208, 38, 31, calc(var(--kami-moon-spec-alpha) / 100)) 0deg 3.9deg,
+      rgba(201, 106, 6, calc(var(--kami-moon-spec-alpha) / 100)) 3.9deg 7.8deg,
+      rgba(168, 132, 0, calc(var(--kami-moon-spec-alpha) / 100)) 7.8deg 11.7deg,
+      rgba(31, 143, 56, calc(var(--kami-moon-spec-alpha) / 100)) 11.7deg 15.6deg,
+      rgba(15, 143, 156, calc(var(--kami-moon-spec-alpha) / 100)) 15.6deg 19.5deg,
+      rgba(28, 95, 208, calc(var(--kami-moon-spec-alpha) / 100)) 19.5deg 23.4deg,
+      rgba(122, 63, 208, calc(var(--kami-moon-spec-alpha) / 100)) 23.4deg 27.3deg,
+      rgba(122, 63, 208, 0) 27.3deg 90deg);
 }
 
 html[data-kami-skin="moonside"][data-kami-scheme="light"][data-kami-effects~="prism"] .kami-root .kami-deco[data-kami-deco="d20"]::before {
