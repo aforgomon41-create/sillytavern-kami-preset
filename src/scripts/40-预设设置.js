@@ -1687,7 +1687,11 @@
       log: log,
       onSaved: function () { refresh(true); }
     });
-    csBlock.mount(pane);
+    /* ⚠️ 同上：mount 会先清空容器，直接挂 pane 会把这一页里预设自带的文风条目全抹掉。
+       所以必须先建一个只属于这块的容器（2026-10-03 真机回归，已修）。 */
+    var csHost = mk('div', 'kami-cs-host');
+    pane.appendChild(csHost);
+    csBlock.mount(csHost);
   }
 
   /* 一张卡片组：卡片头（名字 + 计数 + 单选/任选）+ 卡片体里一层条目网格 */

@@ -1353,7 +1353,11 @@
       anchorCards: csAnchorCards(),
       onSaved: csReloadSteps
     });
-    csBlock.mount(panelBody);
+    /* ⚠️ 必须挂进**自己的容器**：模块的 mount 会先清空容器再重画。
+       直接把面板页体传进去，会把刚画好的预设自带文风卡片整片抹掉（2026-10-03 真机回归，已修）。 */
+    var csHost = el('div', 'kami-cs-host');
+    panelBody.appendChild(csHost);
+    csBlock.mount(csHost);
   }
 
   function renderCardPage(st) {
