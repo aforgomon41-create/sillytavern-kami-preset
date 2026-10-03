@@ -28,6 +28,19 @@ export const CARD_ONCE = ' 选一';
 export const CARD_ANY = ' 任选';
 export const FULL_COLON = '：';
 
+/* 用户自定义文风的标记。与上面三个标签**同构**：判据一律 endsWith，标记必须在名字最末尾。
+   ⚠️ 这个标记与 parseCustomName() 的**唯一真相就是本文件**：
+      解析器被 build/kami-doc.mjs 的 presetParseSource 内联进 40-预设设置.js 与 50-引导.js，
+      两个面板天然同源。**绝不许在 40 / 50 里各写一套** —— 那正是 _preset-cards.js 头部
+      抱怨过的第三次分叉（同一组件写两套，注释标记与开关高亮已经因此丢过两次）。 */
+export const DIY_SUFFIX = ' | diy_write_style';
+/* 自定义文风只能落在「写作指导」这个分区里。分区边界由本文件的层级配对逻辑给出（不是字符串切分），
+   这里只提供认区用的名字提示；调用方也可以额外传锚点卡片名提高命中率。 */
+export const DIY_LAYER_HINT = '写作指导';
+/* prompt_order 的结构断言常量（写入前必须对得上，对不上就放弃写入、不许猜） */
+export const DIY_ORDER_COUNT = 1;
+export const DIY_CHAR_ID = 100001;
+
 // ---------- 基础工具（无正则） ----------
 
 export function countOccurrences(text, sub) {
@@ -816,3 +829,357 @@ export function parsePreset(preset) {
     issues: issues,
   };
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * 用户自定义文风（名字里带 ` | diy_write_style`）
+ * ----------------------------------------------------------------------------
+ * 四件事全在这里做，且全是纯函数（零 DOM、零全局、零 IO），所以能离线单测：
+ *   ① 标记的解析与生成        isCustomStyleName / customStyleDisplay / buildCustomStyleName / parseCustomName
+ *   ② 组归属（向上检索卡片头）resolveCustomGroup
+ *   ③ 可选组清单              customStyleSections
+ *   ④ 写入计划（纯数据）      planCustomStyleWrite / customStyleEntries
+ * IO 只留在 40-预设设置.js 的一层薄壳里：读活设置 → 调 planCustomStyleWrite → 写回两个数组 → 点保存按钮。
+ *
+ * 组归属为什么不用「名字带组名」：用户 2026-10-02 拍板 —— 归属靠**向上检索最近的 [组名] 卡片头**。
+ * 这里的「向上」指**解析出来的序列**（tree.tabs[].cards[].items），不是 prompts[] 下标 ——
+ * 解析器根本不按 prompts[] 顺序走，它走 prompt_order[0].order（见 parsePreset 第 1 步）。
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+function diyText(v) { return (v === null || v === undefined) ? '' : String(v); }
+/* 只做 JSON 深拷贝：进出的都是纯 JSON 数据，不引结构化克隆，老宿主也能跑 */
+function diyClone(v) { return (v === undefined) ? undefined : JSON.parse(JSON.stringify(v)); }
+
+export function isCustomStyleName(name) {
+  return diyText(name).endsWith(DIY_SUFFIX);
+}
+
+/* 名字 → 界面上显示的纯名字。不带标记的原样返回（面板上两种条目都要能显示）。 */
+export function customStyleDisplay(name) {
+  const s = diyText(name);
+  return isCustomStyleName(s) ? s.slice(0, s.length - DIY_SUFFIX.length).trim() : s;
+}
+
+/* 界面上的纯名字 → 写进预设的名字。起不出合法名字时返回 null（调用方报错，绝不猜）。 */
+export function buildCustomStyleName(display) {
+  const s = diyText(display).trim();
+  if (!s) { return null; }
+  /* 名字里不许再出现标记本身：否则解析会认到最后一处、显示名里残留一段 */
+  if (s.indexOf(DIY_SUFFIX) >= 0) { return null; }
+  /* 不许有换行：条目名里有换行会把面板上的卡片名撑坏 */
+  if (s.indexOf(String.fromCharCode(10)) >= 0 || s.indexOf(String.fromCharCode(13)) >= 0) { return null; }
+  return s + DIY_SUFFIX;
+}
+
+export function parseCustomName(name) {
+  const s = diyText(name);
+  if (!isCustomStyleName(s)) { return { ok: false, reason: 'not-custom', display: s, name: s }; }
+  const display = s.slice(0, s.length - DIY_SUFFIX.length).trim();
+  if (!display) { return { ok: false, reason: 'empty-display', display: '', name: s }; }
+  return { ok: true, reason: null, display: display, name: s };
+}
+
+/* ── ② 组归属：在解析出来的序列里向上检索最近的卡片头 ──
+   返回 null = 这个条目不在任何 layer tab 的卡片里（掉出组的游离项，即互斥失效的那种形态）。 */
+export function resolveCustomGroup(tabs, identifier) {
+  const list = Array.isArray(tabs) ? tabs : [];
+  const id = diyText(identifier);
+  if (!id) { return null; }
+  for (let i = 0; i < list.length; i++) {
+    const t = list[i];
+    if (!t || t.kind !== 'layer' || !Array.isArray(t.cards)) { continue; }
+    for (let j = 0; j < t.cards.length; j++) {
+      const c = t.cards[j];
+      const items = (c && c.items) || [];
+      for (let k = 0; k < items.length; k++) {
+        if (diyText(items[k] && items[k].identifier) === id) {
+          return {
+            layerName: diyText(t.name),
+            cardName: diyText(c.name),
+            cardMode: diyText(c.mode),
+            headIdentifier: diyText(c.headIdentifier),
+            memberIndex: k,
+            memberCount: items.length,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/* ── ③ 可选组清单：写作指导分区下的所有 [组名] 卡片头 ──
+   找分区用的是**层级配对逻辑**（layer tab 名），不是字符串切分。
+   anchorCardNames 是可选的额外锚点：调用方把手头已有的「文风页卡片名」传进来，
+   卡片改名后仍能命中（引导的 PAGE_GROUPS 就是那份名单，不另立一份真相）。 */
+export function customStyleSections(tabs, anchorCardNames) {
+  const list = Array.isArray(tabs) ? tabs : [];
+  const anchors = (Array.isArray(anchorCardNames) ? anchorCardNames : []).map(diyText).filter(Boolean);
+  let hit = null, via = null;
+  for (let i = 0; i < list.length && !hit; i++) {
+    const t = list[i];
+    if (!t || t.kind !== 'layer' || !Array.isArray(t.cards)) { continue; }
+    for (let j = 0; j < t.cards.length; j++) {
+      if (anchors.indexOf(diyText(t.cards[j] && t.cards[j].name)) >= 0) { hit = t; via = 'anchor'; break; }
+    }
+  }
+  if (!hit) {
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i];
+      if (t && t.kind === 'layer' && diyText(t.name).indexOf(DIY_LAYER_HINT) >= 0) { hit = t; via = 'layer-name'; break; }
+    }
+  }
+  if (!hit) { return null; }
+  return {
+    via: via,
+    layerName: diyText(hit.name),
+    /* 分区收尾标记（📝 写作指导🔺）的 identifier。插入位置计算要用它当**最后一道边界** ——
+       少了它，分区里最后一张卡的"组尾"会被算成整个预设的末尾，自定义条目就插到分区外面去了。 */
+    closeIdentifier: diyText(hit.region && hit.region.closeEntry && hit.region.closeEntry.identifier),
+    cards: (hit.cards || []).map((c) => ({
+      cardName: diyText(c && c.name),
+      cardMode: diyText(c && c.mode),
+      headIdentifier: diyText(c && c.headIdentifier),
+      members: ((c && c.items) || []).map((it) => ({
+        identifier: diyText(it && it.identifier),
+        name: diyText(it && it.name),
+        enabled: !(it && it.enabled === false),
+      })),
+    })),
+  };
+}
+
+/* ── ④ 写入计划（纯数据） ──
+   input = {
+     prompts, order,                 // 活设置里的两个数组（不会被改动，内部深拷贝）
+     orderEntryCount, charId,        // prompt_order 的结构断言读数（R3）
+     groups,                         // customStyleSections(...).cards
+     adds, updates, removes,         // 界面攒下来的改动
+     newId                           // 可注入的 id 生成器（单测里给固定值）
+   }
+   返回 { ok, code, detail, nextPrompts, nextOrder, report }
+   —— 调用方拿 next* 直接写回活设置；任何一步不对就 ok:false，一个字节都不动。 */
+
+function diyIndexOfId(arr, id) {
+  for (let i = 0; i < arr.length; i++) { if (diyText(arr[i] && arr[i].identifier) === id) { return i; } }
+  return -1;
+}
+function diyDupIds(arr) {
+  const seen = {}, dup = [];
+  for (let i = 0; i < arr.length; i++) {
+    const id = diyText(arr[i] && arr[i].identifier);
+    if (!id) { continue; }
+    if (seen[id]) { if (dup.indexOf(id) < 0) { dup.push(id); } } else { seen[id] = 1; }
+  }
+  return dup;
+}
+function diyGroupOf(groups, headId) {
+  for (let i = 0; i < groups.length; i++) {
+    if (diyText(groups[i] && groups[i].headIdentifier) === headId) { return groups[i]; }
+  }
+  return null;
+}
+/* 目标组在 order[] 里的**尾巴下标**（含后来加进去的自定义条目，不是成员表的快照）。
+   边界 = 下一个卡片头 或 分区收尾标记，取更靠前的那个。
+   ⚠️ 最后一道边界（分区收尾）不能省：少了它，分区里最后一张卡的组尾会一路算到
+      整个预设的末尾，自定义条目就被插到「写作指导」分区外面去了。 */
+function diyGroupTailIndex(order, groups, g, sectionEndId) {
+  const headIdx = diyIndexOfId(order, diyText(g && g.headIdentifier));
+  if (headIdx < 0) { return -1; }
+  let end = -1;
+  for (let i = 0; i < groups.length; i++) {
+    if (groups[i] === g) { continue; }
+    const hi = diyIndexOfId(order, diyText(groups[i] && groups[i].headIdentifier));
+    if (hi > headIdx && (end < 0 || hi < end)) { end = hi; }
+  }
+  if (sectionEndId) {
+    const si = diyIndexOfId(order, sectionEndId);
+    if (si > headIdx && (end < 0 || si < end)) { end = si; }
+  }
+  return (end < 0 ? order.length : end) - 1;
+}
+/* 克隆模板：组里**最后一个还存在于 prompts[]** 的成员（成员表可能因同一批的删除而变旧）。 */
+function diyTemplateId(prompts, g) {
+  const ms = (g && g.members) || [];
+  for (let i = ms.length - 1; i >= 0; i--) {
+    const id = diyText(ms[i] && ms[i].identifier);
+    if (id && diyIndexOfId(prompts, id) >= 0) { return id; }
+  }
+  return null;
+}
+
+export function planCustomStyleWrite(input) {
+  const src = input || {};
+  const report = {
+    added: [], updated: [], removed: [], orderMoved: [], deselected: [],
+    names: {}, before: null, after: null,
+  };
+  function fail(code, detail) {
+    return { ok: false, code: code, detail: diyText(detail), nextPrompts: null, nextOrder: null, report: report };
+  }
+
+  if (!Array.isArray(src.prompts)) { return fail('NO_PROMPTS'); }
+  if (!Array.isArray(src.order)) { return fail('NO_ORDER'); }
+  /* R3：写入前断言 prompt_order 结构，不符合预期就放弃写入并明确报错，绝不猜 */
+  if (src.orderEntryCount !== DIY_ORDER_COUNT) { return fail('ORDER_SHAPE', 'prompt_order 条数=' + diyText(src.orderEntryCount)); }
+  if (src.charId !== DIY_CHAR_ID) { return fail('ORDER_SHAPE', 'character_id=' + diyText(src.charId)); }
+
+  const prompts = diyClone(src.prompts);
+  const order = diyClone(src.order);
+  const groups = Array.isArray(src.groups) ? src.groups : [];
+  const adds = Array.isArray(src.adds) ? src.adds : [];
+  const updates = Array.isArray(src.updates) ? src.updates : [];
+  const removes = Array.isArray(src.removes) ? src.removes : [];
+  const newId = (typeof src.newId === 'function') ? src.newId : null;
+  /* 分区收尾标记：插入位置的最后一道边界（见 diyGroupTailIndex 的注释） */
+  const sectionEndId = diyText(src.sectionEndId);
+
+  const dupP = diyDupIds(prompts), dupO = diyDupIds(order);
+  if (dupP.length) { return fail('DUP_ID', dupP.join(',')); }
+  if (dupO.length) { return fail('DUP_ID', dupO.join(',')); }
+
+  report.before = { prompts: prompts.length, order: order.length };
+
+  /* ① 删：两个数组同删（R1 硬阻断，绝不留孤儿）。
+        只肯删带标记的条目 —— 防止误删预设原有的条目。 */
+  for (let i = 0; i < removes.length; i++) {
+    const id = diyText(removes[i]);
+    const pi = diyIndexOfId(prompts, id), oi = diyIndexOfId(order, id);
+    if (pi < 0 || oi < 0) { return fail('REMOVE_MISSING', id); }
+    if (!isCustomStyleName(prompts[pi].name)) { return fail('REMOVE_NOT_CUSTOM', id); }
+    prompts.splice(pi, 1);
+    order.splice(oi, 1);
+    report.removed.push(id);
+  }
+
+  /* ② 改：改名字 / 正文；换组 = 在 order 里搬家（位置就是归属，见文件头） */
+  for (let i = 0; i < updates.length; i++) {
+    const u = updates[i] || {};
+    const id = diyText(u.identifier);
+    const pi = diyIndexOfId(prompts, id), oi = diyIndexOfId(order, id);
+    if (pi < 0 || oi < 0) { return fail('UPDATE_MISSING', id); }
+    if (!isCustomStyleName(prompts[pi].name)) { return fail('UPDATE_NOT_CUSTOM', id); }
+    const nm = buildCustomStyleName(u.display);
+    if (!nm) { return fail('BAD_NAME', diyText(u.display)); }
+    prompts[pi].name = nm;
+    report.names[id] = nm;
+    if (typeof u.content === 'string') { prompts[pi].content = u.content; }
+    report.updated.push(id);
+    if (u.groupHeadId) {
+      const g = diyGroupOf(groups, diyText(u.groupHeadId));
+      if (!g) { return fail('GROUP_NOT_FOUND', diyText(u.groupHeadId)); }
+      const tailIdx = diyGroupTailIndex(order, groups, g, sectionEndId);
+      if (tailIdx < 0) { return fail('GROUP_TAIL_MISSING', diyText(u.groupHeadId)); }
+      const from = diyIndexOfId(order, id);
+      /* 本来就已经在这一组的末尾 → 原地不动，别做无意义的搬家 */
+      if (from !== tailIdx) {
+        const item = order.splice(from, 1)[0];
+        const tail2 = diyGroupTailIndex(order, groups, g, sectionEndId);
+        if (tail2 < 0) { return fail('GROUP_TAIL_MISSING', diyText(u.groupHeadId)); }
+        order.splice(tail2 + 1, 0, item);
+        report.orderMoved.push(id);
+      }
+    }
+  }
+
+  /* ③ 增：**克隆同组现有条目的完整字段表**（R2 的缓解措施），只覆盖三个字段；
+        两个数组同插（R1）。 */
+  for (let i = 0; i < adds.length; i++) {
+    const a = adds[i] || {};
+    const g = diyGroupOf(groups, diyText(a.groupHeadId));
+    if (!g) { return fail('GROUP_NOT_FOUND', diyText(a.groupHeadId)); }
+    const nm = buildCustomStyleName(a.display);
+    if (!nm) { return fail('BAD_NAME', diyText(a.display)); }
+    const id = newId ? diyText(newId()) : '';
+    if (!id) { return fail('NO_ID'); }
+    if (diyIndexOfId(prompts, id) >= 0 || diyIndexOfId(order, id) >= 0) { return fail('DUP_ID', id); }
+    const tailIdx = diyGroupTailIndex(order, groups, g, sectionEndId);
+    if (tailIdx < 0) { return fail('GROUP_TAIL_MISSING', diyText(a.groupHeadId)); }
+    const tplId = diyTemplateId(prompts, g);
+    if (!tplId) { return fail('GROUP_EMPTY', diyText(a.groupHeadId)); }
+    const tplPi = diyIndexOfId(prompts, tplId);
+    const item = diyClone(prompts[tplPi]);
+    item.identifier = id;
+    item.name = nm;
+    item.content = (typeof a.content === 'string') ? a.content : '';
+    const at = tplPi + 1;
+    prompts.splice(at, 0, item);
+    const oi = tailIdx + 1;
+    order.splice(oi, 0, { identifier: id, enabled: false });
+    report.added.push({
+      identifier: id, display: customStyleDisplay(nm), groupHeadId: diyText(a.groupHeadId),
+      promptsAt: at, orderAt: oi, clonedFrom: tplId,
+    });
+    report.names[id] = nm;
+  }
+
+  /* ④ 新增即选中；目标组是选一就把同组其它条目关掉（用户拍板第 5 条）。
+        同一组里一次加多条时只留最后一条选中，免得自己把自己顶掉。 */
+  const byGroup = {};
+  const addOrder = [];
+  for (let i = 0; i < report.added.length; i++) {
+    const rec = report.added[i];
+    if (!byGroup[rec.groupHeadId]) { byGroup[rec.groupHeadId] = []; addOrder.push(rec.groupHeadId); }
+    byGroup[rec.groupHeadId].push(rec.identifier);
+    const oi = diyIndexOfId(order, rec.identifier);
+    if (oi >= 0) { order[oi].enabled = false; }
+  }
+  for (let i = 0; i < addOrder.length; i++) {
+    const headId = addOrder[i];
+    const mine = byGroup[headId];
+    const keep = mine[mine.length - 1];
+    const keepOi = diyIndexOfId(order, keep);
+    if (keepOi >= 0) { order[keepOi].enabled = true; }
+    const g = diyGroupOf(groups, headId);
+    if (!g || diyText(g.cardMode) !== '单选') { continue; }
+    const ms = g.members || [];
+    const others = [];
+    for (let j = 0; j < ms.length; j++) {
+      const mid = diyText(ms[j] && ms[j].identifier);
+      if (mid) { others.push(mid); }
+    }
+    for (let j = 0; j < mine.length; j++) { if (mine[j] !== keep) { others.push(mine[j]); } }
+    for (let j = 0; j < others.length; j++) {
+      const oi = diyIndexOfId(order, others[j]);
+      if (oi >= 0 && order[oi].enabled !== false) {
+        order[oi].enabled = false;
+        if (report.deselected.indexOf(others[j]) < 0) { report.deselected.push(others[j]); }
+      }
+    }
+  }
+
+  report.after = { prompts: prompts.length, order: order.length };
+  return { ok: true, code: null, detail: '', nextPrompts: prompts, nextOrder: order, report: report };
+}
+
+/* ── 读侧：把当前预设里的自定义文风连同它的组一起列出来 ──
+   orphan = true 表示这条虽然带标记、但已经**掉出所有卡片组**（互斥对它失效）。 */
+export function customStyleEntries(prompts, order, tabs) {
+  const out = [];
+  const list = Array.isArray(prompts) ? prompts : [];
+  const ord = Array.isArray(order) ? order : [];
+  for (let i = 0; i < ord.length; i++) {
+    const id = diyText(ord[i] && ord[i].identifier);
+    if (!id) { continue; }
+    let p = null;
+    for (let j = 0; j < list.length; j++) {
+      if (diyText(list[j] && list[j].identifier) === id) { p = list[j]; break; }
+    }
+    if (!p) { continue; }
+    const parsed = parseCustomName(p.name);
+    if (!parsed.ok) { continue; }
+    const g = resolveCustomGroup(tabs, id);
+    out.push({
+      identifier: id,
+      display: parsed.display,
+      name: diyText(p.name),
+      content: (typeof p.content === 'string') ? p.content : '',
+      enabled: ord[i].enabled !== false,
+      groupHeadId: g ? g.headIdentifier : null,
+      groupName: g ? g.cardName : null,
+      groupMode: g ? g.cardMode : null,
+      orphan: !g,
+    });
+  }
+  return out;
+}
+

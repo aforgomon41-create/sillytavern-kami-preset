@@ -702,6 +702,168 @@
     return { ok: true, changed: plan.length, plan: plan, msg: '' };
   }
 
+  /* ───────── 用户自定义文风：结构写入（增 / 删 / 改，保存才落盘） ─────────
+
+     这是本脚本**第一次**改预设的**结构**（以前的写入只有两种：prompt_order.enabled 与
+     条目 content 里的一个数字）。所以规矩比别处更紧：
+
+     ① 计划是纯数据：所有"插哪儿、删哪条、克隆谁"的判断都在内联进来的
+        planCustomStyleWrite() 里算完（test/harness/preset-parse.mjs，有离线单测）。
+        这里只是一层薄壳：读活设置 → 算计划 → 写回两个数组 → 点酒馆的保存按钮。
+     ② prompts[] 与 prompt_order[] **同增同删**（R1）：只动一边会留下孤儿，
+        解析器对孤儿的处理是**静默跳过**（不报错），用户会以为"加了但没生效"。
+     ③ 新增条目**克隆同组现有条目的完整字段表**，只覆盖 identifier / name / content
+        —— 自己拼字段少了什么没人知道（R2）。
+     ④ 写入前断言 prompt_order 结构（条数与 character_id），不符合就放弃并报错（R3）。
+     ⑤ 写入前后逐字段对比，任何异常**立刻回滚内存改动**，绝不"先写进去看看"。
+     ⑥ 落盘走 savePresetFile()（点 #update_oai_preset）——
+        **绝不**用 replacePreset / updatePresetWith / setPreset（白名单重建会丢字段，已实测写坏）。 */
+
+  /* 校验用：数组里有没有这个 identifier */
+  function indexOfIdentifier(arr, id) {
+    var i;
+    for (i = 0; i < (arr || []).length; i++) { if (arr[i] && arr[i].identifier === id) { return true; } }
+    return false;
+  }
+
+  /* 分区收尾标记读不到时**硬拒绝写入**（用户 2026-10-02 拍板）。
+     为什么不像别处那样降级：功能不可用是**看得见**的毛病，条目被插到分区外面是**看不见**的毛病
+     —— 后者要等用户某天发现「文风怪怪的」才会暴露。宁可报错。 */
+  var DIY_NO_SECTION_END = 'NO_SECTION_END';
+
+  var DIY_ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  /* 新条目的 identifier 沿用酒馆自己生成的那个形态：prompt_<时间戳>_<随机> */
+  function diyNewIdentifier() {
+    var s = '', i;
+    for (i = 0; i < 7; i++) { s += DIY_ID_CHARS.charAt(Math.floor(Math.random() * DIY_ID_CHARS.length)); }
+    return 'prompt_' + Date.now() + '_' + s;
+  }
+
+  /* 读侧：写作指导分区 + 可选组 + 现有自定义条目。opts.anchorCards 由引导页传它的
+     「文风页卡片名」（PAGE_GROUPS 里那份），卡片改名后仍能命中；不传就只按层级名找。 */
+  function readCustomStyleState(opts) {
+    var raw = readTree();
+    if (!raw.ok) { return { ok: false, code: 'NO_TREE', detail: raw.error || '' }; }
+    var sec = null;
+    try { sec = customStyleSections(raw.tree.tabs, (opts && opts.anchorCards) || null); } catch (e) { sec = null; }
+    if (!sec) { return { ok: false, code: 'NO_SECTION', detail: DIY_LAYER_HINT }; }
+    var prompts = raw.settings.prompts || [];
+    var order = raw.order.order || [];
+    var entries = [];
+    try { entries = customStyleEntries(prompts, order, raw.tree.tabs); } catch (e2) { entries = []; }
+    return {
+      ok: true, code: null, detail: '',
+      layerName: sec.layerName,
+      closeIdentifier: sec.closeIdentifier,
+      /* false = 收尾标记读不到 → 界面禁用保存（写侧也会硬拒绝，这里只是别让用户白点） */
+      closeOk: !!sec.closeIdentifier,
+      groups: sec.cards,
+      entries: entries,
+      promptCount: prompts.length,
+      orderLength: order.length,
+    };
+  }
+
+  /* 写侧。req = { anchorCards, adds:[{display,groupHeadId,content}], updates:[{identifier,display,groupHeadId,content}], removes:[identifier] } */
+  function applyCustomStyles(req) {
+    req = req || {};
+    var live = readTree();
+    if (!live.ok) { return { ok: false, code: 'NO_TREE', detail: live.error || '' }; }
+    var sec = null;
+    try { sec = customStyleSections(live.tree.tabs, req.anchorCards || null); } catch (e) { sec = null; }
+    if (!sec) { return { ok: false, code: 'NO_SECTION', detail: DIY_LAYER_HINT }; }
+    /* 收尾标记是插入位置的最后一道边界：读不到就拒绝写入，**不放它去走退化路径** */
+    if (!sec.closeIdentifier) { return { ok: false, code: DIY_NO_SECTION_END, detail: sec.layerName || '' }; }
+
+    var settings = live.settings;
+    var orderList = settings.prompt_order || [];
+    var orderEntry = live.order;
+    var orderIdx = -1, i;
+    for (i = 0; i < orderList.length; i++) { if (orderList[i] === orderEntry) { orderIdx = i; break; } }
+    if (orderIdx < 0) { return { ok: false, code: 'ORDER_SHAPE', detail: 'prompt_order 里找不到当前那一条' }; }
+
+    /* ④ 结构断言 + 算计划（计划里也会再断言一次条数与 character_id） */
+    var plan = planCustomStyleWrite({
+      prompts: settings.prompts || [],
+      order: orderEntry.order || [],
+      orderEntryCount: orderList.length,
+      charId: orderEntry.character_id,
+      groups: sec.cards,
+      sectionEndId: sec.closeIdentifier,
+      adds: req.adds || [],
+      updates: req.updates || [],
+      removes: req.removes || [],
+      newId: diyNewIdentifier,
+    });
+    if (!plan.ok) { return { ok: false, code: plan.code, detail: plan.detail }; }
+    var hasWork = plan.report.added.length || plan.report.updated.length || plan.report.removed.length;
+    if (!hasWork) { return { ok: true, code: null, detail: '', report: plan.report, nothing: true }; }
+
+    /* ⑤ 快照：任何异常都退回这一份，内存与磁盘绝不分家 */
+    var snapPrompts = JSON.stringify(settings.prompts || []);
+    var snapOrder = JSON.stringify(orderEntry.order || []);
+    function diyRollback() {
+      try { settings.prompts = JSON.parse(snapPrompts); } catch (e3) { }
+      try { orderEntry.order = JSON.parse(snapOrder); } catch (e4) { }
+      log('自定义文风：已回滚内存改动（预设文件没有被改动）');
+    }
+
+    function diyFail(code, detail) {
+      diyRollback();
+      try { refresh(true); } catch (e5) { }
+      return { ok: false, code: code, detail: detail || '' };
+    }
+
+    /* ① 写进活设置（两个数组一起换） */
+    try {
+      settings.prompts = plan.nextPrompts;
+      orderEntry.order = plan.nextOrder;
+    } catch (e6) {
+      return diyFail('APPLY_FAIL', (e6 && e6.message) || String(e6));
+    }
+
+    /* ② 逐字段对比：读回来的必须与计划完全一致，并且增删的条目确实到位了 */
+    var check = readRaw();
+    if (!check.ok) { return diyFail('VERIFY_FAIL', check.error || ''); }
+    var livePrompts = check.settings.prompts || [];
+    var liveOrder = check.order.order || [];
+    if (JSON.stringify(livePrompts) !== JSON.stringify(plan.nextPrompts) ||
+        JSON.stringify(liveOrder) !== JSON.stringify(plan.nextOrder)) {
+      return diyFail('VERIFY_FAIL', '读回来的数组与写入计划不一致');
+    }
+    if (livePrompts.length !== plan.report.after.prompts || liveOrder.length !== plan.report.after.order) {
+      return diyFail('VERIFY_FAIL', '条数对不上');
+    }
+    var probe = null;
+    for (i = 0; i < plan.report.added.length; i++) {
+      probe = plan.report.added[i].identifier;
+      if (!indexOfIdentifier(livePrompts, probe) || !indexOfIdentifier(liveOrder, probe)) {
+        return diyFail('VERIFY_FAIL', '新增条目没到位：' + probe);
+      }
+    }
+    for (i = 0; i < plan.report.removed.length; i++) {
+      probe = plan.report.removed[i];
+      if (indexOfIdentifier(livePrompts, probe) || indexOfIdentifier(liveOrder, probe)) {
+        return diyFail('VERIFY_FAIL', '删除条目还留着：' + probe);
+      }
+    }
+
+    /* ③ 落盘：走酒馆自己的保存通道；失败由 watchSave 回调把快照退回来 */
+    var saved = savePresetFile(check.ctx, check.settings, null, function (r) {
+      diyRollback();
+      toast('error', '预设没写进去（HTTP ' + (r && r.status) + '），自定义文风的改动已退回');
+      try { refresh(true); } catch (e7) { }
+    });
+    if (!saved.ok) { return diyFail('SAVE_FAIL', saved.msg || ''); }
+
+    log('自定义文风：' + JSON.stringify(plan.report.before) + ' → ' + JSON.stringify(plan.report.after) +
+      '｜增 ' + plan.report.added.length + ' 删 ' + plan.report.removed.length +
+      ' 改 ' + plan.report.updated.length + ' 搬家 ' + plan.report.orderMoved.length +
+      ' 互斥关闭 ' + plan.report.deselected.length + '｜落盘 ' + saved.name);
+    try { refresh(true); } catch (e8) { }
+    return { ok: true, code: null, detail: '', report: plan.report, saved: saved, nothing: false };
+  }
+
   /* 排障用：把两段文本的差异点出来（只差一个数字时，这里会打印出被换掉的那一段） */
   function diffDots(a, b) {
     var i = 0, k = 0;
@@ -3347,6 +3509,17 @@
         if (r.ok && panelRoot) { paintItemAll(identifier, v); syncModel(identifier, v); renderStatus(); }
         return r;
       },
+      /* 用户自定义文风（引导的「文风」页用）。
+         customStyles(opts)    读：分区 / 可选组（含每组是选一还是任选）/ 现有自定义条目。
+                               opts.anchorCards = 引导页那份「文风页卡片名」，卡片改名后仍能命中分区。
+         applyCustomStyles(req) 写：{ anchorCards, adds, updates, removes } —— **保存才调用**。
+                               走活设置 + 酒馆原生保存按钮；失败会回滚内存并返回 { ok:false, code, detail }。
+                               错误码：NO_TREE / NO_SECTION / NO_SECTION_END / ORDER_SHAPE / APPLY_FAIL / VERIFY_FAIL / SAVE_FAIL
+                               ＋计划层的 GROUP_NOT_FOUND / GROUP_EMPTY / GROUP_TAIL_MISSING / BAD_NAME /
+                                 DUP_ID / NO_ID / REMOVE_MISSING / REMOVE_NOT_CUSTOM / UPDATE_MISSING /
+                                 UPDATE_NOT_CUSTOM / NO_PROMPTS / NO_ORDER。 */
+      customStyles: function (opts) { return readCustomStyleState(opts); },
+      applyCustomStyles: function (req) { return applyCustomStyles(req); },
       /* 当前模型（模型 emoji）：读 / 选。选的时候与点模型卡片头同一条路径。 */
       currentModel: function () { return currentModel; },
       selectModel: function (emoji) { selectModel(emoji); return currentModel; },

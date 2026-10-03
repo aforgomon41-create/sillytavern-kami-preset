@@ -455,7 +455,10 @@
       out.push({
         kind: 'card', id: 'page:' + grp.id,
         title: grp.title, intro: copyOf(grp.introKey),
-        groups: groups, varCard: itemVar
+        groups: groups, varCard: itemVar,
+        /* 「文风」页额外挂一块「用户自定义文风」（用户 2026-10-02）。
+           只有这一页有：增删改的是写作文风条目，别的页没有这个概念。 */
+        customStyle: grp.id === 'style'
       });
     }
 
@@ -693,7 +696,20 @@
     'font-weight:var(--kami-fw-title,600);}',
     '#' + PANEL_ID + ' .kami-foot .kami-btn--primary[disabled]{',
     'background-color:var(--kami-guide-ink,#1a1a1a);border-color:var(--kami-guide-ink,#1a1a1a);color:var(--kami-guide-paper,#fff);opacity:var(--kami-dim-lock,.38);}',
-    '#' + PANEL_ID + ' .kami-foot .kami-btn--ghost{background-color:transparent;}'
+    '#' + PANEL_ID + ' .kami-foot .kami-btn--ghost{background-color:transparent;}',
+    /* 自定义文风块（用户 2026-10-02）：一行一条，名字占满剩下的宽度，操作按钮靠右。
+       这里一个颜色都不自己定，全部读皮肤令牌（lint-guide 的护栏盯着这一层）。 */
+    '#' + PANEL_ID + ' .kami-guide-cs{margin-top:var(--kami-gap-lg,12px);}',
+    '#' + PANEL_ID + ' .kami-guide-csrow{display:flex;align-items:center;gap:var(--kami-gap,8px);',
+    'padding:var(--kami-pad-y,6px) 0;border-bottom:1px solid var(--kami-line,currentColor);flex-wrap:wrap;}',
+    '#' + PANEL_ID + ' .kami-guide-csrow[data-kami-cs-doomed]{opacity:.55;}',
+    '#' + PANEL_ID + ' .kami-guide-csname{flex:1 1 auto;min-width:0;color:var(--kami-fg-dim,currentColor);}',
+    '#' + PANEL_ID + ' .kami-guide-csacts{flex:none;display:flex;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID + ' .kami-guide-csform{margin:var(--kami-gap,8px) 0;padding:var(--kami-pad-y,6px) 0;}',
+    '#' + PANEL_ID + ' .kami-guide-csform .kami-field{align-items:flex-start;}',
+    '#' + PANEL_ID + ' .kami-guide-csform .kami-text,',
+    '#' + PANEL_ID + ' .kami-guide-csform .kami-textarea,',
+    '#' + PANEL_ID + ' .kami-guide-csform .kami-select{width:100%;min-width:180px;}'
   ].join('');
 
   function injectCss() {
@@ -1310,6 +1326,365 @@
     }
   }
 
+  /* ───────── 用户自定义文风（只挂在「文风」页） ─────────
+     数据流：本页只攒草稿（全在内存）→ 点「保存」才调 KamiPreset.applyCustomStyles()。
+     50 号**不碰预设**（见文件头那条规矩）：读也罢写也罢，全走 40 号暴露的 API。
+     草稿状态只在本次打开的这一页里活着 —— 翻页/关面板就丢，所以界面上必须有明确的未保存提示。
+
+     ⚠️ 界面文案一律走 CUSTOM_STYLE_COPY（全是占位，等文案 agent 出稿替换）。
+        实现里不许再自己编一句用户看得见的话。 */
+
+  var CUSTOM_STYLE_COPY = {
+    sectionTitle: '自定义文风',
+    intro: '在这里添加或调整自己的文风，全部改好后点击保存才会生效',
+    unsaved: '有改动还没保存',
+    savedToast: '已保存到预设',
+    addBtn: '新增',
+    saveBtn: '保存',
+    editBtn: '编辑',
+    delBtn: '删除',
+    undoBtn: '撤销',
+    doomedTag: '待删除',
+    pendingTag: '待保存',
+    orphanTag: '原分组失效',
+    /* {n} 会被替换成条数（与 stepCounter 同一套替换规矩） */
+    orphanNote: '【占位·待文案】有 {n} 条自定义文风现在不在任何一组里（多半是预设更新时被挪了位置）。点右边的「编辑」重新选一组，保存就会归位。',
+    okBtn: '确定',
+    cancelBtn: '取消',
+    nameLabel: '文风名称',
+    groupLabel: '所属分组',
+    contentLabel: '文风内容',
+    namePlaceholder: '给文风起个名字',
+    contentPlaceholder: '写下具体的行文风格和描写要求',
+    modeSingle: '选一',
+    modeAny: '任选',
+    modeNoteSingle: '同组只能开启一条，启用这条会自动关掉同组其它文风',
+    modeNoteAny: '同组可以同时开启多条，你能根据喜好自由搭配组合',
+    empty: '还没有文风，点击新增写一条',
+    degrade: '配套脚本当前没有运行，请刷新网页重新加载',
+    noSection: '当前预设缺少写作指导分区，请换用完整预设',
+    nameRequired: '请先填写文风名字',
+    errNoTree: '无法读取当前预设，请刷新页面后再试一次',
+    errNoSection: '预设缺少写作指导分区，请切换到完整预设再保存',
+    errNoSectionEnd: '【占位·待文案】读不到写作指导分区的收尾标记。为了不把你的文风插到分区外面（那种毛病你根本看不见），这个功能先停用了。',
+    errOrderShape: '预设排序结构异常，请重新选择预设或刷新网页',
+    errVerify: '内容校验未通过，修改已复原，请检查后重新保存',
+    errSave: '写入预设失败，改动已复原，请重试或刷新网页',
+    errName: '文风名字不合规范，请换个简单名字重新保存',
+    errGroup: '所选分组在预设中不存在，请重新选择分组再保存',
+    errGeneric: '保存出现未知问题，请刷新网页后再试一次'
+  };
+
+  /* 草稿状态。null = 还没载入。 */
+  var csState = null;
+  var csLastStep = null;
+
+  function csAnchorCards() {
+    var i;
+    for (i = 0; i < PAGE_GROUPS.length; i++) {
+      if (PAGE_GROUPS[i].id === 'style') { return PAGE_GROUPS[i].cards; }
+    }
+    return null;
+  }
+  function csApi() {
+    var api = HOST.KamiPreset;
+    if (!api) { return null; }
+    if (typeof api.customStyles !== 'function' || typeof api.applyCustomStyles !== 'function') { return null; }
+    return api;
+  }
+  function csGroupById(id) {
+    var i, gs = (csState && csState.groups) || [];
+    for (i = 0; i < gs.length; i++) { if (gs[i].headIdentifier === id) { return gs[i]; } }
+    return null;
+  }
+  function csGroupLabel(g) {
+    if (!g) { return CUSTOM_STYLE_COPY.orphanTag; }
+    return stripBrackets(g.cardName) + ' · ' + (g.cardMode === '单选' ? CUSTOM_STYLE_COPY.modeSingle : CUSTOM_STYLE_COPY.modeAny);
+  }
+  function csDirty() {
+    if (!csState) { return 0; }
+    var n = csState.adds.length, k;
+    for (k in csState.edits) { if (Object.prototype.hasOwnProperty.call(csState.edits, k) && !csState.removes[k]) { n++; } }
+    for (k in csState.removes) { if (Object.prototype.hasOwnProperty.call(csState.removes, k)) { n++; } }
+    return n;
+  }
+  /* 错误码 → 人话（文案全在 CUSTOM_STYLE_COPY 里） */
+  function csErrText(code) {
+    if (code === 'NO_TREE') { return CUSTOM_STYLE_COPY.errNoTree; }
+    if (code === 'NO_SECTION') { return CUSTOM_STYLE_COPY.errNoSection; }
+    if (code === 'NO_SECTION_END') { return CUSTOM_STYLE_COPY.errNoSectionEnd; }
+    if (code === 'ORDER_SHAPE') { return CUSTOM_STYLE_COPY.errOrderShape; }
+    if (code === 'VERIFY_FAIL' || code === 'APPLY_FAIL') { return CUSTOM_STYLE_COPY.errVerify; }
+    if (code === 'SAVE_FAIL') { return CUSTOM_STYLE_COPY.errSave; }
+    if (code === 'BAD_NAME') { return CUSTOM_STYLE_COPY.errName; }
+    if (code === 'GROUP_NOT_FOUND' || code === 'GROUP_EMPTY' || code === 'GROUP_TAIL_MISSING') { return CUSTOM_STYLE_COPY.errGroup; }
+    return CUSTOM_STYLE_COPY.errGeneric;
+  }
+
+  function csLoad() {
+    var api = csApi();
+    csState = { groups: [], entries: [], adds: [], edits: {}, removes: {}, open: null, err: null, degrade: !api };
+    if (!api) { return csState; }
+    var r = null;
+    try { r = api.customStyles({ anchorCards: csAnchorCards() }); } catch (e) { r = { ok: false, code: 'NO_TREE' }; }
+    if (!r || !r.ok) { csState.err = (r && r.code) || 'NO_TREE'; return csState; }
+    csState.groups = r.groups || [];
+    csState.entries = r.entries || [];
+    csState.layerName = r.layerName;
+    return csState;
+  }
+
+  function csBtn(label, cls, onClick) {
+    var b = el('button', cls || 'kami-btn', label);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function renderCustomStyleBlock() {
+    csLoad();
+    var wrap = el('div', 'kami-guide-cs');
+    wrap.setAttribute('data-kami-cs', '1');
+    panelBody.appendChild(wrap);
+    csPaint();
+  }
+
+  /* 只重画这一块（不碰上面那些卡片，滚动位置也不动） */
+  function csPaint() {
+    var wrap = panelBody ? panelBody.querySelector('[data-kami-cs]') : null;
+    if (!wrap || !csState) { return; }
+    while (wrap.firstChild) { wrap.removeChild(wrap.firstChild); }
+
+    var sec = el('div', 'kami-guide-sec');
+    sec.appendChild(el('span', '', CUSTOM_STYLE_COPY.sectionTitle));
+    wrap.appendChild(sec);
+    wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.intro));
+
+    if (csState.degrade) { wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.degrade)); return; }
+    if (csState.err) { wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.noSection)); return; }
+
+    var i, id, dirty = csDirty();
+    if (dirty) { wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.unsaved + '（' + dirty + '）')); }
+
+    /* 收尾标记读不到 → 只能看不能改（写侧也会硬拒绝，这里先把按钮收起来，别让用户白点） */
+    var canWrite = (csState.closeOk !== false);
+    if (!canWrite) { wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.errNoSectionEnd)); }
+
+    /* 掉出组的条目：先数一遍，好把解释放在列表**上面**（用户先看到原因，再看那几行） */
+    var orphanN = 0;
+    for (i = 0; i < csState.entries.length; i++) {
+      var eo = csState.entries[i];
+      if (csState.removes[eo.identifier]) { continue; }
+      var eoEd = csState.edits[eo.identifier];
+      if (!csGroupById(eoEd ? eoEd.groupHeadId : eo.groupHeadId)) { orphanN++; }
+    }
+    if (orphanN) {
+      wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.orphanNote.replace('{n}', String(orphanN))));
+    }
+
+    /* 现有条目（带删除标记的留在原位、变灰，可以撤销） */
+    var shown = 0;
+    for (i = 0; i < csState.entries.length; i++) {
+      var e = csState.entries[i];
+      var doomed = !!csState.removes[e.identifier];
+      var ed = csState.edits[e.identifier];
+      var row = el('div', 'kami-guide-csrow');
+      row.setAttribute('data-kami-cs-row', e.identifier);
+      if (doomed) { row.setAttribute('data-kami-cs-doomed', '1'); }
+      row.appendChild(el('span', 'kami-guide-csname', ed ? ed.display : e.display));
+      var g = csGroupById(ed ? ed.groupHeadId : e.groupHeadId);
+      if (!g) { row.setAttribute('data-kami-cs-orphan', '1'); }
+      row.appendChild(el('span', 'kami-chip', csGroupLabel(g)));
+      if (doomed) { row.appendChild(el('span', 'kami-chip', CUSTOM_STYLE_COPY.doomedTag)); }
+      else if (ed) { row.appendChild(el('span', 'kami-chip', CUSTOM_STYLE_COPY.pendingTag)); }
+      var acts = el('span', 'kami-guide-csacts');
+      (function (ent, isDoomed, editRec) {
+        if (isDoomed) {
+          acts.appendChild(csBtn(CUSTOM_STYLE_COPY.undoBtn, 'kami-btn kami-btn--ghost', function () {
+            delete csState.removes[ent.identifier];
+            csPaint();
+          }));
+        } else {
+          acts.appendChild(csBtn(CUSTOM_STYLE_COPY.editBtn, 'kami-btn kami-btn--ghost', function () {
+            csState.open = {
+              kind: 'edit', identifier: ent.identifier,
+              display: editRec ? editRec.display : ent.display,
+              groupHeadId: editRec ? editRec.groupHeadId : ent.groupHeadId,
+              content: editRec ? editRec.content : ent.content
+            };
+            csPaint();
+          }));
+          acts.appendChild(csBtn(CUSTOM_STYLE_COPY.delBtn, 'kami-btn kami-btn--ghost', function () {
+            csState.removes[ent.identifier] = true;   /* 只是打标记，保存时才真的删 */
+            delete csState.edits[ent.identifier];
+            csState.open = null;
+            csPaint();
+          }));
+        }
+      })(e, doomed, ed);
+      row.appendChild(acts);
+      wrap.appendChild(row);
+      shown++;
+    }
+
+    /* 还没保存的新条目 */
+    for (i = 0; i < csState.adds.length; i++) {
+      (function (idx) {
+        var a = csState.adds[idx];
+        var row = el('div', 'kami-guide-csrow');
+        row.setAttribute('data-kami-cs-new', String(idx));
+        row.appendChild(el('span', 'kami-guide-csname', a.display));
+        row.appendChild(el('span', 'kami-chip', csGroupLabel(csGroupById(a.groupHeadId))));
+        row.appendChild(el('span', 'kami-chip', CUSTOM_STYLE_COPY.pendingTag));
+        var acts = el('span', 'kami-guide-csacts');
+        acts.appendChild(csBtn(CUSTOM_STYLE_COPY.editBtn, 'kami-btn kami-btn--ghost', function () {
+          csState.open = { kind: 'add', index: idx, display: a.display, groupHeadId: a.groupHeadId, content: a.content };
+          csPaint();
+        }));
+        acts.appendChild(csBtn(CUSTOM_STYLE_COPY.undoBtn, 'kami-btn kami-btn--ghost', function () {
+          csState.adds.splice(idx, 1);
+          if (csState.open && csState.open.kind === 'add') { csState.open = null; }
+          csPaint();
+        }));
+        row.appendChild(acts);
+        wrap.appendChild(row);
+        shown++;
+      })(i);
+    }
+    if (!shown && !csState.open) { wrap.appendChild(el('p', 'kami-guide-offnote', CUSTOM_STYLE_COPY.empty)); }
+
+    if (csState.open && canWrite) { wrap.appendChild(csForm()); }
+
+    if (!canWrite) { return; }
+
+    var bar = el('div', 'kami-bar');
+    bar.appendChild(csBtn(CUSTOM_STYLE_COPY.addBtn, 'kami-btn', function () {
+      var first = csState.groups.length ? csState.groups[0].headIdentifier : null;
+      csState.open = { kind: 'add', index: -1, display: '', groupHeadId: first, content: '' };
+      csPaint();
+    }));
+    var saveBtn = csBtn(CUSTOM_STYLE_COPY.saveBtn, 'kami-btn kami-btn--primary', function () { csSave(); });
+    if (!dirty) { saveBtn.disabled = true; }
+    bar.appendChild(saveBtn);
+    wrap.appendChild(bar);
+  }
+
+  /* 编辑区：名字 / 组（带模式）/ 内容。确定之前什么都不落进草稿以外的地方。 */
+  function csForm() {
+    var o = csState.open, i;
+    var form = el('div', 'kami-guide-csform kami-card');
+    var body = el('div', 'kami-card-body');
+    form.appendChild(body);
+
+    var f1 = el('div', 'kami-field');
+    f1.appendChild(el('span', 'kami-field-label', CUSTOM_STYLE_COPY.nameLabel));
+    var v1 = el('span', 'kami-field-value');
+    var nameIn = el('input', 'kami-text');
+    nameIn.type = 'text';
+    nameIn.value = o.display || '';
+    nameIn.setAttribute('placeholder', CUSTOM_STYLE_COPY.namePlaceholder);
+    v1.appendChild(nameIn);
+    f1.appendChild(v1);
+    body.appendChild(f1);
+
+    var f2 = el('div', 'kami-field');
+    f2.appendChild(el('span', 'kami-field-label', CUSTOM_STYLE_COPY.groupLabel));
+    var v2 = el('span', 'kami-field-value');
+    var sel = el('select', 'kami-select');
+    for (i = 0; i < csState.groups.length; i++) {
+      var g = csState.groups[i];
+      var opt = el('option', '', csGroupLabel(g));
+      opt.value = g.headIdentifier;
+      if (g.headIdentifier === o.groupHeadId) { opt.selected = true; }
+      sel.appendChild(opt);
+    }
+    v2.appendChild(sel);
+    f2.appendChild(v2);
+    body.appendChild(f2);
+
+    /* 目标组的模式：用户必须能看出是选一还是任选（拍板第 6 条） */
+    var note = el('p', 'kami-guide-offnote', '');
+    function paintModeNote() {
+      var g = csGroupById(sel.value);
+      note.textContent = (g && g.cardMode === '单选') ? CUSTOM_STYLE_COPY.modeNoteSingle : CUSTOM_STYLE_COPY.modeNoteAny;
+    }
+    paintModeNote();
+    sel.addEventListener('change', paintModeNote);
+    body.appendChild(note);
+
+    var f3 = el('div', 'kami-field');
+    f3.appendChild(el('span', 'kami-field-label', CUSTOM_STYLE_COPY.contentLabel));
+    body.appendChild(f3);
+    var ta = el('textarea', 'kami-textarea');
+    ta.value = o.content || '';
+    ta.setAttribute('placeholder', CUSTOM_STYLE_COPY.contentPlaceholder);
+    body.appendChild(ta);
+
+    var bar = el('div', 'kami-bar');
+    bar.appendChild(csBtn(CUSTOM_STYLE_COPY.okBtn, 'kami-btn kami-btn--primary', function () {
+      var nm = String(nameIn.value || '').trim();
+      if (!nm) { toast('warning', CUSTOM_STYLE_COPY.nameRequired); return; }
+      var rec = { display: nm, groupHeadId: sel.value, content: String(ta.value || '') };
+      if (o.kind === 'add') {
+        if (o.index >= 0) { csState.adds[o.index] = rec; } else { csState.adds.push(rec); }
+      } else {
+        csState.edits[o.identifier] = rec;
+        delete csState.removes[o.identifier];
+      }
+      csState.open = null;
+      csPaint();
+    }));
+    bar.appendChild(csBtn(CUSTOM_STYLE_COPY.cancelBtn, 'kami-btn kami-btn--ghost', function () {
+      csState.open = null;
+      csPaint();
+    }));
+    form.appendChild(bar);
+    return form;
+  }
+
+  /* 保存：把草稿整理成 req 交给 40 号。写坏了由 40 号回滚，这里只负责把结果说成人话。 */
+  function csSave() {
+    var api = csApi();
+    if (!api) { toast('error', CUSTOM_STYLE_COPY.degrade); return; }
+    var req = { anchorCards: csAnchorCards(), adds: [], updates: [], removes: [] };
+    var i, k;
+    for (i = 0; i < csState.adds.length; i++) {
+      req.adds.push({ display: csState.adds[i].display, groupHeadId: csState.adds[i].groupHeadId, content: csState.adds[i].content });
+    }
+    for (k in csState.edits) {
+      if (!Object.prototype.hasOwnProperty.call(csState.edits, k)) { continue; }
+      if (csState.removes[k]) { continue; }
+      req.updates.push({ identifier: k, display: csState.edits[k].display, groupHeadId: csState.edits[k].groupHeadId, content: csState.edits[k].content });
+    }
+    for (k in csState.removes) {
+      if (Object.prototype.hasOwnProperty.call(csState.removes, k)) { req.removes.push(k); }
+    }
+    var r = null;
+    try { r = api.applyCustomStyles(req); } catch (e) { r = { ok: false, code: 'SAVE_FAIL' }; }
+    if (!r || !r.ok) {
+      toast('error', csErrText(r && r.code));
+      log('自定义文风保存失败：' + ((r && r.code) || '?') + ' ' + ((r && r.detail) || ''));
+      return;
+    }
+    toast('success', CUSTOM_STYLE_COPY.savedToast);
+    csState = null;
+    csReloadSteps();
+  }
+
+  /* 保存成功后把整棵树重解析一遍并原地重画当前页 —— 新条目才会立刻长成上面那张卡片。 */
+  function csReloadSteps() {
+    var raw = readTree();
+    if (!raw.ok) { showStep(cur); return; }
+    var fresh = buildSteps(raw);
+    if (!fresh.length) { return; }
+    var keepId = (steps[cur] && steps[cur].id) || null;
+    steps = fresh;
+    var idx = 0, i;
+    for (i = 0; i < steps.length; i++) { if (steps[i].id === keepId) { idx = i; break; } }
+    paintDots();
+    showStep(idx);
+  }
+
   function renderCardPage(st) {
     if (st.intro) { panelBody.appendChild(el('p', 'kami-guide-lead', st.intro)); }
     var api = HOST.KamiPreset;
@@ -1365,6 +1740,7 @@
         if (st.varCard && hasT2I) { renderAttachedVar(st.varCard); }
       })(st.groups[g], g);
     }
+    if (st.customStyle) { renderCustomStyleBlock(); }
   }
 
   /* 挂在「文生图」那页的插图数量：值同样渲染时从 KamiPreset.vars() 现读 */
