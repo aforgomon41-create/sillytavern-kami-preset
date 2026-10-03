@@ -120,6 +120,25 @@ function check(name, cond, extra) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const labels = () => [...document.querySelectorAll('#qr-bar .qr--button-label')].map(e => e.textContent);
+/* 展开完整性自检：残留占位 = server 那份展开器漏挂了一个模块，或者 server 是改代码之前起的
+   （Node 在启动时就把 kami-doc.mjs 加载了，展开器改了必须重启进程才生效）。
+   不这么查的话症状是"点开某一页才 xxx is not defined"，跟真原因差着十万八千里。 */
+const KEEP_MARKS = ['@@KAMI_BUILD_N@@', '@@KAMI_PRESET_NAME@@'];
+function assertExpanded(code, label) {
+  const left = [...new Set([...code.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
+  return check(label + '：内联占位已全部展开', left.length === 0, left.join(' ') || 'ok');
+}
+/* 共享模块的加载自检：2026-10-03 抽 _custom-style-ui.js 那轮，40 号一渲染就
+   customStyleBlock is not defined，而这条路上从来没人查过 —— 等用户来报就太晚了。
+   ⚠️ 查的是**源码**不是 iframe 全局：两个脚本整体是一个 IIFE，内联进来的
+   customStyleBlock 是 IIFE 里的函数声明，**不会**成为 iframe 的全局，
+   所以 w.eval('typeof customStyleBlock') 永远是 'undefined'（第一版就栽在这）。 */
+function assertCustomStyleBlock(code, label) {
+  const n = (code.match(/function customStyleBlock\(/g) || []).length;
+  const m = (code.match(/CUSTOM_STYLE_COPY = \{/g) || []).length;
+  return check(label + '：共享模块已内联（customStyleBlock ×1、文案 ×1）', n === 1 && m === 1, n + '/' + m);
+}
+
 function report() {
   const failed = R.filter(x => x.startsWith('FAIL')).length;
   document.getElementById('results').textContent = R.join('\n') + '\n\n==== ' + (failed ? failed + ' 项失败' : '全部 ' + R.length + ' 项通过') + ' ====';
@@ -475,31 +494,21 @@ function report() {
     await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
     const w = iframe.contentWindow;
     installMocks(w, scriptId);
+    /* 一律走 /dev/：内联占位由 server.mjs 的 devScript() **统一**展开（与 build.mjs 同一份实现）。
+       以前这里手抄了一份 5 步展开清单、40 号那条分支又抄了一份 7 步的 —— 每新增一个共享模块
+       就得记得改两边，漏一边的症状是「点开某一页才 ReferenceError」。已经因此栽过两次
+       （2026-09-30 漏 _preset-cards.js / _tags-pure.js；2026-10-03 漏 _custom-style-ui.js）。
+       现在只有一处实现，客户端只补 build.mjs 自己管的产物号。 */
     let code = await (await fetch(file)).text();
-    /* 构建期占位在 harness 里手动展开（与 build.mjs 同一条路，少一个都不行）：
-       ① 预设解析器（去行首 export）② 兜底皮肤字符串 ③ 产物号 ④ 共享卡片构建器 ⑤ 共享文风模块 */
-    const parseSrc = await (await fetch('/test/harness/preset-parse.mjs')).text();
-    const parseInlined = parseSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n');
-    code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
-    const baseCss = await (await fetch('/src/skin/base.css')).text();
-    code = code.split('/* @@KAMI_BASE_CSS_JS@@ */').join('var KAMI_BASE_CSS = ' + JSON.stringify(baseCss) + ';');
     code = code.split('@@KAMI_BUILD_N@@').join(String(buildN));
-    /* ④ 共享卡片构建器（src/scripts/_preset-cards.js，由 build/kami-doc.mjs 的 expandPresetCards 内联）。
-       40 与 50 都靠它建模型卡/条目卡，漏了这一步就是「脚本能启动但模型页空白」。 */
-    const cardsSrc = await (await fetch('/src/scripts/_preset-cards.js')).text();
-    code = code.split('/* @@KAMI_PRESET_CARDS@@ */').join(
-      cardsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
-    /* ⑤ 「用户自定义文风」共享模块（src/scripts/_custom-style-ui.js，由 build/kami-doc.mjs 的
-       expandCustomStyleUi 内联）。40 与 50 都靠它渲染那一块，漏了这一步文风页就少一截。 */
-    const csSrc = await (await fetch('/src/scripts/_custom-style-ui.js')).text();
-    code = code.split('/* @@KAMI_CUSTOM_STYLE_UI@@ */').join(
-      csSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
+    assertExpanded(code, scriptId);
+    assertCustomStyleBlock(code, scriptId);
     w.eval(code);
     FRAMES[scriptId] = { iframe, w };
     return FRAMES[scriptId];
   }
 
-  await loadGuide('/src/scripts/50-引导.js', 'guide', 70);
+  await loadGuide('/dev/50-引导.js', 'guide', 70);
   /* 用真实预设里的模型条目与变量条目 id 回填替身（向导的模型页/变量页只认真实条目） */
   (function fillMocksFromPreset() {
     /* 模型条目：从真预设里按名字抓（🐱/🐋 各留两条） */
@@ -674,7 +683,7 @@ function report() {
   await sleep(200);
 
   /* ---------- 引导：产物没看过才自动弹 ---------- */
-  await loadGuide('/src/scripts/50-引导.js', 'guide2', 70);
+  await loadGuide('/dev/50-引导.js', 'guide2', 70);
   FRAMES.guide2.w.__scriptVars['kami-guide'] = { seen: 70 };   /* 先写「看过」，再等它启动 */
   await sleep(2600);
   check('引导：产物已看过 → 不自动弹',
@@ -703,37 +712,20 @@ function report() {
      修法：pointerdown 记下真正被按的 tab，pointerup（鼠标轻点）补一次 setTab。
      这里用真实 pointer 事件序列复现：pointerdown → pointerup → click。 */
   {
-    /* 40 号脚本也带构建期占位（解析器 / 兜底皮肤），loadScript 不展开它们，
-       这里按 loadGuide 同一条路手动展开后再 eval。 */
+    /* 40 号脚本也带构建期占位（解析器 / 兜底皮肤 / 共享卡片构建器 / 共享文风模块 / 标签逻辑），
+       loadScript 不展开它们 —— 所以走 /dev/ 让 server.mjs 统一展开（与 build.mjs 同一份实现）。
+       以前这里手抄了 7 步展开清单，每加一个共享模块就得记得补一步；2026-09-30 与 2026-10-03
+       各漏过一次，症状都是「面板一渲染就 ReferenceError」。现在客户端只补产物号，展开只剩一处。 */
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
     document.body.appendChild(iframe);
     await new Promise(r => { iframe.onload = r; setTimeout(r, 800); });
     const w = iframe.contentWindow;
     installMocks(w, 'preset');
-    let code = await (await fetch('/src/scripts/40-预设设置.js')).text();
-    const parseSrc = await (await fetch('/test/harness/preset-parse.mjs')).text();
-    const parseInlined = parseSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n');
-    code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
-    const baseCss = await (await fetch('/src/skin/base.css')).text();
-    code = code.split('/* @@KAMI_BASE_CSS_JS@@ */').join('var KAMI_BASE_CSS = ' + JSON.stringify(baseCss) + ';');
-    /* ⑤ 共享卡片构建器（`_preset-cards.js`）：不展开的话面板一建卡片就 ReferenceError。
-       2026-09-30 补：这里原先漏了它（也漏了同一天新增的 `_tags-pure.js`），
-       而这条分支的面板用例本来就是已知失败项，所以一直没人发现。规矩见
-       docs/功能复用.md §四「构建与校验」——40/50 号用到的内联占位，测试台都要手动展开一遍。 */
-    const cardsSrc = await (await fetch('/src/scripts/_preset-cards.js')).text();
-    code = code.split('/* @@KAMI_PRESET_CARDS@@ */').join(
-      cardsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
-    /* ⑥ 「用户自定义文风」共享模块（`_custom-style-ui.js`）。不展开的后果是双重的：
-       写作指导页一渲染就 ReferenceError（customStyleBlock is not defined）。
-       2026-10-03 补：抽模块那轮只补了 loadGuide 那条路，漏了这里。 */
-    const csSrcP = await (await fetch('/src/scripts/_custom-style-ui.js')).text();
-    code = code.split('/* @@KAMI_CUSTOM_STYLE_UI@@ */').join(
-      csSrcP.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
-    /* ⑦ 标签处理纯逻辑（`_tags-pure.js`，🧰 其他功能 → 自动标签处理） */
-    const tagsSrc = await (await fetch('/src/scripts/_tags-pure.js')).text();
-    code = code.split('/* @@KAMI_TAGS_PURE@@ */').join(
-      tagsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
+    let code = await (await fetch('/dev/40-预设设置.js')).text();
+    code = code.split('@@KAMI_BUILD_N@@').join('70');
+    assertExpanded(code, '预设面板');
+    assertCustomStyleBlock(code, '预设面板');
     w.eval(code);
     FRAMES.preset = { iframe, w };
     await sleep(1200);

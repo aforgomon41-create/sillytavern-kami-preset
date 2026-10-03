@@ -565,6 +565,29 @@ async function setupMergeProbe(ST) {
   console.log('合并探针|夹具|冲突条目=' + (fx.conflictId || '-') + ' 关开关=' + fx.toggledId +
     ' 用户加=' + fx.userAddedId + ' 上游新增=' + fx.nextAddedId + ' 上游改=' + fx.upstreamId);
 }
+/* 展开完整性自检（2026-10-03 加）。
+   预览台所有脚本都走 /dev/，由 server.mjs 的 devScript() 统一展开。展开器漏挂一个共享模块时，
+   症状是「点开某一页才 xxx is not defined」，而这条路上此前没有任何检查 ——
+   抽 _custom-style-ui.js 那轮就是这么漏掉 40 号的，等到真机回归才发现。
+   残留占位、或 40/50 里拿不到 customStyleBlock，都在这里当场抛，由 loadScript 的 catch 报出来。 */
+const KEEP_MARKS = ['@@KAMI_BUILD_N@@', '@@KAMI_PRESET_NAME@@'];
+function assertDevExpanded(w, code, file) {
+  const left = [...new Set([...code.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
+  if (left.length) {
+    throw new Error('展开不全：' + file + ' 里还剩 ' + left.join(' / ') +
+      '（build/kami-doc.mjs 的展开器漏挂了，或者 server 改完没重启）');
+  }
+  /* ⚠️ 查源码不查 iframe 全局：脚本整体是 IIFE，内联的 customStyleBlock 是 IIFE 里的
+     函数声明，不会成为 iframe 全局 —— w.eval('typeof customStyleBlock') 永远 undefined。 */
+  if (file.indexOf('40-预设设置') >= 0 || file.indexOf('50-引导') >= 0) {
+    const n = (code.match(/function customStyleBlock\(/g) || []).length;
+    const m = (code.match(/CUSTOM_STYLE_COPY = \{/g) || []).length;
+    if (n !== 1 || m !== 1) {
+      throw new Error('共享模块没内联进 ' + file + '（customStyleBlock ×' + n + '、文案 ×' + m + '）');
+    }
+  }
+}
+
 async function loadScript(file, scriptId, seedVars) {
   const f = document.createElement('iframe');
   f.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
@@ -580,8 +603,9 @@ async function loadScript(file, scriptId, seedVars) {
     const code = await (await fetch(file)).text();
     var h = document.getElementById('hint');
     if (h) { h.textContent = '已取到 ' + file + ' (' + code.length + 'B)，准备注入'; }
+    assertDevExpanded(w, code, file);
     w.eval(code);
-    if (h) { h.textContent = '已注入 ' + file; }
+    if (h) { h.textContent = '已注入 ' + file + '（共享模块自检通过）'; }
   } catch (e) {
     console.log('脚本注入失败|' + file + '|' + (e && (e.message || e)));
     var h2 = document.getElementById('hint');

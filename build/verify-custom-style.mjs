@@ -135,6 +135,48 @@ ok(uiSrc.indexOf('import ') < 0, '④c 模块零 import（内联前提）');
 ok(uiSrc.split('\n').filter(l => /^\s+export\s/.test(l)).length === 0, '④c 模块没有缩进的 export');
 ok(uiSrc.split('\n').filter(l => l.startsWith('export ')).length >= 2, '④c 模块有行首 export 可去');
 
+/* ── ④d mount 的实参必须是"专属容器"，不许是页面级容器 ──
+   2026-10-03 真机回归：两个面板都曾把**整页容器**（40 的 pane / 50 的 panelBody）直接传进
+   csBlock.mount()，而模块的 mount 会先清空容器再重画 → 预设自带的文风刚画完就被整片抹掉，
+   用户看到的是"写作指导读不出预设自带的文风了"。
+   光靠注释提醒挡不住下一次，所以这里把**这一类错误**钉死：
+     (a) 实参名不许是任何页面级容器名；
+     (b) 实参必须是紧邻几行内新建的 div（类名恰好 kami-cs-host）；
+     (c) 挂载前必须先把这个专属容器 appendChild 进页面容器。
+   顺带把"为什么会踩"也钉住：模块的 mount 确实会清空容器（清空逻辑还在，规则就还得在）。 */
+const PAGE_CONTAINERS = ['pane', 'panelBody', 'panelDrop', 'panelRoot', 'body', 'document', 'HDOC'];
+function mountArgAudit(src, label) {
+  const hits = [...src.matchAll(/csBlock\.mount\(\s*([A-Za-z_$][\w$]*)\s*\)/g)];
+  ok(hits.length === 1, label + '：恰好一处 csBlock.mount(变量)', hits.length + ' 处');
+  if (hits.length !== 1) { return; }
+  const arg = hits[0][1];
+  const at = hits[0].index;
+  ok(PAGE_CONTAINERS.indexOf(arg) < 0, label + '：mount 的实参不是页面级容器', arg);
+  const before = src.slice(Math.max(0, at - 600), at);
+  const decl = new RegExp('var\\s+' + arg + "\\s*=\\s*[\\w$.]+\\(\\s*'div'\\s*,\\s*'kami-cs-host'\\s*\\)");
+  ok(decl.test(before), label + '：实参是紧邻新建的 kami-cs-host 专属容器', arg);
+  const app = before.match(new RegExp('([\\w$.]+)\\.appendChild\\(\\s*' + arg + '\\s*\\)'));
+  ok(!!app, label + '：挂载前先把专属容器 appendChild 进页面容器');
+  if (app) { ok(PAGE_CONTAINERS.indexOf(app[1].split('.').pop()) >= 0, label + '：appendChild 的目标是页面容器', app[1]); }
+}
+mountArgAudit(panelSrc, '④d 40 号');
+mountArgAudit(guideSrc, '④d 50 号');
+/* 为什么会踩：模块的 mount 会清空容器 —— 这条规则的前提，前提没了规则也该重审 */
+ok(uiSrc.indexOf('root = container') >= 0, '④d 模块的 mount 接收容器（前提仍在）');
+ok(uiSrc.indexOf('while (root.firstChild) { root.removeChild(root.firstChild); }') >= 0,
+  '④d 模块确实会清空传进来的容器（这就是必须传专属容器的原因）');
+/* 反向自证：这套判据必须能抓住"出过事的那种写法"，否则它只是装饰 */
+(function () {
+  const mountRe = /csBlock\.mount\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
+  const badHits = [..."csBlock.mount(pane);".matchAll(mountRe)];
+  ok(badHits.length === 1 && PAGE_CONTAINERS.indexOf(badHits[0][1]) >= 0,
+    '④d 反向自证：判据能抓住 csBlock.mount(pane) 这种写法');
+  const goodHits = [..."var csHost = mk('div', 'kami-cs-host'); csBlock.mount(csHost);".matchAll(mountRe)];
+  ok(goodHits.length === 1 && PAGE_CONTAINERS.indexOf(goodHits[0][1]) < 0,
+    '④d 反向自证：判据不会误伤 csBlock.mount(csHost)');
+})();
+note('④d 是按源码形态判的：能挡住"顺手把 pane 传进去"，挡不住有人把专属容器再包一层再用同一份 DOM');
+
 /* ── ④b 用户 2026-10-02 点名的两条补丁（现在都长在共享模块里）── */
 /* (1) 分区收尾标记读不到 → 硬拒绝写入（功能不可用是看得见的毛病，条目插到分区外是看不见的毛病） */
 ok(panelSrc.indexOf('NO_SECTION_END') >= 0, '④b 40 号在收尾标记缺失时硬拒绝写入');

@@ -145,6 +145,18 @@ function devScript(file) {
      2026-10-01 覆盖模式那轮实测踩到（端到端只能绕道 /built 产物验）。 */
   code = expandTagsPure(ROOT, code);
   code = expandGodCmdPure(ROOT, code);
+  /* 内联占位必须在这里全部展开完。漏一个的后果是"脚本能启动、点开那一页才 ReferenceError"，
+     报的还是 xxx is not defined —— 跟真正的原因（少了一步展开）差着十万八千里。
+     2026-10-03 抽 _custom-style-ui.js 那轮就是这么踩的（40 号一渲染就 customStyleBlock is not defined）。
+     所以这里收口：只放行 build.mjs 自己管的两个（产物号 / 预设名，要等预设有名字才替换），
+     其余任何一个残留都当场报出来。 */
+  const KEEP_MARKS = ['@@KAMI_BUILD_N@@', '@@KAMI_PRESET_NAME@@'];
+  const left = [...new Set([...code.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
+  if (left.length) {
+    throw new Error('展开不全：src/scripts/' + file + ' 里还剩 ' + left.join(' / ') +
+      '。两种可能：① build/kami-doc.mjs 的某个展开器没挂进 expandPanelGestures()；' +
+      '② 这个 server 进程是改代码之前起的（模块在启动时就被加载了，改完要重启）。');
+  }
   return code;
 }
 function builtScript(file) {
@@ -162,7 +174,16 @@ const server = http.createServer((req, res) => {
   if (p.startsWith('/dev/') || p.startsWith('/built/')) {
     const dev = p.startsWith('/dev/');
     const file = p.slice(dev ? 5 : 7);
-    const code = dev ? devScript(file) : builtScript(file);
+    let code = null, devErr = null;
+    if (dev) { try { code = devScript(file); } catch (e) { devErr = e; } }
+    else { code = builtScript(file); }
+    /* 展开不全时**不要**发个 500 让脚本静默不加载：那样浏览器里只会看到
+       "KamiPreset is not defined"，又绕回同一个坑。发一段会抛的 JS，把真原因打到控制台。 */
+    if (devErr) {
+      send(200, 'text/javascript; charset=utf-8',
+        'throw new Error(' + JSON.stringify('[预览台] ' + file + ' — ' + ((devErr && devErr.message) || devErr)) + ');');
+      return;
+    }
     if (code == null) { send(404, 'text/plain', 'no script: ' + file); return; }
     send(200, 'text/javascript; charset=utf-8', code);
     return;
