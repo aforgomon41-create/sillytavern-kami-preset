@@ -5,10 +5,11 @@
  * 为什么要这个守卫：这件功能横跨四处，任何一处漏了构建都照样全绿 ——
  *   ① 唯一真相 test/harness/preset-parse.mjs（标记 DIY_SUFFIX + parseCustomName + 写入计划）；
  *   ② 结构写入 40-预设设置.js 的 KamiPreset 新方法（走活设置 + 酒馆原生保存按钮）；
- *   ③ 界面 50-引导.js 的「文风」页（**只渲染 + 调用 API，自己不许碰预设**）；
- *   ④ 纯逻辑单测 test/harness/custom-style-pure.mjs。
- * 最容易悄悄分叉的正是 ①：标记与解析函数在 40 / 50 里各抄一份，两边就会慢慢漂开
- * （_preset-cards.js 头部注释记着同一组件写两套已经丢过两次功能）。所以这里**先钉死唯一性**。
+ *   ③ 界面 src/scripts/_custom-style-ui.js（**整块只有这一份**：40 与 50 各内联它一次）；
+ *   ④ 两个面板的接线（40 = 写作指导 tab 挂一次，50 = 文风页挂一次）；
+ *   ⑤ 纯逻辑单测 test/harness/custom-style-pure.mjs。
+ * 最容易悄悄分叉的是 ① 和 ③：标记/解析函数抄两份会漂；整块 UI 抄两份更糟 ——
+ * _preset-cards.js 头部注释记着，同组件写两套已经丢过两次功能。所以这里**先钉死唯一性**。
  *
  * 用法：node build/verify-custom-style.mjs            ← 只查源码（随时可跑）
  *      node build/verify-custom-style.mjs <产物路径>   ← 再查内联产物（build 之后跑）
@@ -35,6 +36,8 @@ console.log('=== 用户自定义文风 · 源码守卫 ===');
 const parseSrc = read('test/harness/preset-parse.mjs');
 const panelSrc = read('src/scripts/40-预设设置.js');
 const guideSrc = read('src/scripts/50-引导.js');
+const uiSrc = read('src/scripts/_custom-style-ui.js');
+const docSrc = read('build/kami-doc.mjs');
 
 /* ── ① 唯一真相：标记与解析函数只许出现在 preset-parse.mjs ── */
 const hasMarker = src => src.indexOf("' | diy_write_style'") >= 0;
@@ -83,10 +86,11 @@ for (const forbidden of ['replacePreset(', 'updatePresetWith(', 'setPreset(']) {
 ok(panelSrc.indexOf('diyRollback') >= 0, '③ 有回滚路径 diyRollback');
 ok(panelSrc.indexOf('DIY_ORDER_COUNT') >= 0 || panelSrc.indexOf('orderEntryCount') >= 0, '③ 写入前断言了 prompt_order 结构');
 
-/* ── ④ 50 号：只渲染 + 调用，不许自己碰预设 ── */
-ok(guideSrc.indexOf('applyCustomStyles') >= 0, '④ 50 号调用了 applyCustomStyles');
-ok(guideSrc.indexOf('customStyles') >= 0, '④ 50 号调用了 customStyles（读）');
-ok(guideSrc.indexOf('CUSTOM_STYLE_COPY') >= 0, '④ 50 号有集中的文案常量对象');
+/* ── ④ 两个面板的接线：各自只挂一次，不许自己碰预设 ── */
+ok(guideSrc.indexOf('customStyleBlock(') >= 0, '④ 50 号调用了共享模块');
+ok(guideSrc.indexOf('api: HOST.KamiPreset') >= 0, '④ 50 号把 KamiPreset 注入给模块（自己不去调）');
+ok(panelSrc.indexOf('customStyleBlock(') >= 0, '④ 40 号调用了共享模块');
+ok(panelSrc.indexOf('api: { customStyles') >= 0, '④ 40 号把自己的两个方法注入给模块（同一次调用栈，不跨层互调）');
 /* 50 本来就会直读 prompt_order（liveEnabledMap 就是），所以这里不能按"出现字符串"判，
    要按**写口**判：不许出现任何写盘/写预设的调用。 */
 ok(guideSrc.indexOf('update_oai_preset') < 0, '④ 50 号没有自己去点酒馆的保存按钮');
@@ -95,15 +99,51 @@ ok(guideSrc.indexOf('saveSettingsDebounced') < 0, '④ 50 号没有自己写酒�
 ok(guideSrc.indexOf('replacePreset(') < 0, '④ 50 号没有碰被禁的预设 API');
 note('④ 的「50 不碰预设」是按写口 grep 判的，能挡住直接下手，挡不住把活拆碎了绕过去');
 
-/* ── ④b 用户 2026-10-02 点名的两条补丁 ── */
+/* ── ④c 只许有一份实现（用户 2026-10-02 点名的硬要求）──
+   判据不是"看起来像"，而是四条一起：模块存在且自洽、两个脚本都留了同一个占位符、
+   两个脚本都没有自己的第二份实现、内联后各脚本里模块恰好出现一次。 */
+ok(fs.existsSync(path.join(ROOT, 'src/scripts/_custom-style-ui.js')), '④c 共享模块文件存在');
+const placeholders = ['/* @@KAMI_CUSTOM_STYLE_UI@@ */'];
+ok(count(panelSrc, placeholders[0]) === 1, '④c 40 号留了恰好一个模块占位符', String(count(panelSrc, placeholders[0])));
+ok(count(guideSrc, placeholders[0]) === 1, '④c 50 号留了恰好一个模块占位符', String(count(guideSrc, placeholders[0])));
+ok(count(uiSrc, placeholders[0]) === 0, '④c 模块自己不含那个占位符（否则内联会自我复制）');
+/* 两个脚本里都不许再有第二份实现：文案对象、状态机、DOM 构建、CSS 常量 */
+for (const [label, needle] of [['文案对象', 'CUSTOM_STYLE_COPY = {'], ['状态机 csState', 'var csState'],
+  ['DOM 构建 csPaint', 'function csPaint'], ['编辑器 csForm', 'function csForm'], ['样式常量', 'CUSTOM_STYLE_CSS = [']]) {
+  ok(panelSrc.indexOf(needle) < 0, '④c 40 号里没有第二份' + label, needle);
+  ok(guideSrc.indexOf(needle) < 0, '④c 50 号里没有第二份' + label, needle);
+}
+ok(count(uiSrc, 'CUSTOM_STYLE_COPY = {') === 1, '④c 文案对象在模块里只有一份');
+ok(count(uiSrc, 'function customStyleBlock(') === 1, '④c 模块只导出一个块工厂');
+/* 全仓唯一性：文案对象与块工厂只许出现在模块里 */
+const copySites = allSrc.filter(f => f.text.indexOf('CUSTOM_STYLE_COPY = {') >= 0).map(f => f.rel);
+ok(copySites.length === 1 && copySites[0].indexOf('_custom-style-ui.js') >= 0,
+  '④c CUSTOM_STYLE_COPY 全仓只有一处定义', copySites.join(', ') || '一处都没有');
+const factorySites = allSrc.filter(f => f.text.indexOf('function customStyleBlock(') >= 0).map(f => f.rel);
+ok(factorySites.length === 1 && factorySites[0].indexOf('_custom-style-ui.js') >= 0,
+  '④c customStyleBlock 全仓只有一处定义', factorySites.join(', ') || '一处都没有');
+/* 两个面板都要注入模块自带的样式，否则同一块 UI 两边长相会分叉 */
+ok(panelSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 40 号注入了模块样式');
+ok(guideSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 50 号注入了模块样式');
+/* 构建侧：占位符得有人展开，否则内联根本不会发生 */
+ok(docSrc.indexOf('CUSTOM_STYLE_UI_MARK') >= 0, '④c build/kami-doc.mjs 里有模块占位符常量');
+ok(docSrc.indexOf('expandCustomStyleUi') >= 0, '④c build/kami-doc.mjs 里有展开函数');
+ok(/expandPanelGestures[\s\S]{0,600}expandCustomStyleUi\(root, code\)/.test(docSrc),
+  '④c 展开函数挂在 expandPanelGestures 里（build.mjs 与 server.mjs 都只调它）');
+/* 模块自身的内联前提：与 preset-parse.mjs 同一条规则 */
+ok(uiSrc.indexOf('import ') < 0, '④c 模块零 import（内联前提）');
+ok(uiSrc.split('\n').filter(l => /^\s+export\s/.test(l)).length === 0, '④c 模块没有缩进的 export');
+ok(uiSrc.split('\n').filter(l => l.startsWith('export ')).length >= 2, '④c 模块有行首 export 可去');
+
+/* ── ④b 用户 2026-10-02 点名的两条补丁（现在都长在共享模块里）── */
 /* (1) 分区收尾标记读不到 → 硬拒绝写入（功能不可用是看得见的毛病，条目插到分区外是看不见的毛病） */
 ok(panelSrc.indexOf('NO_SECTION_END') >= 0, '④b 40 号在收尾标记缺失时硬拒绝写入');
 ok(panelSrc.indexOf('if (!sec.closeIdentifier)') >= 0, '④b 那道硬闸就在 applyCustomStyles 里');
-ok(guideSrc.indexOf('closeOk') >= 0, '④b 50 号按 closeOk 收起写入口（只让看不让改）');
+ok(uiSrc.indexOf('closeOk') >= 0, '④b 模块按 closeOk 收起写入口（只让看不让改）');
 /* (2) 掉出组的条目要有明确提示（否则用户只会看到"我的文风不见了"） */
-ok(guideSrc.indexOf('data-kami-cs-orphan') >= 0, '④b 50 号给掉组的行打了标记');
-ok(guideSrc.indexOf('orphanNote') >= 0, '④b 50 号在列表上方给出掉组解释');
-ok(guideSrc.indexOf('CUSTOM_STYLE_COPY.orphanNote.replace') >= 0, '④b 掉组提示带条数（{n} 会被替换）');
+ok(uiSrc.indexOf('data-kami-cs-orphan') >= 0, '④b 模块给掉组的行打了标记');
+ok(uiSrc.indexOf('orphanNote') >= 0, '④b 模块在列表上方给出掉组解释');
+ok(uiSrc.indexOf(".orphanNote.replace('{n}'") >= 0, '④b 掉组提示带条数（{n} 会被替换）');
 
 /* ── ⑤ 单测文件在，且不是空壳 ── */
 const testRel = 'test/harness/custom-style-pure.mjs';
@@ -117,7 +157,7 @@ if (fs.existsSync(path.join(ROOT, testRel))) {
   }
 }
 
-/* ── ⑥ 产物层（给了路径才查） ── */
+/* ── ⑦ 产物层（给了路径才查） ── */
 const p = process.argv[2];
 if (!p) {
   note('没给产物路径：只查了源码。build 之后请跑 node build/verify-custom-style.mjs <产物>');
@@ -130,15 +170,21 @@ if (!p) {
   const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
   const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0) || {}).content || '');
   const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0) || {}).content || '');
-  ok(!!panel, '⑥ 产物里有「预设设置」脚本');
-  ok(!!guide, '⑥ 产物里有「引导」脚本');
-  ok(panel.indexOf('function parseCustomName(') >= 0, '⑥ 解析器内联进了 40 号');
-  ok(guide.indexOf('function parseCustomName(') >= 0, '⑥ 解析器内联进了 50 号');
-  ok(panel.indexOf('function planCustomStyleWrite(') >= 0, '⑥ 写入计划内联进了 40 号');
-  ok(panel.indexOf('applyCustomStyles') >= 0, '⑥ 40 号有 applyCustomStyles');
-  ok(guide.indexOf('CUSTOM_STYLE_COPY') >= 0, '⑥ 50 号有文案常量');
+  ok(!!panel, '⑦ 产物里有「预设设置」脚本');
+  ok(!!guide, '⑦ 产物里有「引导」脚本');
+  ok(panel.indexOf('function parseCustomName(') >= 0, '⑦ 解析器内联进了 40 号');
+  ok(guide.indexOf('function parseCustomName(') >= 0, '⑦ 解析器内联进了 50 号');
+  ok(panel.indexOf('function planCustomStyleWrite(') >= 0, '⑦ 写入计划内联进了 40 号');
+  ok(panel.indexOf('applyCustomStyles') >= 0, '⑦ 40 号有 applyCustomStyles');
+  /* 共享模块：两个脚本里各内联一份，且**恰好一份** —— 这就是"只许有一份实现"的产物级证据 */
+  ok(count(panel, 'function customStyleBlock(') === 1, '⑦ 共享模块内联进 40 号且只有一份', String(count(panel, 'function customStyleBlock(')));
+  ok(count(guide, 'function customStyleBlock(') === 1, '⑦ 共享模块内联进 50 号且只有一份', String(count(guide, 'function customStyleBlock(')));
+  ok(count(panel, 'CUSTOM_STYLE_COPY = {') === 1, '⑦ 40 号里文案对象只有一份');
+  ok(count(guide, 'CUSTOM_STYLE_COPY = {') === 1, '⑦ 50 号里文案对象只有一份');
+  ok(count(panel, 'CUSTOM_STYLE_CSS = [') === 1 && count(guide, 'CUSTOM_STYLE_CSS = [') === 1,
+    '⑦ 两个脚本里样式常量各只有一份');
   const dupMarker = count(panel, "' | diy_write_style'") + count(guide, "' | diy_write_style'");
-  ok(dupMarker <= 2, '⑥ 标记字面量只随解析器各内联一份（40 一份、50 一份）', dupMarker + ' 处');
+  ok(dupMarker <= 2, '⑦ 标记字面量只随解析器各内联一份（40 一份、50 一份）', dupMarker + ' 处');
 }
 
 console.log('');

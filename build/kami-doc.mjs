@@ -210,13 +210,41 @@ export function expandPresetCards(root, code) {
   return code.replace(PRESET_CARDS_MARK, () => src);
 }
 
+/* ────────────────────────────────────────────────────────────
+ * 用户自定义文风 · 共享 UI 模块（src/scripts/_custom-style-ui.js）：
+ * 整块（渲染 + 交互 + 状态机 + 文案）只有一份，40-预设设置.js 与 50-引导.js
+ * 都内联它（两个脚本里各留一个占位注释）。规则与 _preset-cards.js 完全一致：
+ * 只去掉**行首**的 export 前缀；它也不是独立脚本（meta.json 里没有它）。
+ * ⚠️ 为什么不是"各写一份 UI"：_preset-cards.js 头部记着，同组件写两套已经丢过两次功能。
+ * ──────────────────────────────────────────────────────────── */
+export const CUSTOM_STYLE_UI_MARK = '/* @@KAMI_CUSTOM_STYLE_UI@@ */';
+
+export function customStyleUiSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_custom-style-ui.js'), 'utf8');
+  return inlineModuleSource(raw, '_custom-style-ui.js');
+}
+
+/** 把脚本源码里的自定义文风占位换成模块源码（已去掉行首 export）。
+ *  占位不存在时原样返回（幂等）。与 expandPresetCards 同一条硬检查：
+ *  模块源码里若出现自己的占位符字面量，内联后会自我复制，撞上直接报错。 */
+export function expandCustomStyleUi(root, code) {
+  if (code.indexOf(CUSTOM_STYLE_UI_MARK) < 0) { return code; }
+  const src = customStyleUiSource(root);
+  if (src.indexOf(CUSTOM_STYLE_UI_MARK) >= 0) {
+    throw new Error('_custom-style-ui.js 里出现了自己的占位符 ' + CUSTOM_STYLE_UI_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(CUSTOM_STYLE_UI_MARK, () => src);
+}
+
 /** 面板共享模块的内联入口。
  *  ⚠️ 两件事一起做，别有疑问：build/build.mjs 与 test/harness/server.mjs 都只调用
  *  **这一个**函数名（两者的调用点不在本轮文件边界内），所以后来新增的共享模块
- *  （_preset-cards.js / _preset-merge.js）都挂在这里一起展开；各个占位符彼此独立、
- *  互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
+ *  （_preset-cards.js / _preset-merge.js / _custom-style-ui.js）都挂在这里一起展开；
+ *  各个占位符彼此独立、互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
 export function expandPanelGestures(root, code) {
   code = expandPresetCards(root, code);
+  code = expandCustomStyleUi(root, code);
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
   code = expandTagsPure(root, code);

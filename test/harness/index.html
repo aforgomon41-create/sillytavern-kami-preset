@@ -477,7 +477,7 @@ function report() {
     installMocks(w, scriptId);
     let code = await (await fetch(file)).text();
     /* 构建期占位在 harness 里手动展开（与 build.mjs 同一条路，少一个都不行）：
-       ① 预设解析器（去行首 export）② 兜底皮肤字符串 ③ 产物号 ④ 共享卡片构建器 */
+       ① 预设解析器（去行首 export）② 兜底皮肤字符串 ③ 产物号 ④ 共享卡片构建器 ⑤ 共享文风模块 */
     const parseSrc = await (await fetch('/test/harness/preset-parse.mjs')).text();
     const parseInlined = parseSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n');
     code = code.split('/* @@KAMI_PRESET_PARSE@@ */').join(parseInlined);
@@ -489,6 +489,11 @@ function report() {
     const cardsSrc = await (await fetch('/src/scripts/_preset-cards.js')).text();
     code = code.split('/* @@KAMI_PRESET_CARDS@@ */').join(
       cardsSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
+    /* ⑤ 「用户自定义文风」共享模块（src/scripts/_custom-style-ui.js，由 build/kami-doc.mjs 的
+       expandCustomStyleUi 内联）。40 与 50 都靠它渲染那一块，漏了这一步文风页就少一截。 */
+    const csSrc = await (await fetch('/src/scripts/_custom-style-ui.js')).text();
+    code = code.split('/* @@KAMI_CUSTOM_STYLE_UI@@ */').join(
+      csSrc.split('\n').map(l => l.slice(0, 7) === 'export ' ? l.slice(7) : l).join('\n'));
     w.eval(code);
     FRAMES[scriptId] = { iframe, w };
     return FRAMES[scriptId];

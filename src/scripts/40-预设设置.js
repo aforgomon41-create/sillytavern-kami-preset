@@ -112,6 +112,11 @@
      引导面板的模型页内联的是**同一份**，两块面板的卡片不会再各写一套（契约 §4.4）。 */
   /* @@KAMI_PRESET_CARDS@@ */
 
+  /* 「用户自定义文风」整块（渲染 + 交互 + 状态机 + 文案 + 样式）只有一份实现：
+     src/scripts/_custom-style-ui.js，构建期内联到这里（build/kami-doc.mjs 的 expandCustomStyleUi）。
+     引导面板内联的是**同一份**，两块面板不会再各写一套（用户 2026-10-02 点名要预设面板也有）。 */
+  /* @@KAMI_CUSTOM_STYLE_UI@@ */
+
   /* v0.3 变更（本轮 7 件事，用户真机实测）：
    *   ① 桌面悬浮窗加缩放把手（.kami-resize[data-kami-act="resize"]），w/h 一起持久化；
    *   ② tab 行放不下时：滚轮 → 横向滚，按住可拖，触屏可滑（紧凑单行，不换行）；
@@ -1194,7 +1199,8 @@
       if (HDOC.getElementById(CSS_ID)) { return; }
       var st = HDOC.createElement('style');
       st.id = CSS_ID;
-      st.textContent = (typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '';
+      /* 兜底皮肤 + 共享模块自带的样式（自定义文风块的 .kami-cs-* 跟着模块走，两块面板长得一样） */
+      st.textContent = ((typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '') + CUSTOM_STYLE_CSS;
       (HDOC.head || HDOC.documentElement).appendChild(st);
       log('已注入兜底皮肤 ' + st.textContent.length + 'B（皮肤管理暂未就绪，有皮肤时自动失效，不影响显示）');
     } catch (e) { log('注入兜底皮肤失败：' + ((e && e.message) || e)); }
@@ -1664,6 +1670,24 @@
     if (!drawn) {
       pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
     }
+    /* 写作指导分区：额外挂一块「用户自定义文风」（用户 2026-10-02 要求预设面板也有）。
+       整块实现在共享模块 src/scripts/_custom-style-ui.js —— 这里只是"在我这块容器里挂一次"。
+       判定用的是解析器那份分区名提示（DIY_LAYER_HINT），与模块找分区用的是同一个常量。 */
+    if (tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0) { mountCustomStyleBlock(pane); }
+  }
+
+  /* 「用户自定义文风」在预设面板里的唯一接线段：给模块文档对象 + KamiPreset + 保存后重画。
+     写入走的是本脚本自己暴露的 applyCustomStyles（同一次调用栈，不跨层互调）。 */
+  var csBlock = null;
+  function mountCustomStyleBlock(pane) {
+    csBlock = customStyleBlock({
+      doc: HDOC,
+      api: { customStyles: readCustomStyleState, applyCustomStyles: applyCustomStyles },
+      toast: toast,
+      log: log,
+      onSaved: function () { refresh(true); }
+    });
+    csBlock.mount(pane);
   }
 
   /* 一张卡片组：卡片头（名字 + 计数 + 单选/任选）+ 卡片体里一层条目网格 */
