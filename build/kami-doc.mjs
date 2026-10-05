@@ -111,6 +111,28 @@ export function expandExportClean(root, code) {
   return code.replace(EXPORT_CLEAN_MARK, () => src);
 }
 
+/* ────────────────────────────────────────────────────────────
+ * 「远程更新」进度弹窗的纯逻辑（src/scripts/_update-progress.js）：
+ * 阶段状态机 + 字节格式化 + 百分比。内联进 70-远程更新.js，IO 留在那边的薄壳里。
+ * ──────────────────────────────────────────────────────────── */
+export const UPDATE_PROGRESS_MARK = '/* @@KAMI_UPDATE_PROGRESS@@ */';
+
+export function updateProgressSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_update-progress.js'), 'utf8');
+  return inlineModuleSource(raw, '_update-progress.js');
+}
+
+/** 把源码里的更新进度占位换成 _update-progress.js 的源码（已去掉行首 export）。幂等。 */
+export function expandUpdateProgress(root, code) {
+  if (code.indexOf(UPDATE_PROGRESS_MARK) < 0) { return code; }
+  const src = updateProgressSource(root);
+  if (src.indexOf(UPDATE_PROGRESS_MARK) >= 0) {
+    throw new Error('_update-progress.js 里出现了自己的占位符 ' + UPDATE_PROGRESS_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(UPDATE_PROGRESS_MARK, () => src);
+}
+
 /** 展开成【酒馆正则 replaceString】用的文本 */
 export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
@@ -302,6 +324,7 @@ export function expandPanelGestures(root, code) {
   code = expandGodCmdPure(root, code);
   code = expandCopyClean(root, code);
   code = expandExportClean(root, code);
+  code = expandUpdateProgress(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));

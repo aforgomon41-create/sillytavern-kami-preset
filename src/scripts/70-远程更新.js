@@ -74,6 +74,10 @@
 
   var VERSION = '1.5';
   var API_NAME = 'KamiUpdate';
+
+  /* 「更新进度弹窗」的纯逻辑（src/scripts/_update-progress.js）：
+     阶段状态机 + 字节格式化 + 百分比。IO（fetch / 面板 DOM）留在本文件里。 */
+  /* @@KAMI_UPDATE_PROGRESS@@ */
   var VARS_KEY = 'kami-update';
   /* 本产物的正式分发名（打包时写进来，例如 kami-v0.91-46-20260926）。
      ⚠️ 这是「本机是哪个版本」的**权威来源**（2026-09-26 用户点名）：
@@ -450,6 +454,54 @@
     return p;
   }
 
+  /* 流式下载：边读边报字节数，供进度弹窗用（用户 2026-10-05 要"下载了多少"）。
+     ── 总量为什么不能取 content-length（实测踩出来的坑）──
+     实测 jsDelivr 真实下载地址：
+       Access-Control-Allow-Origin: *      Access-Control-Expose-Headers: *（响应头 JS 都读得到）
+       Content-Encoding: br                Content-Length: 690287
+     而解压后的真实正文是 3464106 字节（与 manifest 的 bytes 一致）。
+     浏览器 fetch 会**透明解压**：getReader() 收到的是解压后的字节。
+     拿 690287 当分母，下满了也只显示 20% —— 比没有进度更糟。
+     所以总量优先由调用方从 manifest 的 bytes 传进来；只有在**没开压缩**时，
+     content-length 才等于真实长度，才可以拿来兜底。 */
+  function fetchTextStream(url, headers, ms, hooks) {
+    var ctrl = null, timer = null;
+    try { if (typeof AbortController === 'function') { ctrl = new AbortController(); } } catch (e) { }
+    if (ctrl) {
+      timer = hsetTimeout(function () { try { ctrl.abort(); } catch (e) { } }, ms || FETCH_MS);
+    }
+    var opt = ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' };
+    if (headers) { try { opt.headers = headers; } catch (e) { } }
+    var got = 0;
+    var p = fetch(url, opt).then(function (res) {
+      if (!res.ok) { var er = new Error('HTTP ' + res.status); er.status = res.status; throw er; }
+      var enc = (res.headers && res.headers.get) ? res.headers.get('content-encoding') : null;
+      var cl = (res.headers && res.headers.get) ? res.headers.get('content-length') : null;
+      var fallbackTotal = null;
+      if ((!enc || enc === 'identity') && cl) { fallbackTotal = Number(cl) || null; }
+      if (hooks && hooks.onOpen) { try { hooks.onOpen(fallbackTotal); } catch (e0) { } }
+      if (!res.body || typeof res.body.getReader !== 'function') {
+        /* 极端环境没有流式读：退回一次性读，进度只有"开始/结束"两跳，不假装有中间进度 */
+        return res.text();
+      }
+      var reader = res.body.getReader();
+      var dec = (typeof TextDecoder === 'function') ? new TextDecoder('utf-8') : null;
+      var out = '';
+      function pump() {
+        return reader.read().then(function (s) {
+          if (s.done) { if (dec) { out += dec.decode(); } return out; }
+          got += (s.value && s.value.byteLength) ? s.value.byteLength : 0;
+          if (hooks && hooks.onBytes) { try { hooks.onBytes(got); } catch (e1) { } }
+          if (dec) { out += dec.decode(s.value, { stream: true }); }
+          return pump();
+        });
+      }
+      return pump();
+    });
+    if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
+    return p;
+  }
+
   /* 一条通道小重试：网络抖动通常缓一下就过，同一条通道先试第二次，而不是立刻换道。
      延迟 ≤0 = 不等待（自测环境没有真实的时钟，靠这个能原地重试）。 */
   function delayChainRetry(ms) {
@@ -461,14 +513,16 @@
     });
   }
 
-  function downloadViaChain(remote, cfg) {
+  /* hooks（可选）：onOpen(兜底总量) / onBytes(累计字节) / onRestart(换通道了，字节从 0 重算)。
+     传进来就能拿到下载进度；不传就是老行为。 */
+  function downloadViaChain(remote, cfg, hooks) {
     var chain = buildChain(remote, cfg);
     var tried = [];
     function tryOnce(ch, left) {
       if (!left || left < 1) { return Promise.reject(new Error('通道尝试次数异常')); }
       var t = MIRROR_ATTEMPTS - left + 1;
       log('下载尝试：通道「' + ch.label + '」第 ' + t + '/' + MIRROR_ATTEMPTS + ' 次 ' + ch.url);
-      return fetchText(ch.url, ch.headers).then(function (text) {
+      return fetchTextStream(ch.url, ch.headers, null, hooks).then(function (text) {
         log('通道「' + ch.label + '」成功（第 ' + (MIRROR_ATTEMPTS - left + 1) + ' 次尝试）');
         return { text: text, via: ch.label };
       })['catch'](function (e) {
@@ -496,6 +550,8 @@
       }
       var ch = chain.channels[i];
       log('切到下载通道「' + ch.label + '」（' + (i + 1) + '/' + chain.channels.length + '）');
+      /* 换通道 = 从头再下一遍，已下载字节要从 0 重算（不然进度条会来回跳） */
+      if (i > 0 && hooks && hooks.onRestart) { try { hooks.onRestart(); } catch (eR) { } }
       return tryOnce(ch, MIRROR_ATTEMPTS)['catch'](function (e) {
         if (i + 1 < chain.channels.length) {
           log('这条走到底也没通（' + (e && e.status ? '是 HTTP ' + e.status : '网络层问题') +
@@ -1106,10 +1162,142 @@
   }
 
   /* 用户点了「立即更新」：下载 → 校验 → 合并 → 写进预设文件夹 → 提醒切换。 */
+  /* ───────── 「更新进度」弹窗 ─────────
+     用户 2026-10-05：点了确定**别关掉弹窗**，原地转成进度弹窗，显示到了哪个阶段、下载了多少。
+     ── 为什么不用原来那个弹窗 ──
+     原来那个是 askUpdate() 里的 /popup 斜杠命令，也就是**酒馆原生弹窗**；它点任一按钮就自己关了，
+     我们代码里没有任何关闭动作。想"不关"就只能自己开一个面板 —— 就是下面这个。
+     样式全用内联（与 buildPopupHtml 同一路子），不依赖皮肤，也不给 .kami-root 以外的东西写样式。 */
+  var progEls = null, progState = newProgress(0), progTimer = null, progSpin = 0, progLastPaint = 0;
+  var progRetry = null;   /* 面板上点「重试」时重跑的那个 remote */
+
+  /* ⚠️ 面板是"锦上添花"，**绝不许它把更新流程带崩**：
+     建不出来就返回 null，调用方全部判空 —— 没有面板照样能把预设更新完（老行为）。
+     2026-10-05 实测踩到：测试用的 document 替身不全，progressRoot 一抛，
+     整个 doUpdate 就死在第一行，连预设都没写进去。 */
+  function progressRoot() {
+    try { return progressRootInner(); } catch (e) { warn('进度面板建不出来（不影响更新本身）：' + ((e && e.message) || e)); return null; }
+  }
+  function progressRootInner() {
+    if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
+    var doc = HDOC || document;
+    var root = doc.createElement('div');
+    root.id = 'kami-update-progress';
+    root.setAttribute('style', 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100000;' +
+      'width:min(420px,92vw);box-sizing:border-box;padding:16px 18px;border-radius:12px;' +
+      'background:rgba(28,28,32,.97);color:#f2f2f4;font-size:13px;line-height:1.6;' +
+      'box-shadow:0 12px 40px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);');
+    function line(styles) { var d = doc.createElement('div'); d.setAttribute('style', styles); root.appendChild(d); return d; }
+    var title = line('font-weight:600;margin:0 0 6px;');
+    var stage = line('font-size:14px;margin:0 0 10px;');
+    /* 进度条：外槽 + 内条。不确定进度时内条铺满并靠 interval 平移条纹 */
+    var track = line('height:6px;border-radius:3px;background:rgba(255,255,255,.16);overflow:hidden;margin:0 0 8px;');
+    var bar = doc.createElement('div');
+    bar.setAttribute('style', 'height:100%;width:0%;border-radius:3px;background:#7aa2f7;transition:width .18s linear;');
+    track.appendChild(bar);
+    var bytes = line('font-variant-numeric:tabular-nums;opacity:.92;margin:0 0 4px;');
+    var detail = line('opacity:.72;font-size:12px;margin:0 0 12px;word-break:break-word;');
+    var row = line('display:flex;gap:8px;justify-content:flex-end;');
+    function mkBtn(text, primary) {
+      var b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.setAttribute('style', 'font:inherit;padding:6px 14px;border-radius:8px;cursor:pointer;' +
+        (primary ? 'background:#7aa2f7;color:#10131a;border:1px solid #7aa2f7;'
+                 : 'background:transparent;color:#f2f2f4;border:1px solid rgba(255,255,255,.3);'));
+      row.appendChild(b);
+      return b;
+    }
+    var retryBtn = mkBtn(UPDATE_COPY.retry, true);
+    var closeBtn = mkBtn(UPDATE_COPY.close, false);
+    root.appendChild(row);
+    (doc.body || doc.documentElement).appendChild(root);
+    /* 重试：拿同一个 remote 再跑一遍（beginProgress 只管"正在跑"的重复点击，
+       失败后 running 已经是 false，所以重试能起来）。 */
+    retryBtn.addEventListener('click', function () {
+      if (!progRetry) { return; }
+      var elsR = progressRoot();
+      if (elsR) { elsR.detail.textContent = ''; }
+      log('用户在进度面板上点了重试');
+      doUpdate(progRetry);
+    });
+    closeBtn.addEventListener('click', function () { closeProgress(); });
+    progEls = { root: root, title: title, stage: stage, track: track, bar: bar, bytes: bytes, detail: detail, row: row, retry: retryBtn, close: closeBtn };
+    return progEls;
+  }
+
+  function paintProgress() {
+    if (!progEls || !progState) { return; }
+    var v = viewOf(progState);
+    progEls.title.textContent = UPDATE_COPY.title;
+    progEls.stage.textContent = v.stageText;
+    if (v.percent === null) {
+      /* 不确定进度：不显示百分比，条铺满 + 条纹来回动，只报已下载字节 */
+      progEls.bar.setAttribute('style', 'height:100%;width:100%;border-radius:3px;' +
+        'background-image:linear-gradient(115deg,rgba(122,162,247,.35) 0 12px,rgba(122,162,247,.85) 12px 24px);' +
+        'background-size:34px 100%;background-position:' + (progSpin % 34) + 'px 0;');
+    } else {
+      progEls.bar.setAttribute('style', 'height:100%;width:' + v.percent.toFixed(1) + '%;border-radius:3px;' +
+        'background:#7aa2f7;transition:width .18s linear;');
+    }
+    progEls.bytes.textContent = v.bytesText || '';
+    progEls.bytes.style.display = v.bytesText ? '' : 'none';
+    progEls.detail.textContent = v.detail || '';
+    progEls.retry.style.display = v.canRetry ? '' : 'none';
+    progEls.close.style.display = v.canClose ? '' : 'none';
+    progEls.close.textContent = UPDATE_COPY.close;
+  }
+
+  /* 不确定进度的"动"由这个计时器负责（每 120ms 挪一格条纹）；
+     有百分比时它也留着，用来处理"字节到了但 UI 还没重画"的空档，开销可以忽略。 */
+  function startProgressTimer() {
+    stopProgressTimer();
+    progTimer = hsetTimeout(function tick() {
+      progSpin = (progSpin + 6) % 34;
+      paintProgress();
+      progTimer = hsetTimeout(tick, 120);
+    }, 120);
+  }
+  function stopProgressTimer() {
+    if (progTimer) { hclear(progTimer); progTimer = null; }
+  }
+
+  function closeProgress() {
+    stopProgressTimer();
+    if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
+  }
+
   function doUpdate(remote) {
     var cfg = repoConfig();
     log('开始下载预设：' + remote.url);
-    return downloadViaChain(remote, cfg).then(function (got) {
+    /* 连点确定的守卫：已经在跑就直接回上一次的结果，不再开一轮 */
+    if (!beginProgress(progState, Date.now())) {
+      log('上一次更新还在进行中，忽略这次点击');
+      return Promise.resolve(last);
+    }
+    progRetry = remote;
+    var els = progressRoot();
+    if (els) { els.retry.style.display = 'none'; els.close.style.display = 'none'; }
+    startProgressTimer();
+    paintProgress();
+    var hooks = {
+      onOpen: function (fallbackTotal) {
+        /* manifest 的 bytes 才是权威总量（Content-Length 是压缩后的，见 fetchTextStream 注释） */
+        if (!setTotal(progState, remote.bytes, 'manifest')) { setTotal(progState, fallbackTotal, 'length'); }
+        paintProgress();
+      },
+      onBytes: function () {
+        addBytes(progState, 0);   /* 累计在下面用真实值覆盖 */
+      },
+      onRestart: function () { progState.received = 0; paintProgress(); }
+    };
+    /* onBytes 拿到的是**本次通道**的累计值，直接覆盖进状态里 */
+    hooks.onBytes = function (n) {
+      progState.received = Number(n) || 0;
+      var now = Date.now();
+      if (now - progLastPaint > 90) { progLastPaint = now; paintProgress(); }
+    };
+    return downloadViaChain(remote, cfg, hooks).then(function (got) {
       var text = got.text;
       var json = null;
       try { json = JSON.parse(text); } catch (e) { throw new Error('下载到的不是合法 JSON'); }
@@ -1117,10 +1305,29 @@
         throw new Error('下载到的文件不像一个预设（没有 prompts）');
       }
       log('下载到 ' + new TextEncoder().encode(text).length + ' 字节的预设（' + remote.name + '）');
+      progState.received = new TextEncoder().encode(text).length;
+      if (!progState.total) { setTotal(progState, progState.received, 'actual'); }
+      enterStage(progState, 'verify', Date.now());
+      paintProgress();
       /* 尽力而为的完整性校验：清单里有 sha256 就对一遍，不一致 → 报错、不写盘。 */
       return verifySha(text, remote.sha256).then(function () {
-        return mergeAndWrite(remote, json, text);
+        enterStage(progState, 'merge', Date.now());
+        paintProgress();
+        /* 合并 + 写入是大块同步计算。这里让出**一个微任务**再干：既能让刚画上去的
+           "合并"这一格真正落屏，又不用定时器 —— 定时器在自测环境里要靠 pump 才会走，
+           用它会让 await check() 直接挂住（2026-10-05 实测踩到）。 */
+        return Promise.resolve().then(function () {
+          enterStage(progState, 'write', Date.now());
+          paintProgress();
+          return mergeAndWrite(remote, json, text);
+        });
       });
+    }).then(function (r) {
+      stopProgressTimer();
+      doneProgress(progState, remote.version || remote.name, Date.now());
+      paintProgress();
+      log('更新流程结束：' + (r && r.action ? r.action : 'ok'));
+      return r;
     })['catch'](function (e) {
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
@@ -1128,6 +1335,13 @@
         ? ''   /* 人话汇总里已经带了「换网络 / 手动下载」两句指引，toast 不再叠加 */
         : '（可以手动去仓库下载导入）';
       toast('error', '更新失败：' + last.error + tip, 12000);
+      /* ⚠️ 失败时**弹窗留在原地**：把原因写进面板，给重试按钮，绝不静默关掉。
+         网络全挂那种错很长（几条通道的原因都串在一起），原样显示，不截断、不换成错误码。 */
+      stopProgressTimer();
+      failProgress(progState, last.error, Date.now());
+      var elsF = progressRoot();
+      if (elsF) { elsF.detail.textContent = last.error; }
+      paintProgress();
       return last;
     });
   }
