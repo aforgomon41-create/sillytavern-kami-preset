@@ -1178,33 +1178,81 @@
   function progressRoot() {
     try { return progressRootInner(); } catch (e) { warn('进度面板建不出来（不影响更新本身）：' + ((e && e.message) || e)); return null; }
   }
+  /* ── 样式接皮肤体系（Lead 2026-10-05：内联样式在 18 套皮肤下会是"外来户"，换色也不跟着动）──
+     做法照 _custom-style-ui.js 的 CUSTOM_STYLE_CSS：一份 CSS 字符串、注入一次、类名统一 kami- 前缀，
+     **颜色全部读皮肤令牌**（--kami-card / --kami-fg / --kami-accent …），每个令牌都带兜底值，
+     皮肤没跑起来时也不会变成透明或者看不见的字。
+     不确定进度的条纹改成 CSS 动画，因此不再需要那个每 120ms 挪一格的计时器。 */
+  var PROG_CSS_ID = 'kami-update-progress-css';
+  var PROG_CSS = [
+    '#kami-update-progress{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100000;',
+    'width:min(420px,92vw);box-sizing:border-box;padding:var(--kami-pad-lg-y,16px) var(--kami-pad-lg-x,18px);',
+    'border-radius:var(--kami-r-lg,12px);background:var(--kami-card,rgba(28,28,32,.97));color:var(--kami-fg,#f2f2f4);',
+    'font-size:var(--kami-fs,13px);line-height:1.6;box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));',
+    'border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.14));}',
+    '#kami-update-progress .kami-upd-title{font-weight:600;margin:0 0 6px;}',
+    '#kami-update-progress .kami-upd-stage{font-size:1.08em;margin:0 0 10px;}',
+    '#kami-update-progress .kami-upd-track{height:6px;border-radius:var(--kami-r-pill,3px);',
+    'background:var(--kami-line,rgba(255,255,255,.16));overflow:hidden;margin:0 0 8px;}',
+    '#kami-update-progress .kami-upd-bar{height:100%;width:0%;border-radius:var(--kami-r-pill,3px);',
+    'background:var(--kami-accent,#7aa2f7);transition:width .18s linear;}',
+    '#kami-update-progress .kami-upd-bar.is-indet{width:100%;',
+    'background-image:linear-gradient(115deg,var(--kami-accent-soft,rgba(122,162,247,.35)) 0 12px,var(--kami-accent,#7aa2f7) 12px 24px);',
+    'background-size:34px 100%;animation:kami-upd-move 1s linear infinite;}',
+    '@keyframes kami-upd-move{from{background-position:0 0}to{background-position:34px 0}}',
+    /* 无障碍：用户在系统层面说了「别给我动效」，就不该硬放那条条纹。
+       停掉动画，改成**静态的满条** —— 仍然表示"进度未知"，只是不动（不是变回空条，
+       空条会被误读成"一点没下"）。皮肤契约本来就要求处理这个偏好，面板照办。 */
+    '@media (prefers-reduced-motion: reduce){',
+    '#kami-update-progress .kami-upd-bar{transition:none;}',
+    '#kami-update-progress .kami-upd-bar.is-indet{animation:none;background-image:none;',
+    'background:var(--kami-accent-soft,rgba(122,162,247,.55));}',
+    '}',
+    '#kami-update-progress .kami-upd-bytes{font-variant-numeric:tabular-nums;color:var(--kami-fg-dim,#d8d8dc);margin:0 0 4px;}',
+    '#kami-update-progress .kami-upd-detail{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:0 0 12px;word-break:break-word;}',
+    '#kami-update-progress .kami-upd-row{display:flex;gap:var(--kami-gap,8px);justify-content:flex-end;align-items:center;}',
+    '#kami-update-progress .kami-upd-note{margin-right:auto;color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;}',
+    '#kami-update-progress .kami-upd-btn{font:inherit;padding:6px 14px;border-radius:var(--kami-r-sm,8px);cursor:pointer;',
+    'background:transparent;color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.3));}',
+    '#kami-update-progress .kami-upd-btn--primary{background:var(--kami-accent,#7aa2f7);color:var(--kami-accent-fg,#10131a);',
+    'border-color:var(--kami-accent,#7aa2f7);}'
+  ].join('\n');
+
+  function injectProgressCss(doc) {
+    try {
+      if (doc.getElementById(PROG_CSS_ID)) { return; }
+      var s = doc.createElement('style');
+      s.id = PROG_CSS_ID;
+      s.textContent = PROG_CSS;
+      (doc.head || doc.documentElement).appendChild(s);
+    } catch (e) { warn('进度面板样式注入失败（不影响功能）：' + ((e && e.message) || e)); }
+  }
+
   function progressRootInner() {
     if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
     var doc = HDOC || document;
+    injectProgressCss(doc);
     var root = doc.createElement('div');
     root.id = 'kami-update-progress';
-    root.setAttribute('style', 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100000;' +
-      'width:min(420px,92vw);box-sizing:border-box;padding:16px 18px;border-radius:12px;' +
-      'background:rgba(28,28,32,.97);color:#f2f2f4;font-size:13px;line-height:1.6;' +
-      'box-shadow:0 12px 40px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);');
-    function line(styles) { var d = doc.createElement('div'); d.setAttribute('style', styles); root.appendChild(d); return d; }
-    var title = line('font-weight:600;margin:0 0 6px;');
-    var stage = line('font-size:14px;margin:0 0 10px;');
-    /* 进度条：外槽 + 内条。不确定进度时内条铺满并靠 interval 平移条纹 */
-    var track = line('height:6px;border-radius:3px;background:rgba(255,255,255,.16);overflow:hidden;margin:0 0 8px;');
+    function line(cls) { var d = doc.createElement('div'); d.className = cls; root.appendChild(d); return d; }
+    var title = line('kami-upd-title');
+    var stage = line('kami-upd-stage');
+    var track = line('kami-upd-track');
     var bar = doc.createElement('div');
-    bar.setAttribute('style', 'height:100%;width:0%;border-radius:3px;background:#7aa2f7;transition:width .18s linear;');
+    bar.className = 'kami-upd-bar';
     track.appendChild(bar);
-    var bytes = line('font-variant-numeric:tabular-nums;opacity:.92;margin:0 0 4px;');
-    var detail = line('opacity:.72;font-size:12px;margin:0 0 12px;word-break:break-word;');
-    var row = line('display:flex;gap:8px;justify-content:flex-end;');
+    var bytes = line('kami-upd-bytes');
+    var detail = line('kami-upd-detail');
+    var row = line('kami-upd-row');
+    /* 重试次数显示在按钮左边（重试不设上限，但要让用户知道自己在第几轮） */
+    var note = doc.createElement('span');
+    note.className = 'kami-upd-note';
+    row.appendChild(note);
     function mkBtn(text, primary) {
       var b = doc.createElement('button');
       b.type = 'button';
       b.textContent = text;
-      b.setAttribute('style', 'font:inherit;padding:6px 14px;border-radius:8px;cursor:pointer;' +
-        (primary ? 'background:#7aa2f7;color:#10131a;border:1px solid #7aa2f7;'
-                 : 'background:transparent;color:#f2f2f4;border:1px solid rgba(255,255,255,.3);'));
+      b.className = 'kami-upd-btn' + (primary ? ' kami-upd-btn--primary' : '');
       row.appendChild(b);
       return b;
     }
@@ -1219,10 +1267,10 @@
       var elsR = progressRoot();
       if (elsR) { elsR.detail.textContent = ''; }
       log('用户在进度面板上点了重试');
-      doUpdate(progRetry);
+      doUpdate(progRetry, true);
     });
     closeBtn.addEventListener('click', function () { closeProgress(); });
-    progEls = { root: root, title: title, stage: stage, track: track, bar: bar, bytes: bytes, detail: detail, row: row, retry: retryBtn, close: closeBtn };
+    progEls = { root: root, title: title, stage: stage, track: track, bar: bar, bytes: bytes, detail: detail, row: row, note: note, retry: retryBtn, close: closeBtn };
     return progEls;
   }
 
@@ -1232,13 +1280,12 @@
     progEls.title.textContent = UPDATE_COPY.title;
     progEls.stage.textContent = v.stageText;
     if (v.percent === null) {
-      /* 不确定进度：不显示百分比，条铺满 + 条纹来回动，只报已下载字节 */
-      progEls.bar.setAttribute('style', 'height:100%;width:100%;border-radius:3px;' +
-        'background-image:linear-gradient(115deg,rgba(122,162,247,.35) 0 12px,rgba(122,162,247,.85) 12px 24px);' +
-        'background-size:34px 100%;background-position:' + (progSpin % 34) + 'px 0;');
+      /* 不确定进度：不显示百分比，条铺满 + 条纹动（动效在 CSS 里，见 PROG_CSS 的 is-indet） */
+      progEls.bar.className = 'kami-upd-bar is-indet';
+      progEls.bar.style.width = '100%';
     } else {
-      progEls.bar.setAttribute('style', 'height:100%;width:' + v.percent.toFixed(1) + '%;border-radius:3px;' +
-        'background:#7aa2f7;transition:width .18s linear;');
+      progEls.bar.className = 'kami-upd-bar';
+      progEls.bar.style.width = v.percent.toFixed(1) + '%';
     }
     progEls.bytes.textContent = v.bytesText || '';
     progEls.bytes.style.display = v.bytesText ? '' : 'none';
@@ -1246,6 +1293,11 @@
     progEls.retry.style.display = v.canRetry ? '' : 'none';
     progEls.close.style.display = v.canClose ? '' : 'none';
     progEls.close.textContent = UPDATE_COPY.close;
+    progEls.retry.textContent = UPDATE_COPY.retry;
+    /* 重试次数：让用户知道自己在第几轮 */
+    if (progEls.note) { progEls.note.textContent = v.retryText || ''; }
+    progEls.root.setAttribute('data-kami-update-status', v.status);
+    progEls.root.setAttribute('data-kami-update-stage', v.stage);
   }
 
   /* 不确定进度的"动"由这个计时器负责（每 120ms 挪一格条纹）；
@@ -1267,8 +1319,11 @@
     if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
   }
 
-  function doUpdate(remote) {
+  /* isRetry：用户点了面板上的「重试」进来。只有重试才累加重试次数 ——
+     否则用户连做几次互不相干的更新，第二次就会被标成"第 1 次重试"（E2E 里看到过）。 */
+  function doUpdate(remote, isRetry) {
     var cfg = repoConfig();
+    if (!isRetry) { progState.attempts = 0; }
     log('开始下载预设：' + remote.url);
     /* 连点确定的守卫：已经在跑就直接回上一次的结果，不再开一轮 */
     if (!beginProgress(progState, Date.now())) {
@@ -1297,6 +1352,10 @@
       var now = Date.now();
       if (now - progLastPaint > 90) { progLastPaint = now; paintProgress(); }
     };
+    /* ⚠️ 这一句以前漏了 —— E2E 一跑就露馅：整个下载期间面板停在「检查更新」不动，
+       因为没人把阶段推进到 download。下载是用户盯着看最久的一段，最不能停在这儿。 */
+    enterStage(progState, 'download', Date.now());
+    paintProgress();
     return downloadViaChain(remote, cfg, hooks).then(function (got) {
       var text = got.text;
       var json = null;

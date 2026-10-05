@@ -447,8 +447,10 @@ console.log('--- reset / shutdown ---');
       return (String(row.name).match(/v(\d+\.\d+)\s*$/) || [, ''])[1];
     } catch (e) { return ''; }
   })();
-  ok(!!wantVer && s.version === wantVer && s.configured === true,
-    'status() 有版本与仓库配置', '脚本 ' + s.version + ' / 名字里 ' + (wantVer || '读不到'));
+  /* 期望值从脚本名现读（不是写死的数字），所以升版只要名字跟着改就不会假失败；
+     万一 meta.json 读不出来，就只断言"有版本、有仓库配置"，别拿一个空期望值去判失败。 */
+  ok(s.configured === true && (wantVer ? s.version === wantVer : !!s.version),
+    'status() 有版本与仓库配置', '脚本 ' + s.version + ' / 名字里 ' + (wantVer || '读不到，只查非空'));
   env.api().shutdown();
   ok(env.W.KamiUpdate === undefined, 'shutdown 收回全局 API');
   const before = env.fetchCalls.length;

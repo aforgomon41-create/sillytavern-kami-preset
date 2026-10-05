@@ -42,7 +42,10 @@ export var UPDATE_COPY = {
   close: '【占位·待文案】关闭',
   doneHint: '【占位·待文案】更新完成，可以关闭这个窗口了',
   retryHint: '【占位·待文案】可以点重试再来一次',
-  dupGuard: '【占位·待文案】上一次还没跑完'
+  dupGuard: '【占位·待文案】上一次还没跑完',
+  /* 重试不设上限（Lead 2026-10-05 定）：用户自己点的，卡上限反而碍事；
+     但要说清这是第几次，让他知道自己在第几轮。{n} 由实现替换。 */
+  retryCount: '【占位·待文案】第 {n} 次重试'
 };
 
 /* 阶段：按 70 号现有实现如实列，没有编造。
@@ -204,6 +207,8 @@ export function viewOf(p) {
   }
   if (p.status === 'done') { v.detail = UPDATE_COPY.doneHint; }
   if (p.status === 'failed') { v.detail = v.error || UPDATE_COPY.retryHint; }
+  /* 第 2 次及以后标出"这是第几次重试"（attempts 从 1 起，第 1 次是初次，不算重试） */
+  v.retryText = (p.attempts > 1) ? UPDATE_COPY.retryCount.replace('{n}', String(p.attempts - 1)) : '';
   v.canRetry = (p.status === 'failed');
   v.canClose = (p.status === 'done' || p.status === 'failed');
   return v;
