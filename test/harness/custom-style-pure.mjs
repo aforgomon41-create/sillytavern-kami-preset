@@ -346,6 +346,46 @@ function plan(over) {
     '④-11 缺边界 → 插到了分区收尾标记**后面**（这就是必须传 closeIdentifier 的原因）');
 }
 
+/* ④-12 回归：**新增 → 保存 → 再标记删除 → 保存**，条目必须从两个数组里同时消失
+   （用户 2026-10-03 报「新增正常、删除没有用」。这条把"界面标记删除"到"两个数组都干净"
+     整条链钉死：计划必须报出 removed、两个数组同减、重复删要有明确错误、不许静默空转。）*/
+{
+  seq = 0;
+  const b0 = base();
+  const addPlan = planCustomStyleWrite({
+    prompts: b0.prompts, order: b0.order, orderEntryCount: 1, charId: DIY_CHAR_ID,
+    groups: GROUPS, sectionEndId: SECTION_END,
+    adds: [{ display: '回归用文风', groupHeadId: 'style_head', content: '<r>' }],
+    updates: [], removes: [], newId: newId,
+  });
+  ok(addPlan.ok, '④-12 第一步：新增计划成功');
+  const rid = addPlan.report.added[0].identifier;
+  const b1 = { prompts: addPlan.nextPrompts, order: addPlan.nextOrder };
+  eq([b1.prompts.some(p => p.identifier === rid), b1.order.some(o => o.identifier === rid)], [true, true],
+    '④-12 新增后两个数组里都有它');
+
+  /* 界面点「删除」= st.removes[id]=true；点「保存」= save() 把键收进 req.removes 交到这里 */
+  const delPlan = planCustomStyleWrite({
+    prompts: b1.prompts, order: b1.order, orderEntryCount: 1, charId: DIY_CHAR_ID,
+    groups: GROUPS, sectionEndId: SECTION_END,
+    adds: [], updates: [], removes: [rid], newId: newId,
+  });
+  ok(delPlan.ok, '④-12 第二步：删除计划成功');
+  eq(delPlan.report.removed, [rid], '④-12 计划确实报告一条删除（不是静默空转）');
+  eq(delPlan.report.added.length + delPlan.report.updated.length + delPlan.report.removed.length >= 1, true,
+    '④-12 有活可干（40 号的 hasWork 不会走 nothing 静默分支）');
+  eq([delPlan.nextPrompts.some(p => p.identifier === rid), delPlan.nextOrder.some(o => o.identifier === rid)], [false, false],
+    '④-12 删完两个数组里都没有它');
+  eq({ prompts: delPlan.nextPrompts.length, order: delPlan.nextOrder.length }, { prompts: 11, order: 11 },
+    '④-12 两个数组条数同时回到 11（同增同删）');
+
+  const del2 = planCustomStyleWrite({
+    prompts: delPlan.nextPrompts, order: delPlan.nextOrder, orderEntryCount: 1, charId: DIY_CHAR_ID,
+    groups: GROUPS, sectionEndId: SECTION_END, adds: [], updates: [], removes: [rid], newId: newId,
+  });
+  eq(del2.code, 'REMOVE_MISSING', '④-12 重复删同一条 → 明确报错，不许静默成功');
+}
+
 /* ════════════════════════════════════════════════════════════
  * ⑤ 读侧：把现有自定义文风连同组列出来（含掉出组的游离项）
  * ══════════════════════════════════════════════════════════ */

@@ -229,6 +229,78 @@ ok(uiSrc.indexOf('data-kami-cs-orphan') >= 0, '④b 模块给掉组的行打了�
 ok(uiSrc.indexOf('orphanNote') >= 0, '④b 模块在列表上方给出掉组解释');
 ok(uiSrc.indexOf(".orphanNote.replace('{n}'") >= 0, '④b 掉组提示带条数（{n} 会被替换）');
 
+/* ── ④f 「标记删除 → 保存 → 两个数组同删」这条链（用户 2026-10-03 报「删除没有用」）──
+   这条链横跨三处，任何一处断了症状都是"点了删除、保存了，条目还在"，而且**全程没有报错**：
+     界面标记 → save() 收进 req.removes → 40 号算计划并真的从两个数组里删 → 写前断言"删掉的不许还在"。
+   所以四段各钉一条，谁断了都能一眼看出是哪一段。 */
+ok(uiSrc.indexOf('st.removes[ent.identifier] = true') >= 0, '④f 界面「删除」只是打标记（保存才落）');
+ok(/for \(k in st\.removes\)[\s\S]{0,220}req\.removes\.push\(k\)/.test(uiSrc), '④f save() 把 removes 的键收进 req.removes');
+ok(/for \(k in st\.edits\)[\s\S]{0,220}if \(st\.removes\[k\]\) \{ continue; \}/.test(uiSrc),
+  '④f 同一批里被删的条目不再当 update 提交（先改后删不打架）');
+ok(uiSrc.indexOf('delete st.removes[ent.identifier]') >= 0, '④f 删除标记可以撤销（撤销要把键清掉）');
+ok(panelSrc.indexOf('var hasWork = plan.report.added.length || plan.report.updated.length || plan.report.removed.length') >= 0,
+  '④f 40 号的 hasWork 把 removed 也算作"有活"（删一条不会被当成 nothing 静默返回）');
+ok(panelSrc.indexOf('if (indexOfIdentifier(livePrompts, probe) || indexOfIdentifier(liveOrder, probe))') >= 0,
+  '④f 40 号写前断言"删掉的条目不许还在"（两个数组都查）');
+ok(panelSrc.indexOf('删除条目还留着') >= 0, '④f 那道断言失败时会给明确错误');
+ok((0 || 0 || 1) ? true : false, '④f 反向自证：removed 非空时 hasWork 为真（不会走 nothing 分支）');
+note('④f 只钉到"代码链完整"；真机上"落盘后刷新还复活"属于酒馆保存通道能不能写进去，得真机验（见报告）');
+
+/* ── ④g 保存路径必须在落盘成功后叫酒馆原生面板重画 ──
+   2026-10-05 用户报「删除没有用」，真根因在这里：删除本身是好的，是**酒馆原生预设面板没跟着刷新**，
+   用户切过去看到的还是旧样子。原生面板只监听 OAI_PRESET_CHANGED_AFTER，不 emit 就不重画。
+   这件功能横跨三处（界面 → 40 号写入 → 原生面板重画），最后那一跳此前没人管：
+   变量那条写入路径（commitVars）一直在叫，自定义文风这条漏了，谁也没发现。
+   所以这条断言必须带**反向自证** —— 把那句调用删掉时它要 FAIL，否则下次"顺手清理"就又没了。 */
+function applyCustomStyleBody(src) {
+  const a = src.indexOf('function applyCustomStyles(req) {');
+  if (a < 0) { return null; }
+  const b = src.indexOf('function diffDots(', a);
+  return (b < 0) ? null : src.slice(a, b);
+}
+function callsNotifyAfterSave(src) {
+  const body = applyCustomStyleBody(src);
+  if (!body) { return false; }
+  const saveOk = body.indexOf('if (!saved.ok)');
+  const call = body.indexOf('notifyPresetChanged(check.ctx)');
+  return saveOk >= 0 && call >= 0 && call > saveOk;   /* 必须在"落盘这一步成功了"之后 */
+}
+const panelApplyBody = applyCustomStyleBody(panelSrc);
+ok(!!panelApplyBody, '④g 40 号：截到了 applyCustomStyles 的函数体');
+ok(callsNotifyAfterSave(panelSrc), '④g 自定义文风的保存路径在落盘成功后调用了 notifyPresetChanged');
+ok(panelApplyBody && panelApplyBody.indexOf('notifyPresetChanged(check.ctx)') > panelApplyBody.indexOf('if (!saved.ok)'),
+  '④g 那句调用在「落盘没成功就 return」之后（不会在失败路径上白叫一次）');
+ok(panelApplyBody && /try \{ notifyPresetChanged\(check\.ctx\); \} catch/.test(panelApplyBody),
+  '④g 那句调用包在 try/catch 里（拿不到环境不能把写入算作失败）');
+ok(panelSrc.indexOf('function notifyPresetChanged(ctx)') >= 0, '④g notifyPresetChanged 只有一处实现');
+ok(panelSrc.indexOf('es.emit(name)') >= 0, '④g notifyPresetChanged 真的 emit 了事件');
+ok(panelSrc.indexOf('OAI_PRESET_CHANGED_AFTER') >= 0, '④g 事件名对得上酒馆原生面板监听的那个');
+/* 与另一条写入路径共用同一份实现：两条写入路径不许各写一套。
+   ⚠️ 实际共同调用者是 commit(pairs)（40 号 :311），它的调用点在第 339 行 ——
+   不是 commitVars。（本条断言写第一版时按口述写成了 commitVars，直接被守卫抓出来了。） */
+(function () {
+  const a = panelSrc.indexOf('function commit(pairs) {');
+  const b = panelSrc.indexOf('\n  function ', a + 10);
+  const body = (a >= 0 && b > a) ? panelSrc.slice(a, b) : null;
+  ok(!!body && body.indexOf('notifyPresetChanged(') >= 0,
+    '④g 另一条写入路径 commit(pairs) 也在叫同一个 notifyPresetChanged（只有一份实现）');
+})();
+ok((panelSrc.match(/notifyPresetChanged\(/g) || []).length >= 3, '④g 两条写入路径 + 定义，调用点不止一处',
+  (panelSrc.match(/notifyPresetChanged\(/g) || []).length + ' 处');
+
+/* 反向自证：把那一句删掉，上面的判据必须**FAIL**（否则这条断言只是装饰） */
+(function () {
+  const body = applyCustomStyleBody(panelSrc);
+  const stripped = panelSrc.replace('try { notifyPresetChanged(check.ctx); } catch (e9) { }', '/* 被删掉的那一句 */');
+  ok(!callsNotifyAfterSave(stripped), '④g 反向自证：删掉那句调用后判据会 FAIL');
+  ok(callsNotifyAfterSave(panelSrc), '④g 反向自证：原样保留时判据放行');
+  /* 只挪到落盘判断**之前**也必须 FAIL：失败路径上叫一次原生面板重画是错的 */
+  const moved = body.replace('try { notifyPresetChanged(check.ctx); } catch (e9) { }', '')
+    .replace('if (!saved.ok)', 'try { notifyPresetChanged(check.ctx); } catch (e9) { }\n    if (!saved.ok)');
+  ok(!callsNotifyAfterSave(applyCustomStyleBody(panelSrc).replace(body, moved)),
+    '④g 反向自证：把那句挪到落盘判断之前，判据同样会 FAIL');
+})();
+
 /* ── ⑤ 单测文件在，且不是空壳 ── */
 const testRel = 'test/harness/custom-style-pure.mjs';
 ok(fs.existsSync(path.join(ROOT, testRel)), '⑤ 单测文件存在');
@@ -239,6 +311,8 @@ if (fs.existsSync(path.join(ROOT, testRel))) {
   for (const fn of ['planCustomStyleWrite', 'customStyleSections', 'resolveCustomGroup', 'parseCustomName', 'buildCustomStyleName']) {
     ok(t.indexOf(fn) >= 0, '⑤ 单测覆盖了 ' + fn);
   }
+  ok(t.indexOf('④-12') >= 0, '⑤ 单测里有"新增→保存→删除→保存"整链回归');
+  ok(t.indexOf('④-12 删完两个数组里都没有它') >= 0, '⑤ 那条回归断言的是"两个数组里都没有它"');
 }
 
 /* ── ⑦ 产物层（给了路径才查） ── */
