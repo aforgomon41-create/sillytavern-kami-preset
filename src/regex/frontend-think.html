@@ -48,6 +48,10 @@ body { font-family: inherit; color: inherit; }
 (function () {
   'use strict';
 
+  /* 「只复制干净的正文」的取文本规则：与 📄 正文外壳共用同一份实现
+     （src/scripts/_copy-clean.js，构建期由 build/kami-doc.mjs 的 expandCopyClean 内联）。 */
+  /* @@KAMI_COPY_CLEAN@@ */
+
   var NL = String.fromCharCode(10);
   var SP = '[\\s\\u3000]';
   /* 注意：本文件（含注释）不允许出现美元符号字面量。构建期会把每个美元符号加倍，
@@ -273,10 +277,16 @@ body { font-family: inherit; color: inherit; }
     });
     setView(view);
 
-    /* 复制 */
+    /* 复制：只复制**渲染后的干净正文**（.kami-md），不是 raw。
+       raw 里带着思维链标签、状态栏占位符、大括号宏指令，用户要的不是那个。
+       想要完整原文的自己去酒馆的编辑功能里拿 —— 所以不再加第二个「复制原文」按钮。
+       取文本规则见 _copy-clean.js：从渲染后的 DOM 取，结构换行按块级元素边界还原。 */
     var copyBtn = q('[data-kami-act="copy"]', root);
     if (copyBtn) {
-      copyBtn.addEventListener('click', function (ev) { ev.stopPropagation(); copy(raw, copyBtn); });
+      copyBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        copy(cleanCopyText(mdBox || root), copyBtn);
+      });
       if (!raw) { copyBtn.setAttribute('disabled', 'disabled'); }
     }
 

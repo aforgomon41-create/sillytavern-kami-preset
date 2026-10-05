@@ -30,8 +30,12 @@
  * .kami-btn--ghost / .kami-body / .kami-raw / .kami-toast。
  * ========================================================================== */
 (function () {
+  /* 「只复制干净的正文」的取文本规则：与 💭 显式思维链前端共用同一份实现
+     （src/scripts/_copy-clean.js，构建期由 build/kami-doc.mjs 的 expandCopyClean 内联）。 */
+  /* @@KAMI_COPY_CLEAN@@ */
+
   var NL = String.fromCharCode(10);
-  var VERSION = '0.2';
+  var VERSION = '0.3';
   var MARK_START = 'data-kami-body-start';
   var MARK_END = 'data-kami-body-end';
   var HOST_ATTR = 'data-kami-body-host';
@@ -133,7 +137,7 @@
     toast.setAttribute('hidden', '');
     shell.appendChild(toast);
 
-    /* 交互：双视图切换 + 复制（复制的是原文 markdown） */
+    /* 交互：双视图切换 + 复制（复制的是**渲染后的干净正文**，不是原文） */
     function paintView(v) {
       root.setAttribute('data-kami-view', v);
       btnRender.classList.toggle('is-on', v === 'render');
@@ -143,9 +147,13 @@
     btnRender.addEventListener('click', function () { paintView('render'); });
     btnRaw.addEventListener('click', function () { paintView('raw'); });
     btnCopy.addEventListener('click', function () {
-      var text = rawBox.textContent || '';
+      /* 只复制**渲染后的干净正文**（renderBox），不是 rawBox 里的原文：
+         原文带着思维链标签、状态栏占位符、大括号宏指令，用户要的不是那个。
+         想要完整原文的自己去酒馆的编辑功能里拿 —— 所以不再加第二个「复制原文」按钮。
+         取文本规则见 _copy-clean.js（与 💭 显式思维链前端同一份实现）。 */
+      var text = cleanCopyText(renderBox);
       var done = function (ok) {
-        toast.textContent = ok ? '已复制原文' : '复制失败，请手动选中';
+        toast.textContent = ok ? '已复制正文' : '复制失败，请手动选中';
         toast.removeAttribute('hidden');
         setTimeout(function () { toast.setAttribute('hidden', ''); }, 1400);
       };

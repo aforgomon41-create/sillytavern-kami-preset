@@ -62,10 +62,36 @@ function assertClean(doc, name) {
   }
 }
 
+/* ────────────────────────────────────────────────────────────
+ * 「只复制干净的正文」的取文本规则（src/scripts/_copy-clean.js）：
+ * 💭 显式思维链前端 与 📄 正文外壳 各有一个复制按钮，两边必须是同一套规则 ——
+ * 各写一份的话，改了一边忘了另一边，复制出来的东西就会两个前端不一样。
+ * 前端那边（src/regex/frontend-*.html）没有别的共享模块机制，所以这里也一并展开。
+ * 内联规则同其它模块：只去掉行首的 export 前缀。
+ * ──────────────────────────────────────────────────────────── */
+export const COPY_CLEAN_MARK = '/* @@KAMI_COPY_CLEAN@@ */';
+
+export function copyCleanSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_copy-clean.js'), 'utf8');
+  return inlineModuleSource(raw, '_copy-clean.js');
+}
+
+/** 把源码里的复制取文本占位换成 _copy-clean.js 的源码（已去掉行首 export）。幂等。 */
+export function expandCopyClean(root, code) {
+  if (code.indexOf(COPY_CLEAN_MARK) < 0) { return code; }
+  const src = copyCleanSource(root);
+  if (src.indexOf(COPY_CLEAN_MARK) >= 0) {
+    throw new Error('_copy-clean.js 里出现了自己的占位符 ' + COPY_CLEAN_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(COPY_CLEAN_MARK, () => src);
+}
+
 /** 展开成【酒馆正则 replaceString】用的文本 */
 export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
+  doc = expandCopyClean(root, doc);
   doc = doc.split(PAYLOAD).join(DOLLAR + '1');
   assertClean(doc, name);
   return NL + FENCE + NL + doc + NL + FENCE;
@@ -75,6 +101,7 @@ export function expandForRegex(root, name) {
 export function expandForPreview(root, name, payload) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
+  doc = expandCopyClean(root, doc);
   doc = doc.split(PAYLOAD).join(payload == null ? '' : String(payload));
   return doc;
 }
@@ -249,6 +276,7 @@ export function expandPanelGestures(root, code) {
   code = expandSummarizePure(root, code);
   code = expandTagsPure(root, code);
   code = expandGodCmdPure(root, code);
+  code = expandCopyClean(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
