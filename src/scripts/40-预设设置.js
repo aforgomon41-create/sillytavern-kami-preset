@@ -861,6 +861,12 @@
     });
     if (!saved.ok) { return diyFail('SAVE_FAIL', saved.msg || ''); }
 
+    /* ④ 让**酒馆原生预设面板**自己重画一次。
+       它只在收到 OAI_PRESET_CHANGED_AFTER 时才重读条目列表；不 emit 的话，用户切到酒馆原生面板
+       看到的还是改动前的旧样子 —— 2026-10-05 用户报「删除没有用」，根因就是这个，删除本身没坏。
+       与变量那条写入路径（commitVars）用的是同一个 notifyPresetChanged，拿不到环境时它会自己跳过、不影响落盘结果。 */
+    try { notifyPresetChanged(check.ctx); } catch (e9) { }
+
     log('自定义文风：' + JSON.stringify(plan.report.before) + ' → ' + JSON.stringify(plan.report.after) +
       '｜增 ' + plan.report.added.length + ' 删 ' + plan.report.removed.length +
       ' 改 ' + plan.report.updated.length + ' 搬家 ' + plan.report.orderMoved.length +
