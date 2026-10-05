@@ -27,25 +27,25 @@
 /* ── 新增界面文案：**集中在这里，等文案 Agent 出稿**。
      实现里不许再散落第二处文案。值是占位，不是最终稿。 ── */
 export var UPDATE_COPY = {
-  title: '【占位·待文案】正在更新',
-  stageCheck: '【占位·待文案】检查更新',
-  stageDownload: '【占位·待文案】下载',
-  stageVerify: '【占位·待文案】校验',
-  stageMerge: '【占位·待文案】合并',
-  stageWrite: '【占位·待文案】写入预设',
-  stageDone: '【占位·待文案】更新完成',
-  stageFailed: '【占位·待文案】更新失败',
-  bytesOf: '【占位·待文案】已下载 {done} / {total}',
-  bytesOnly: '【占位·待文案】已下载 {done}',
-  indeterminate: '【占位·待文案】总大小未知，正在下载…',
-  retry: '【占位·待文案】重试',
-  close: '【占位·待文案】关闭',
-  doneHint: '【占位·待文案】更新完成，可以关闭这个窗口了',
-  retryHint: '【占位·待文案】可以点重试再来一次',
-  dupGuard: '【占位·待文案】上一次还没跑完',
+  title: '预设更新进度',
+  stageCheck: '检查更新',
+  stageDownload: '下载新版',
+  stageVerify: '校验文件',
+  stageMerge: '合并内容',
+  stageWrite: '写入预设',
+  stageDone: '更新完成',
+  stageFailed: '更新失败',
+  bytesOf: '已下载 {done}，共 {total}',
+  bytesOnly: '当前已下载 {done}',
+  indeterminate: '未能获取总大小，正在持续下载',
+  retry: '重试',
+  close: '关闭',
+  doneHint: '更新已完成，现在可以关闭这个窗口了',
+  retryHint: '更新遇到问题，可以点击重试再来一次',
+  dupGuard: '更新还在进行中，请不要重复点击',
   /* 重试不设上限（Lead 2026-10-05 定）：用户自己点的，卡上限反而碍事；
      但要说清这是第几次，让他知道自己在第几轮。{n} 由实现替换。 */
-  retryCount: '【占位·待文案】第 {n} 次重试'
+  retryCount: '第{n}次重试'
 };
 
 /* 阶段：按 70 号现有实现如实列，没有编造。
