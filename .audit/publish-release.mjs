@@ -88,7 +88,20 @@ fs.copyFileSync(FILE, path.join(mirDir, ASSET_NAME));
 fs.writeFileSync(path.join(mirDir, 'manifest.json'), JSON.stringify({
   version: TAG, file: ASSET_NAME, bytes: BUF.length, sha256: SHA, date: DATE, notes: BODY,
 }, null, 2) + '\n', 'utf8');
-git(['add', MIRROR_DIR]);
+/* 3b. mirror 只保留最近 MIRROR_KEEP 个产物（用户 2026-10-05 定，以后每次都这样）。
+   历史版本在 GitHub Releases 里永久保留，mirror 只是更新机制读「当前版本」的货源；
+   留着几十个旧副本会把仓库撑大，jsDelivr 会整个仓库取不到文件（2026-10-05 实测）。 */
+const MIRROR_KEEP = 2;
+{
+  const all = fs.readdirSync(mirDir)
+    .filter(f => /^kami-v[\d.]+-\d+-\d{8}\.json$/.test(f))
+    .map(f => { const m = f.match(/^kami-v([\d.]+)-(\d+)-(\d{8})\.json$/); return { f, date: m[3], build: parseInt(m[2], 10) }; })
+    .sort((a, b) => (a.date === b.date ? b.build - a.build : (a.date < b.date ? 1 : -1)));
+  const drop = all.slice(MIRROR_KEEP);
+  for (const d of drop) { try { fs.unlinkSync(path.join(mirDir, d.f)); } catch (e) { } }
+  if (drop.length) { console.log('  mirror 清理：删掉 ' + drop.length + ' 个旧产物，保留最近 ' + MIRROR_KEEP + ' 个'); }
+}
+git(['add', '-A', MIRROR_DIR]);
 const staged = git(['diff', '--cached', '--name-only']).trim();
 if (staged) {
   git(['commit', '-m', (MIRROR_ONLY ? '镜像' : '发版镜像') + ' ' + TAG + '：' + ASSET_NAME]);
