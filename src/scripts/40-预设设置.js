@@ -1660,6 +1660,15 @@
         '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
       return;
     }
+    /* 写作指导分区：额外挂一块「用户自定义文风」（用户 2026-10-02 要求预设面板也有）。
+       整块实现在共享模块 src/scripts/_custom-style-ui.js —— 这里只是"在我这块容器里挂一次"。
+       判定用的是解析器那份分区名提示（DIY_LAYER_HINT），与模块找分区用的是同一个常量。
+       ⚠️ 排在该 tab 内容的**最前面**（2026-10-03 用户点名：放最上面，不是最下面）——
+          是"这个 tab 的最前"，不是整块面板的最前：上面那几行特判（模型/变量/关于/…）
+          各有自己的 render 函数，早就 return 了，走不到这里。
+       ⚠️ 挂的是自己的 kami-cs-host 专属容器，不是 pane —— 模块的 mount 会先清空容器，
+          直接挂 pane 会把下面刚画好的卡片整片抹掉（上次的回归就是这么来的）。 */
+    if (tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0) { mountCustomStyleBlock(pane); }
     var drawn = 0, i;
     for (i = 0; i < tab.cards.length; i++) { pane.appendChild(cardEl(tab, tab.cards[i], i)); drawn++; }
     /* 不属任何卡片的裸放条目：直接铺一层网格，不套假卡片 */
@@ -1667,13 +1676,10 @@
       pane.appendChild(itemsGrid(tab.own, { mode: null }, tab.key + '#own'));
       drawn++;
     }
+    /* 空态是给"卡片组"的：仍然跟着卡片组走（自定义块在上面，不顶替它） */
     if (!drawn) {
       pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
     }
-    /* 写作指导分区：额外挂一块「用户自定义文风」（用户 2026-10-02 要求预设面板也有）。
-       整块实现在共享模块 src/scripts/_custom-style-ui.js —— 这里只是"在我这块容器里挂一次"。
-       判定用的是解析器那份分区名提示（DIY_LAYER_HINT），与模块找分区用的是同一个常量。 */
-    if (tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0) { mountCustomStyleBlock(pane); }
   }
 
   /* 「用户自定义文风」在预设面板里的唯一接线段：给模块文档对象 + KamiPreset + 保存后重画。

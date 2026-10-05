@@ -1361,6 +1361,11 @@
   }
 
   function renderCardPage(st) {
+    /* 「自定义文风」排在这一页**最前面**（2026-10-03 用户点名：放在最上面，不是最下面）。
+       在 intro 与卡片组之前 —— 这一块是用户自己维护的东西，比预设自带的说明更该先看到。
+       注意 renderCustomStyleBlock 会挂进自己的 kami-cs-host 专属容器，
+       不会清掉后面才画的 intro 与卡片组（上次的回归就是直接挂 panelBody 造成的）。 */
+    if (st.customStyle) { renderCustomStyleBlock(); }
     if (st.intro) { panelBody.appendChild(el('p', 'kami-guide-lead', st.intro)); }
     var api = HOST.KamiPreset;
     var canWrite = !!(api && typeof api.setEnabled === 'function');
@@ -1415,7 +1420,6 @@
         if (st.varCard && hasT2I) { renderAttachedVar(st.varCard); }
       })(st.groups[g], g);
     }
-    if (st.customStyle) { renderCustomStyleBlock(); }
   }
 
   /* 挂在「文生图」那页的插图数量：值同样渲染时从 KamiPreset.vars() 现读 */

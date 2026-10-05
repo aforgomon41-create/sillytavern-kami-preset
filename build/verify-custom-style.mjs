@@ -177,6 +177,48 @@ ok(uiSrc.indexOf('while (root.firstChild) { root.removeChild(root.firstChild); }
 })();
 note('④d 是按源码形态判的：能挡住"顺手把 pane 传进去"，挡不住有人把专属容器再包一层再用同一份 DOM');
 
+/* ── ④e 自定义块排在卡片组**之前**（2026-10-03 用户点名：放在页面最上面，不是最下面）──
+   为什么要有这条：位置这种东西改一次就悄悄回去了，而且"回去"以后界面照样能跑、
+   测试照样全绿，只有用户看得出不对。所以按源码里的先后顺序钉死。 */
+function sliceBetween(src, from, to) {
+  const a = src.indexOf(from);
+  if (a < 0) { return null; }
+  const b = src.indexOf(to, a + from.length);
+  return (b < 0) ? null : src.slice(a, b);
+}
+const guidePageBody = sliceBetween(guideSrc, 'function renderCardPage(st) {', 'function renderAttachedVar(');
+ok(!!guidePageBody, '④e 50 号：截到了 renderCardPage 的函数体');
+if (guidePageBody) {
+  const at = guidePageBody.indexOf('renderCustomStyleBlock()');
+  ok(at >= 0, '④e 50 号：这一页确实挂了自定义块');
+  ok(at >= 0 && at < guidePageBody.indexOf('kami-guide-lead'), '④e 50 号：自定义块排在页首 intro **之前**');
+  ok(at >= 0 && at < guidePageBody.indexOf('for (var g = 0;'), '④e 50 号：自定义块排在卡片组 **之前**');
+}
+const panelTabBody = sliceBetween(panelSrc, 'function renderTab(pane, tab) {', 'function mountCustomStyleBlock(');
+ok(!!panelTabBody, '④e 40 号：截到了 renderTab 的函数体');
+if (panelTabBody) {
+  const at = panelTabBody.indexOf('mountCustomStyleBlock(pane)');
+  ok(at >= 0, '④e 40 号：这个 tab 确实挂了自定义块');
+  ok(at >= 0 && at < panelTabBody.indexOf('cardEl(tab, '), '④e 40 号：自定义块排在卡片组 **之前**');
+  ok(at >= 0 && at < panelTabBody.indexOf('itemsGrid(tab.own'), '④e 40 号：自定义块排在裸放条目前面');
+  /* 空态是给"卡片组"的：它在自定义块之后，不会被顶掉 */
+  const emptyAt = panelTabBody.indexOf('这个层级里没有可开关的条目');
+  ok(emptyAt >= 0 && at >= 0 && emptyAt > at, '④e 40 号：空态仍在自定义块之后（它是给卡片组的）');
+  /* 用户原话是"页面最上面"，40 那边指的是**这个 tab 的最前**：先过几个特判 return 才轮到这儿 */
+  ok(panelTabBody.indexOf("tab.special === 'err'") < at,
+    '④e 40 号：自定义块在特判 return 之后（是"这个 tab 的最前"，不是整块面板的最前）');
+}
+/* 反向自证：判据必须能区分"排前面"和"排后面"，否则它只是装饰 */
+(function () {
+  const before = 'renderCustomStyleBlock(); ... for (var g = 0; ...';
+  ok(before.indexOf('renderCustomStyleBlock()') < before.indexOf('for (var g = 0;'),
+    '④e 反向自证：排在前面时判据放行');
+  const after = 'for (var g = 0; ... ... renderCustomStyleBlock();';
+  ok(!(after.indexOf('renderCustomStyleBlock()') < after.indexOf('for (var g = 0;')),
+    '④e 反向自证：排在后面时判据会 FAIL');
+})();
+note('④e 判的是"源码里谁先出现"，不是运行时 DOM 顺序；运行时的 DOM 顺序由这两个函数体的书写顺序决定，所以这条等价');
+
 /* ── ④b 用户 2026-10-02 点名的两条补丁（现在都长在共享模块里）── */
 /* (1) 分区收尾标记读不到 → 硬拒绝写入（功能不可用是看得见的毛病，条目插到分区外是看不见的毛病） */
 ok(panelSrc.indexOf('NO_SECTION_END') >= 0, '④b 40 号在收尾标记缺失时硬拒绝写入');
@@ -225,6 +267,11 @@ if (!p) {
   ok(count(guide, 'CUSTOM_STYLE_COPY = {') === 1, '⑦ 50 号里文案对象只有一份');
   ok(count(panel, 'CUSTOM_STYLE_CSS = [') === 1 && count(guide, 'CUSTOM_STYLE_CSS = [') === 1,
     '⑦ 两个脚本里样式常量各只有一份');
+  /* 顺序也要活到产物里（④e 查的是源码，这里查产物，防止展开/替换把顺序打乱） */
+  const gAt = guide.indexOf('renderCustomStyleBlock()'), gLoop = guide.indexOf('for (var g = 0;');
+  ok(gAt >= 0 && gLoop >= 0 && gAt < gLoop, '⑦ 产物：引导页自定义块排在卡片组之前');
+  const pAt = panel.indexOf('mountCustomStyleBlock(pane)'), pLoop = panel.indexOf('cardEl(tab, ');
+  ok(pAt >= 0 && pLoop >= 0 && pAt < pLoop, '⑦ 产物：预设面板自定义块排在卡片组之前');
   const dupMarker = count(panel, "' | diy_write_style'") + count(guide, "' | diy_write_style'");
   ok(dupMarker <= 2, '⑦ 标记字面量只随解析器各内联一份（40 一份、50 一份）', dupMarker + ' 处');
 }
