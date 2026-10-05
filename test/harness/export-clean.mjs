@@ -14,7 +14,8 @@ import { readFileSync } from 'node:fs';
 
 const NAMES = ['parseFloorRange', 'planExport', 'buildExportText', 'exportFileName', 'exportErrorText',
   'messageText', 'roleOf', 'isUserMessage', 'isSystemMessage', 'fallbackCleanText',
-  'tidyCopyText', 'cleanCopyText', 'EXPORT_ERRORS', 'floorToIndex', 'EXPORT_NL'];
+  'tidyCopyText', 'cleanCopyText', 'EXPORT_ERRORS', 'floorToIndex', 'EXPORT_NL',
+  'extractContentBlocks', 'cleanMessageForExport', 'CONTENT_OPEN', 'CONTENT_CLOSE'];
 function loadInlined(paths) {
   const src = paths.map(p => readFileSync(new URL(p, import.meta.url), 'utf8')
     .split('\n').map(l => (l.slice(0, 7) === 'export ') ? l.slice(7) : l).join('\n')).join('\n');
@@ -154,6 +155,80 @@ const mkChat = (n) => {
     ok(src.split('\n').filter(l => /^\s+export\s/.test(l)).length === 0, '⑧ ' + name + ' 没有缩进的 export');
     ok(src.split('\n').filter(l => l.slice(0, 7) === 'export ').length >= 2, '⑧ ' + name + ' 有行首 export 可去');
   }
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑨ 只取 <content> 块里的正文（2026-10-05 用户报「把 <content> 前后的前端代码都导出来了」）
+ *   为什么会有前端代码：预设那条「显式思维链」正则的 replaceString 把整份前端 HTML
+ *   塞进围栏代码块（src/preset.base.json:134），渲染之后代码块里就是源码。
+ *   所以导出必须回到**原始消息**取 content 块，不能从渲染结果取。
+ * ════════════════════════════════════════════════════════════ */
+{
+  const FENCE = String.fromCharCode(96, 96, 96);
+  const FRONTEND = '\n' + FENCE + '\n<!DOCTYPE html>\n<html lang="zh-CN">\n<head><meta charset="UTF-8">' +
+    '<title>显式思维链</title></head>\n<body><div class="kami-root">前端界面代码</div></body>\n</html>\n' + FENCE + '\n';
+  const CLEAN = (s, label, mustHave) => {
+    ok(s.indexOf('<!DOCTYPE') < 0, label + '：不含 <!DOCTYPE');
+    ok(s.indexOf('<html') < 0, label + '：不含 <html');
+    ok(s.indexOf(FENCE) < 0, label + '：不含围栏代码块标记');
+    ok(s.indexOf('<') < 0, label + '：不含任何尖括号标签');
+    ok(s.indexOf('kami-root') < 0, label + '：不含前端界面代码');
+    for (const w of mustHave) { ok(s.indexOf(w) >= 0, label + '：正文「' + w + '」还在'); }
+  };
+
+  /* ① 只有一段 content */
+  const a = M.cleanMessageForExport('<content>只有这一段正文。</content>');
+  eq(a, '只有这一段正文。', '⑨ ① 只有 content：原样取出来');
+  CLEAN(a, '⑨ ①', ['只有这一段正文。']);
+
+  /* ② content 外面包着前端代码（围栏里的整份 HTML） */
+  const b = M.cleanMessageForExport(FRONTEND + '<content>真正的正文。\n\n第二段。</content>' + FRONTEND);
+  eq(b, '真正的正文。\n\n第二段。', '⑨ ② 前端代码在 content 外面：一片都不许带出来');
+  CLEAN(b, '⑨ ②', ['真正的正文。', '第二段。']);
+  ok(b.indexOf('前端界面代码') < 0, '⑨ ② 外面的前端代码没混进来');
+
+  /* ③ 一条消息里多个 content 块：按顺序拼接、块之间空行 */
+  const c = M.cleanMessageForExport('<content>第一块。</content>\n<nyaruko_think>中间的思维链</nyaruko_think>\n<content>第二块。</content>');
+  eq(c, '第一块。\n\n第二块。', '⑨ ③ 多个 content 块：按顺序拼、中间空行');
+  CLEAN(c, '⑨ ③', ['第一块。', '第二块。']);
+  ok(c.indexOf('思维链') < 0, '⑨ ③ 块与块之间的思维链不带出来');
+
+  /* ④ 完全没有 content：退回整条清洗，且计划里要数出来 */
+  const d = M.cleanMessageForExport('就是一段普通文字，没有任何标记。');
+  eq(d, '就是一段普通文字，没有任何标记。', '⑨ ④ 没有 content：退回整条清洗');
+  CLEAN(d, '⑨ ④', ['就是一段普通文字']);
+
+  /* ⑤ 思维链在**后面**、content 在前面 */
+  const e = M.cleanMessageForExport('<content>正文在前。</content>\n<nyaruko_think>思维链在后，很长很长。</nyaruko_think>\n<StatusPlaceHolderImpl/>');
+  eq(e, '正文在前。', '⑨ ⑤ 思维链在后面：只取 content 那一段');
+  CLEAN(e, '⑨ ⑤', ['正文在前。']);
+  ok(e.indexOf('思维链') < 0, '⑨ ⑤ 后面的思维链不带出来');
+
+  /* 截断的回复：content 没闭合也要拿到内容，不能丢 */
+  const f = M.cleanMessageForExport('<content>写到一半就被截断了');
+  eq(f, '写到一半就被截断了', '⑨ 截断：content 没闭合也把内容取出来');
+
+  /* 提取函数本身 */
+  eq(M.extractContentBlocks('<content>甲</content><content>乙</content>'), ['甲', '乙'], '⑨ extractContentBlocks 按顺序全取出来');
+  eq(M.extractContentBlocks('没有标记'), [], '⑨ 没有 content 返回空数组');
+  eq(M.extractContentBlocks(''), [], '⑨ 空串返回空数组');
+
+  /* planExport 要把「几条第没有 content」数出来，好在界面上说明 */
+  const chat = [
+    { name: 'A', is_user: false, mes: '<content>有标记的正文。</content>' },
+    { name: 'A', is_user: false, mes: '没有标记的正文。' },
+    { name: '我', is_user: true, mes: '<content>用户那边的正文。</content>' }
+  ];
+  const p = M.planExport(chat, '', '', false);
+  eq(p.noContent, 1, '⑨ 计划里报出「1 条没有 content 块」');
+  eq(p.picks.map(x => x.hasContent), [true, false, true], '⑨ 每条都标了自己有没有 content');
+  eq(p.picks[0].blocks, 1, '⑨ 顺便报出这条有几个 content 块');
+
+  /* 端到端那一步：走 buildExportText，role 前缀 + content 提取一起用 */
+  const picks = [{ role: 'assistant', text: M.cleanMessageForExport(FRONTEND + '<content>最终正文。</content>' + FRONTEND) }];
+  const final = M.buildExportText(picks, true);
+  eq(final, 'role：assistant\n最终正文。', '⑨ 整条链：role 前缀 + 只取 content');
+  CLEAN(final, '⑨ 整链', ['最终正文。']);
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '导出纯净正文：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

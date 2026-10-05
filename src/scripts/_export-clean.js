@@ -61,6 +61,38 @@ export function messageText(m) {
   return '';
 }
 
+/* ── 只取 <content>...</content> 里那一段 ──
+   用户 2026-10-05 报：「我们要的只有 <content>…</content> 里的干净正文，现在的导出功能把
+   <content> 前后的前端代码都导出来了」。
+   为什么会那样：预设里「前端|显式思维链 v0.1」那条正则的 replaceString 开头是
+   换行 + 三个反引号 + <!DOCTYPE html> + 换行（src/preset.base.json:134）——
+   它把整个前端 HTML **塞进围栏代码块**。于是渲染之后，代码块里的可见文本就是那一大段
+   HTML 源码；再按"从渲染结果取文本"去导，导出来的自然就是前端代码。
+   所以导出的正文**不能从渲染结果里取**，要回到原始消息、只取 content 块里的那一段。
+   这不是"用正则清洗一切"：content 是**用户自己定义的标记**，边界清清楚楚；
+   块**内部**仍然走下面那套去标签 + 换行还原的规则。 */
+export var CONTENT_OPEN = '<content>';
+export var CONTENT_CLOSE = '</content>';
+
+/** 从原始消息里取出所有 content 块的内容（按出现顺序）。没有就返回空数组。 */
+export function extractContentBlocks(raw) {
+  var s = String(raw === null || raw === undefined ? '' : raw);
+  var out = [], i = 0, a, b;
+  while (true) {
+    a = s.indexOf(CONTENT_OPEN, i);
+    if (a < 0) { break; }
+    b = s.indexOf(CONTENT_CLOSE, a + CONTENT_OPEN.length);
+    if (b < 0) {
+      /* 没闭合：多半是回复被截断了，把剩下的都当正文（总比丢掉强） */
+      out.push(s.slice(a + CONTENT_OPEN.length));
+      break;
+    }
+    out.push(s.slice(a + CONTENT_OPEN.length, b));
+    i = b + CONTENT_CLOSE.length;
+  }
+  return out;
+}
+
 /** 只认纯数字（不写正则，避开美元符号）；空串按默认值处理 */
 function readFloor(v, dflt) {
   if (v === undefined || v === null) { return dflt; }
@@ -100,17 +132,23 @@ export function planExport(chat, fromRaw, toRaw, onlyAi) {
     if (!m) { continue; }
     if (isSystemMessage(m)) { skippedSystem++; continue; }
     if (onlyAi && isUserMessage(m)) { skippedUser++; continue; }
+    var rawText = messageText(m);
+    var nBlocks = extractContentBlocks(rawText).length;
+    /* 这一条有没有 content 块，在这里就判掉：调用方据此决定怎么清洗，也据此在界面上说明 */
     picks.push({
       index: i, floor: i + 1, role: roleOf(m),
-      isUser: isUserMessage(m), name: String(m.name || ''), raw: messageText(m)
+      isUser: isUserMessage(m), name: String(m.name || ''), raw: rawText,
+      hasContent: nBlocks > 0, blocks: nBlocks
     });
   }
   if (!picks.length) {
     return { ok: false, code: 'ALL_FILTERED', total: list.length, from: r.from, to: r.to, skippedSystem: skippedSystem };
   }
+  var noContent = 0;
+  for (i = 0; i < picks.length; i++) { if (!picks[i].hasContent) { noContent++; } }
   return {
     ok: true, from: r.from, to: r.to, total: list.length, picks: picks,
-    onlyAi: !!onlyAi, skippedSystem: skippedSystem, skippedUser: skippedUser
+    onlyAi: !!onlyAi, skippedSystem: skippedSystem, skippedUser: skippedUser, noContent: noContent
   };
 }
 
@@ -143,6 +181,24 @@ export function fallbackCleanText(raw) {
   var s = String(raw === null || raw === undefined ? '' : raw);
   s = s.replace(/<[^<>]*>/g, '');
   return tidyCopyText(s);
+}
+
+/**
+ * 一条消息导出用的正文。**只取 content 块里的那一段**，块之间空行分隔。
+ * 块内部走 fallbackCleanText（去标签 + 换行还原），不碰渲染结果。
+ * 没有 content 块时退回"整条清洗" —— 理由：没有标记就没法划边界，
+ * 硬要猜只会猜错；整条清洗至少是"这条消息自己的文字"，而不是别的消息或前端代码。
+ * 调用方要把 noContent 的条数告诉用户，不许让人以为每条都有 content。
+ */
+export function cleanMessageForExport(raw) {
+  var blocks = extractContentBlocks(raw);
+  if (!blocks.length) { return fallbackCleanText(raw); }
+  var out = [], i, t;
+  for (i = 0; i < blocks.length; i++) {
+    t = fallbackCleanText(blocks[i]);
+    if (t.replace(/[ \t\n]/g, '') !== '') { out.push(t); }
+  }
+  return out.join(EXPORT_NL + EXPORT_NL);
 }
 
 /** 文件名带范围信息 */

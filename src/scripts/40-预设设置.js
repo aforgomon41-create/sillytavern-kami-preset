@@ -2796,40 +2796,34 @@
     rangeLabel: '楼层范围',
     rangeFromHint: '起始',
     rangeToHint: '结束',
-    onlyAi: '只导 AI 消息',
-    onlyAiHint: '打开后跳过用户消息；关闭时每条前面写 role：user / role：assistant',
+    scopeLabel: '导出范围',
+    scopeAll: '全部',
+    scopeAi: '仅 AI',
+    scopeAllHint: '用户与 AI 的消息都导；每条前面写 role：user / role：assistant',
+    scopeAiHint: '只导 AI 的消息，不写 role 前缀',
     btn: '导出 TXT',
     working: '正在处理',
     goodPath: '导出的是酒馆自己处理后交给页面显示的正文，与你在聊天里看到的一致。',
-    badPath: '⚠️ 拿不到酒馆的正文处理链，这次导出的是**按标签规则清洗过的原始文本**，' +
-      '不是所见即所得 —— 排版可能与聊天里看到的不一样。'
+    goodPath: '只取每条消息里 content 块中的正文，再去掉标签、还原段落换行；' +
+      '<content> 之外的东西（前端代码、围栏代码块、指令）一律不进导出。',
+    badPath: '⚠️ 这次导出的是**按标签规则清洗过的原始文本**，不是所见即所得 —— 排版可能与聊天里看到的不一样。'
   };
 
-  /* 这一条的干净正文：优先走酒馆自己的处理链（与页面所见一致），拿不到才退化。
-     ── 关于"导出会不会改动聊天数据"（2026-10-05 查证，结论：这是酒馆既有行为，不是导出引入的）──
-     messageFormatting 里有一段：messageId === 0 且非系统/非用户/非推理时，
-     会把 substituteParams 后的文本**写回 chat[0].mes**（public/script.js:1527-1534）。
-     酒馆自己渲染第一层时走的是同一条路、同样的触发条件：
-       script.js:1994-2002  addOneMessage 里 messageFormatting(messageText, mes.name, isSystem,
-                            mes.is_user, chat.indexOf(mes), sanitizerOverrides, false)
-     —— 第 1 层的 chat.indexOf(mes) 就是 0，参数形状与这里完全一致。
-     所以那条写回是**酒馆本来就有的**（它的目的是把替换后的文本缓存回去，让界面显示宏展开后的内容），
-     导出只是跟着发生一次，不是我们新引入的副作用。
-     也**不去还原**它：那是酒馆故意写的，还原反而会让第一层下次渲染时重新替换一遍。
-     真要彻底隔离得拿到酒馆模块内的 chat 引用做快照，跨模块做不到；
-     而且这么做等于跟酒馆自己的行为对着干，得不偿失。 */
+  /* 这一条的导出正文：**只取原始消息里 content 块那一截**，不看渲染结果。
+     ── 2026-10-05 用户报「把 <content> 前后的前端代码都导出来了」，根因在这里 ──
+     预设「前端|显式思维链 v0.1」那条正则的 replaceString 开头是
+     换行 + 三个反引号 + <!DOCTYPE html>（src/preset.base.json:134）——
+     它把整份前端 HTML 塞进围栏代码块。渲染之后，代码块里的可见文本就是那段 HTML 源码，
+     所以"从渲染结果取文本"必然把前端代码当正文导出去。
+     改法：回到 pick.raw（原始消息），只取 content 块；块内部再走去标签 + 换行还原。
+     content 是用户自己定义的标记，边界确定，不是"用正则清洗一切"。
+     ── 顺带解决了上一轮记录的那条副作用 ──
+     之前走 ctx.messageFormatting，而它在 messageId === 0 时会把 substituteParams 后的文本
+     写回 chat[0].mes（public/script.js:1527-1534；酒馆自己渲染第一层时也走这条路，
+     script.js:1994-2002 传的正是 chat.indexOf(mes)）。现在**完全不再调用它**，
+     导出对聊天数据就是只读的，那条副作用连同"要不要隔离"的问题一起消失了。 */
   function exportCleanOne(ctx, msg, pick) {
-    var raw = pick.raw;
-    if (ctx && typeof ctx.messageFormatting === 'function') {
-      try {
-        var html = ctx.messageFormatting(raw, String(msg.name || ''), !!msg.is_system, !!msg.is_user, pick.index);
-        var box = mk('div', '');
-        box.innerHTML = String(html == null ? '' : html);
-        /* 取文本用的是与「复制」同一份规则（_copy-clean.js），不另写一套换行逻辑 */
-        return cleanCopyText(box);
-      } catch (e) { /* 掉到兜底 */ }
-    }
-    return fallbackCleanText(raw);
+    return cleanMessageForExport(pick.raw);
   }
 
   function downloadTextFile(name, text) {
@@ -2887,17 +2881,40 @@
     body.appendChild(rowRange);
     body.appendChild(mk('div', 'kami-card-note', EXPORT_NOTICE.note));
 
-    /* 只导 AI */
+    /* 导出范围：全部 / 仅 AI */
+    var scope = 'all';
     var rowAi = mk('div', 'kami-field');
-    rowAi.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.onlyAi));
+    rowAi.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.scopeLabel));
     var valAi = mk('span', 'kami-field-value');
-    var chkOnlyAi = mk('input', 'kami-switch-input');
-    chkOnlyAi.type = 'checkbox';
-    chkOnlyAi.setAttribute('data-kami-export', 'onlyai');
-    valAi.appendChild(chkOnlyAi);
+    /* ⚠️ 2026-10-05 用户报「没法选择只导 AI 还是全部导出，只有'只导 AI 消息'在显示」——
+       原来是一个含义模糊的开关。改成**两个明确选项**的分段按钮，选中态一眼可见。 */
+    var segScope = mk('div', 'kami-seg');
+    segScope.setAttribute('role', 'group');
+    segScope.setAttribute('aria-label', EXPORT_NOTICE.scopeLabel);
+    var scopeBtns = {};
+    var scopeHint = mk('div', 'kami-card-note', '');
+    function setScope(v) {
+      scope = (v === 'ai') ? 'ai' : 'all';
+      scopeBtns.all.className = 'kami-seg-item' + (scope === 'all' ? ' is-on' : '');
+      scopeBtns.ai.className = 'kami-seg-item' + (scope === 'ai' ? ' is-on' : '');
+      scopeBtns.all.setAttribute('aria-pressed', String(scope === 'all'));
+      scopeBtns.ai.setAttribute('aria-pressed', String(scope === 'ai'));
+      scopeHint.textContent = (scope === 'ai') ? EXPORT_NOTICE.scopeAiHint : EXPORT_NOTICE.scopeAllHint;
+    }
+    [['all', EXPORT_NOTICE.scopeAll], ['ai', EXPORT_NOTICE.scopeAi]].forEach(function (pair) {
+      var b = mk('button', 'kami-seg-item', pair[1]);
+      b.type = 'button';
+      b.setAttribute('data-kami-export', 'scope');
+      b.setAttribute('data-kami-scope', pair[0]);
+      b.addEventListener('click', function () { setScope(pair[0]); });
+      scopeBtns[pair[0]] = b;
+      segScope.appendChild(b);
+    });
+    valAi.appendChild(segScope);
     rowAi.appendChild(valAi);
     body.appendChild(rowAi);
-    body.appendChild(mk('div', 'kami-card-note', EXPORT_NOTICE.onlyAiHint));
+    body.appendChild(scopeHint);
+    setScope('all');
 
     /* 结果/进度一行 */
     var msgEl = mk('div', 'kami-card-note', '');
@@ -2918,7 +2935,7 @@
       if (!ctx) { say('error', exportErrorText('NO_CTX')); return; }
       var chat = ctx.chat || [];
       /* 边界校验全在纯逻辑里：范围填反 / 超界 / 零楼层，都要明确提示，不许静默导出空文件 */
-      var plan = planExport(chat, inFrom.value, inTo.value, chkOnlyAi.checked);
+      var plan = planExport(chat, inFrom.value, inTo.value, scope === 'ai');
       if (!plan.ok) { say('error', exportErrorText(plan.code, plan)); return; }
 
       var picks = plan.picks, i = 0;
@@ -2932,10 +2949,12 @@
         }
         say('work', EXPORT_NOTICE.working + ' ' + i + '/' + picks.length);
         if (i < picks.length) { setTimeout(step, 0); return; }
-        var text = buildExportText(picks, !chkOnlyAi.checked);
+        var text = buildExportText(picks, scope === 'all');
         if (!text) { btn.disabled = false; say('error', exportErrorText('EMPTY_RESULT')); return; }
         var name = exportFileName(plan.from, plan.to);
         var skipped = plan.skippedSystem ? ('，跳过 ' + plan.skippedSystem + ' 条隐藏消息') : '';
+        /* 没有 content 块的条目要明说 —— 不许让人以为每条都规规矩矩有标记 */
+        if (plan.noContent) { skipped += '，其中 ' + plan.noContent + ' 条没有 content 块（按整条清洗）'; }
         try { downloadTextFile(name, text); } catch (e) { btn.disabled = false; say('error', '下载失败：' + ((e && e.message) || e)); return; }
         btn.disabled = false;
         /* 小文件别显示成「0 KB」—— 不到 1 KB 就报字数 */
