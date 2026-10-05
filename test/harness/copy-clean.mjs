@@ -222,5 +222,97 @@ function noMarkup(s, label) {
   ok(/expandPanelGestures[\s\S]{0,900}expandCopyClean\(root, code\)/.test(doc), '⑥ 脚本那条路展开了（45-正文外壳）');
 }
 
+/* ════════════════════════════════════════════════════════════
+ * ⑦ 复制结果不依赖「我们哪几个正则是开着的」
+ *   用户原话（2026-10-05）：「只复制最终被各种正则处理出来的正文，不管用户用了什么正则」。
+ *   四种开关组合都得干净：只有思维链开 / 只有正文外壳开 / 两个都开 / 两个都不开。
+ *   ⚠️「两个都不开」这一种最容易被忽略：这时候页面上**没有我们的任何界面元素**，
+ *   容器里就是酒馆自己渲染出来的最终正文，照样不许把标签复制出去。
+ * ════════════════════════════════════════════════════════════ */
+{
+  const thinkRoot = el('div', { class: 'kami-root', attrs: { 'data-kami-comp': 'think' } });
+  const tCollapse = el('div', { class: 'kami-collapse' });
+  const tHead = el('div', { class: 'kami-collapse-head' });
+  tHead.appendChild(wrap('span', { class: 'kami-title' }, '思维链'));
+  tHead.appendChild(wrap('span', { class: 'kami-sub' }, '96 字'));
+  tHead.appendChild(wrap('button', { class: 'kami-btn', attrs: { 'data-kami-act': 'copy' } }, '复制'));
+  tCollapse.appendChild(tHead);
+  const tMd = el('div', { class: 'kami-md' });
+  /* 正文里**故意不出现**「思维链」这三个字 —— 否则下面的界面文字断言会误判成界面泄漏 */
+  tMd.appendChild(p('推理内容第一段。'));
+  tMd.appendChild(p('推理内容第二段。'));
+  tCollapse.appendChild(tMd);
+  tCollapse.appendChild(wrap('pre', { class: 'kami-raw' }, '<nyaruko_think>原始标签</nyaruko_think>'));
+  thinkRoot.appendChild(tCollapse);
+
+  const shellRoot = el('div', { class: 'kami-root', attrs: { 'data-kami-comp': 'body' } });
+  const sShell = el('div', { class: 'kami-shell' });
+  const sHead = el('div', { class: 'kami-head' });
+  sHead.appendChild(wrap('span', { class: 'kami-title' }, '正文'));
+  sHead.appendChild(wrap('span', { class: 'kami-sub' }, '40 字'));
+  sHead.appendChild(wrap('button', { class: 'kami-btn', attrs: { 'data-kami-body-copy': '1' } }, '复制'));
+  sShell.appendChild(sHead);
+  const sBody = el('div', { class: 'kami-body' });
+  const sRender = el('div', { class: 'kami-body-render' });
+  sRender.appendChild(p('正文第一段。'));
+  sRender.appendChild(p('正文第二段。'));
+  sBody.appendChild(sRender);
+  sBody.appendChild(wrap('pre', { class: 'kami-raw' }, '<content>原始正文标签</content>'));
+  sShell.appendChild(sBody);
+  sShell.appendChild(wrap('div', { class: 'kami-toast' }, '已复制正文'));
+  shellRoot.appendChild(sShell);
+
+  const plain = el('div', { class: 'mes_text' });
+  plain.appendChild(p('原生渲染第一段。'));
+  plain.appendChild(p('原生渲染第二段。'));
+
+  const both = el('div', { class: 'mes_text' });
+  both.appendChild(thinkRoot);
+  both.appendChild(shellRoot);
+  both.appendChild(plain);
+
+  const combos = [
+    ['只有思维链前端开', tMd, '推理内容第一段。\n\n推理内容第二段。'],
+    ['只有正文外壳开', sRender, '正文第一段。\n\n正文第二段。'],
+    ['两个都开（从整条消息取）', both, null],
+    ['两个都不开（页面上没有我们的界面元素）', plain, '原生渲染第一段。\n\n原生渲染第二段。'],
+  ];
+  for (const [name, node, exact] of combos) {
+    const out = cleanCopyText(node);
+    noMarkup(out, '⑦ ' + name);
+    if (exact !== null) { eq(out, exact, '⑦ ' + name + '：取到的就是最终正文'); }
+    for (const ui of ['复制', '思维链', '96 字', '40 字', '已复制正文']) {
+      ok(out.indexOf(ui) < 0, '⑦ ' + name + '：界面文字「' + ui + '」没混进来');
+    }
+    ok(out.indexOf('nyaruko_think') < 0, '⑦ ' + name + '：思维链标签没混进来');
+    ok(out.indexOf('<content>') < 0, '⑦ ' + name + '：正文标签没混进来');
+    ok(out.length > 0, '⑦ ' + name + '：确实取到了东西（不是空串糊弄过去）');
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑧ 渲染失败时不许把原始文本交出去
+ *   改之前是 try { mdBox.innerHTML = md(raw) } catch (e) { mdBox.textContent = raw } ——
+ *   渲染一失败，容器里装的就是原始文本，复制出来又带标签，正好退回用户抱怨的老样子。
+ *   现在改成：留一句说明 + 打失败标记 + 复制按钮置灰。
+ *   最后三条是源码级防线：万一将来有人又把按钮放开，容器里也只有那句说明，
+ *   而说明是 .kami-empty（界面元素），取出来仍然是空串 —— 绝不会漏出原文。
+ * ════════════════════════════════════════════════════════════ */
+{
+  const failedBox = el('div', { class: 'kami-md' });
+  failedBox.appendChild(wrap('p', { class: 'kami-empty' }, '正文渲染失败，暂时不能复制'));
+  eq(cleanCopyText(failedBox), '', '⑧ 渲染失败：取出来是空串，不是原始文本');
+
+  const src = readFileSync(new URL('../../src/regex/frontend-think.html', import.meta.url), 'utf8');
+  ok(src.indexOf('mdBox.textContent = raw') < 0, '⑧ 源码里没有「渲染失败就把 raw 塞进正文容器」那条老写法');
+  ok(src.indexOf("root.setAttribute('data-kami-md-failed', '1')") >= 0, '⑧ 渲染失败会打上失败标记');
+  ok(src.indexOf('renderFailed') >= 0, '⑧ 渲染失败有可读的提示文案');
+  ok(/var mdFailed = root\.getAttribute\('data-kami-md-failed'\) === '1'/.test(src), '⑧ 复制接线会读这个失败标记');
+  ok(/if \(mdFailed \|\| !raw\)[\s\S]{0,320}setAttribute\('disabled'/.test(src), '⑧ 失败时复制按钮被置灰（而不是复制原文）');
+  const clickAt = src.indexOf('copy(cleanCopyText(mdBox || root), copyBtn)');
+  const disableAt = src.indexOf("copyBtn.setAttribute('disabled', 'disabled')");
+  ok(clickAt > 0 && disableAt > 0 && disableAt < clickAt, '⑧ 置灰分支排在复制分支之前，失败时根本挂不上点击');
+}
+
 console.log((fail ? '✗ ' : '✓ ') + '复制干净正文：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
 if (fail) { console.log('\n' + bad.join('\n')); process.exitCode = 1; }

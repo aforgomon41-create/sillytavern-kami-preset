@@ -235,8 +235,27 @@ body { font-family: inherit; color: inherit; }
       }
     } else {
       if (mdBox) {
-        try { mdBox.innerHTML = md(raw); } catch (e) { mdBox.textContent = raw; }
-        root.setAttribute('data-kami-md-engine', MD_ENGINE);
+        try {
+          mdBox.innerHTML = md(raw);
+          root.setAttribute('data-kami-md-engine', MD_ENGINE);
+        } catch (e) {
+          /* 渲染失败：**绝不**把 raw 填进正文容器。
+             填进去的话容器里装的就是原始文本，一复制标签又出去了 —— 正好退回用户抱怨的老样子
+             （用户 2026-10-05：只复制最终被正则处理出来的正文）。
+             这里只留一句说明并打上失败标记，复制按钮随之置灰（见下面的复制接线）。
+             为什么不"顺手用正则把标签洗掉再给用户"：标签是用户自己那一堆正则定义的，
+             我们列不全，洗出来的东西一定会漏 —— 那正是用户最初抱怨的形态。
+             想拿完整原文的人本来就有酒馆的编辑功能。 */
+          /* 清空要用"不能再抛"的办法：innerHTML 既然刚抛过一次，很可能再抛，
+             真抛在 catch 里就把整个 boot 打断，面板直接死掉（这条是实测踩出来的）。 */
+          try { mdBox.innerHTML = ''; } catch (e2) { }
+          try { while (mdBox.firstChild) { mdBox.removeChild(mdBox.firstChild); } } catch (e3) { }
+          var failNote = document.createElement('p');
+          failNote.className = 'kami-empty';
+          failNote.textContent = labelVar(root, 'renderFailed') || '正文渲染失败，暂时不能复制';
+          mdBox.appendChild(failNote);
+          root.setAttribute('data-kami-md-failed', '1');
+        }
       }
       if (rawBox) { rawBox.textContent = raw; }
     }
@@ -283,11 +302,20 @@ body { font-family: inherit; color: inherit; }
        取文本规则见 _copy-clean.js：从渲染后的 DOM 取，结构换行按块级元素边界还原。 */
     var copyBtn = q('[data-kami-act="copy"]', root);
     if (copyBtn) {
-      copyBtn.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        copy(cleanCopyText(mdBox || root), copyBtn);
-      });
-      if (!raw) { copyBtn.setAttribute('disabled', 'disabled'); }
+      /* 渲染失败 ⇒ 根本没有"干净的正文"可给，置灰并说明，
+         而不是退而把原始文本复制出去（那正是用户抱怨的东西）。 */
+      var mdFailed = root.getAttribute('data-kami-md-failed') === '1';
+      if (mdFailed || !raw) {
+        copyBtn.setAttribute('disabled', 'disabled');
+        copyBtn.setAttribute('title', mdFailed
+          ? (labelVar(root, 'renderFailed') || '正文渲染失败，暂时不能复制')
+          : (labelVar(root, 'empty') || '未捕获到内容'));
+      } else {
+        copyBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          copy(cleanCopyText(mdBox || root), copyBtn);
+        });
+      }
     }
 
     /* 皮肤切换时重读文案令牌 */
