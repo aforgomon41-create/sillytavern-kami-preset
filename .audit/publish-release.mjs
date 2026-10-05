@@ -55,6 +55,19 @@ if (hit.length !== 1) {
 }
 const ASSET_NAME = hit[0];
 const FILE = path.join(distDir, ASSET_NAME);
+
+/* ⚠️ 构建号会**跨版本重复**（v0.90-129 与 v0.91-129 同号），而默认正文文件名只带构建号，
+   于是可能命中上一个版本留下的旧公告 —— 2026-10-05 实测撞上（.audit/release-129.txt
+   里躺着 v0.90-129 那条"生图插件按钮被抢"的旧说明）。默认正文比产物旧就拒绝发布，
+   逼操作者显式传本次的正文文件，避免把旧公告发给全量用户。 */
+if (!argv[1] && fs.existsSync(BODY_FILE) && fs.existsSync(FILE)) {
+  if (fs.statSync(BODY_FILE).mtimeMs < fs.statSync(FILE).mtimeMs) {
+    console.error('拒绝发布：默认说明正文「' + path.basename(BODY_FILE) + '」比产物旧，' +
+      '它很可能是同构建号的上一个版本留下的旧公告。请显式传入本次正文文件，例如：\n' +
+      '  node .audit/publish-release.mjs ' + N + ' .audit/release-' + N + '-v091.txt');
+    process.exit(1);
+  }
+}
 const fileVersion = (ASSET_NAME.match(/^kami-v(\d+\.\d+)-/i) || [, ''])[1];
 if (wantVersion && fileVersion !== wantVersion) {
   console.error('产物版本（' + fileVersion + '）与 version.json（' + wantVersion + '）不一致 —— 先跑 node build/build.mjs 出对应版本的产物。');
