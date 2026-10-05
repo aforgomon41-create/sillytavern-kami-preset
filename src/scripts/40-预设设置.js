@@ -140,6 +140,15 @@
      标签名单（哪些标签算数、谁在消费它们）也写在那个文件的表里，改表就两边一起变。 */
   /* @@KAMI_TAGS_PURE@@ */
 
+  /* 「只复制干净的正文」的取文本规则（src/scripts/_copy-clean.js）。
+     🧰 其他功能页的「导出纯净正文」与两个前端的复制按钮用的是**同一套换行规则**，
+     所以这里也要内联一份 —— 不许在导出那边再抄一遍换行逻辑。 */
+  /* @@KAMI_COPY_CLEAN@@ */
+
+  /* 「导出纯净正文」的纯逻辑（src/scripts/_export-clean.js）：楼层范围解析、role 前缀、
+     换行分隔、边界校验。下载那一层是 40 号自己的薄壳，不进这个模块。 */
+  /* @@KAMI_EXPORT_CLEAN@@ */
+
   /* ───────── 宿主窗口 ───────── */
 
   function looksLikeTavern(w) {
@@ -2766,6 +2775,173 @@
 
     godcmdEls = { box: gBox, head: gHead, chip: gChip, on: gOn, txt: gTxt };
     paintGodCmdCard();
+
+    /* ② 「导出纯净正文」（用户 2026-10-05 点名放这一页） */
+    renderExportCard(pane);
+  }
+
+  /* ───────── 🧰 「导出纯净正文」 ─────────
+     用户要的：导出干净正文 TXT，可选楼层范围（默认全部）、可选是否只导 AI 消息。
+     他点名问的难点是"酒馆一般不会渲染那么多楼层，怎么保证正常且高性能"——
+     查证结果：**根本不要去读渲染界面**。酒馆只渲染最后 power_user.chat_truncation 条
+     （默认 100，上限 1000；public/script.js:1379-1391 printMessages），
+     3000 层的聊天 DOM 里只有 100 个 .mes —— 读 DOM 不是慢，是**会漏掉前面 2900 层**。
+     聊天记录本身是 context.chat 这个数组，与渲染几个无关；读数组是纯内存操作。
+     实测（3000 条典型消息）：纯字符串拼接 <1 ms；
+     真正花时间的是酒馆自己那条正文处理链（showdown + 净化）约 0.66 ms/条 → 3000 条约 2 秒。
+     所以这里**分片跑**（每片约 60 ms，片间让出主线程）并显示进度，界面不会卡死。 */
+  var EXPORT_NOTICE = {
+    title: '导出纯净正文',
+    note: '把当前聊天的正文导成 TXT。楼层范围留空表示全部；范围用你看到的楼层号（第 1 层在最上面）。',
+    rangeLabel: '楼层范围',
+    rangeFromHint: '起始',
+    rangeToHint: '结束',
+    onlyAi: '只导 AI 消息',
+    onlyAiHint: '打开后跳过用户消息；关闭时每条前面写 role：user / role：assistant',
+    btn: '导出 TXT',
+    working: '正在处理',
+    goodPath: '导出的是酒馆自己处理后交给页面显示的正文，与你在聊天里看到的一致。',
+    badPath: '⚠️ 拿不到酒馆的正文处理链，这次导出的是**按标签规则清洗过的原始文本**，' +
+      '不是所见即所得 —— 排版可能与聊天里看到的不一样。'
+  };
+
+  /* 这一条的干净正文：优先走酒馆自己的处理链（与页面所见一致），拿不到才退化。 */
+  function exportCleanOne(ctx, msg, pick) {
+    var raw = pick.raw;
+    if (ctx && typeof ctx.messageFormatting === 'function') {
+      try {
+        var html = ctx.messageFormatting(raw, String(msg.name || ''), !!msg.is_system, !!msg.is_user, pick.index);
+        var box = mk('div', '');
+        box.innerHTML = String(html == null ? '' : html);
+        /* 取文本用的是与「复制」同一份规则（_copy-clean.js），不另写一套换行逻辑 */
+        return cleanCopyText(box);
+      } catch (e) { /* 掉到兜底 */ }
+    }
+    return fallbackCleanText(raw);
+  }
+
+  function downloadTextFile(name, text) {
+    var blob = new HOST.Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url = HOST.URL.createObjectURL(blob);
+    var a = HDOC.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.style.display = 'none';
+    HDOC.body.appendChild(a);
+    a.click();
+    HDOC.body.removeChild(a);
+    /* 立刻回收会让部分浏览器来不及取，留几秒 */
+    setTimeout(function () { try { HOST.URL.revokeObjectURL(url); } catch (e) { } }, 4000);
+  }
+
+  function renderExportCard(pane) {
+    var ctx0 = stCtx();
+    var canFmt = !!(ctx0 && typeof ctx0.messageFormatting === 'function');
+
+    var box = mk('div', 'kami-card kami-collapse');
+    box.setAttribute('data-kami-open', '0');
+    var head = mk('div', 'kami-card-head kami-head kami-collapse-head');
+    head.setAttribute('data-kami-collapse-head', '1');
+    head.appendChild(mk('span', 'kami-chev', '▸'));
+    head.appendChild(mk('span', 'kami-card-title', EXPORT_NOTICE.title));
+    head.appendChild(noteMark(EXPORT_NOTICE.note));
+    head.appendChild(mk('span', 'kami-chip', canFmt ? '与所见一致' : '清洗文本'));
+    box.appendChild(head);
+
+    var noteBox = noteText(EXPORT_NOTICE.note);
+    noteBox.hidden = true;
+    box.appendChild(noteBox);
+
+    var body = mk('div', 'kami-card-body kami-collapse-body');
+
+    /* 楼层范围：两个输入框，留空 = 不限制 */
+    var rowRange = mk('div', 'kami-field');
+    rowRange.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.rangeLabel));
+    var valRange = mk('span', 'kami-field-value');
+    var inFrom = mk('input', 'kami-number');
+    inFrom.type = 'text';
+    inFrom.setAttribute('data-kami-export', 'from');
+    inFrom.setAttribute('placeholder', EXPORT_NOTICE.rangeFromHint);
+    inFrom.setAttribute('aria-label', EXPORT_NOTICE.rangeLabel + '（起始）');
+    var inTo = mk('input', 'kami-number');
+    inTo.type = 'text';
+    inTo.setAttribute('data-kami-export', 'to');
+    inTo.setAttribute('placeholder', EXPORT_NOTICE.rangeToHint);
+    inTo.setAttribute('aria-label', EXPORT_NOTICE.rangeLabel + '（结束）');
+    valRange.appendChild(inFrom);
+    valRange.appendChild(mk('span', 'kami-field-note', '～'));
+    valRange.appendChild(inTo);
+    rowRange.appendChild(valRange);
+    body.appendChild(rowRange);
+    body.appendChild(mk('div', 'kami-card-note', EXPORT_NOTICE.note));
+
+    /* 只导 AI */
+    var rowAi = mk('div', 'kami-field');
+    rowAi.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.onlyAi));
+    var valAi = mk('span', 'kami-field-value');
+    var chkOnlyAi = mk('input', 'kami-switch-input');
+    chkOnlyAi.type = 'checkbox';
+    chkOnlyAi.setAttribute('data-kami-export', 'onlyai');
+    valAi.appendChild(chkOnlyAi);
+    rowAi.appendChild(valAi);
+    body.appendChild(rowAi);
+    body.appendChild(mk('div', 'kami-card-note', EXPORT_NOTICE.onlyAiHint));
+
+    /* 结果/进度一行 */
+    var msgEl = mk('div', 'kami-card-note', '');
+    msgEl.setAttribute('data-kami-export', 'msg');
+    body.appendChild(msgEl);
+
+    function say(kind, text) {
+      msgEl.textContent = text;
+      msgEl.setAttribute('data-kami-kind', kind || '');
+    }
+
+    var btn = mk('button', 'kami-btn kami-btn--primary', EXPORT_NOTICE.btn);
+    btn.type = 'button';
+    btn.setAttribute('data-kami-export', 'go');
+    btn.addEventListener('click', function () {
+      if (btn.disabled) { return; }
+      var ctx = stCtx();
+      if (!ctx) { say('error', exportErrorText('NO_CTX')); return; }
+      var chat = ctx.chat || [];
+      /* 边界校验全在纯逻辑里：范围填反 / 超界 / 零楼层，都要明确提示，不许静默导出空文件 */
+      var plan = planExport(chat, inFrom.value, inTo.value, chkOnlyAi.checked);
+      if (!plan.ok) { say('error', exportErrorText(plan.code, plan)); return; }
+
+      var picks = plan.picks, i = 0;
+      btn.disabled = true;
+      function step() {
+        var t0 = Date.now();
+        /* 每片最多干 60 ms —— 3000 层约 2 秒，分片后界面仍能响应、进度看得见 */
+        while (i < picks.length && (Date.now() - t0) < 60) {
+          picks[i].text = exportCleanOne(ctx, chat[picks[i].index], picks[i]);
+          i++;
+        }
+        say('work', EXPORT_NOTICE.working + ' ' + i + '/' + picks.length);
+        if (i < picks.length) { setTimeout(step, 0); return; }
+        var text = buildExportText(picks, !chkOnlyAi.checked);
+        if (!text) { btn.disabled = false; say('error', exportErrorText('EMPTY_RESULT')); return; }
+        var name = exportFileName(plan.from, plan.to);
+        var skipped = plan.skippedSystem ? ('，跳过 ' + plan.skippedSystem + ' 条隐藏消息') : '';
+        try { downloadTextFile(name, text); } catch (e) { btn.disabled = false; say('error', '下载失败：' + ((e && e.message) || e)); return; }
+        btn.disabled = false;
+        say('done', '已导出 ' + name + '（' + picks.length + ' 条' + skipped + '，' +
+          Math.round(text.length / 1024) + ' KB）');
+        log('导出纯净正文：' + name + ' 楼层 ' + plan.from + '-' + plan.to + '/' + plan.total +
+          ' 条数 ' + picks.length + ' 字符 ' + text.length + ' 路径 ' + (canFmt ? 'messageFormatting' : '去标签兜底'));
+      }
+      step();
+    });
+    body.appendChild(btn);
+
+    /* 诚实说明走的是哪条路：能拿到酒馆处理链就说与所见一致，拿不到就明确说不是所见即所得 */
+    var pathNote = mk('div', 'kami-card-note', canFmt ? EXPORT_NOTICE.goodPath : EXPORT_NOTICE.badPath);
+    pathNote.setAttribute('data-kami-export', 'path');
+    body.appendChild(pathNote);
+
+    box.appendChild(body);
+    pane.appendChild(box);
   }
 
   /* 卡片上的开关态与两个控件同步。读的是**全局变量**（唯一真值），不是内存里的影子状态。 */

@@ -87,6 +87,30 @@ export function expandCopyClean(root, code) {
   return code.replace(COPY_CLEAN_MARK, () => src);
 }
 
+/* ────────────────────────────────────────────────────────────
+ * 「导出纯净正文」的纯逻辑（src/scripts/_export-clean.js）：楼层范围解析、role 前缀、
+ * 换行与分隔、边界校验。内联进 40-预设设置.js 的 🧰 其他功能页。
+ * 它拼文本时用的是 _copy-clean.js 的 tidyCopyText（与「复制」同一套换行规则），
+ * 所以 40 号那边必须同时内联 _copy-clean.js —— 两个占位符得一起写。
+ * ──────────────────────────────────────────────────────────── */
+export const EXPORT_CLEAN_MARK = '/* @@KAMI_EXPORT_CLEAN@@ */';
+
+export function exportCleanSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_export-clean.js'), 'utf8');
+  return inlineModuleSource(raw, '_export-clean.js');
+}
+
+/** 把源码里的导出逻辑占位换成 _export-clean.js 的源码（已去掉行首 export）。幂等。 */
+export function expandExportClean(root, code) {
+  if (code.indexOf(EXPORT_CLEAN_MARK) < 0) { return code; }
+  const src = exportCleanSource(root);
+  if (src.indexOf(EXPORT_CLEAN_MARK) >= 0) {
+    throw new Error('_export-clean.js 里出现了自己的占位符 ' + EXPORT_CLEAN_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(EXPORT_CLEAN_MARK, () => src);
+}
+
 /** 展开成【酒馆正则 replaceString】用的文本 */
 export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
@@ -277,6 +301,7 @@ export function expandPanelGestures(root, code) {
   code = expandTagsPure(root, code);
   code = expandGodCmdPure(root, code);
   code = expandCopyClean(root, code);
+  code = expandExportClean(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
