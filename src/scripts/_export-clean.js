@@ -37,7 +37,11 @@ export function isUserMessage(m) { return !!(m && m.is_user); }
 /** 这一条是不是酒馆的隐藏/系统消息：不是正文，整条跳过（但要计数，好在界面上说清楚） */
 export function isSystemMessage(m) { return !!(m && m.is_system); }
 
-/** 两边都导时，每条前面写的 role 标识 */
+/**
+ * 两边都导时，每条前面写的 role 标识。
+ * 旁白（extra.type === 'narrator'）算 **AI 侧** —— Lead 2026-10-05 定的产品口径：
+ * 旁白不是用户发的；用户开着「只导 AI 消息」时把旁白一起排掉反而不符合直觉，所以不单独排除。
+ */
 export function roleOf(m) { return isUserMessage(m) ? 'user' : 'assistant'; }
 
 /**

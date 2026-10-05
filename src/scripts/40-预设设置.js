@@ -2805,7 +2805,19 @@
       '不是所见即所得 —— 排版可能与聊天里看到的不一样。'
   };
 
-  /* 这一条的干净正文：优先走酒馆自己的处理链（与页面所见一致），拿不到才退化。 */
+  /* 这一条的干净正文：优先走酒馆自己的处理链（与页面所见一致），拿不到才退化。
+     ── 关于"导出会不会改动聊天数据"（2026-10-05 查证，结论：这是酒馆既有行为，不是导出引入的）──
+     messageFormatting 里有一段：messageId === 0 且非系统/非用户/非推理时，
+     会把 substituteParams 后的文本**写回 chat[0].mes**（public/script.js:1527-1534）。
+     酒馆自己渲染第一层时走的是同一条路、同样的触发条件：
+       script.js:1994-2002  addOneMessage 里 messageFormatting(messageText, mes.name, isSystem,
+                            mes.is_user, chat.indexOf(mes), sanitizerOverrides, false)
+     —— 第 1 层的 chat.indexOf(mes) 就是 0，参数形状与这里完全一致。
+     所以那条写回是**酒馆本来就有的**（它的目的是把替换后的文本缓存回去，让界面显示宏展开后的内容），
+     导出只是跟着发生一次，不是我们新引入的副作用。
+     也**不去还原**它：那是酒馆故意写的，还原反而会让第一层下次渲染时重新替换一遍。
+     真要彻底隔离得拿到酒馆模块内的 chat 引用做快照，跨模块做不到；
+     而且这么做等于跟酒馆自己的行为对着干，得不偿失。 */
   function exportCleanOne(ctx, msg, pick) {
     var raw = pick.raw;
     if (ctx && typeof ctx.messageFormatting === 'function') {
@@ -2926,8 +2938,9 @@
         var skipped = plan.skippedSystem ? ('，跳过 ' + plan.skippedSystem + ' 条隐藏消息') : '';
         try { downloadTextFile(name, text); } catch (e) { btn.disabled = false; say('error', '下载失败：' + ((e && e.message) || e)); return; }
         btn.disabled = false;
-        say('done', '已导出 ' + name + '（' + picks.length + ' 条' + skipped + '，' +
-          Math.round(text.length / 1024) + ' KB）');
+        /* 小文件别显示成「0 KB」—— 不到 1 KB 就报字数 */
+        var sizeText = text.length >= 1024 ? (Math.round(text.length / 1024) + ' KB') : (text.length + ' 字');
+        say('done', '已导出 ' + name + '（' + picks.length + ' 条' + skipped + '，' + sizeText + '）');
         log('导出纯净正文：' + name + ' 楼层 ' + plan.from + '-' + plan.to + '/' + plan.total +
           ' 条数 ' + picks.length + ' 字符 ' + text.length + ' 路径 ' + (canFmt ? 'messageFormatting' : '去标签兜底'));
       }
