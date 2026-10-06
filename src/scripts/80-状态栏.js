@@ -60,7 +60,9 @@
   var COPY = {
     "tip": "状态栏（实验）· 拖动可以移动位置，暂时还没有功能",
     "label": "状态栏（实验）",
-    "noFunc": "这个悬浮球还没有功能：以后这里会变成状态栏",
+    /* 2026-10-05 删掉 "noFunc"（"这个悬浮球还没有功能"）：
+       点球已经改成展开面板，没人再用它了。删之前 grep 过全仓 —— 只有它自己的定义，零引用，
+       守卫里也没有断言引用它（否则要连守卫一起改语义）。 */
     "ready": "已就绪"
   };
 
@@ -156,7 +158,12 @@
        左缘落在**球心 x**、高度**等于图标高度**、顶边与球齐平 —— 三个数都由
        _status-view.js 的 headerGeom() 算好，以 --kami-ribbon-* 下发。
        横幅在**下面一层**（z-index 0），球在上面（z-index 1）。 */
-    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(20,20,24,.94));border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(40,42,52,.96));border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.28));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    /* 用户 2026-10-05：兜底底色原来是 rgba(20,20,24)，在深色背景上**几乎隐形**。
+       换成 rgba(40,42,52)，并把描边兜底提到 28% 白 —— 这样深黑、中灰、浅色三种无皮肤背景
+       上都看得出边界（截图见报告）。皮肤一跑起来，两个令牌都由皮肤接管，这里的兜底自动失效。 */
+    '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="left"]{padding-left:var(--kami-pad-x,10px);padding-right:var(--kami-ribbon-inset,0px);}',
+    '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="left"] .kami-status-head{text-align:right;align-items:flex-end;}',
     '#' + PANEL_ID + '[data-kami-state="header"] .kami-status-ribbon{display:flex;}',
     /* 横幅里的字要避开压在上面的球：左侧内缩 = 半个球宽 + 一点间距 */
     '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;width:100%;}',
@@ -285,6 +292,9 @@
       stage.style.setProperty('--kami-ribbon-w', Math.round(g.width) + 'px');
       stage.style.setProperty('--kami-ribbon-h', Math.round(g.height) + 'px');
       stage.style.setProperty('--kami-ribbon-inset', Math.round(ribbonTextInset(geom.size, 10)) + 'px');
+      /* 右边放不下时 headerGeom 会把方向翻到左边（右缘落在球心、向左展开），
+         这里把方向写到属性上，CSS 据此把文字内缩换到另一侧。 */
+      if (ribbon) { ribbon.setAttribute('data-kami-dir', g.dir); }
     } catch (e) { }
   }
 
@@ -575,8 +585,11 @@
     if (!panelTabsEl) { return; }
     while (panelTabsEl.firstChild) { panelTabsEl.removeChild(panelTabsEl.firstChild); }
     var list = tabsList(), i;
+    /* 默认落**第一个模块页**（Lead 2026-10-05 定）。
+       理由：用户点球是想看自己的剧情状态，默认甩给他一屏设置开关是错的第一印象；
+       而 tab 就在眼前，不需要靠"默认落在设置页"来教他。设置页仍然钉在最后一个。 */
     if (!activeTab || !list.some(function (t) { return t.id === activeTab; })) {
-      activeTab = list.length ? list[list.length - 1].id : '__settings';
+      activeTab = list.length ? list[0].id : '__settings';
     }
     for (i = 0; i < list.length; i++) {
       (function (tab) {

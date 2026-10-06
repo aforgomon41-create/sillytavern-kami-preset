@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs';
 const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK', 'MODULES', 'HIDDEN_FIELDS',
-  'headerGeom', 'ribbonTextInset',
+  'headerGeom', 'ribbonTextInset', 'MIN_RIBBON_W',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -291,7 +291,18 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(g.width > 0, '⑪ 正常情况下有宽度');
 
   /* 夹取后球最靠右能到 x = 视口宽 - 8；这时球心已经出了视口，横幅宽度必须夹到 0 */
-  eq(M.headerGeom({ x: 792, y: 0, size: 112 }, 800, 8).width, 0, '⑪ 球贴右边缘时宽度夹到 0（不探出屏幕）');
+  /* 球贴右缘：右边放不下就**镜像到左边**（右缘落在球心，向左展开） */
+  const mirror = M.headerGeom({ x: 792, y: 0, size: 112 }, 800, 8);
+  eq(mirror.dir, 'left', '⑪ 球贴右缘 → 方向翻到左边');
+  eq(mirror.left + mirror.width, 792 + 56, '⑪ 镜像时**右缘落在球心**（792+56=848）');
+  eq(mirror.left, 848 - (848 - 8), '⑪ 镜像时从球心往左铺到边距');
+  eq(mirror.width, 848 - 8, '⑪ 镜像宽度 = 球心 - 边距');
+  eq(mirror.height, 112, '⑪ 镜像时高度仍等于图标高度');
+  ok(mirror.width > 0, '⑪ 镜像之后**宽度不再是 0**（用户能看出有数据）');
+  /* 右边够宽就不镜像 */
+  eq(M.headerGeom({ x: 100, y: 0, size: 64 }, 800, 8).dir, 'right', '⑪ 右边够宽 → 仍然向右');
+  eq(M.headerGeom({ x: 700, y: 0, size: 64 }, 800, 8).dir, 'left', '⑪ 右边不够 160 → 向左');
+  ok(M.MIN_RIBBON_W === 160, '⑪ 换边阈值是 160');
   eq(M.headerGeom({ x: 100, y: 0, size: 112 }, 0, 8).width, 0, '⑪ 视口宽为 0 时宽度 0');
   ok(M.headerGeom({ x: 100, y: 0, size: 112 }, 400, 8).width >= 0, '⑪ 窄屏也不给负数宽度');
 

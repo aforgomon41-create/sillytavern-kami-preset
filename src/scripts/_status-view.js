@@ -588,6 +588,10 @@ export function headerLines(stat, nameOf) {
  *   · 「高度则和 icon 一样」→ 高度**等于**图标高度（同一个数，不是"差不多"）。
  * 返回的 width 已经按视口右边距夹过 —— 探出屏幕外面的部分没有意义。
  */
+/* 横幅至少要有这么宽才值得往右探；放不下就镜像到左边去。
+   160 ≈ 一行十来个小字，比这更窄的横幅只剩个色块，不如换边。 */
+export var MIN_RIBBON_W = 160;
+
 export function headerGeom(ball, viewW, edgeGap) {
   var size = Number(ball && ball.size);
   var bx = Number(ball && ball.x);
@@ -597,10 +601,23 @@ export function headerGeom(ball, viewW, edgeGap) {
   if (!isFinite(by)) { by = 0; }
   var gap = Number(edgeGap);
   if (!isFinite(gap) || gap < 0) { gap = 8; }
-  var left = bx + size / 2;                       /* 球心 x */
+  var center = bx + size / 2;                       /* 球心 x */
   var w = Number(viewW);
-  if (!isFinite(w) || w <= 0) { return { left: left, top: by, height: size, width: 0 }; }
-  return { left: left, top: by, height: size, width: Math.max(0, w - left - gap) };
+  /* 视口量不到（0 / NaN）时什么都不画 —— 这是退化态，镜像到左边也没有意义 */
+  if (!isFinite(w) || w <= 0) {
+    return { left: center, top: by, height: size, width: 0, dir: 'right' };
+  }
+  var rightW = Math.max(0, w - center - gap);
+  var leftW = Math.max(0, center - gap);
+  if (rightW >= MIN_RIBBON_W) {
+    return { left: center, top: by, height: size, width: rightW, dir: 'right' };
+  }
+  /* 用户 2026-10-05：「球贴屏幕右缘时横幅被夹成 0，用户只看到球、不知道其实有数据」
+     → 右边放不下就**镜像到左边**：右缘落在球心，向左展开（左边至少要有 gap 的余量）。 */
+  if (leftW > rightW) {
+    return { left: center - leftW, top: by, height: size, width: leftW, dir: 'left' };
+  }
+  return { left: center, top: by, height: size, width: rightW, dir: 'right' };
 }
 
 /** 横幅里的文字要避开球：从球心再往右让出半个球宽 */
