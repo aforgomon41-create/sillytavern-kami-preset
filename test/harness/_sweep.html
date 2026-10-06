@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>面板几何扫描（临时工具）</title>
+<style>
+  body { margin:0; padding:8px; background:#0b0b0e; color:#cfcfd6; font:12px/1.5 monospace; }
+  #rep { white-space:pre; margin:0; }
+  iframe { border:0; display:block; }
+  #holder { position:absolute; left:-20000px; top:0; }
+</style>
+</head>
+<body>
+<pre id="rep">扫描中…</pre>
+<div id="holder"></div>
+<script>
+  var W = [320, 480, 700, 760, 780, 820, 900, 1000, 1100, 1280, 1600];
+  var q = new URLSearchParams(location.search);
+  var SKIN = q.get('skin') || 'trpg';
+  var H = Number(q.get('h') || 820);
+  var holder = document.getElementById('holder');
+
+  function box(el) {
+    var r = el.getBoundingClientRect();
+    return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(',');
+  }
+  function row(w, fr) {
+    var d = fr.contentDocument, win = fr.contentWindow;
+    if (!d || !win || !win.KamiSkin) { return w + '\t未就绪'; }
+    var de = d.documentElement;
+    var pn = d.getElementById('kami-skin-panel');
+    var pd = pn ? pn.querySelector('.kami-drop') : null;
+    var mm768 = '', mm1000 = '';
+    try { mm768 = win.matchMedia('(max-width: 768px)').matches ? 'T' : 'F'; } catch (e) { mm768 = 'E'; }
+    try { mm1000 = win.matchMedia('(max-width: 1000px)').matches ? 'T' : 'F'; } catch (e) { mm1000 = 'E'; }
+    var st = pn ? pn.getBoundingClientRect() : null;
+    var dr = pd ? pd.getBoundingClientRect() : null;
+    var toks = pn ? ['x', 'y', 'w', 'h'].map(function (k) {
+      return k + ':' + (pn.style.getPropertyValue('--kami-panel-' + k) || '空');
+    }).join(' ') : '-';
+    var ok = !!(st && dr && st.height > 40 && dr.height > 40 && dr.width > 40);
+    return w + '\t视口' + de.clientWidth + 'x' + de.clientHeight +
+      '\tmm768=' + mm768 + ' mm1000=' + mm1000 +
+      '\tlayout=' + (pd ? pd.getAttribute('data-kami-layout') : '-') +
+      '\topen=' + (pd ? pd.getAttribute('data-kami-open') : '-') +
+      '\t舞台=' + (pn ? box(pn) : '无') +
+      '\tdrop=' + (pd ? box(pd) : '无') +
+      '\t' + toks +
+      '\t' + (ok ? '正常' : '⚠塌');
+  }
+
+  var frames = W.map(function (w) {
+    var f = document.createElement('iframe');
+    f.width = w; f.height = H;
+    f.setAttribute('scrolling', 'no');
+    f.style.overflow = 'hidden';
+    f.src = '/test/harness/preview.html?skin=' + SKIN + '&reset=1';
+    holder.appendChild(f);
+    return f;
+  });
+
+  /* 反复刷新表格：后台/被遮挡的窗口会把定时器节流，单次 setTimeout 可能很久才跑 */
+  setInterval(function () {
+    var lines = ['# 皮肤=' + SKIN + ' 视口高=' + H];
+    lines.push('宽度\t读数');
+    for (var i = 0; i < frames.length; i++) {
+      try { lines.push(row(W[i], frames[i])); } catch (e) { lines.push(W[i] + '\tERR ' + e.message); }
+    }
+    lines.push('# 生成于 ' + new Date().toTimeString().slice(0, 8));
+    document.getElementById('rep').textContent = lines.join(String.fromCharCode(10));
+  }, Number(q.get('every') || 2500));
+</script>
+</body>
+</html>
