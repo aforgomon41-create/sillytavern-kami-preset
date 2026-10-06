@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK', 'MODULES', 'HIDDEN_FIELDS',
   'headerGeom', 'ribbonTextInset', 'MIN_RIBBON_W',
+  'emptyStateText', 'panelTabPlan', 'isSampleOn',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -324,6 +325,55 @@ const ok = (c, label) => eq(!!c, true, label);
   eq(M.ribbonTextInset(112, 8), 64, '⑪ 文字内缩 = 半个球宽 + 额外间距');
   eq(M.ribbonTextInset(0, 8), 8, '⑪ 尺寸为 0 时只剩额外间距');
   eq(M.ribbonTextInset(-5, 8), 8, '⑪ 负数尺寸不产生负内缩');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑫ 空态引导句：每个模块分区的空态都要带 emptyHint
+ *   用户 2026-10-05：光说"没有内容"用户会以为是坏的，得告诉他怎么才会有内容。
+ *   这条断言的价值在于**将来新增分区时漏不掉** —— 它逐个模块走一遍。
+ * ════════════════════════════════════════════════════════════ */
+{
+  ok(typeof M.STATUS_COPY.emptyHint === 'string' && M.STATUS_COPY.emptyHint.length > 0, '⑫ emptyHint 键在');
+  ok(M.STATUS_COPY.emptyHint.indexOf('【占位·待文案】') === 0, '⑫ 它还是占位（等文案 Agent 出稿，实现不自己编）');
+
+  /* 逐个模块：给它一份**完全没有数据**的 stat，该分区必须是空态、且带引导句 */
+  const emptyStat = {};
+  for (const mod of M.MODULES) {
+    const st = M.mergeSettings({ modules: { [mod.id]: true }, options: { useSample: false } });
+    const plan = M.panelTabPlan(emptyStat, st, mod.id);
+    eq(plan.kind, 'empty', '⑫ 分区 ' + mod.id + ' 在无数据时是空态');
+    eq(plan.rows.length, 0, '⑫ 分区 ' + mod.id + ' 的空态没有行');
+    ok(plan.lines.join(' ').indexOf(M.STATUS_COPY.emptyHint) >= 0, '⑫ 分区 ' + mod.id + ' 的空态**带引导句**');
+    ok(plan.lines.length >= 1, '⑫ 分区 ' + mod.id + ' 的空态不是一片空白');
+  }
+  /* 八个模块一个都不能漏 */
+  eq(M.MODULES.length, 8, '⑫ 八个模块都被上面那个循环覆盖到了');
+
+  /* 有数据时当然不是空态 */
+  const withData = M.panelTabPlan(M.SAMPLE_STAT, M.mergeSettings({ modules: { status: true } }), 'status');
+  eq(withData.kind, 'rows', '⑫ 有数据时不是空态');
+  ok(withData.rows.length > 0, '⑫ 有数据时有行可画');
+
+  /* 与"无数据时显示示例"不打架：示例开着时不该同时喊"没有数据" */
+  const sampleOn = M.mergeSettings({ options: { useSample: true } });
+  const linesOn = M.emptyStateText({ isSample: true });
+  ok(linesOn.indexOf(M.STATUS_COPY.noData) < 0, '⑫ **示例开着时空态不说"没有数据"**（自相矛盾）');
+  ok(linesOn.indexOf(M.STATUS_COPY.emptyHint) >= 0, '⑫ 示例开着时仍留引导句');
+  const linesOff = M.emptyStateText({ isSample: false });
+  ok(linesOff.indexOf(M.STATUS_COPY.noData) >= 0, '⑫ 示例关着时正常说"没有数据"');
+  ok(linesOff.indexOf(M.STATUS_COPY.emptyHint) >= 0, '⑫ 示例关着时也带引导句');
+  eq(M.panelTabPlan(emptyStat, sampleOn, 'lore').lines.join('|').indexOf(M.STATUS_COPY.noData), -1,
+    '⑫ 走完整链路验一次：示例开着 → lore 空态里没有"没有数据"');
+  eq(M.isSampleOn(sampleOn), true, '⑫ isSampleOn 读得对');
+  eq(M.isSampleOn(M.defaultSettings()), false, '⑫ 默认不算开着');
+
+  /* 设置页不是空态（它有自己的内容） */
+  eq(M.panelTabPlan(emptyStat, M.defaultSettings(), '__settings').kind, 'settings', '⑫ 设置页走自己的分支');
+
+  /* 源码级：面板的空态必须走这条路，不许在 DOM 层另写一套 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('panelTabPlan(') >= 0, '⑫ 80 号的面板空态走 panelTabPlan');
+  ok(src80.indexOf("STATUS_COPY.noData") < 0, '⑫ 80 号里没有绕过纯函数直接写 noData 的地方');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

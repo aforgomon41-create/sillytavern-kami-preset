@@ -21,6 +21,9 @@ export var STATUS_COPY = {
   label: '剧情状态栏',
   tip: '点击查看当前剧情',
   noData: '还没有剧情记录，聊几句后会自动出现',
+  /* 空态**引导句**：光说"没有内容"用户会以为是坏的，得告诉他怎么才会有内容。
+     用户 2026-10-05 点名要加；文案由文案 Agent 出稿，这里先是占位、**不要自己编**。 */
+  emptyHint: '【占位·待文案】等这一楼有了变量数据，这里会自动填上',
   expandHint: '点击展开查看详情',
   close: '关闭',
   settingsTab: '设置',
@@ -664,6 +667,37 @@ export function sectionsOf(stat, settings) {
     out.push({ id: id, titleKey: mods[i].copy, rows: rows });
   }
   return out;
+}
+
+/** 设置里"无数据时显示示例"是否开着 */
+export function isSampleOn(settings) {
+  return !!(settings && settings.options && settings.options.useSample);
+}
+
+/**
+ * 空态要说哪几句话。
+ * ⚠️ 与"无数据时显示示例"那个开关**不许打架**：示例开着的时候数据是有的，
+ * 再喊一句"还没有剧情记录"就是自相矛盾 —— 所以那种情况下**只留引导句**。
+ */
+export function emptyStateText(opts) {
+  var o = opts || {};
+  var out = [];
+  if (!o.isSample) { out.push(STATUS_COPY.noData); }
+  out.push(STATUS_COPY.emptyHint);
+  return out;
+}
+
+/**
+ * 面板里某个 tab 该画什么。**空态统一走这里**，不在 DOM 层各写各的 ——
+ * 这样将来新增分区时，只要它走这条路就自动带上引导句（单测会逐个分区验）。
+ */
+export function panelTabPlan(stat, settings, tabId) {
+  if (tabId === '__settings') { return { kind: 'settings', rows: [], lines: [] }; }
+  var secs = sectionsOf(stat, settings), i;
+  for (i = 0; i < secs.length; i++) {
+    if (secs[i].id === tabId) { return { kind: 'rows', rows: secs[i].rows, lines: [] }; }
+  }
+  return { kind: 'empty', rows: [], lines: emptyStateText({ isSample: isSampleOn(settings) }) };
 }
 
 /** 模块的显示名（给设置页用） */

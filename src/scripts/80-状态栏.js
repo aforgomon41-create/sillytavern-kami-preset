@@ -644,15 +644,20 @@
 
     if (activeTab === '__settings') { renderSettings(); return; }
 
-    var secs = sectionsOf(currentStat, settings);
-    var sec = null, i;
-    for (i = 0; i < secs.length; i++) { if (secs[i].id === activeTab) { sec = secs[i]; } }
-    if (!sec) { panelBody.appendChild(mk('div', 'kami-status-empty', STATUS_COPY.noData)); return; }
-    for (i = 0; i < sec.rows.length; i++) {
+    /* 空态统一走纯函数 panelTabPlan —— 它会带上引导句（"怎么才会有内容"），
+       而且在"示例数据开着"时**不会**同时喊"没有数据"（那就自相矛盾了）。 */
+    var plan = panelTabPlan(currentStat, settings, activeTab);
+    if (plan.kind === 'empty') {
+      for (var k = 0; k < plan.lines.length; k++) {
+        panelBody.appendChild(mk('div', 'kami-status-empty', plan.lines[k]));
+      }
+      return;
+    }
+    for (var i = 0; i < plan.rows.length; i++) {
       var row = mk('div', 'kami-status-row');
-      row.appendChild(mk('span', 'kami-status-k', sec.rows[i].key));
+      row.appendChild(mk('span', 'kami-status-k', plan.rows[i].key));
       var vb = mk('span', 'kami-status-v');
-      renderValue(sec.rows[i].value, vb);
+      renderValue(plan.rows[i].value, vb);
       row.appendChild(vb);
       panelBody.appendChild(row);
     }
