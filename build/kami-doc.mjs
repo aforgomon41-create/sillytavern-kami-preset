@@ -133,6 +133,28 @@ export function expandUpdateProgress(root, code) {
   return code.replace(UPDATE_PROGRESS_MARK, () => src);
 }
 
+/* ────────────────────────────────────────────────────────────
+ * 「状态栏前端」的纯逻辑（src/scripts/_status-view.js）：三行标题栏、模块开关默认值、
+ * 字段自适应分类。内联进 80-状态栏.js，DOM / 拖拽 / 持久化留那边。
+ * ──────────────────────────────────────────────────────────── */
+export const STATUS_VIEW_MARK = '/* @@KAMI_STATUS_VIEW@@ */';
+
+export function statusViewSource(root) {
+  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_status-view.js'), 'utf8');
+  return inlineModuleSource(raw, '_status-view.js');
+}
+
+/** 把源码里的状态栏逻辑占位换成 _status-view.js 的源码（已去掉行首 export）。幂等。 */
+export function expandStatusView(root, code) {
+  if (code.indexOf(STATUS_VIEW_MARK) < 0) { return code; }
+  const src = statusViewSource(root);
+  if (src.indexOf(STATUS_VIEW_MARK) >= 0) {
+    throw new Error('_status-view.js 里出现了自己的占位符 ' + STATUS_VIEW_MARK +
+      '（内联会自我复制）：请在注释里避开这串字面量');
+  }
+  return code.replace(STATUS_VIEW_MARK, () => src);
+}
+
 /** 展开成【酒馆正则 replaceString】用的文本 */
 export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
@@ -325,6 +347,7 @@ export function expandPanelGestures(root, code) {
   code = expandCopyClean(root, code);
   code = expandExportClean(root, code);
   code = expandUpdateProgress(root, code);
+  code = expandStatusView(root, code);
   code = expandIconStatus(root, code);
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
