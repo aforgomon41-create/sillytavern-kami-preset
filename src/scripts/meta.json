@@ -3,7 +3,7 @@
     "file": "00-mvu初始化测试.js",
     "name": "测试mvu初始化脚本",
     "id": "cbfe29c2-b963-4d48-99d7-74f6ebc038a2",
-    "enabled": false,
+    "enabled": true,
     "info": "实验性脚本，主要用来测试能否绕过世界书来初始化mvu zod变量",
     "button": {
       "enabled": true,
@@ -19,7 +19,7 @@
     "file": "01-mvu-zod.js",
     "name": " MVU zod",
     "id": "987ba836-dedf-4d03-a7df-04dc33dabe04",
-    "enabled": false,
+    "enabled": true,
     "info": "",
     "button": {
       "enabled": true,
