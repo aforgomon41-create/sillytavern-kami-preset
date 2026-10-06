@@ -34,7 +34,10 @@
   var API_NAME = 'KamiStatusBar';
   var VARS_KEY = 'kami-statusbar';
   var Z = 29000;              // 比面板（30000）低一档：面板永远盖在球上面
-  var DEF_SIZE = 64;          // 默认直径（CSS 像素）
+  /* 默认直径（CSS 像素）。用户 2026-10-05：「悬浮球的 icon 应该**很大**」。
+     改动前是 64（v0.2 之前就是这个数，18 套皮肤没有任何一套覆盖 --kami-ball-size，
+     见报告里的实测）→ 调到 112（1.75 倍）。**不是**为标题栏让位而缩小，方向相反。 */
+  var DEF_SIZE = 112;
   var DEF_X = null;           // null = 首次按「右上角往里缩一点」算
   var DEF_Y = 96;
   var EDGE_KEEP = 8;          // 夹取时至少要留这么多像素在可视区内（免得拖出屏幕再也点不到）
@@ -138,16 +141,19 @@
        几何令牌一个都没改（仍是 --kami-ball-x/-y，仍是「左上角坐标 + px」语义），
        clampGeom 与脚本变量读写照旧 —— 只是把它们喂给 transform 而已。
        will-change:transform 提前把球提成自己的合成层，拖动时不再每帧重新判定合成。 */
-    '#' + PANEL_ID + ' .kami-ball{position:absolute;left:0;top:0;transform:translate3d(var(--kami-ball-x,0px),var(--kami-ball-y,0px),0);will-change:transform;width:var(--kami-ball-size,' + DEF_SIZE + 'px);height:var(--kami-ball-size,' + DEF_SIZE + 'px);margin:0;padding:0;border:0;background:none;cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}',
+    '#' + PANEL_ID + ' .kami-ball{position:absolute;left:0;top:0;z-index:1;transform:translate3d(var(--kami-ball-x,0px),var(--kami-ball-y,0px),0);will-change:transform;width:var(--kami-ball-size,' + DEF_SIZE + 'px);height:var(--kami-ball-size,' + DEF_SIZE + 'px);margin:0;padding:0;border:0;background:none;cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}',
     '#' + PANEL_ID + ' .kami-ball:active{cursor:grabbing;}',
     '#' + PANEL_ID + ' .kami-ball:focus-visible{outline:2px solid var(--kami-accent,rgba(128,128,128,.9));outline-offset:3px;border-radius:50%;}',
     '#' + PANEL_ID + ' .kami-ball-img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;filter:drop-shadow(var(--kami-ball-shadow,0 2px 6px rgba(0,0,0,.30)));}',
 
-    /* ── 有数据时：球展开成三行小字的标题栏（不是弹窗、不是面板）── */
-    '#' + PANEL_ID + '[data-kami-state="header"] .kami-ball{width:auto;height:auto;min-width:var(--kami-ball-size,' + DEF_SIZE + 'px);display:flex;gap:8px;align-items:flex-start;padding:var(--kami-pad-y,7px) var(--kami-pad-x,11px);border-radius:var(--kami-r-md,10px);cursor:pointer;background:var(--kami-card,rgba(20,20,24,.94));border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));}',
-    '#' + PANEL_ID + '[data-kami-state="header"] .kami-ball-img{width:calc(var(--kami-ball-size,' + DEF_SIZE + 'px) * .32);height:calc(var(--kami-ball-size,' + DEF_SIZE + 'px) * .32);margin-top:2px;flex:none;}',
-    '#' + PANEL_ID + ' .kami-status-head{display:none;flex-direction:column;gap:1px;text-align:left;min-width:0;}',
-    '#' + PANEL_ID + '[data-kami-state="header"] .kami-status-head{display:flex;}',
+    /* ── 有数据时：一条横幅**从球背后向右探出**（球在上一层压住它左端）──
+       左缘落在**球心 x**、高度**等于图标高度**、顶边与球齐平 —— 三个数都由
+       _status-view.js 的 headerGeom() 算好，以 --kami-ribbon-* 下发。
+       横幅在**下面一层**（z-index 0），球在上面（z-index 1）。 */
+    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(20,20,24,.94));border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    '#' + PANEL_ID + '[data-kami-state="header"] .kami-status-ribbon{display:flex;}',
+    /* 横幅里的字要避开压在上面的球：左侧内缩 = 半个球宽 + 一点间距 */
+    '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;width:100%;}',
     /* 三行、字号小（用户明确要求）。三行都省略号截断，标题栏不会被长文本撑爆 */
     '#' + PANEL_ID + ' .kami-status-line{font-size:var(--kami-fs-xs,11px);line-height:1.35;color:var(--kami-fg-dim,#cfcfd6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw;}',
     '#' + PANEL_ID + ' .kami-status-line[data-kami-slot="time"]{color:var(--kami-fg,#f2f2f4);}',
@@ -200,6 +206,7 @@
   var stage = null, ball = null, img = null, drag = null, resizeHandler = null, hideHandler = null;
   var headEls = null;          /* 标题栏那三行（徽标不算行） */
   var sampleTagEl = null;      /* "示例"徽标：只在显示内置示例数据时出现 */
+  var ribbon = null;           /* 从球背后向右探出的那条横幅 */
 
   function mk(tag, cls, text) {
     var el = HDOC.createElement(tag);
@@ -256,6 +263,22 @@
         stage.style.setProperty('--kami-ball-size', s + 'px');
         lastPaintedSize = s;
       }
+      paintRibbon();
+    } catch (e) { }
+  }
+
+  /* 横幅几何：三个数全部来自纯函数 headerGeom（左缘=球心 x、高=图标高、向右展开），
+     这里只负责把它们写进 CSS 变量。文字再额外内缩半个球宽，免得被压在上面的球挡住。 */
+  function paintRibbon() {
+    if (!stage) { return; }
+    try {
+      var w = viewCache.w || viewW();
+      var g = headerGeom(geom, w, EDGE_KEEP);
+      stage.style.setProperty('--kami-ribbon-x', Math.round(g.left) + 'px');
+      stage.style.setProperty('--kami-ribbon-y', Math.round(g.top) + 'px');
+      stage.style.setProperty('--kami-ribbon-w', Math.round(g.width) + 'px');
+      stage.style.setProperty('--kami-ribbon-h', Math.round(g.height) + 'px');
+      stage.style.setProperty('--kami-ribbon-inset', Math.round(ribbonTextInset(geom.size, 10)) + 'px');
     } catch (e) { }
   }
 
@@ -280,6 +303,18 @@
     stage.style.zIndex = String(Z);
     stage.style.pointerEvents = 'none';
 
+    /* 横幅先建：它是**球背后**那条，z-index 比球低，球的左半压住它左端 */
+    ribbon = mk('div', 'kami-status-ribbon');
+    ribbon.setAttribute('data-kami-slot', 'ribbon');
+    ribbon.hidden = true;
+    ribbon.addEventListener('click', function (ev) {
+      if (disposed) { return; }
+      try { ev.preventDefault(); } catch (e) { }
+      refresh();
+      togglePanel();
+    });
+    stage.appendChild(ribbon);
+
     ball = mk('button', 'kami-ball');
     ball.type = 'button';
     ball.setAttribute('data-kami-act', 'ball');
@@ -290,8 +325,11 @@
     img.alt = '';
     img.setAttribute('aria-hidden', 'true');
     try { if (ICON_STATUS) { img.src = ICON_STATUS; } } catch (e) { }
+    /* ⚠️ 球里**只放图标**：没有底板、没有边框、没有内边距。
+       用户 2026-10-05：「icon 应该很大，并且没有被容器包裹（至少看起来没有）」——
+       三行文字挂在**背后的横幅**上，不是挂在球里。 */
     ball.appendChild(img);
-    /* 三行标题栏元素先建好、默认不显示（CSS 靠 [data-kami-state="header"] 放出来）。
+    /* 三行标题栏元素挂在横幅里，默认不显示（CSS 靠 [data-kami-state="header"] 放出来）。
        行数固定 3 —— 用户说"只需要三行"，少一项就收起那一行，但位置不跳。 */
     var head = mk('div', 'kami-status-head');
     sampleTagEl = mk('span', 'kami-status-sample', '');
@@ -306,7 +344,7 @@
       head.appendChild(ln);
       headEls.push(ln);
     }
-    ball.appendChild(head);
+    ribbon.appendChild(head);
     stage.appendChild(ball);
     (HDOC.body || HDOC.documentElement).appendChild(stage);
     bindDrag();
@@ -371,6 +409,7 @@
       /* 有数据 → 点标题栏展开面板；没数据 → 还是老样子，点一下给个说明
          （"点不动"比"还没有功能"更让人懵） */
       refresh();   /* 先现读一次：变量可能刚被这一轮回复改过 */
+      /* 球和横幅是一个整体：点哪个都是展开面板。没数据时点球还是给一句说明。 */
       if (shouldShowHeader(currentStat, settings)) { togglePanel(); return; }
       toast('info', COPY.noFunc);
     });
@@ -415,6 +454,8 @@
     if (!stage || !ball || !headEls) { return; }
     var show = shouldShowHeader(stat, settings);
     stage.setAttribute('data-kami-state', show ? 'header' : 'ball');
+    if (ribbon) { ribbon.hidden = !show; }
+    if (show) { paintRibbon(); }
     /* 正在显示示例数据 → 舞台打标记（皮肤/用例都能读到），头部再放一枚徽标。
        **徽标不算一行**：三行恒为三行，只是多一个小标。 */
     stage.setAttribute('data-kami-sample', currentIsSample ? '1' : '0');
@@ -659,7 +700,7 @@
     dropCss();
     try { if (stage && stage.parentNode) { stage.parentNode.removeChild(stage); } } catch (e) { }
     stage = null; ball = null; img = null;
-    headEls = null; sampleTagEl = null; panelEl = null; panelBody = null; panelTabsEl = null;
+    headEls = null; sampleTagEl = null; ribbon = null; panelEl = null; panelBody = null; panelTabsEl = null;
     panelOpen = false; activeTab = null; panelDrag = null; injectedStat = undefined;
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }

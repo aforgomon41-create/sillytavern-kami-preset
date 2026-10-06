@@ -9,6 +9,7 @@
  */
 import { readFileSync } from 'node:fs';
 const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK', 'MODULES', 'HIDDEN_FIELDS',
+  'headerGeom', 'ribbonTextInset',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -275,6 +276,35 @@ const ok = (c, label) => eq(!!c, true, label);
   eq(M.defaultSettings().options.useSample, false, '⑩ 示例开关**默认关**（不主动开就看不到）');
   eq(M.mergeSettings({ options: { useSample: true } }).options.useSample, true, '⑩ 开了能记住');
   eq(M.mergeSettings({ options: { useSample: 'yes' } }).options.useSample, false, '⑩ 类型不对退回默认（关）');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑪ 标题栏几何：从球背后向右探出（用户 2026-10-05 点名的三条）
+ * ════════════════════════════════════════════════════════════ */
+{
+  const ball = { x: 100, y: 40, size: 112 };
+  const g = M.headerGeom(ball, 800, 8);
+  eq(g.left, 156, '⑪ **左缘落在球心 x**（100 + 112/2 = 156），不是左缘(100)也不是右缘(212)');
+  eq(g.height, 112, '⑪ **高度等于图标高度**（同一个数）');
+  eq(g.top, 40, '⑪ 顶边与球齐平');
+  eq(g.width, 800 - 156 - 8, '⑪ 向右展开，按视口右边距夹过');
+  ok(g.width > 0, '⑪ 正常情况下有宽度');
+
+  /* 夹取后球最靠右能到 x = 视口宽 - 8；这时球心已经出了视口，横幅宽度必须夹到 0 */
+  eq(M.headerGeom({ x: 792, y: 0, size: 112 }, 800, 8).width, 0, '⑪ 球贴右边缘时宽度夹到 0（不探出屏幕）');
+  eq(M.headerGeom({ x: 100, y: 0, size: 112 }, 0, 8).width, 0, '⑪ 视口宽为 0 时宽度 0');
+  ok(M.headerGeom({ x: 100, y: 0, size: 112 }, 400, 8).width >= 0, '⑪ 窄屏也不给负数宽度');
+
+  eq(M.headerGeom(null, 800, 8).height, 0, '⑪ 传 null 不炸');
+  ok(isFinite(M.headerGeom({}, 800, 8).left), '⑪ 缺字段也给有限数');
+  eq(M.headerGeom({ x: 0, y: 0, size: 112 }, 800, -5).width, 800 - 56 - 8, '⑪ 负的边距退回默认 8（left=56，宽度 800-56-8=736）');
+
+  const g2 = M.headerGeom({ x: 0, y: 0, size: 200 }, 800, 8);
+  eq([g2.left, g2.height], [100, 200], '⑪ 球尺寸变了，左缘与高度都跟着走');
+
+  eq(M.ribbonTextInset(112, 8), 64, '⑪ 文字内缩 = 半个球宽 + 额外间距');
+  eq(M.ribbonTextInset(0, 8), 8, '⑪ 尺寸为 0 时只剩额外间距');
+  eq(M.ribbonTextInset(-5, 8), 8, '⑪ 负数尺寸不产生负内缩');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

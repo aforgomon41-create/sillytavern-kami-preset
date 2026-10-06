@@ -580,6 +580,38 @@ export function headerLines(stat, nameOf) {
   return [line1, line2, names.join(' / ')];
 }
 
+/**
+ * 标题栏（从球背后探出的那条横幅）的几何。
+ * 用户 2026-10-05 的原话：
+ *   · 「标题栏应该从 icon 的**背后**向右探出」→ 它在球下面一层，球的左半压住它左端；
+ *   · 「边缘起点应该在 icon 的**中间**」→ 左缘落在**球心 x**，不是球的左缘也不是右缘；
+ *   · 「高度则和 icon 一样」→ 高度**等于**图标高度（同一个数，不是"差不多"）。
+ * 返回的 width 已经按视口右边距夹过 —— 探出屏幕外面的部分没有意义。
+ */
+export function headerGeom(ball, viewW, edgeGap) {
+  var size = Number(ball && ball.size);
+  var bx = Number(ball && ball.x);
+  var by = Number(ball && ball.y);
+  if (!isFinite(size) || size < 0) { size = 0; }
+  if (!isFinite(bx)) { bx = 0; }
+  if (!isFinite(by)) { by = 0; }
+  var gap = Number(edgeGap);
+  if (!isFinite(gap) || gap < 0) { gap = 8; }
+  var left = bx + size / 2;                       /* 球心 x */
+  var w = Number(viewW);
+  if (!isFinite(w) || w <= 0) { return { left: left, top: by, height: size, width: 0 }; }
+  return { left: left, top: by, height: size, width: Math.max(0, w - left - gap) };
+}
+
+/** 横幅里的文字要避开球：从球心再往右让出半个球宽 */
+export function ribbonTextInset(size, extra) {
+  var s = Number(size);
+  if (!isFinite(s) || s < 0) { s = 0; }
+  var e = Number(extra);
+  if (!isFinite(e) || e < 0) { e = 8; }
+  return s / 2 + e;
+}
+
 /** 字段的自适应分类（Lead 定的口径：数字→数值、字符串→文本、列表→条目、布尔→点） */
 export function describeField(v) {
   if (v === null || v === undefined || v === '') { return { kind: 'empty' }; }
