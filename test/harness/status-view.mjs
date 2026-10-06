@@ -334,7 +334,7 @@ const ok = (c, label) => eq(!!c, true, label);
  * ════════════════════════════════════════════════════════════ */
 {
   ok(typeof M.STATUS_COPY.emptyHint === 'string' && M.STATUS_COPY.emptyHint.length > 0, '⑫ emptyHint 键在');
-  ok(M.STATUS_COPY.emptyHint.indexOf('【占位·待文案】') === 0, '⑫ 它还是占位（等文案 Agent 出稿，实现不自己编）');
+ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.length >= 6, '⑫ 文案已落地（不是占位、也不是空串）');
 
   /* 逐个模块：给它一份**完全没有数据**的 stat，该分区必须是空态、且带引导句 */
   const emptyStat = {};
