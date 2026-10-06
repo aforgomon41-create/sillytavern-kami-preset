@@ -34,14 +34,20 @@
   var API_NAME = 'KamiStatusBar';
   var VARS_KEY = 'kami-statusbar';
   var Z = 29000;              // 比面板（30000）低一档：面板永远盖在球上面
-  /* 默认直径（CSS 像素）。用户 2026-10-05：「悬浮球的 icon 应该**很大**」。
-     改动前是 64（v0.2 之前就是这个数，18 套皮肤没有任何一套覆盖 --kami-ball-size，
-     见报告里的实测）→ 调到 112（1.75 倍）。**不是**为标题栏让位而缩小，方向相反。 */
-  var DEF_SIZE = 112;
+  /* 默认直径（CSS 像素）。用户 2026-10-05 先要"很大"（92→112），看过 -135 之后改口：
+     「现在球搞的太大了，面积只需要现在大概三分之一」。
+     面积 ∝ 边长²，1/3 面积 ⇒ 边长 × 1/√3 = 112 × 0.577 ≈ 64.7 → 取 64。
+     64 正好就是 v0.2 之前的原始尺寸（18 套皮肤没有任何一套覆盖 --kami-ball-size），
+     所以这一改既满足"小回去"，也让"无数据态与改动前一致"天然成立。 */
+  var DEF_SIZE = 64;
   var DEF_X = null;           // null = 首次按「右上角往里缩一点」算
   var DEF_Y = 96;
   var EDGE_KEEP = 8;          // 夹取时至少要留这么多像素在可视区内（免得拖出屏幕再也点不到）
-  var MOVE_SLOP = 4;          // 位移小于它算「点击」而不是「拖动」
+  /* 位移阈值：pointerdown 到 pointerup 之间**累计位移**小于它就算点击，不算拖动。
+     取 4px 的理由：① 手指点按时的自然抖动一般在 2-3px，4 能吃掉抖动又不会把"真想拖一点"
+     误判成点击；② 鼠标点击几乎零位移，4 绰绰有余；③ 它与"拖完不算点击"那道闸（下面
+     lastDragEnd 的 300ms）是**两道独立的闸**，同时成立才会误开面板。 */
+  var MOVE_SLOP = 4;
   var SAVE_DELAY = 300;       // 位置落盘防抖（拖动过程中不写盘）
 
   /* 构建期内联：data:image/png;base64,…（唯一真相 design/icon/kami-statusbar.png） */
@@ -319,7 +325,13 @@
     ball.type = 'button';
     ball.setAttribute('data-kami-act', 'ball');
     ball.setAttribute('data-kami-drag', '1');
+    /* 无障碍沿用既有那一套：球本来就是 <button>，所以
+       · 天然可聚焦（Tab 到得到）、Enter / Space 天然触发 click（浏览器给 button 的默认行为）；
+       · aria-label 说清它是什么，aria-expanded 在 paintHeader 里跟着开合状态更新。
+       这里只补 aria-haspopup，让读屏知道点它会弹出一块面板。 */
     ball.setAttribute('aria-label', COPY.label);
+    ball.setAttribute('aria-haspopup', 'dialog');
+    ball.setAttribute('aria-expanded', 'false');
     ball.title = COPY.tip;
     img = mk('img', 'kami-ball-img');
     img.alt = '';
@@ -409,9 +421,10 @@
       /* 有数据 → 点标题栏展开面板；没数据 → 还是老样子，点一下给个说明
          （"点不动"比"还没有功能"更让人懵） */
       refresh();   /* 先现读一次：变量可能刚被这一轮回复改过 */
-      /* 球和横幅是一个整体：点哪个都是展开面板。没数据时点球还是给一句说明。 */
-      if (shouldShowHeader(currentStat, settings)) { togglePanel(); return; }
-      toast('info', COPY.noFunc);
+      /* 用户 2026-10-05：「如果没有数据，虽然只会显示悬浮球，但是**仍然可以点击展开状态栏面板**」。
+         所以这里不再分有没有数据 —— 只要球在，点它就是开面板（面板里没数据就显示空态）。
+         球与横幅是一个整体，点哪个都一样。 */
+      togglePanel();
     });
   }
 
