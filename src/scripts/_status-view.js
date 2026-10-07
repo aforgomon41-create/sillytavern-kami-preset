@@ -630,12 +630,13 @@ export function resolveRef(value, index) {
   return index[value] ? index[value] : value;
 }
 
-/* 纯记账字段：对用户没有叙事价值，面板里省掉（"该省就省"）。
-   注意**不含** real_desc / secret / truth / latent_kinks —— 那几个归"显示剧透内容"开关管。 */
-export var NOISE_FIELDS = [
-  'is_user', 'equipped', 'is_found', 'count', 'bg_image', 'bgm',
-  'spot_id', 'key_event', 'icon', 'color'
-];
+/* 面板里省掉的字段（用户 2026-10-06 让重新评估过一轮，见报告）：
+   · 留着省的：媒体路径（bg_image / bgm）没有渲染管线、icon 没有图标资产、
+     color 是皮肤的事、is_user 冗余（"我"永远是自己）；
+   · **恢复渲染的**：count / equipped / is_found / key_event / spot_id ——
+     做游戏界面时它们恰恰是料（数量角标、已装备标记、未探明迷雾、关键事件、地点引用）。
+     它们现在走 widgetOf 拿到各自控件，不再当噪音。 */
+export var NOISE_FIELDS = ['is_user', 'bg_image', 'bgm', 'icon', 'color'];
 
 /* ── 面板字段名的中文标签 ──
    机制先落地、**文案等人出稿**：值一律 `【占位·待文案】`，实现不许自己编。
@@ -644,33 +645,33 @@ export var NOISE_FIELDS = [
 export var KEY_LABELS = {
   affinity: '【占位·待文案】affinity',
   age: '【占位·待文案】age',
-  agility: '【占位·待文案】agility',
+  agility: '敏捷',
   alias: '【占位·待文案】alias',
   appearance: '【占位·待文案】appearance',
   areas: '【占位·待文案】areas',
   arm: '【占位·待文案】arm',
-  athletics: '【占位·待文案】athletics',
+  athletics: '运动',
   body: '【占位·待文案】body',
-  burglary: '【占位·待文案】burglary',
+  burglary: '盗窃',
   category: '【占位·待文案】category',
   cha: '【占位·待文案】cha',
   chars: '【占位·待文案】chars',
   client: '【占位·待文案】client',
-  com: '【占位·待文案】com',
+  com: '沉着',
   con: '【占位·待文案】con',
   connections: '【占位·待文案】connections',
-  contacts: '【占位·待文案】contacts',
-  crafts: '【占位·待文案】crafts',
-  deceive: '【占位·待文案】deceive',
+  contacts: '人脉',
+  crafts: '工艺',
+  deceive: '欺诈',
   desc: '【占位·待文案】desc',
   dev: '【占位·待文案】dev',
   dex: '【占位·待文案】dex',
   diplomacy: '【占位·待文案】diplomacy',
   dnd: '【占位·待文案】dnd',
   domain: '【占位·待文案】domain',
-  drive: '【占位·待文案】drive',
+  drive: '驾驶',
   ear: '【占位·待文案】ear',
-  empathy: '【占位·待文案】empathy',
+  empathy: '共情',
   exp: '【占位·待文案】exp',
   facilities: '【占位·待文案】facilities',
   fate: '【占位·待文案】fate',
@@ -679,9 +680,9 @@ export var KEY_LABELS = {
   health: '【占位·待文案】health',
   identities: '【占位·待文案】identities',
   impression: '【占位·待文案】impression',
-  insight: '【占位·待文案】insight',
+  insight: '洞察',
   int: '【占位·待文案】int',
-  investigate: '【占位·待文案】investigate',
+  investigate: '调查',
   items: '【占位·待文案】items',
   kinks: '【占位·待文案】kinks',
   latent_kinks: '【占位·待文案】latent_kinks',
@@ -694,49 +695,49 @@ export var KEY_LABELS = {
   long_term: '【占位·待文案】long_term',
   lore: '【占位·待文案】lore',
   lust: '【占位·待文案】lust',
-  man: '【占位·待文案】man',
-  melee: '【占位·待文案】melee',
-  might: '【占位·待文案】might',
+  man: '操控',
+  melee: '近战',
+  might: '力量',
   mount: '【占位·待文案】mount',
   name: '【占位·待文案】name',
   nodes: '【占位·待文案】nodes',
-  notice: '【占位·待文案】notice',
+  notice: '察觉',
   nsfw: '【占位·待文案】nsfw',
   objective: '【占位·待文案】objective',
   owner: '【占位·待文案】owner',
-  physique: '【占位·待文案】physique',
+  physique: '体格',
   plan: '【占位·待文案】plan',
-  pre: '【占位·待文案】pre',
+  pre: '风度',
   present_chars: '【占位·待文案】present_chars',
   priority: '【占位·待文案】priority',
   promise: '【占位·待文案】promise',
-  provoke: '【占位·待文案】provoke',
+  provoke: '挑衅',
   rank: '【占位·待文案】rank',
-  rapport: '【占位·待文案】rapport',
+  rapport: '交际',
   real_desc: '【占位·待文案】real_desc',
   relation: '【占位·待文案】relation',
   relations: '【占位·待文案】relations',
   rep: '【占位·待文案】rep',
-  res: '【占位·待文案】res',
+  res: '决心',
   residents: '【占位·待文案】residents',
-  resources: '【占位·待文案】resources',
+  resources: '财富',
   reward: '【占位·待文案】reward',
   role: '【占位·待文案】role',
   round: '【占位·待文案】round',
   secret: '【占位·待文案】secret',
   sens: '【占位·待文案】sens',
-  shoot: '【占位·待文案】shoot',
+  shoot: '射击',
   short_term: '【占位·待文案】short_term',
   skills: '【占位·待文案】skills',
   special_stats: '【占位·待文案】special_stats',
   spots: '【占位·待文案】spots',
-  sta: '【占位·待文案】sta',
+  sta: '耐力',
   stats: '【占位·待文案】stats',
   status: '【占位·待文案】status',
-  stealth: '【占位·待文案】stealth',
+  stealth: '潜行',
   str: '【占位·待文案】str',
   summary: '【占位·待文案】summary',
-  tag_name: '【占位·待文案】tag_name',
+  tag_name: '标签名',
   thoughts: '【占位·待文案】thoughts',
   ties: '【占位·待文案】ties',
   time: '【占位·待文案】time',
@@ -748,10 +749,10 @@ export var KEY_LABELS = {
   value: '【占位·待文案】value',
   wealth: '【占位·待文案】wealth',
   weather: '【占位·待文案】weather',
-  will: '【占位·待文案】will',
-  willpower: '【占位·待文案】willpower',
+  will: '意志',
+  willpower: '意志',
   wis: '【占位·待文案】wis',
-  wits: '【占位·待文案】wits',
+  wits: '机智',
   wod: '【占位·待文案】wod',
 };
 
@@ -1027,7 +1028,7 @@ export function sectionsOf(stat, settings) {
       /* 地点：三个字段（realm/area/spot）对用户没意义，**合成一行**可读地名。
          这是"键名该省就省"的落地 —— 用户要看的是"迷雾森林大区 · 林缘哨所区 · 石碑遗迹"，
          不是三行 realm_forest / area_woods_entry / spot_ancient_altar。 */
-      rows.push({ key: labelOf(id), value: locationText(shown, stat) });
+      rows.push({ key: labelOf(id), rawKey: id, value: locationText(shown, stat) });
     } else if (typeof shown === 'object' && !Array.isArray(shown)) {
       var keys = Object.keys(shown);
       for (var k = 0; k < keys.length; k++) {
@@ -1036,11 +1037,13 @@ export function sectionsOf(stat, settings) {
         /* 这一层的值也可能是地点结构（status.location 就是）→ 同样合成一行地名 */
         rows.push({
           key: labelOf(resolveRef(keys[k], index)),
+          /* 原始字段名单独留着：key 已经变成中文标签，而 widgetOf 要按**字段名**判形态 */
+          rawKey: keys[k],
           value: isPlaceRef(cell) ? locationText(cell, stat) : resolveValue(cell, index)
         });
       }
     } else {
-      rows.push({ key: id, value: resolveValue(shown, index) });
+      rows.push({ key: labelOf(id), rawKey: id, value: resolveValue(shown, index) });
     }
     out.push({ id: id, titleKey: mods[i].copy, rows: rows });
   }
@@ -1091,6 +1094,174 @@ export function viewStateOf(opts) {
   if (!isFinite(limit) || limit < 0) { limit = LOADING_MS; }
   if (!isFinite(wait) || wait < 0) { wait = 0; }
   return (wait < limit) ? 'loading' : 'empty';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 值形态 → 界面控件
+ * ----------------------------------------------------------------------
+ * 用户 2026-10-06：「现在展开后实际上就是展示个数据，我们要的是像 RPG 游戏的 UI」。
+ * 于是每一种数据都要有**与其形态相配**的视觉形式，而不是一行"键：值"。
+ *
+ * 这一节全是**纯函数**：范围 → 填充比、档位 → 配色分档、正负 → 双向条。
+ * DOM 只负责把算好的数画出来，不做任何判断 —— 判断错了在单测里就能看见。
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* 各规则体系的属性范围。**条要按各自范围算填充比，不是统统除以 100** ——
+   这是这一节存在的理由：D&D 的 10 分、WOD 的 3 分、FU 的 8 面，
+   在"除以 100"的算法下全都几乎是空的。 */
+export var RANGE = {
+  dnd: { min: 1, max: 20 },
+  wod: { min: 1, max: 5 },
+  fu: { min: 1, max: 12 },      /* 最终物语的骰面 */
+  fate: { min: 0, max: 14 },    /* 档位序号，见 FATE_RANKS */
+  affinity: { min: -100, max: 100 },
+  rep: { min: -100, max: 100 },
+  lust: { min: 0, max: 100 },
+  percent: { min: 0, max: 100 }
+};
+
+/* 带范围的"量表"字段 → 用哪套范围。表里没有的按 percent 处理。 */
+export var BAR_FIELDS = {
+  affinity: 'affinity', value: 'rep', lust: 'lust', progress: 'percent'
+};
+
+/** 路径里有 stats.dnd / stats.wod / stats.fu / stats.fate 就用哪套范围 */
+export function statGroupOf(path) {
+  var p = '.';
+  var a = path || [];
+  for (var i = 0; i < a.length; i++) { p += String(a[i]) + '.'; }
+  if (p.indexOf('.dnd.') >= 0) { return 'dnd'; }
+  if (p.indexOf('.wod.') >= 0) { return 'wod'; }
+  if (p.indexOf('.fu.') >= 0) { return 'fu'; }
+  if (p.indexOf('.fate.') >= 0) { return 'fate'; }
+  return '';
+}
+
+/** 数值 → 填充百分比（自动夹在 0-100，脏输入给 0，范围非法时不除零） */
+export function fillPct(value, min, max) {
+  var n = Number(value);
+  if (!isFinite(n)) { return 0; }
+  var lo = Number(min), hi = Number(max);
+  if (!isFinite(lo)) { lo = 0; }
+  if (!isFinite(hi) || hi <= lo) { hi = lo + 1; }
+  var p = (n - lo) / (hi - lo) * 100;
+  return Math.max(0, Math.min(100, p));
+}
+
+/* FATE 命运阶梯：15 档，从 F 到 EX */
+export var FATE_RANKS = ['F', 'F+', 'E', 'E+', 'D', 'D+', 'C', 'C+', 'B', 'B+', 'A', 'A+', 'S', 'S+', 'EX'];
+
+/**
+ * 字母档位 → 序号 + **配色分档**（1..5）。
+ * 分档规则：F/E=1、D/C=2、B=3、A=4、S/EX=5 —— 按"命运阶梯"的直觉分了五级，
+ * 皮肤只要给 5 个档位各一个颜色就能覆盖全部 15 档，不用配 15 个。
+ * 认不出的档位返回 known:false，由调用方按普通文字处理（不猜、不乱配色）。
+ */
+export function rankOf(value) {
+  var s = String(value == null ? '' : value).trim().toUpperCase();
+  var i = FATE_RANKS.indexOf(s);
+  if (i < 0) { return { known: false, index: -1, tier: 0, label: s }; }
+  var tier = (i <= 3) ? 1 : (i <= 7) ? 2 : (i <= 9) ? 3 : (i <= 11) ? 4 : 5;
+  return { known: true, index: i, tier: tier, label: s };
+}
+
+/**
+ * 正负双向条（好感度、势力声望）。
+ * **负的必须看得出来是负的**：所以返回的不是"从 0 开始的填充"，
+ * 而是"零点在条的哪个位置 + 有颜色的那一段从哪到哪"。
+ * 例如 -75 在 [-100,100] 上是：零点 50%、填充从 12.5% 到 50%（左边一段红的）。
+ */
+export function signedBar(value, min, max) {
+  var lo = Number(min), hi = Number(max);
+  if (!isFinite(lo)) { lo = -100; }
+  if (!isFinite(hi) || hi <= lo) { hi = lo + 1; }
+  var n = Number(value);
+  if (!isFinite(n)) { n = 0; }
+  n = Math.max(lo, Math.min(hi, n));
+  var zero = fillPct(0, lo, hi);
+  var at = fillPct(n, lo, hi);
+  return {
+    value: n, min: lo, max: hi, negative: n < 0, zero: zero, at: at,
+    fillLeft: Math.min(zero, at),
+    fillWidth: Math.abs(at - zero)
+  };
+}
+
+/* 状态类文本 → 徽章（不要当普通文字）。这些字段的值本身就是一个"状态词"。 */
+export var BADGE_FIELDS = [
+  'health', 'status', 'rank', 'priority', 'role', 'type', 'weather',
+  'relation', 'phase', 'sens', 'dev'
+];
+
+/* 长文本 → 正文段落（别挤在一行里）。超过这个长度就换段落排版。 */
+export var TEXT_WRAP_AT = 24;
+
+/** 状态词 → 语气分档（1 好 / 0 中性 / -1 差）。认不出给 0，不猜。 */
+export var TONE_WORDS = {
+  good: ['完好', '健康', '良好', '正常', 'active', 'done', 'main', 'core', 'user'],
+  bad: ['重伤', '重度', '濒死', '虚弱', '创伤', 'failed', 'dead', '危险', '疲惫', '负伤']
+};
+
+export function toneOf(value) {
+  var s = String(value == null ? '' : value);
+  var i;
+  for (i = 0; i < TONE_WORDS.good.length; i++) { if (s.indexOf(TONE_WORDS.good[i]) >= 0) { return 1; } }
+  for (i = 0; i < TONE_WORDS.bad.length; i++) { if (s.indexOf(TONE_WORDS.bad[i]) >= 0) { return -1; } }
+  return 0;
+}
+
+/**
+ * **值形态 → 控件**。返回 { kind, ... }，DOM 按 kind 画。
+ *   bar    有范围的数字 → 条（自带 pct / min / max / value）
+ *   signed 可正可负的数值 → 双向条（好感度、声望）
+ *   rank   字母档位 → 档位徽章（自带 tier 1..5）
+ *   badge  状态词 → 徽章（自带 tone -1/0/1）
+ *   chips  列表 → 标签片
+ *   card   实体对象 → 卡片
+ *   text   长文本 → 段落
+ *   num    普通数字
+ *   bool   布尔 → 开关灯
+ *   kv     兜底：键值一行
+ * 传 path（键路径数组）是为了知道这个数字属于哪套规则体系。
+ */
+export function widgetOf(key, value, path) {
+  var k = String(key == null ? '' : key);
+  var group = statGroupOf(path);
+  var d = describeField(value);
+
+  if (d.kind === 'empty') { return { kind: 'empty' }; }
+  if (d.kind === 'bool') { return { kind: 'bool', on: !!value }; }
+
+  if (d.kind === 'number') {
+    if (group === 'fate') { return { kind: 'rank', tier: rankOf(value).tier, known: false, label: '' }; }
+    if (group) { var r = RANGE[group]; return { kind: 'bar', value: value, min: r.min, max: r.max, pct: fillPct(value, r.min, r.max), group: group }; }
+    var f = BAR_FIELDS[k];
+    if (f === 'affinity' || f === 'rep') {
+      var s = signedBar(value, RANGE[f].min, RANGE[f].max);
+      s.kind = 'signed'; s.field = f;
+      return s;
+    }
+    if (f) { var rr = RANGE[f]; return { kind: 'bar', value: value, min: rr.min, max: rr.max, pct: fillPct(value, rr.min, rr.max), group: f }; }
+    return { kind: 'num', value: value };
+  }
+
+  if (d.kind === 'list') {
+    var items = [];
+    for (var i = 0; i < d.items.length; i++) {
+      var it = d.items[i];
+      items.push(typeof it === 'object' && it ? String(it.name || '·') : String(it));
+    }
+    return { kind: 'chips', items: items };
+  }
+
+  if (d.kind === 'group') { return { kind: 'card', size: Object.keys(value || {}).length }; }
+
+  /* 文本 */
+  var s2 = String(value);
+  if (group === 'fate') { var rk = rankOf(s2); return { kind: 'rank', tier: rk.tier, known: rk.known, label: rk.label }; }
+  if (BADGE_FIELDS.indexOf(k) >= 0) { return { kind: 'badge', text: s2, tone: toneOf(s2) }; }
+  if (s2.length > TEXT_WRAP_AT) { return { kind: 'text', text: s2 }; }
+  return { kind: 'kv', text: s2 };
 }
 
 /** 设置里"无数据时显示示例"是否开着 */

@@ -15,6 +15,8 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'splitWeatherIcon', 'viewStateOf', 'LOADING_MS',
   'buildNameIndex', 'resolveRef', 'resolveValue', 'isPlaceRef', 'NOISE_FIELDS', 'isNoiseField',
   'KEY_LABELS', 'labelOf',
+  'widgetOf', 'fillPct', 'rankOf', 'signedBar', 'statGroupOf', 'toneOf',
+  'RANGE', 'FATE_RANKS', 'BADGE_FIELDS', 'BAR_FIELDS', 'TEXT_WRAP_AT',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -579,6 +581,9 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   };
   for (const sec of M.sectionsOf(S, allOn)) {
     for (const row of sec.rows) {
+      /* 只查**会被渲染出来**的两样东西：行的键、行的值。
+         row.rawKey 是给 widgetOf 判形态用的元数据（它需要原始字段名），**不渲染**，
+         所以刻意排除在泄露检查之外 —— 这一点写在这里免得下次有人以为漏查了。 */
       walk(row.value, sec.id + '.' + row.key);
       if (rawIds.has(row.key)) { leakedKeys.push(sec.id + '.key = ' + row.key); }
     }
@@ -586,7 +591,10 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   eq(leakedValues, [], '⑮ **渲染出来的值里没有任何下划线形式的原始 ID**');
   eq(leakedKeys, [], '⑮ **没有任何实体 ID 还留在键上**（char_player 这种）');
   /* 索引里的 ID 一个都不能出现在渲染结果里（正面列举，比正则更死） */
-  const blob = JSON.stringify(M.sectionsOf(S, allOn));
+  /* rawKey 不渲染，序列化时要摘掉，否则会把"元数据里有 ID"误判成泄露 */
+  const blob = JSON.stringify(M.sectionsOf(S, allOn).map(sec => ({
+    id: sec.id, rows: sec.rows.map(r => ({ key: r.key, value: r.value }))
+  })));
   const stillRaw = [...rawIds].filter(id => blob.indexOf('"' + id + '"') >= 0);
   eq(stillRaw, [], '⑮ 名字索引里的每个 ID 都不再以原样出现在渲染结果里');
 
@@ -705,6 +713,127 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
   ok(src80.indexOf('labelOf(') >= 0, '⑯ 80 号渲染时查表');
   ok(src80.indexOf('KEY_LABELS') < 0, '⑯ 80 号里没有第二份标签表（表只有一份）');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑰ 值形态 → 控件：范围换算 / 档位分档 / 正负双向条 / 形态分派
+ * ════════════════════════════════════════════════════════════ */
+{
+  /* ── 范围 → 填充比：**不是统统除以 100** ── */
+  const near = (a, b, label) => ok(Math.abs(a - b) < 0.01, label + '（' + a.toFixed(2) + ' ≈ ' + b + '）');
+
+  near(M.fillPct(1, 1, 20), 0, '⑰ **D&D 1 点 → 条是空的（0%）**');
+  near(M.fillPct(20, 1, 20), 100, '⑰ **D&D 20 点 → 条是满的（100%）**');
+  near(M.fillPct(10, 1, 20), (9 / 19) * 100, '⑰ D&D 10 点 → 47.4%');
+  near(M.fillPct(1, 1, 5), 0, '⑰ **WOD 1 点 → 0%**');
+  near(M.fillPct(5, 1, 5), 100, '⑰ **WOD 5 点 → 100%**');
+  near(M.fillPct(3, 1, 5), 50, '⑰ WOD 3 点 → 50%');
+  near(M.fillPct(8, 1, 12), (7 / 11) * 100, '⑰ FU 骰面 8 → 63.6%');
+  near(M.fillPct(62, 0, 100), 62, '⑰ 好感度 62 → 62%');
+  /* 同一串数字，两套范围下填充比完全不同 —— 这就是"不能都除以 100"的证据 */
+  ok(M.fillPct(3, 1, 5) !== M.fillPct(3, 1, 20), '⑰ **同一个 3，在 WOD 与 D&D 下填充比不同**');
+  near(M.fillPct(3, 1, 5), 50, '⑰   WOD：50%');
+  near(M.fillPct(3, 1, 20), (2 / 19) * 100, '⑰   D&D：10.5%');
+  /* 夹取与脏输入 */
+  near(M.fillPct(999, 1, 20), 100, '⑰ 超出上限夹到 100');
+  near(M.fillPct(-999, 1, 20), 0, '⑰ 超出下限夹到 0');
+  near(M.fillPct('abc', 1, 20), 0, '⑰ 脏值给 0，不炸');
+  near(M.fillPct(5, 5, 5), 0, '⑰ 范围为零宽不除零');
+  /* 范围给脏值时退回安全范围 0..1，于是 5 越上限 → 100（不是崩溃、也不是 0） */
+  near(M.fillPct(5, 'x', 'y'), 100, '⑰ 范围是脏值时退回安全范围，5 越上限 → 100');
+  near(M.fillPct(0.5, 'x', 'y'), 50, '⑰ 脏范围下 0.5 正好在中点');
+
+  /* ── FATE 档位 → 配色分档 ── */
+  eq(M.FATE_RANKS.length, 15, '⑰ 命运阶梯 15 档');
+  eq(M.rankOf('F').tier, 1, '⑰ F → 第 1 档');
+  eq(M.rankOf('E+').tier, 1, '⑰ E+ → 第 1 档');
+  eq(M.rankOf('d').tier, 2, '⑰ 小写 d 也认，第 2 档');
+  eq(M.rankOf('C+').tier, 2, '⑰ C+ → 第 2 档');
+  eq(M.rankOf('B').tier, 3, '⑰ B → 第 3 档');
+  eq(M.rankOf('B+').tier, 3, '⑰ B+ → 第 3 档');
+  eq(M.rankOf('A').tier, 4, '⑰ A → 第 4 档');
+  eq(M.rankOf('A+').tier, 4, '⑰ A+ → 第 4 档');
+  eq(M.rankOf('S').tier, 5, '⑰ S → 第 5 档');
+  eq(M.rankOf('EX').tier, 5, '⑰ EX → 第 5 档');
+  eq(M.rankOf(' F ').tier, 1, '⑰ 两头空格也认');
+  /* 15 档只用 5 个配色 —— 皮肤配 5 个色就能全覆盖 */
+  eq([...new Set(M.FATE_RANKS.map(r => M.rankOf(r).tier))].sort(), [1,2,3,4,5], '⑰ **15 档正好落在 5 个配色档上**');
+  eq(M.rankOf('Z').known, false, '⑰ 认不出的档位不猜');
+  eq(M.rankOf('').known, false, '⑰ 空档位不猜');
+
+  /* ── 正负双向条 ── */
+  const neg = M.signedBar(-75, -100, 100);
+  near(neg.zero, 50, '⑰ 零点在条的 50%');
+  near(neg.at, 12.5, '⑰ -75 落在 12.5%');
+  near(neg.fillLeft, 12.5, '⑰ **填充段从 12.5% 起**（在零点左边）');
+  near(neg.fillWidth, 37.5, '⑰ 填充段宽度 37.5%');
+  eq(neg.negative, true, '⑰ **负数被标出来了**');
+  const pos = M.signedBar(62, -100, 100);
+  near(pos.zero, 50, '⑰ 零点仍在中点');
+  near(pos.fillLeft, 50, '⑰ **正数的填充段从零点往右**');
+  near(pos.fillWidth, 31, '⑰ 宽度 31%');
+  eq(pos.negative, false, '⑰ 正数不标负');
+  const zero = M.signedBar(0, -100, 100);
+  near(zero.fillWidth, 0, '⑰ 0 的时候填充宽度是 0');
+  eq(zero.negative, false, '⑰ 0 不算负');
+  near(M.signedBar(-999, -100, 100).at, 0, '⑰ 超出下限夹到最左');
+  near(M.signedBar(999, -100, 100).at, 100, '⑰ 超出上限夹到最右');
+  eq(M.signedBar('abc', -100, 100).value, 0, '⑰ 脏值当 0');
+
+  /* ── 形态分派 ── */
+  eq(M.widgetOf('str', 14, ['characters','雷恩','stats','dnd','str']).kind, 'bar', '⑰ D&D 属性 → 条');
+  eq(M.widgetOf('str', 14, ['characters','雷恩','stats','dnd','str']).pct, M.fillPct(14, 1, 20), '⑰ 条用 D&D 范围');
+  eq(M.widgetOf('str', 3, ['characters','雷恩','stats','wod','str']).pct, M.fillPct(3, 1, 5), '⑰ **同一个键 wod 下用 WOD 范围**');
+  eq(M.widgetOf('might', 8, ['characters','x','stats','fu','might']).pct, M.fillPct(8, 1, 12), '⑰ FU 用骰面范围');
+  eq(M.widgetOf('physique', 'B', ['characters','x','stats','fate','physique']).kind, 'rank', '⑰ FATE 档位 → 徽章');
+  eq(M.widgetOf('physique', 'B', ['characters','x','stats','fate','physique']).tier, 3, '⑰ 档位徽章带配色档');
+  eq(M.widgetOf('affinity', 62, ['characters','x','relations','y','affinity']).kind, 'signed', '⑰ 好感度 → 双向条');
+  eq(M.widgetOf('value', -40, ['factions','x','rep','y','value']).kind, 'signed', '⑰ 势力声望 → 双向条');
+  eq(M.widgetOf('value', -40, ['factions','x','rep','y','value']).negative, true, '⑰ 负声望标出来了');
+  eq(M.widgetOf('health', '轻度疲惫，左臂有划伤', []).kind, 'badge', '⑰ 状态类文本 → 徽章');
+  eq(M.widgetOf('health', '重度创伤', []).tone, -1, '⑰ 徽章带语气（差）');
+  eq(M.widgetOf('health', '完好', []).tone, 1, '⑰ 徽章带语气（好）');
+  eq(M.widgetOf('kinks', ['甲','乙'], []).kind, 'chips', '⑰ 列表 → 标签片');
+  eq(M.widgetOf('kinks', ['甲','乙'], []).items, ['甲','乙'], '⑰ 标签片带内容');
+  eq(M.widgetOf('goals', { a: 1 }, []).kind, 'card', '⑰ 对象 → 卡片');
+  eq(M.widgetOf('summary', '这是一段很长的描述文字，用来验证超过阈值就会走段落排版', []).kind, 'text', '⑰ 长文本 → 段落');
+  eq(M.widgetOf('alias', '灰狼', []).kind, 'kv', '⑰ 短文本 → 键值一行');
+  eq(M.widgetOf('round', 12, ['status']).kind, 'num', '⑰ 没范围的数字 → 普通数字');
+  eq(M.widgetOf('x', true, []).kind, 'bool', '⑰ 布尔 → 开关灯');
+  eq(M.widgetOf('x', null, []).kind, 'empty', '⑰ 空 → 空');
+  eq(M.widgetOf('', '', []).kind, 'empty', '⑰ 空串 → 空');
+  ok(M.TEXT_WRAP_AT > 0, '⑰ 段落阈值是个正数');
+
+  /* ── 记账字段的重新评估 ── */
+  for (const k of ['count', 'equipped', 'is_found', 'key_event', 'spot_id']) {
+    ok(!M.isNoiseField(k), '⑰ **' + k + ' 恢复渲染**（做游戏界面时它是料）');
+  }
+  for (const k of ['icon', 'bg_image', 'bgm', 'color', 'is_user']) {
+    ok(M.isNoiseField(k), '⑰ ' + k + ' 仍然省掉');
+  }
+  /* 恢复渲染的字段确实进得了面板 */
+  const S = M.SAMPLE_STAT;
+  const allOn = M.mergeSettings({ modules: M.MODULES.reduce((a, m) => (a[m.id] = true, a), {}) });
+  const chs = M.sectionsOf(S, allOn).find(x => x.id === 'characters');
+  const itemsVal = (chs.rows.find(r => r.key === '雷恩').value || {}).items || {};
+  const firstItem = itemsVal[Object.keys(itemsVal)[0]] || {};
+  ok('count' in firstItem, '⑰ 道具的 count 出现在面板数据里');
+  ok('equipped' in firstItem, '⑰ 道具的 equipped 出现在面板数据里');
+  ok(!('bg_image' in firstItem), '⑰ bg_image 仍然不出现');
+
+  /* ── 路径判定 ── */
+  eq(M.statGroupOf(['a','stats','dnd','str']), 'dnd', '⑰ 认得 dnd 路径');
+  eq(M.statGroupOf(['a','stats','wod','sta']), 'wod', '⑰ 认得 wod 路径');
+  eq(M.statGroupOf(['a','stats','fu','might']), 'fu', '⑰ 认得 fu 路径');
+  eq(M.statGroupOf(['a','stats','fate','will']), 'fate', '⑰ 认得 fate 路径');
+  eq(M.statGroupOf(['a','name']), '', '⑰ 不在 stats 里就不给组');
+  eq(M.statGroupOf(null), '', '⑰ null 路径不炸');
+
+  /* 源码级：DOM 层要按 kind 画，不许自己判断数值 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('widgetOf(') >= 0, '⑰ 80 号渲染时用了 widgetOf');
+  ok(src80.indexOf('fillPct(') < 0, '⑰ 80 号里没有第二份范围换算');
+  ok(src80.indexOf('signedBar(') < 0, '⑰ 80 号里没有第二份双向条计算');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

@@ -240,6 +240,38 @@
     '#' + PANEL_ID_PANEL + ' .kami-status-set{display:flex;align-items:center;gap:8px;padding:5px 0;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-set label{flex:1;min-width:0;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-set input{flex:none;width:16px;height:16px;accent-color:var(--kami-accent,#7aa2f7);}',
+    /* ── 游戏界面控件（值形态 → 视觉形式）──
+       每个新令牌都可选，默认串到已有令牌；皮肤不定义任何一个也不会变形。 */
+    /* 条：轨道用分隔线色，填充用强调色 */
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar{position:relative;display:inline-flex;align-items:center;gap:var(--kami-gap,8px);width:100%;max-width:var(--kami-status-bar-w,220px);height:var(--kami-status-bar-h,calc(var(--kami-fs-sm,13px) + 2px));border-radius:var(--kami-r-pill,999px);background:var(--kami-status-track,var(--kami-line,rgba(255,255,255,.10)));overflow:hidden;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--kami-r-pill,999px);background:var(--kami-status-fill,var(--kami-accent,#7aa2f7));transition:width .18s ease;}',
+    /* 双向条：零点一根刻度；负的一段用另一种填充色，**一眼看得出是负的** */
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar.is-signed .kami-w-bar-fill{background:var(--kami-status-fill,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar.is-signed.is-neg .kami-w-bar-fill{background:var(--kami-status-fill-neg,var(--kami-fg-mute,#a8a8b0));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar-zero{position:absolute;top:0;bottom:0;width:var(--kami-border-w,1px);background:var(--kami-status-zero,var(--kami-line-strong,rgba(255,255,255,.34)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar-num{position:relative;margin-left:auto;padding:0 var(--kami-gap,8px);font-size:var(--kami-fs-xs,11px);color:var(--kami-fg,#f2f2f4);font-variant-numeric:tabular-nums;}',
+    /* 档位徽章：15 档只用 5 个配色 —— 靠**同一个强调色的透明度**分档，
+       这样皮肤配 0 个色也能分得清；想给真彩色就定义 --kami-status-tier-N。 */
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank{display:inline-block;min-width:2.2em;text-align:center;padding:0 var(--kami-gap,8px);border-radius:var(--kami-r-xs,6px);font-weight:600;font-size:var(--kami-fs-xs,11px);line-height:1.7;background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-status-tier-3,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="1"]{color:var(--kami-status-tier-1,var(--kami-accent,#7aa2f7));opacity:.42;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="2"]{color:var(--kami-status-tier-2,var(--kami-accent,#7aa2f7));opacity:.6;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="3"]{color:var(--kami-status-tier-3,var(--kami-accent,#7aa2f7));opacity:.78;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="4"]{color:var(--kami-status-tier-4,var(--kami-accent,#7aa2f7));opacity:1;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="5"]{color:var(--kami-status-tier-5,var(--kami-accent,#7aa2f7));opacity:1;box-shadow:0 0 0 var(--kami-border-w,1px) var(--kami-accent-soft,rgba(122,162,247,.18));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-rank[data-kami-tier="0"]{opacity:1;color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 状态徽章：三档语气（好/中性/差） */
+    '#' + PANEL_ID_PANEL + ' .kami-w-badge{display:inline-block;padding:0 var(--kami-gap,8px);border-radius:var(--kami-r-pill,999px);font-size:var(--kami-fs-xs,11px);line-height:1.8;background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-fg,#f2f2f4);}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-badge[data-kami-tone="1"]{color:var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-badge[data-kami-tone="-1"]{color:var(--kami-status-warn,var(--kami-fg-mute,#a8a8b0));background:var(--kami-status-warn-bg,var(--kami-line,rgba(255,255,255,.10)));}',
+    /* 列表 → 标签片 */
+    '#' + PANEL_ID_PANEL + ' .kami-w-chips{display:inline-flex;flex-wrap:wrap;gap:calc(var(--kami-gap,8px) / 2);}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-chip{padding:0 calc(var(--kami-gap,8px) * .75);border-radius:var(--kami-r-xs,6px);font-size:var(--kami-fs-xs,11px);line-height:1.7;background:var(--kami-line,rgba(255,255,255,.10));color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 长文本 → 正文段落 */
+    '#' + PANEL_ID_PANEL + ' .kami-w-text{margin:0;line-height:var(--kami-status-lh,1.3);word-break:break-word;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-num{font-variant-numeric:tabular-nums;color:var(--kami-accent,#7aa2f7);font-weight:600;}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bool{font-size:var(--kami-fs-xs,11px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bool[data-kami-on="1"]{color:var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bool[data-kami-on="0"]{color:var(--kami-fg-mute,#a8a8b0);}',
     '#' + PANEL_ID_PANEL + ' .kami-status-hint{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:2px 0 8px;}'
   ].join('\n');
 
@@ -684,9 +716,81 @@
     }
   }
 
-  /* 值 → DOM：数字/文本直接写，布尔打点，列表和对象递归。
-     **分类由纯逻辑决定**（describeField），这里只管把每种 kind 画出来。 */
-  function renderValue(v, box) {
+  /* ── 值 → 控件（游戏界面）──
+     **形态判断全在纯函数 widgetOf 里**（范围换算、档位分档、正负双向都在那边测过），
+     这里只负责把算好的 kind 画出来 —— 一个数字都不在这层算。 */
+  function renderWidget(key, v, box, path) {
+    var w = widgetOf(key, v, path), i, el, fill;
+    var kind = w.kind;
+
+    if (kind === 'empty') { box.appendChild(mk('span', 'kami-status-empty', '—')); return; }
+
+    if (kind === 'bar') {
+      el = mk('span', 'kami-w-bar');
+      el.setAttribute('data-kami-group', w.group || '');
+      fill = mk('span', 'kami-w-bar-fill');
+      fill.style.width = w.pct.toFixed(1) + '%';
+      el.appendChild(fill);
+      el.appendChild(mk('span', 'kami-w-bar-num', String(w.value)));
+      box.appendChild(el);
+      return;
+    }
+
+    if (kind === 'signed') {
+      /* 双向条：零点用一个刻度标出来，填充段按 widgetOf 算好的左右位置摆 */
+      el = mk('span', 'kami-w-bar is-signed' + (w.negative ? ' is-neg' : ''));
+      var zero = mk('span', 'kami-w-bar-zero');
+      zero.style.left = w.zero.toFixed(1) + '%';
+      el.appendChild(zero);
+      fill = mk('span', 'kami-w-bar-fill');
+      fill.style.left = w.fillLeft.toFixed(1) + '%';
+      fill.style.width = w.fillWidth.toFixed(1) + '%';
+      el.appendChild(fill);
+      el.appendChild(mk('span', 'kami-w-bar-num', (w.value > 0 ? '+' : '') + w.value));
+      box.appendChild(el);
+      return;
+    }
+
+    if (kind === 'rank') {
+      el = mk('span', 'kami-w-rank', w.label);
+      el.setAttribute('data-kami-tier', w.known ? String(w.tier) : '0');
+      box.appendChild(el);
+      return;
+    }
+
+    if (kind === 'badge') {
+      el = mk('span', 'kami-w-badge', w.text);
+      el.setAttribute('data-kami-tone', String(w.tone));
+      box.appendChild(el);
+      return;
+    }
+
+    if (kind === 'chips') {
+      el = mk('span', 'kami-w-chips');
+      if (!w.items.length) { box.appendChild(mk('span', 'kami-status-empty', '—')); return; }
+      for (i = 0; i < w.items.length; i++) { el.appendChild(mk('span', 'kami-w-chip', w.items[i])); }
+      box.appendChild(el);
+      return;
+    }
+
+    if (kind === 'text') { box.appendChild(mk('p', 'kami-w-text', w.text)); return; }
+    if (kind === 'num') { box.appendChild(mk('span', 'kami-w-num', String(v))); return; }
+    if (kind === 'bool') {
+      el = mk('span', 'kami-w-bool', v ? '●' : '○');
+      el.setAttribute('data-kami-on', v ? '1' : '0');
+      el.setAttribute('aria-hidden', 'true');
+      box.appendChild(el);
+      return;
+    }
+    if (kind === 'kv') { box.appendChild(mk('span', '', w.text)); return; }
+
+    /* card：对象 → 继续摊一层 */
+    renderValue(v, box, path);
+  }
+
+  /* 值 → DOM：形态由 widgetOf 决定；对象/数组继续递归。
+     path 是键路径，widgetOf 靠它知道这个数字属于哪套规则体系（D&D / WOD / FU / FATE）。 */
+  function renderValue(v, box, path) {
     var d = describeField(v), i;
     if (d.kind === 'empty') { box.appendChild(mk('span', 'kami-status-empty', '—')); return; }
     if (d.kind === 'bool') {
@@ -719,7 +823,10 @@
       /* 先解析实体名（char_player → 雷恩），再查中文标签表；表里没有就退回原键名 */
       row.appendChild(mk('span', 'kami-status-k', labelOf(resolveRef(keys[i], nameIndex))));
       var vb = mk('span', 'kami-status-v');
-      renderValue(v[keys[i]], vb);
+      /* ⚠️ 递归时也要走 renderWidget（不能退回旧的 renderValue 直写）——
+         否则只有第一层有控件，角色/地图/势力这些**全是嵌套**的分区一个控件都长不出来
+         （实测：八个分区里七个是 0 个条 / 0 个徽章）。 */
+      renderWidget(keys[i], v[keys[i]], vb, (path || []).concat([keys[i]]));
       row.appendChild(vb);
       wrap.appendChild(row);
     }
@@ -749,7 +856,8 @@
       var row = mk('div', 'kami-status-row');
       row.appendChild(mk('span', 'kami-status-k', labelOf(plan.rows[i].key)));
       var vb = mk('span', 'kami-status-v');
-      renderValue(plan.rows[i].value, vb);
+      /* 顶层行的值走控件分派（形态判断在 widgetOf 里）；key 用原始字段名查表 */
+      renderWidget(plan.rows[i].rawKey || plan.rows[i].key, plan.rows[i].value, vb, [activeTab]);
       row.appendChild(vb);
       panelBody.appendChild(row);
     }
