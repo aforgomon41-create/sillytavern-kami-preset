@@ -225,11 +225,18 @@
     '#' + PANEL_ID_PANEL + ' .kami-status-bar{display:flex;align-items:center;gap:var(--kami-gap,8px);padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));border-bottom:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-bar:active{cursor:grabbing;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-x{appearance:none;font:inherit;line-height:1;padding:4px 8px;border-radius:var(--kami-r-xs,6px);cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;gap:var(--kami-gap,8px);overflow-x:auto;padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) 0;}',
+        /* 浮动 ✕：绝对定位在面板右上角，**不占布局** —— 少了一行标题也不会让接缝错位 */
+    '#' + PANEL_ID_PANEL + ' .kami-status-x{position:absolute;top:var(--kami-gap,8px);right:var(--kami-gap,8px);z-index:3;appearance:none;font:inherit;line-height:1;padding:2px 7px;border-radius:var(--kami-r-xs,6px);cursor:pointer;background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));opacity:.85;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-x:hover{opacity:1;color:var(--kami-fg,#f2f2f4);}',
+        /* ⚠️ flex:none 是关键 —— 标签行是 flex item，默认 flex-shrink:1，
+       内容一多它就被压缩到几乎没高度（用户看到的"被底下内容挡住"）。
+       z-index 再兜一道：即使有内容越界也盖不住它。 */
+    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;flex:none;position:relative;z-index:2;gap:var(--kami-gap,8px);overflow-x:auto;overflow-y:hidden;padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) calc(var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) + 26px) calc(var(--kami-gap,8px) / 2) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab{appearance:none;font:inherit;white-space:nowrap;padding:5px 10px;border-radius:var(--kami-r-sm,8px);cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid transparent;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab.is-on{background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-fg,#f2f2f4);border-color:var(--kami-line,rgba(255,255,255,.16));}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-body{overflow-y:auto;padding:var(--kami-gap-lg,12px) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) var(--kami-status-pad-y,var(--kami-pad-lg-y,12px));}',
+        /* min-height:0 必须写：flex 子项的默认 min-height:auto 会让它**顶开**容器而不滚动；
+       flex:1 让它吃掉剩余高度，于是滚动发生在它内部，标签行纹丝不动。 */
+    '#' + PANEL_ID_PANEL + ' .kami-status-body{flex:1 1 auto;min-height:0;position:relative;z-index:1;overscroll-behavior:contain;overflow-y:auto;padding:var(--kami-gap-lg,12px) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) var(--kami-status-pad-y,var(--kami-pad-lg-y,12px));}',
     '#' + PANEL_ID_PANEL + ' .kami-status-sec{margin:0 0 10px;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-sec-t{font-weight:600;margin:0 0 4px;color:var(--kami-accent,#7aa2f7);}',
     '#' + PANEL_ID_PANEL + ' .kami-status-row{display:flex;gap:8px;padding:2px 0;border-bottom:var(--kami-border-w,1px) dashed var(--kami-line,rgba(255,255,255,.10));}',
@@ -654,7 +661,7 @@
 
   /* ───────── 展开面板：tab 是各模块，**最后一个 tab 是设置页** ───────── */
   var panelEl = null, panelBody = null, panelTabsEl = null;
-  var panelOpen = false, activeTab = null, panelTitleEl = null;
+  var panelOpen = false, activeTab = null;
 
   function tabsList() {
     var mods = enabledModules(settings), out = [], i;
@@ -671,18 +678,17 @@
     panelEl.setAttribute('data-kami-open', '0');
     panelEl.style.pointerEvents = 'auto';
 
-    var bar = mk('div', 'kami-status-bar');
-    bar.setAttribute('data-kami-drag', 'panel');
-    var ttl = mk('span', 'kami-status-title', STATUS_COPY.label);
-    panelTitleEl = ttl;
-    bar.appendChild(ttl);
+    /* 用户 2026-10-06：面板里那行「剧情状态栏」**整行去掉** —— 横幅已经说明这是什么了。
+       关闭入口改成**两个**（用户建议"两个都做"）：
+         · 熟悉的人：**再点一次横幅/球** → togglePanel() 收起（横幅本来就是这个行为）；
+         · 不熟悉的人：面板右上角这枚**浮动 ✕**（绝对定位，不占布局、不影响接缝）。 */
     var x = mk('button', 'kami-status-x', '✕');
     x.type = 'button';
     x.setAttribute('data-kami-act', 'status-close');
     x.setAttribute('aria-label', STATUS_COPY.close);
+    x.setAttribute('title', STATUS_COPY.close);
     x.addEventListener('click', function (ev) { ev.stopPropagation(); togglePanel(false); });
-    bar.appendChild(x);
-    panelEl.appendChild(bar);
+    panelEl.appendChild(x);
 
     panelTabsEl = mk('div', 'kami-status-tabs');
     panelEl.appendChild(panelTabsEl);
@@ -912,9 +918,7 @@
     panelEl.setAttribute('data-kami-open', want ? '1' : '0');
     /* 连体状态写在舞台上：横幅据此收掉下面两个圆角与下边框，接缝只剩一条线 */
     if (stage) { stage.setAttribute('data-kami-connected', want ? '1' : '0'); }
-    /* ⚠️ 用户 2026-10-05：去掉「示例」的**视觉标注**（调试完会删示例数据，不用标）。
-       标题就是标题，不再缀"（示例）"。 */
-    if (panelTitleEl) { panelTitleEl.textContent = STATUS_COPY.label; }
+    /* 面板里那行标题已整行去掉（用户 2026-10-06），这里不再需要更新标题 */
     if (want) { renderTabs(); renderPanelBody(); }
   }
 
