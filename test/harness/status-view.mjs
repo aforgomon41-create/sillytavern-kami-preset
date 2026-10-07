@@ -687,7 +687,8 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
      这正是采纳"占位+键名"那条建议带来的好处。 */
   ok(st.rows.some(r => r.key === M.KEY_LABELS['time']), '⑯ status 的时间行用的是表里的标签');
   ok(st.rows.some(r => r.key === M.KEY_LABELS['location']), '⑯ 地点行也用表里的标签');
-  ok(st.rows.every(r => String(r.key).indexOf('【占位·待文案】') === 0), '⑯ status 每一行的键都来自表');
+  const __labelVals = new Set(Object.keys(M.KEY_LABELS).map(k => M.KEY_LABELS[k]));
+  ok(st.rows.every(r => __labelVals.has(String(r.key))), '⑯ status 每一行的键都来自表');
   /* 登记齐全时不该有任何一个键退回原样 */
   const allOnKeys = secs.flatMap(x => x.rows.map(r => r.key));
   ok(!allOnKeys.some(k => /^[a-z][a-z0-9_]*$/.test(k)),
