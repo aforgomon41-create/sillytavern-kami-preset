@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK', 'MODULES', 'HIDDEN_FIELDS',
   'headerGeom', 'ribbonTextInset', 'MIN_RIBBON_W',
   'emptyStateText', 'panelTabPlan', 'isSampleOn',
+  'layoutOf', 'clampUserWidth', 'BREAKPOINT', 'HANDLE_W', 'MIN_USER_W', 'MAX_USER_W',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -274,9 +275,11 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(blob.indexOf('雷恩') >= 0 && blob.indexOf('艾莉丝') >= 0, '⑩ 人名是具体名字');
 
   /* ── 默认关着：不主动开就永远看不到示例 ── */
-  eq(M.defaultSettings().options.useSample, false, '⑩ 示例开关**默认关**（不主动开就看不到）');
-  eq(M.mergeSettings({ options: { useSample: true } }).options.useSample, true, '⑩ 开了能记住');
-  eq(M.mergeSettings({ options: { useSample: 'yes' } }).options.useSample, false, '⑩ 类型不对退回默认（关）');
+  /* 用户 2026-10-05 改成**默认开**（调试期方便看布局；调完会删示例数据）。
+     "真实数据优先"没有变 —— 那条在 readStat() 里，不在默认值里。 */
+  eq(M.defaultSettings().options.useSample, true, '⑩ 示例开关**默认开**（调试期）');
+  eq(M.mergeSettings({ options: { useSample: false } }).options.useSample, false, '⑩ 用户关掉能记住');
+  eq(M.mergeSettings({ options: { useSample: 'yes' } }).options.useSample, true, '⑩ 类型不对退回默认（现在是开）');
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -365,7 +368,7 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   eq(M.panelTabPlan(emptyStat, sampleOn, 'lore').lines.join('|').indexOf(M.STATUS_COPY.noData), -1,
     '⑫ 走完整链路验一次：示例开着 → lore 空态里没有"没有数据"');
   eq(M.isSampleOn(sampleOn), true, '⑫ isSampleOn 读得对');
-  eq(M.isSampleOn(M.defaultSettings()), false, '⑫ 默认不算开着');
+  eq(M.isSampleOn(M.defaultSettings()), true, '⑫ 默认就是开着的（调试期）');
 
   /* 设置页不是空态（它有自己的内容） */
   eq(M.panelTabPlan(emptyStat, M.defaultSettings(), '__settings').kind, 'settings', '⑫ 设置页走自己的分支');
@@ -374,6 +377,102 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
   ok(src80.indexOf('panelTabPlan(') >= 0, '⑫ 80 号的面板空态走 panelTabPlan');
   ok(src80.indexOf("STATUS_COPY.noData") < 0, '⑫ 80 号里没有绕过纯函数直接写 noData 的地方');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑬ 自适应布局 layoutOf：断点 / 手机满宽 / 内容撑开 / 调宽 / 镜像复核 / 连体面板
+ * ════════════════════════════════════════════════════════════ */
+{
+  const B = (x, y, size) => ({ x: x, y: y, size: size });
+  const F = (o) => M.layoutOf(Object.assign({ ball: B(40, 40, 64), viewW: 1440, contentW: 200, edgeGap: 8 }, o));
+
+  /* ── 断点 640 两侧 ── */
+  eq(M.BREAKPOINT, 640, '⑬ 断点是 640');
+  eq(F({ viewW: 639 }).mobile, true, '⑬ 639 → 手机');
+  eq(F({ viewW: 640 }).mobile, false, '⑬ 640 → PC（断点归 PC）');
+  eq(F({ viewW: 641 }).mobile, false, '⑬ 641 → PC');
+  eq(F({ viewW: 390 }).mobile, true, '⑬ 390 → 手机');
+  eq(F({ viewW: 1440 }).mobile, false, '⑬ 1440 → PC');
+  eq(F({ viewW: 390, isMobile: false }).mobile, false, '⑬ isMobile 显式给了就听它的');
+
+  /* ── 手机：连球一起占满整行 ── */
+  const m = F({ viewW: 390, ball: B(16, 30, 64) });
+  eq(m.left, 16, '⑬ **手机横幅左缘 = 球的左缘**（球成了排头，不再压住横幅）');
+  eq(m.width, 390 - 16 - 8, '⑬ 手机横幅铺到右边距 → 球+横幅**占满整行**');
+  eq(m.height, 64, '⑬ 手机高度仍等于图标高度');
+  eq(m.dir, 'right', '⑬ 手机永远向右（满宽没有镜像的意义）');
+  const m0 = F({ viewW: 390, ball: B(0, 30, 64) });
+  eq(m0.left + m0.width, 390 - 8, '⑬ 球贴左缘时横幅一路铺到右边距');
+  eq(F({ viewW: 390, ball: B(500, 30, 64) }).left, 390, '⑬ 球跑到视口外时左缘夹进视口');
+
+  /* ── PC：内容撑开 ── */
+  const d = F({ viewW: 1440, contentW: 300, ball: B(40, 40, 64) });
+  eq(d.left, 72, '⑬ PC 左缘落在球心（40 + 64/2）');
+  eq(d.width, 300, '⑬ PC **由内容撑开**：内容 300 → 横幅 300');
+  eq(d.height, 64, '⑬ PC 高度等于图标高度');
+  eq(F({ viewW: 1440, contentW: 40 }).width, M.MIN_RIBBON_W, '⑬ 内容太窄时兜到最小可用宽 160');
+  eq(F({ viewW: 1440, contentW: 0 }).width, M.MIN_RIBBON_W, '⑬ 内容量不到时也给最小可用宽');
+
+  /* ── 调宽覆盖 ── */
+  eq(F({ viewW: 1440, contentW: 300, userWidth: 500 }).width, 500, '⑬ **用户调宽覆盖内容撑开**');
+  eq(F({ viewW: 1440, contentW: 300, userWidth: 220 }).width, 220, '⑬ 调窄也生效');
+  eq(M.clampUserWidth(10, 1440), M.MIN_USER_W, '⑬ 调窄到极限以下 → 夹到最小 160');
+  eq(M.clampUserWidth(99999, 1440), M.MAX_USER_W, '⑬ 调宽到极限以上 → 夹到最大 1200');
+  eq(M.clampUserWidth(99999, 500), 500 - 16, '⑬ 宽度不许超过视口（留 16 边距）');
+  eq(M.clampUserWidth(null, 1440), null, '⑬ 没调过 → null（走内容撑开）');
+  eq(M.clampUserWidth(0, 1440), null, '⑬ 0 也算没调过');
+  eq(M.clampUserWidth('abc', 1440), null, '⑬ 脏值当没调过，不炸');
+
+  /* ── 双击复位 ── */
+  const reset = F({ viewW: 1440, contentW: 300, userWidth: null });
+  eq(reset.width, 300, '⑬ **双击复位 = userWidth 清成 null → 回到内容撑开**');
+  eq(F({ viewW: 1440, contentW: 300, userWidth: 600 }).width, 600, '⑬ 复位前是用户宽');
+  eq(F({ viewW: 1440, contentW: 300, userWidth: null }).width, 300, '⑬ 复位后回到内容宽');
+
+  /* ── 调宽后镜像复核 ── */
+  const nearRight = F({ viewW: 800, ball: B(680, 40, 64), contentW: 100 });
+  ok(nearRight.dir === 'right' || nearRight.dir === 'left', '⑬ 贴右缘时给一个确定方向');
+  eq(F({ viewW: 800, ball: B(680, 40, 64), contentW: 100 }).dir, 'left', '⑬ 球贴右缘、内容窄 → 向右放不下 → 镜像向左');
+  eq(F({ viewW: 800, ball: B(680, 40, 64), contentW: 100, userWidth: 800 }).dir, 'left', '⑬ **调很宽之后仍然镜像向左**（复核过）');
+  const wide = F({ viewW: 800, ball: B(680, 40, 64), contentW: 100, userWidth: 800 });
+  eq(wide.left + wide.width, 712, '⑬ 镜像时右缘落在球心 712');
+  ok(wide.width > 0, '⑬ 镜像后宽度不为 0');
+  /* 反过来：球在左边、用户拖得很宽。右边能放 660、左边只有 124 ——
+     **不许翻边**：翻过去反而更窄，而且横幅会平白跳到球的另一侧。夹到右边余量才对。 */
+  const grew = F({ viewW: 800, ball: B(100, 40, 64), contentW: 100, userWidth: 700 });
+  eq(grew.dir, 'right', '⑬ 球在左、拖得很宽 → 右边仍放得下更多 → **留在右边**（不翻边）');
+  eq(grew.width, 800 - 132 - 8, '⑬ 宽度夹到右边的余量 660');
+  eq(grew.left, 132, '⑬ 左缘仍在球心，用户拖手柄的手感不变');
+  ok(grew.width > 0, '⑬ 仍有宽度');
+  /* 两边都放不下 → 取空间大的那边、夹到余量 */
+  const tight = F({ viewW: 300, ball: B(150, 40, 64), contentW: 100, userWidth: 1200, isMobile: false });
+  eq(tight.dir, 'left', '⑬ 两边都放不下时取空间大的一边（球心 182，左边 174 > 右边 110）');
+  eq(tight.width, 174, '⑬ 宽度夹到那边的余量');
+  ok(tight.width >= 0, '⑬ 任何情况下都不给负宽度');
+  eq(F({ viewW: 0 }).width, 0, '⑬ 视口量不到 → 宽度 0');
+  eq(F({ viewW: 60, isMobile: false, ball: B(0, 0, 64) }).width >= 0, true, '⑬ 极窄 PC 也不给负数');
+
+  /* ── 连体面板：共享一条边 ── */
+  for (const c of [d, m, nearRight, wide, grew, tight]) {
+    eq(c.panel.left, c.left, '⑬ **面板左缘 = 横幅左缘**');
+    eq(c.panel.top, c.top + c.height, '⑬ **面板上缘 = 横幅下缘**（共享边，读数 0）');
+    eq(c.panel.width, c.width, '⑬ 面板与横幅同宽（像从横幅长出来）');
+  }
+
+  /* ── 拖动同步：球一动，横幅与面板一起动 ── */
+  const at40 = F({ viewW: 1440, contentW: 300, ball: B(40, 40, 64) });
+  const at140 = F({ viewW: 1440, contentW: 300, ball: B(140, 40, 64) });
+  eq(at140.left - at40.left, 100, '⑬ 球右移 100 → 横幅左缘也右移 100');
+  eq(at140.panel.left - at40.panel.left, 100, '⑬ **面板跟着一起移**（同一个几何来源）');
+  eq(at140.panel.top, at40.panel.top, '⑬ 只横移时面板上缘不变');
+  const down = F({ viewW: 1440, contentW: 300, ball: B(40, 90, 64) });
+  eq(down.left, at40.left, '⑬ 只纵移时横幅左缘不变');
+  eq(down.panel.top - at40.panel.top, 50, '⑬ 球下移 50 → 面板也跟着下移 50');
+
+  /* ── 手柄 ── */
+  eq(d.gripLeft, d.left + d.width - M.HANDLE_W, '⑬ 右手柄贴在横幅右端');
+  const lg = F({ viewW: 800, ball: B(680, 40, 64), contentW: 100 });
+  eq(lg.gripLeft, lg.left, '⑬ 镜像向左时手柄换到左端（跟着展开方向走）');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

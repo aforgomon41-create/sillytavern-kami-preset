@@ -26,6 +26,8 @@ export var STATUS_COPY = {
   emptyHint: '可在设置里开启无数据时显示示例预览布局，继续对话后会自动填充',
   expandHint: '点击展开查看详情',
   close: '关闭',
+  gripTip: '【占位·待文案】拖动可调整宽度，双击恢复默认',
+  gripLabel: '【占位·待文案】调整标题栏宽度',
   settingsTab: '设置',
   settingsModules: '模块显示开关',
   settingsOptions: '界面显示选项',
@@ -409,9 +411,9 @@ export function defaultSettings() {
     options: {
       showHeader: true,
       showHidden: false,
-      /* 示例数据默认**关着** —— 用户不主动开就永远看不到它，
-         真实数据一旦读到也轮不到它（readStat 里真实优先）。 */
-      useSample: false
+      /* 示例数据默认**开着**（用户 2026-10-05：调试期方便看布局；调完会删掉示例数据）。
+         但"真实数据优先"没有变：readStat() 先读楼层变量，读到真实数据示例立刻让位。 */
+      useSample: true
     }
   };
 }
@@ -594,6 +596,106 @@ export function headerLines(stat, nameOf) {
 /* 横幅至少要有这么宽才值得往右探；放不下就镜像到左边去。
    160 ≈ 一行十来个小字，比这更窄的横幅只剩个色块，不如换边。 */
 export var MIN_RIBBON_W = 160;
+
+/* 手机 / PC 的分界。Lead 2026-10-05 认了这个数，推导：
+   球 64 + 横幅最小可用 160 + 两侧边距 16 ≈ 240 是"内容真的放得下"的下界；
+   640 是在它上面留足余量之后的手机/平板分界（常见手机竖屏 360–430，横屏 640–926）。 */
+export var BREAKPOINT = 640;
+
+/* 调宽手柄的占宽（PC）：手柄压在横幅右端，拖它改宽度 */
+export var HANDLE_W = 12;
+
+/* 用户拖出来的宽度会被夹到这个区间里 */
+export var MIN_USER_W = MIN_RIBBON_W;
+export var MAX_USER_W = 1200;
+
+function numOf(v, dflt) {
+  var n = Number(v);
+  return (isFinite(n) && n >= 0) ? n : dflt;
+}
+
+/** 用户宽度先夹一遍（拖动过程中每一帧都会调，必须是纯的、快的） */
+export function clampUserWidth(w, viewW) {
+  var n = Number(w);
+  if (!isFinite(n) || n <= 0) { return null; }        /* null = 没设过，走内容撑开 */
+  var hi = MAX_USER_W;
+  var vw = Number(viewW);
+  if (isFinite(vw) && vw > 0) { hi = Math.min(hi, Math.max(MIN_USER_W, vw - 16)); }
+  return Math.round(Math.min(hi, Math.max(MIN_USER_W, n)));
+}
+
+/**
+ * 一次把全部几何算完（纯函数）。输入：
+ *   { ball:{x,y,size}, viewW, contentW, userWidth, edgeGap, isMobile }
+ * 输出：
+ *   { mobile, left, top, height, width, dir, gripLeft,
+ *     panel:{ left, top, width } }
+ *
+ * 规则：
+ *   · **手机（viewW < 640）**：球 + 横幅**占满整行** —— 横幅左缘 = 球的左缘，
+ *     也就是说球成了这条横幅的"排头图标"，而不是被横幅压在下面；
+ *   · **PC**：横幅**由内容撑开**（contentW），用户调过宽就用用户的（userWidth）；
+ *     左缘仍落在**球心 x**（PC 才保留"从球背后探出"这个形态）；
+ *   · **镜像复核**：宽度变了（内容变长 / 用户拖宽）之后，右边放不下就翻到左边，
+ *     左边也放不下就取空间大的那一边、把宽度夹到那边的余量；
+ *   · **连体面板**：左缘 = 横幅左缘、上缘 = 横幅下缘（共享一条边，读数为 0）。
+ */
+export function layoutOf(input) {
+  var o = input || {};
+  var ball = o.ball || {};
+  var size = numOf(ball.size, 0);
+  var bx = numOf(ball.x, 0);
+  var by = numOf(ball.y, 0);
+  var viewW = Number(o.viewW);
+  var gap = numOf(o.edgeGap, 8);
+  var center = bx + size / 2;
+
+  var mobile = (o.isMobile === undefined || o.isMobile === null)
+    ? (isFinite(viewW) && viewW > 0 && viewW < BREAKPOINT)
+    : !!o.isMobile;
+
+  var empty = { mobile: mobile, left: center, top: by, height: size, width: 0, dir: 'right',
+    gripLeft: center, panel: { left: center, top: by + size, width: 0 } };
+
+  if (!isFinite(viewW) || viewW <= 0) { return empty; }   /* 视口量不到：什么都不画 */
+
+  /* ── 手机：占满整行 ── */
+  if (mobile) {
+    var mLeft = Math.max(0, Math.min(bx, viewW));
+    var mW = Math.max(0, viewW - mLeft - gap);
+    return {
+      mobile: true, left: mLeft, top: by, height: size, width: mW, dir: 'right',
+      gripLeft: mLeft + mW - HANDLE_W,
+      panel: { left: mLeft, top: by + size, width: mW }
+    };
+  }
+
+  /* ── PC：内容撑开，用户可覆盖 ── */
+  var user = clampUserWidth(o.userWidth, viewW);
+  var content = numOf(o.contentW, 0);
+  var want = (user !== null) ? user : Math.max(MIN_RIBBON_W, content);
+
+  var rightRoom = Math.max(0, viewW - center - gap);
+  var leftRoom = Math.max(0, center - gap);
+
+  var left, width, dir;
+  if (rightRoom >= want) {
+    left = center; width = want; dir = 'right';
+  } else if (leftRoom >= want) {
+    /* 右边放不下（用户拖宽了、或球贴右缘）→ **镜像到左边**：右缘落在球心 */
+    left = center - want; width = want; dir = 'left';
+  } else if (leftRoom > rightRoom) {
+    left = center - leftRoom; width = leftRoom; dir = 'left';
+  } else {
+    left = center; width = rightRoom; dir = 'right';
+  }
+
+  return {
+    mobile: false, left: left, top: by, height: size, width: width, dir: dir,
+    gripLeft: (dir === 'left' ? left : left + width - HANDLE_W),
+    panel: { left: left, top: by + size, width: width }
+  };
+}
 
 export function headerGeom(ball, viewW, edgeGap) {
   var size = Number(ball && ball.size);

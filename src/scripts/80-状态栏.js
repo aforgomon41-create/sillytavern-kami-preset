@@ -47,6 +47,8 @@
      取 4px 的理由：① 手指点按时的自然抖动一般在 2-3px，4 能吃掉抖动又不会把"真想拖一点"
      误判成点击；② 鼠标点击几乎零位移，4 绰绰有余；③ 它与"拖完不算点击"那道闸（下面
      lastDragEnd 的 300ms）是**两道独立的闸**，同时成立才会误开面板。 */
+  var RIBBON_PAD_L = 10;      // 横幅左侧留白（手机满宽时用）
+  var RIBBON_PAD_R = 16;      // 横幅右侧留白（手柄与文字之间）
   var MOVE_SLOP = 4;
   var SAVE_DELAY = 300;       // 位置落盘防抖（拖动过程中不写盘）
 
@@ -105,6 +107,11 @@
      ② 脚本变量跟着**账号**走、跨聊天保持，正是"用户偏好"该有的语义
      （对比：聊天变量会随每个会话重置，存那里每次新聊天都要重设）。 */
   var settings = defaultSettings();
+  /* PC 端用户调出来的宽度（null = 没调过，走"内容撑开"）。与位置同存一处。 */
+  var userWidth = null;
+  var curLayout = null;   /* layoutOf 最近一次的产物，排障与用例读它 */
+  var grip = null;        /* 横幅右端那根细拖拽手柄（只在 PC 出现） */
+  var gripDrag = null;
 
   function readVars() {
     var saved = null;
@@ -120,6 +127,8 @@
     if (typeof saved.size === 'number' && saved.size >= 24 && saved.size <= 200) { geom.size = saved.size; }
     /* 存下来的设置一律不可信（手改过 / 旧版本结构不同）→ 交给纯函数逐字段兜底 */
     settings = mergeSettings(saved.settings);
+    /* 宽度原样读出来，夹取交给 layoutOf（它知道当时视口多宽） */
+    if (typeof saved.w === 'number' && isFinite(saved.w) && saved.w > 0) { userWidth = saved.w; }
   }
   function saveVars() {
     try { if (saveTimer) { clearTimeout(saveTimer); } } catch (e) { }
@@ -130,6 +139,7 @@
         var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};
         all[VARS_KEY] = {
           x: Math.round(geom.x), y: Math.round(geom.y), size: Math.round(geom.size),
+          w: userWidth === null ? null : Math.round(userWidth),
           settings: settings
         };
         replaceVariables(all, { type: 'script' });
@@ -158,7 +168,7 @@
        左缘落在**球心 x**、高度**等于图标高度**、顶边与球齐平 —— 三个数都由
        _status-view.js 的 headerGeom() 算好，以 --kami-ribbon-* 下发。
        横幅在**下面一层**（z-index 0），球在上面（z-index 1）。 */
-    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(40,42,52,.96));border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.28));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);overflow:hidden;border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(40,42,52,.96));border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.28));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
     /* 用户 2026-10-05：兜底底色原来是 rgba(20,20,24)，在深色背景上**几乎隐形**。
        换成 rgba(40,42,52)，并把描边兜底提到 28% 白 —— 这样深黑、中灰、浅色三种无皮肤背景
        上都看得出边界（截图见报告）。皮肤一跑起来，两个令牌都由皮肤接管，这里的兜底自动失效。 */
@@ -166,7 +176,10 @@
     '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="left"] .kami-status-head{text-align:right;align-items:flex-end;}',
     '#' + PANEL_ID + '[data-kami-state="header"] .kami-status-ribbon{display:flex;}',
     /* 横幅里的字要避开压在上面的球：左侧内缩 = 半个球宽 + 一点间距 */
-    '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;width:100%;}',
+        /* ⚠️ head 用 max-content 且**不加 max-width 夹取**：它的盒子宽度就是"内容要多宽"，
+       这是 contentWidth() 唯一的量法。加了 max-width:100% 的话，横幅一窄量出来就被夹小，
+       首屏会偏窄、双击复位也会量不准（实测踩到）。溢出交给横幅的 overflow:hidden 裁。 */
+    '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;width:max-content;}',
     /* 三行、字号小（用户明确要求）。三行都省略号截断，标题栏不会被长文本撑爆 */
     '#' + PANEL_ID + ' .kami-status-line{font-size:var(--kami-fs-xs,11px);line-height:1.35;color:var(--kami-fg-dim,#cfcfd6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw;}',
     '#' + PANEL_ID + ' .kami-status-line[data-kami-slot="time"]{color:var(--kami-fg,#f2f2f4);}',
@@ -175,8 +188,21 @@
     '#' + PANEL_ID + ' .kami-status-sample{display:inline-block;margin:0 0 2px;padding:0 5px;border-radius:var(--kami-r-pill,999px);font-size:calc(var(--kami-fs-xs,11px) * .9);line-height:1.5;color:var(--kami-accent,#7aa2f7);border:var(--kami-border-w,1px) solid var(--kami-accent-line,rgba(122,162,247,.45));}',
 
     /* ── 展开后的状态栏面板 ── */
-    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:min(400px,92vw);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,13px);overflow:hidden;}',
+    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;box-sizing:border-box;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:var(--kami-panel-w,320px);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,13px);overflow:hidden;}',
     '#' + PANEL_ID_PANEL + '[data-kami-open="1"]{display:flex;}',
+    /* ── 连体：面板与横幅**共享一条边**，像从横幅长出来 ──
+       ① 位置：面板 left/top 由 layoutOf 一次算出（左缘=横幅左缘、上缘=横幅下缘），
+          不是各算各的 —— 所以几何上不可能错开；
+       ② 圆角：贴在一起的两个角都收成直角，外侧两个角保持圆角；
+       ③ 接缝：横幅的**下边框取消**，由面板的上边框充当那条线 —— 只有一条线，不是两条。 */
+    '#' + PANEL_ID + '[data-kami-connected="1"] .kami-status-ribbon{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-width:0;}',
+    /* 面板上缘**正好**落在横幅下缘（不加负 margin）—— 横幅的下边框已经取消，
+       接缝只剩面板自己那一条上边框。这样量出来的"面板上缘 - 横幅下缘"是干净的 0。 */
+    '#' + PANEL_ID_PANEL + '[data-kami-open="1"]{border-top-left-radius:0;border-top-right-radius:0;}',
+    /* 调宽手柄：细、低对比、悬停才明显（B 轮再调整体视觉） */
+    '#' + PANEL_ID + ' .kami-status-grip{position:absolute;top:0;bottom:0;width:' + 12 + 'px;cursor:ew-resize;touch-action:none;background:transparent;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="left"] .kami-status-grip{left:0;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="right"] .kami-status-grip{right:0;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-bar{display:flex;align-items:center;gap:6px;padding:var(--kami-pad-y,8px) var(--kami-pad-x,12px);border-bottom:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-bar:active{cursor:grabbing;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
@@ -282,19 +308,50 @@
 
   /* 横幅几何：三个数全部来自纯函数 headerGeom（左缘=球心 x、高=图标高、向右展开），
      这里只负责把它们写进 CSS 变量。文字再额外内缩半个球宽，免得被压在上面的球挡住。 */
+  /* 内容自然宽度：三行里最宽的那行 + 左侧内缩 + 右侧留白。
+     行都是 white-space:nowrap，所以 scrollWidth 给的就是"不换行要多宽"，
+     即使当前横幅比它窄也量得准（超出的部分算 overflow）。 */
+  function contentWidth() {
+    try {
+      var head = ribbon && ribbon.querySelector('.kami-status-head');
+      if (!head) { return 0; }
+      /* ⚠️ 用 getBoundingClientRect 而不是 scrollWidth：scrollWidth 会被元素自身的
+         盒子宽度兜底，横幅一宽它就把"内容宽度"报成横幅宽度 —— 双击复位再也回不去
+         （会一路棘轮，实测踩到）。head 是 width:max-content，所以它的盒子宽就是内容宽。 */
+      return head.getBoundingClientRect().width + ribbonTextInset(geom.size, 10) + RIBBON_PAD_R;
+    } catch (e) { return 0; }
+  }
+
+  /* 横幅 + 连体面板的几何，一次算完（全在纯函数 layoutOf 里）。
+     面板的位置**不是**自己算的 —— 它直接取 layoutOf 给的 panel 字段，
+     所以"共享一条边"是同一个来源保证的，不会两边算岔。 */
   function paintRibbon() {
     if (!stage) { return; }
     try {
       var w = viewCache.w || viewW();
-      var g = headerGeom(geom, w, EDGE_KEEP);
+      var g = layoutOf({
+        ball: geom, viewW: w, edgeGap: EDGE_KEEP,
+        contentW: contentWidth(), userWidth: userWidth
+      });
+      curLayout = g;
       stage.style.setProperty('--kami-ribbon-x', Math.round(g.left) + 'px');
       stage.style.setProperty('--kami-ribbon-y', Math.round(g.top) + 'px');
       stage.style.setProperty('--kami-ribbon-w', Math.round(g.width) + 'px');
       stage.style.setProperty('--kami-ribbon-h', Math.round(g.height) + 'px');
-      stage.style.setProperty('--kami-ribbon-inset', Math.round(ribbonTextInset(geom.size, 10)) + 'px');
-      /* 右边放不下时 headerGeom 会把方向翻到左边（右缘落在球心、向左展开），
-         这里把方向写到属性上，CSS 据此把文字内缩换到另一侧。 */
-      if (ribbon) { ribbon.setAttribute('data-kami-dir', g.dir); }
+      /* 文字内缩：
+         · 手机满宽时球是"排头图标"，横幅左缘 = 球的左缘 —— 文字要让开**整个球宽**再加间距，
+           否则会被球压住（第一版只让了 10px，截图里字全糊在球上）；
+         · PC 时横幅从球心探出，只需再让半个球宽。 */
+      stage.style.setProperty('--kami-ribbon-inset',
+        Math.round(g.mobile ? (geom.size + RIBBON_PAD_L) : ribbonTextInset(geom.size, 10)) + 'px');
+      stage.style.setProperty('--kami-panel-x', Math.round(g.panel.left) + 'px');
+      stage.style.setProperty('--kami-panel-y', Math.round(g.panel.top) + 'px');
+      stage.style.setProperty('--kami-panel-w', Math.round(g.panel.width) + 'px');
+      if (ribbon) {
+        ribbon.setAttribute('data-kami-dir', g.dir);
+        ribbon.setAttribute('data-kami-mobile', g.mobile ? '1' : '0');
+      }
+      if (grip) { grip.hidden = !(!g.mobile && g.width > 0); }
     } catch (e) { }
   }
 
@@ -354,10 +411,8 @@
     /* 三行标题栏元素挂在横幅里，默认不显示（CSS 靠 [data-kami-state="header"] 放出来）。
        行数固定 3 —— 用户说"只需要三行"，少一项就收起那一行，但位置不跳。 */
     var head = mk('div', 'kami-status-head');
-    sampleTagEl = mk('span', 'kami-status-sample', '');
-    sampleTagEl.setAttribute('data-kami-slot', 'sample');
-    sampleTagEl.hidden = true;
-    head.appendChild(sampleTagEl);
+    /* 「示例」徽标**不再创建**（用户 2026-10-05 要去掉视觉标注）。
+       currentIsSample 仍然在算 —— 它喂给 data-kami-sample 属性（排障用，不是视觉标注）。 */
     headEls = [];
     var slots = ['time', 'place', 'present'];
     for (var si = 0; si < slots.length; si++) {
@@ -367,6 +422,15 @@
       headEls.push(ln);
     }
     ribbon.appendChild(head);
+    /* 调宽手柄：横幅末端那一小条。只在 PC 出现（手机是满宽，没什么可调的）。 */
+    grip = mk('div', 'kami-status-grip');
+    grip.setAttribute('data-kami-drag', 'grip');
+    grip.setAttribute('role', 'separator');
+    grip.setAttribute('aria-label', STATUS_COPY.gripLabel);
+    grip.title = STATUS_COPY.gripTip;
+    grip.hidden = true;
+    bindGrip();
+    ribbon.appendChild(grip);
     stage.appendChild(ball);
     (HDOC.body || HDOC.documentElement).appendChild(stage);
     bindDrag();
@@ -481,11 +545,10 @@
     if (show) { paintRibbon(); }
     /* 正在显示示例数据 → 舞台打标记（皮肤/用例都能读到），头部再放一枚徽标。
        **徽标不算一行**：三行恒为三行，只是多一个小标。 */
+    /* ⚠️ 用户 2026-10-05：**去掉「示例」的视觉标注**（调试完会删示例数据，不必标）。
+       所以这里不再渲染徽标 —— 但 data-kami-sample 这个**属性**留着（排障与用例读它，
+       它不是视觉标注）。currentIsSample 仍然在算，"真实数据优先"照旧。 */
     stage.setAttribute('data-kami-sample', currentIsSample ? '1' : '0');
-    if (sampleTagEl) {
-      sampleTagEl.textContent = currentIsSample ? STATUS_COPY.sampleTag : '';
-      sampleTagEl.hidden = !currentIsSample;
-    }
     ball.setAttribute('aria-expanded', show ? 'true' : 'false');
     ball.title = show ? STATUS_COPY.expandHint : COPY.tip;
     if (!show) { return; }
@@ -508,8 +571,7 @@
 
   /* ───────── 展开面板：tab 是各模块，**最后一个 tab 是设置页** ───────── */
   var panelEl = null, panelBody = null, panelTabsEl = null;
-  var panelOpen = false, activeTab = null, panelDrag = null, panelTitleEl = null;
-  var panelPos = { x: 40, y: 80 };
+  var panelOpen = false, activeTab = null, panelTitleEl = null;
 
   function tabsList() {
     var mods = enabledModules(settings), out = [], i;
@@ -545,40 +607,9 @@
     panelBody = mk('div', 'kami-status-body');
     panelEl.appendChild(panelBody);
 
-    bindPanelDrag(bar);
+    /* ⚠️ 面板**不再独立拖拽**：连体之后它必须跟着横幅走。
+       想移动整块，拖横幅/球 —— 那是同一个 geom 来源，面板自然跟随。 */
     stage.appendChild(panelEl);
-    paintPanelPos();
-  }
-
-  function paintPanelPos() {
-    if (!stage) { return; }
-    try {
-      stage.style.setProperty('--kami-panel-x', Math.round(panelPos.x) + 'px');
-      stage.style.setProperty('--kami-panel-y', Math.round(panelPos.y) + 'px');
-    } catch (e) { }
-  }
-
-  function bindPanelDrag(handle) {
-    handle.addEventListener('pointerdown', function (ev) {
-      if (disposed || ev.button > 0 || ev.target === null) { return; }
-      if (ev.target.getAttribute && ev.target.getAttribute('data-kami-act')) { return; }
-      panelDrag = { id: ev.pointerId, sx: ev.clientX, sy: ev.clientY, ox: panelPos.x, oy: panelPos.y };
-      try { handle.setPointerCapture(ev.pointerId); } catch (e) { }
-      try { ev.preventDefault(); } catch (e) { }
-    });
-    handle.addEventListener('pointermove', function (ev) {
-      if (!panelDrag || ev.pointerId !== panelDrag.id) { return; }
-      panelPos.x = panelDrag.ox + (ev.clientX - panelDrag.sx);
-      panelPos.y = panelDrag.oy + (ev.clientY - panelDrag.sy);
-      paintPanelPos();
-    });
-    var end = function (ev) {
-      if (!panelDrag || (ev && ev.pointerId !== panelDrag.id)) { return; }
-      try { handle.releasePointerCapture(panelDrag.id); } catch (e) { }
-      panelDrag = null;
-    };
-    handle.addEventListener('pointerup', end);
-    handle.addEventListener('pointercancel', end);
   }
 
   function renderTabs() {
@@ -710,10 +741,55 @@
     if (!panelEl) { return; }
     panelOpen = want;
     panelEl.setAttribute('data-kami-open', want ? '1' : '0');
-    if (panelTitleEl) {
-      panelTitleEl.textContent = STATUS_COPY.label + (currentIsSample ? '（' + STATUS_COPY.sampleTag + '）' : '');
-    }
+    /* 连体状态写在舞台上：横幅据此收掉下面两个圆角与下边框，接缝只剩一条线 */
+    if (stage) { stage.setAttribute('data-kami-connected', want ? '1' : '0'); }
+    /* ⚠️ 用户 2026-10-05：去掉「示例」的**视觉标注**（调试完会删示例数据，不用标）。
+       标题就是标题，不再缀"（示例）"。 */
+    if (panelTitleEl) { panelTitleEl.textContent = STATUS_COPY.label; }
     if (want) { renderTabs(); renderPanelBody(); }
+  }
+
+  /* 调宽手柄：拖拽改宽度 + 双击复位。与球的拖动共用同一套 pointer 捕获写法。 */
+  function bindGrip() {
+    if (!grip) { return; }
+    grip.addEventListener('pointerdown', function (ev) {
+      if (disposed || ev.button > 0) { return; }
+      gripDrag = {
+        id: ev.pointerId, sx: ev.clientX,
+        base: curLayout ? curLayout.width : MIN_RIBBON_W,
+        dir: curLayout ? curLayout.dir : 'right'
+      };
+      try { grip.setPointerCapture(ev.pointerId); } catch (e) { }
+      /* 别让这一下穿到横幅上（否则拖手柄会顺手把面板开出来） */
+      try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { }
+    });
+    grip.addEventListener('pointermove', function (ev) {
+      if (!gripDrag || ev.pointerId !== gripDrag.id) { return; }
+      /* 镜像向左时手柄在左端，往左拖才是"变宽" */
+      var delta = (gripDrag.dir === 'left') ? (gripDrag.sx - ev.clientX) : (ev.clientX - gripDrag.sx);
+      var w = clampUserWidth(gripDrag.base + delta, viewCache.w || viewW());
+      if (w === null) { return; }
+      userWidth = w;
+      paintRibbon();   /* 面板的位置与宽度都是从同一次布局来的，所以它跟着一起变 */
+    });
+    var endGrip = function (ev) {
+      if (!gripDrag || (ev && ev.pointerId !== gripDrag.id)) { return; }
+      try { grip.releasePointerCapture(gripDrag.id); } catch (e) { }
+      gripDrag = null;
+      lastDragEnd = Date.now();   /* 调完宽那一下不算点击，不许顺手开面板 */
+      if (saveTimer) { clearTimeout(saveTimer); }
+      saveVars();
+    };
+    grip.addEventListener('pointerup', endGrip);
+    grip.addEventListener('pointercancel', endGrip);
+    /* 双击复位：userWidth 清成 null → 回到"内容撑开" */
+    grip.addEventListener('dblclick', function (ev) {
+      try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { }
+      userWidth = null;
+      paintRibbon();
+      saveVars();
+      log('宽度已复位：回到由内容撑开');
+    });
   }
 
   function teardown() {
@@ -732,7 +808,7 @@
     try { if (stage && stage.parentNode) { stage.parentNode.removeChild(stage); } } catch (e) { }
     stage = null; ball = null; img = null;
     headEls = null; sampleTagEl = null; ribbon = null; panelEl = null; panelBody = null; panelTabsEl = null;
-    panelOpen = false; activeTab = null; panelDrag = null; injectedStat = undefined;
+    panelOpen = false; activeTab = null; injectedStat = undefined; gripDrag = null;
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
     log('注销完成：悬浮球、样式、监听器、脚本变量写入定时器都已收回（位置留在脚本变量里，下次开还在原处）');
@@ -791,7 +867,10 @@
         try {
           if (typeof replaceVariables !== 'function') { return false; }
           var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};
-          all[VARS_KEY] = { x: Math.round(geom.x), y: Math.round(geom.y), size: Math.round(geom.size), settings: settings };
+          all[VARS_KEY] = {
+            x: Math.round(geom.x), y: Math.round(geom.y), size: Math.round(geom.size),
+            w: userWidth === null ? null : Math.round(userWidth), settings: settings
+          };
           replaceVariables(all, { type: 'script' });
           return true;
         } catch (e) { return false; }
