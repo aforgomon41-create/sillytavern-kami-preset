@@ -28,6 +28,7 @@ export var STATUS_COPY = {
   close: '关闭',
   gripTip: '【占位·待文案】拖动可调整宽度，双击恢复默认',
   gripLabel: '【占位·待文案】调整标题栏宽度',
+  loading: '【占位·待文案】正在读取剧情状态…',
   settingsTab: '设置',
   settingsModules: '模块显示开关',
   settingsOptions: '界面显示选项',
@@ -769,6 +770,52 @@ export function sectionsOf(stat, settings) {
     out.push({ id: id, titleKey: mods[i].copy, rows: rows });
   }
   return out;
+}
+
+/* 天气图标是 emoji，跟汉字不在同一条基线上：直接挨着排会一个高一个低。
+   所以把行尾那串 emoji 拆出来单独包一层，由 CSS 用 vertical-align 压到文字基线上。
+   拆不出来就原样返回，绝不丢字。 */
+/* 单个图标字符。**不用行尾锚点**：这个模块会被内联进前端，构建期会把美元符号翻倍，
+   正则锚点会跟着坏掉（见本文件顶部的内联规则）。所以从尾部逐个码点往前吃。 */
+var ICON_CH = /[\u2600-\u27BF\u{1F300}-\u{1FAFF}\uFE0F]/u;
+
+/** 把标题栏第 1 行拆成 { text, icon }。icon 为空串表示这行没有图标。 */
+export function splitWeatherIcon(line) {
+  var s = String(line == null ? '' : line);
+  /* 按**码点**切，不按 UTF-16 单元 —— 否则代理对会被切一半 */
+  var chars = (typeof Array.from === 'function') ? Array.from(s) : s.split('');
+  var i = chars.length;
+  while (i > 0 && ICON_CH.test(chars[i - 1])) { i--; }
+  if (i === chars.length) { return { text: s, icon: '' }; }   /* 一个都没吃到 → 原样返回 */
+  var icon = chars.slice(i).join('');
+  /* 去掉文字与图标之间那个空格。同样**不用正则锚点**（美元符号会被构建期翻倍） */
+  var text = chars.slice(0, i).join('');
+  while (text.length) {
+    var last = text.charAt(text.length - 1);
+    if (last === ' ' || last === '\t' || last === '\u00b7') { text = text.slice(0, -1); continue; }
+    break;
+  }
+  return { text: text, icon: icon };
+}
+
+/**
+ * 三态判定。用户 2026-10-05：真机 MVU 初始化有延迟，
+ * 那段时间不能显示成"没数据"——用户分不清"坏了"和"还没好"。
+ *   · 有数据 → 'data'
+ *   · 没数据但**还在超时窗口内** → 'loading'（正在读，等等看）
+ *   · 没数据且**已超时** → 'empty'（真的没有）
+ * 超时窗口取得比 MVU 初始化长一些，避免刚闪一下"空"又变"有数据"。
+ */
+export var LOADING_MS = 8000;
+
+export function viewStateOf(opts) {
+  var o = opts || {};
+  if (o.hasData) { return 'data'; }
+  var wait = Number(o.elapsedMs);
+  var limit = Number(o.timeoutMs);
+  if (!isFinite(limit) || limit < 0) { limit = LOADING_MS; }
+  if (!isFinite(wait) || wait < 0) { wait = 0; }
+  return (wait < limit) ? 'loading' : 'empty';
 }
 
 /** 设置里"无数据时显示示例"是否开着 */

@@ -110,6 +110,8 @@
   /* PC 端用户调出来的宽度（null = 没调过，走"内容撑开"）。与位置同存一处。 */
   var userWidth = null;
   var curLayout = null;   /* layoutOf 最近一次的产物，排障与用例读它 */
+  var curView = 'empty';  /* 'loading' | 'empty' | 'data' —— 三态 */
+  var bootAt = Date.now();/* 加载态的超时窗口从这里起算 */
   var grip = null;        /* 横幅右端那根细拖拽手柄（只在 PC 出现） */
   var gripDrag = null;
 
@@ -168,7 +170,7 @@
        左缘落在**球心 x**、高度**等于图标高度**、顶边与球齐平 —— 三个数都由
        _status-view.js 的 headerGeom() 算好，以 --kami-ribbon-* 下发。
        横幅在**下面一层**（z-index 0），球在上面（z-index 1）。 */
-    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-pad-x,10px);padding-left:var(--kami-ribbon-inset,0px);overflow:hidden;border-radius:var(--kami-r-md,10px);background:var(--kami-card,rgba(40,42,52,.96));border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.28));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));padding-left:var(--kami-ribbon-inset,0px);overflow:hidden;border-radius:var(--kami-status-r,var(--kami-r-md,12px));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
     /* 用户 2026-10-05：兜底底色原来是 rgba(20,20,24)，在深色背景上**几乎隐形**。
        换成 rgba(40,42,52)，并把描边兜底提到 28% 白 —— 这样深黑、中灰、浅色三种无皮肤背景
        上都看得出边界（截图见报告）。皮肤一跑起来，两个令牌都由皮肤接管，这里的兜底自动失效。 */
@@ -179,16 +181,30 @@
         /* ⚠️ head 用 max-content 且**不加 max-width 夹取**：它的盒子宽度就是"内容要多宽"，
        这是 contentWidth() 唯一的量法。加了 max-width:100% 的话，横幅一窄量出来就被夹小，
        首屏会偏窄、双击复位也会量不准（实测踩到）。溢出交给横幅的 overflow:hidden 裁。 */
-    '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;width:max-content;}',
+        /* ⚠️ flex:0 0 auto 是关键：横幅是 display:flex，head 作为 flex item 默认 flex-shrink:1，
+       会被压到比 max-content 还窄 —— 于是"量内容宽"量到的是被压过的宽度，
+       横幅永远比文字窄一截、开头就被省略号吃掉（A 轮 scrollWidth 自噬的残留，截图里看到的那条）。
+       不许压缩 + width:max-content，量出来才是"文字自然排完"需要的宽度。 */
+    '#' + PANEL_ID + ' .kami-status-head{display:flex;flex-direction:column;gap:var(--kami-status-line-gap,2px);text-align:left;flex:0 0 auto;width:max-content;}',
     /* 三行、字号小（用户明确要求）。三行都省略号截断，标题栏不会被长文本撑爆 */
-    '#' + PANEL_ID + ' .kami-status-line{font-size:var(--kami-fs-xs,11px);line-height:1.35;color:var(--kami-fg-dim,#cfcfd6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw;}',
-    '#' + PANEL_ID + ' .kami-status-line[data-kami-slot="time"]{color:var(--kami-fg,#f2f2f4);}',
+        /* ── 三行信息层级（B 轮定的）──
+       主行（时间+天气）最重、地点次之、在场人物最轻；三行字号只分两级，靠**字重+颜色**拉层级，
+       这样在窄屏收缩时层级不会因为字号一起缩水而糊掉。 */
+    '#' + PANEL_ID + ' .kami-status-line{font-size:var(--kami-status-fs-sub,var(--kami-fs-xs,11px));line-height:var(--kami-status-lh,1.3);color:var(--kami-fg-mute,#a8a8b0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
+    /* ⚠️ 这里原来有 max-width:44vw —— 它就是"文字过早截断"的**最后一层**成因：
+       390 视口下 44vw = 171.6px，正好把主行卡在 172px 上（截图里量到的就是这个数）。
+       head 已经是 flex:0 0 auto + width:max-content，宽度该由文字自己决定；
+       真放不下时由横幅的 overflow:hidden 裁，不需要每行再自设上限。 */
+    '#' + PANEL_ID + ' .kami-status-line[data-kami-slot="time"]{font-size:var(--kami-status-fs-main,var(--kami-fs-sm,13px));font-weight:var(--kami-status-fw-main,600);color:var(--kami-fg,#f2f2f4);}',
+    '#' + PANEL_ID + ' .kami-status-line[data-kami-slot="place"]{color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 天气图标单独包一层：emoji 与汉字不在同一基线，靠 vertical-align 压齐 */
+    '#' + PANEL_ID + ' .kami-status-wx{display:inline-block;font-size:1.05em;line-height:1;vertical-align:var(--kami-status-wx-shift,-0.12em);margin-left:0;}',   /* 前面的空格由文本节点提供，这里不再加间距 */
     '#' + PANEL_ID + ' .kami-status-line.is-empty{display:none;}',
     /* "示例"徽标：小、克制，但**看得见** —— 别让人把示例当成自己的剧情变量 */
     '#' + PANEL_ID + ' .kami-status-sample{display:inline-block;margin:0 0 2px;padding:0 5px;border-radius:var(--kami-r-pill,999px);font-size:calc(var(--kami-fs-xs,11px) * .9);line-height:1.5;color:var(--kami-accent,#7aa2f7);border:var(--kami-border-w,1px) solid var(--kami-accent-line,rgba(122,162,247,.45));}',
 
     /* ── 展开后的状态栏面板 ── */
-    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;box-sizing:border-box;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:var(--kami-panel-w,320px);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,13px);overflow:hidden;}',
+    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;box-sizing:border-box;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:var(--kami-panel-w,320px);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,15px);overflow:hidden;}',
     '#' + PANEL_ID_PANEL + '[data-kami-open="1"]{display:flex;}',
     /* ── 连体：面板与横幅**共享一条边**，像从横幅长出来 ──
        ① 位置：面板 left/top 由 layoutOf 一次算出（左缘=横幅左缘、上缘=横幅下缘），
@@ -203,14 +219,14 @@
     '#' + PANEL_ID + ' .kami-status-grip{position:absolute;top:0;bottom:0;width:' + 12 + 'px;cursor:ew-resize;touch-action:none;background:transparent;}',
     '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="left"] .kami-status-grip{left:0;}',
     '#' + PANEL_ID + ' .kami-status-ribbon[data-kami-dir="right"] .kami-status-grip{right:0;}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-bar{display:flex;align-items:center;gap:6px;padding:var(--kami-pad-y,8px) var(--kami-pad-x,12px);border-bottom:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-bar{display:flex;align-items:center;gap:var(--kami-gap,8px);padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));border-bottom:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-bar:active{cursor:grabbing;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-x{appearance:none;font:inherit;line-height:1;padding:4px 8px;border-radius:var(--kami-r-xs,6px);cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;gap:4px;overflow-x:auto;padding:var(--kami-pad-y,8px) var(--kami-pad-x,12px) 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;gap:var(--kami-gap,8px);overflow-x:auto;padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) 0;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab{appearance:none;font:inherit;white-space:nowrap;padding:5px 10px;border-radius:var(--kami-r-sm,8px);cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid transparent;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab.is-on{background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-fg,#f2f2f4);border-color:var(--kami-line,rgba(255,255,255,.16));}',
-    '#' + PANEL_ID_PANEL + ' .kami-status-body{overflow-y:auto;padding:var(--kami-pad-y,10px) var(--kami-pad-x,12px) var(--kami-pad-lg-y,14px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-body{overflow-y:auto;padding:var(--kami-gap-lg,12px) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) var(--kami-status-pad-y,var(--kami-pad-lg-y,12px));}',
     '#' + PANEL_ID_PANEL + ' .kami-status-sec{margin:0 0 10px;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-sec-t{font-weight:600;margin:0 0 4px;color:var(--kami-accent,#7aa2f7);}',
     '#' + PANEL_ID_PANEL + ' .kami-status-row{display:flex;gap:8px;padding:2px 0;border-bottom:var(--kami-border-w,1px) dashed var(--kami-line,rgba(255,255,255,.10));}',
@@ -539,6 +555,24 @@
   /* 标题栏：三行小字。没数据就把球变回球 —— 这就是"没有数据时只有 icon" */
   function paintHeader(stat) {
     if (!stage || !ball || !headEls) { return; }
+    /* 三态：有数据 / 还在超时窗口内（加载中）/ 确实没有。
+       加载中也要把横幅显示出来，否则用户看到的就是"没数据"，分不清坏了还是没好。 */
+    curView = viewStateOf({
+      hasData: !isEmptyStat(stat),
+      elapsedMs: Date.now() - bootAt,
+      timeoutMs: LOADING_MS
+    });
+    stage.setAttribute('data-kami-view', curView);
+    if (curView === 'loading') {
+      if (ribbon) { ribbon.hidden = false; }
+      stage.setAttribute('data-kami-state', 'header');
+      if (sampleTagEl === null && headEls[0]) { /* 占位，无实际动作 */ }
+      headEls[0].textContent = STATUS_COPY.loading;
+      headEls[0].classList.remove('is-empty');
+      for (var q = 1; q < headEls.length; q++) { headEls[q].classList.add('is-empty'); }
+      paintRibbon();
+      return;
+    }
     var show = shouldShowHeader(stat, settings);
     stage.setAttribute('data-kami-state', show ? 'header' : 'ball');
     if (ribbon) { ribbon.hidden = !show; }
@@ -556,9 +590,23 @@
     var lines = headerLines(stat, function (id) { var c = chars[id]; return c ? c.name : ''; });
     for (var i = 0; i < headEls.length; i++) {
       var v = lines[i] || '';
-      headEls[i].textContent = v;
+      var el = headEls[i];
+      while (el.firstChild) { el.removeChild(el.firstChild); }
       /* 空的那一行收起来：三行的**位置**不变（不跳），但不留一片空白 */
-      if (v) { headEls[i].classList.remove('is-empty'); } else { headEls[i].classList.add('is-empty'); }
+      if (!v) { el.classList.add('is-empty'); continue; }
+      el.classList.remove('is-empty');
+      if (i === 0) {
+        /* 天气图标拆出来单独包一层，好让它跟汉字对齐基线（emoji 与汉字基线本来就不同高） */
+        var sp = splitWeatherIcon(v);
+        el.appendChild(HDOC.createTextNode(sp.icon ? (sp.text + ' ') : sp.text));
+        if (sp.icon) {
+          var wx = mk('span', 'kami-status-wx', sp.icon);
+          wx.setAttribute('aria-hidden', 'true');
+          el.appendChild(wx);
+        }
+      } else {
+        el.textContent = v;
+      }
     }
   }
 
@@ -882,6 +930,8 @@
           /* state: 'ball'（没数据，只有球）| 'header'（有数据，三行标题栏）——
              这是"有没有数据"的对外读数，排障与用例都靠它 */
           state: stage ? stage.getAttribute('data-kami-state') : null,
+          /* 注意：别叫 view —— status() 里已经有 view = "视口尺寸" 了，会互相盖掉 */
+          viewState: curView,
           hasData: !isEmptyStat(currentStat),
           panelOpen: !!panelOpen,
           view: viewW() + 'x' + viewH()
@@ -910,6 +960,8 @@
     /* MVU 的初始化是异步的，启动这一刻很可能还没变量。
        隔几秒**只补看一次**（不做常驻轮询：没有变量时它永远不会变，白耗电）。 */
     try { setTimeout(function () { if (!disposed) { refresh(); } }, 2500); } catch (e) { }
+    /* 加载态到点后翻成"空态"：这段时间一直没读到变量，就不该再吊着用户 */
+    try { setTimeout(function () { if (!disposed) { refresh(); } }, LOADING_MS + 50); } catch (e) { }
     if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
       try {
         var onRefresh = function () { try { setTimeout(function () { if (!disposed) { refresh(); } }, 300); } catch (e) { } };

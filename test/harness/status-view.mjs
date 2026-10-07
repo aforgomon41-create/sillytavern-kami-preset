@@ -12,6 +12,7 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'headerGeom', 'ribbonTextInset', 'MIN_RIBBON_W',
   'emptyStateText', 'panelTabPlan', 'isSampleOn',
   'layoutOf', 'clampUserWidth', 'BREAKPOINT', 'HANDLE_W', 'MIN_USER_W', 'MAX_USER_W',
+  'splitWeatherIcon', 'viewStateOf', 'LOADING_MS',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -473,6 +474,50 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   eq(d.gripLeft, d.left + d.width - M.HANDLE_W, '⑬ 右手柄贴在横幅右端');
   const lg = F({ viewW: 800, ball: B(680, 40, 64), contentW: 100 });
   eq(lg.gripLeft, lg.left, '⑬ 镜像向左时手柄换到左端（跟着展开方向走）');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑭ 天气图标拆分（基线对齐用）+ 三态判定（空 / 加载中 / 有数据）
+ * ════════════════════════════════════════════════════════════ */
+{
+  /* 图标拆分：拆得出来才包一层去压基线，拆不出来原样返回 —— 绝不丢字 */
+  eq(M.splitWeatherIcon('第四纪元-2023年-11月-15日-15:00 🌫️'), { text: '第四纪元-2023年-11月-15日-15:00', icon: '🌫️' }, '⑭ 时间行拆出图标');
+  eq(M.splitWeatherIcon('某时 · 下猫下狗'), { text: '某时 · 下猫下狗', icon: '' }, '⑭ 认不出的天气没有图标可拆，原文完整保留');
+  eq(M.splitWeatherIcon('☀️'), { text: '', icon: '☀️' }, '⑭ 只有图标时文字为空');
+  eq(M.splitWeatherIcon(''), { text: '', icon: '' }, '⑭ 空串不炸');
+  eq(M.splitWeatherIcon(null), { text: '', icon: '' }, '⑭ null 不炸');
+  eq(M.splitWeatherIcon('第四纪元 🌧️'), { text: '第四纪元', icon: '🌧️' }, '⑭ 拆完不带多余空格');
+  ok(M.splitWeatherIcon('第四纪元 ⛈️').icon.length > 0, '⑭ ⛈️ 这种组合 emoji 也认得');
+  /* 拼接回去必须与原文一致（除空格规整外），证明没吞字 */
+  for (const w of ['☀️','🌧️','☁️','❄️','🌫️','🌬️','⛈️','🌪️','☣️','✨']) {
+    const r = M.splitWeatherIcon('测试时间 ' + w);
+    eq(r.text + ' ' + r.icon, '测试时间 ' + w, '⑭ 图标 ' + w + ' 拆完拼回原样');
+  }
+
+  /* 三态 */
+  eq(M.LOADING_MS, 8000, '⑭ 加载窗口 8 秒');
+  eq(M.viewStateOf({ hasData: true, elapsedMs: 0 }), 'data', '⑭ 有数据 → data');
+  eq(M.viewStateOf({ hasData: true, elapsedMs: 99999 }), 'data', '⑭ 有数据永远优先，超时也不受影响');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 0 }), 'loading', '⑭ **刚启动没数据 → loading（不是 empty）**');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 7999 }), 'loading', '⑭ 窗口内仍是 loading');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 8000 }), 'empty', '⑭ 到点翻成 empty');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 60000 }), 'empty', '⑭ 超时之后一直是 empty');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 0, timeoutMs: 0 }), 'empty', '⑭ 窗口为 0 时立刻是 empty');
+  eq(M.viewStateOf({}), 'loading', '⑭ 什么都不传按"刚启动、没数据"算');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: -5 }), 'loading', '⑭ 负数耗时当 0');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 100, timeoutMs: 'abc' }), 'loading', '⑭ 脏超时退回默认窗口');
+  eq(M.viewStateOf({ hasData: false, elapsedMs: 9000, timeoutMs: 'abc' }), 'empty', '⑭ 脏超时退回默认后仍会翻 empty');
+
+  /* 源码级：这三态真的接进了渲染，不是只在纯逻辑里躺着 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('viewStateOf(') >= 0, '⑭ 80 号用了 viewStateOf');
+  ok(src80.indexOf("setAttribute('data-kami-view'") >= 0, '⑭ 三态写到了 data-kami-view');
+  ok(src80.indexOf('splitWeatherIcon(') >= 0, '⑭ 80 号用了 splitWeatherIcon');
+  ok(src80.indexOf("'kami-status-wx'") >= 0, '⑭ 图标真的包了一层（基线对齐才有作用点）');
+  /* B 轮三个缺陷的源码级防线 */
+  ok(src80.indexOf('flex:0 0 auto;width:max-content') >= 0, '⑭ head 不压缩（缺陷 3 的根因防线）');
+  ok(src80.indexOf('sampleTagEl = mk(') < 0, '⑭ **不再创建示例徽标**（缺陷 1）');
+  ok(src80.indexOf("STATUS_COPY.label + (currentIsSample") < 0, '⑭ **面板标题不再缀「（示例）」**（缺陷 2）');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
