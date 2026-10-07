@@ -716,7 +716,8 @@
     for (i = 0; i < keys.length; i++) {
       if (isNoiseField(keys[i])) { continue; }
       var row = mk('div', 'kami-status-row');
-      row.appendChild(mk('span', 'kami-status-k', String(resolveRef(keys[i], nameIndex))));
+      /* 先解析实体名（char_player → 雷恩），再查中文标签表；表里没有就退回原键名 */
+      row.appendChild(mk('span', 'kami-status-k', labelOf(resolveRef(keys[i], nameIndex))));
       var vb = mk('span', 'kami-status-v');
       renderValue(v[keys[i]], vb);
       row.appendChild(vb);
@@ -746,7 +747,7 @@
     }
     for (var i = 0; i < plan.rows.length; i++) {
       var row = mk('div', 'kami-status-row');
-      row.appendChild(mk('span', 'kami-status-k', plan.rows[i].key));
+      row.appendChild(mk('span', 'kami-status-k', labelOf(plan.rows[i].key)));
       var vb = mk('span', 'kami-status-v');
       renderValue(plan.rows[i].value, vb);
       row.appendChild(vb);

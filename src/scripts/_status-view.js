@@ -637,6 +637,130 @@ export var NOISE_FIELDS = [
   'spot_id', 'key_event', 'icon', 'color'
 ];
 
+/* ── 面板字段名的中文标签 ──
+   机制先落地、**文案等人出稿**：值一律 `【占位·待文案】`，实现不许自己编。
+   渲染时查这张表；**查不到就退回原键名** —— 新字段不会因为没人登记就从面板上消失。
+   表里只收 **schema 键**；实体名、技能名、货币名那些是**数据**，不是字段名，照原样显示。 */
+export var KEY_LABELS = {
+  affinity: '【占位·待文案】affinity',
+  age: '【占位·待文案】age',
+  agility: '【占位·待文案】agility',
+  alias: '【占位·待文案】alias',
+  appearance: '【占位·待文案】appearance',
+  areas: '【占位·待文案】areas',
+  arm: '【占位·待文案】arm',
+  athletics: '【占位·待文案】athletics',
+  body: '【占位·待文案】body',
+  burglary: '【占位·待文案】burglary',
+  category: '【占位·待文案】category',
+  cha: '【占位·待文案】cha',
+  chars: '【占位·待文案】chars',
+  client: '【占位·待文案】client',
+  com: '【占位·待文案】com',
+  con: '【占位·待文案】con',
+  connections: '【占位·待文案】connections',
+  contacts: '【占位·待文案】contacts',
+  crafts: '【占位·待文案】crafts',
+  deceive: '【占位·待文案】deceive',
+  desc: '【占位·待文案】desc',
+  dev: '【占位·待文案】dev',
+  dex: '【占位·待文案】dex',
+  diplomacy: '【占位·待文案】diplomacy',
+  dnd: '【占位·待文案】dnd',
+  domain: '【占位·待文案】domain',
+  drive: '【占位·待文案】drive',
+  ear: '【占位·待文案】ear',
+  empathy: '【占位·待文案】empathy',
+  exp: '【占位·待文案】exp',
+  facilities: '【占位·待文案】facilities',
+  fate: '【占位·待文案】fate',
+  fu: '【占位·待文案】fu',
+  goals: '【占位·待文案】goals',
+  health: '【占位·待文案】health',
+  identities: '【占位·待文案】identities',
+  impression: '【占位·待文案】impression',
+  insight: '【占位·待文案】insight',
+  int: '【占位·待文案】int',
+  investigate: '【占位·待文案】investigate',
+  items: '【占位·待文案】items',
+  kinks: '【占位·待文案】kinks',
+  latent_kinks: '【占位·待文案】latent_kinks',
+  leader: '【占位·待文案】leader',
+  libido: '【占位·待文案】libido',
+  limits: '【占位·待文案】limits',
+  line_id: '【占位·待文案】line_id',
+  location: '【占位·待文案】location',
+  log: '【占位·待文案】log',
+  long_term: '【占位·待文案】long_term',
+  lore: '【占位·待文案】lore',
+  lust: '【占位·待文案】lust',
+  man: '【占位·待文案】man',
+  melee: '【占位·待文案】melee',
+  might: '【占位·待文案】might',
+  mount: '【占位·待文案】mount',
+  name: '【占位·待文案】name',
+  nodes: '【占位·待文案】nodes',
+  notice: '【占位·待文案】notice',
+  nsfw: '【占位·待文案】nsfw',
+  objective: '【占位·待文案】objective',
+  owner: '【占位·待文案】owner',
+  physique: '【占位·待文案】physique',
+  plan: '【占位·待文案】plan',
+  pre: '【占位·待文案】pre',
+  present_chars: '【占位·待文案】present_chars',
+  priority: '【占位·待文案】priority',
+  promise: '【占位·待文案】promise',
+  provoke: '【占位·待文案】provoke',
+  rank: '【占位·待文案】rank',
+  rapport: '【占位·待文案】rapport',
+  real_desc: '【占位·待文案】real_desc',
+  relation: '【占位·待文案】relation',
+  relations: '【占位·待文案】relations',
+  rep: '【占位·待文案】rep',
+  res: '【占位·待文案】res',
+  residents: '【占位·待文案】residents',
+  resources: '【占位·待文案】resources',
+  reward: '【占位·待文案】reward',
+  role: '【占位·待文案】role',
+  round: '【占位·待文案】round',
+  secret: '【占位·待文案】secret',
+  sens: '【占位·待文案】sens',
+  shoot: '【占位·待文案】shoot',
+  short_term: '【占位·待文案】short_term',
+  skills: '【占位·待文案】skills',
+  special_stats: '【占位·待文案】special_stats',
+  spots: '【占位·待文案】spots',
+  sta: '【占位·待文案】sta',
+  stats: '【占位·待文案】stats',
+  status: '【占位·待文案】status',
+  stealth: '【占位·待文案】stealth',
+  str: '【占位·待文案】str',
+  summary: '【占位·待文案】summary',
+  tag_name: '【占位·待文案】tag_name',
+  thoughts: '【占位·待文案】thoughts',
+  ties: '【占位·待文案】ties',
+  time: '【占位·待文案】time',
+  title: '【占位·待文案】title',
+  traits: '【占位·待文案】traits',
+  trends: '【占位·待文案】trends',
+  truth: '【占位·待文案】truth',
+  type: '【占位·待文案】type',
+  value: '【占位·待文案】value',
+  wealth: '【占位·待文案】wealth',
+  weather: '【占位·待文案】weather',
+  will: '【占位·待文案】will',
+  willpower: '【占位·待文案】willpower',
+  wis: '【占位·待文案】wis',
+  wits: '【占位·待文案】wits',
+  wod: '【占位·待文案】wod',
+};
+
+/** 字段名 → 界面标签。查不到退回原键名（保证未登记的新字段照样显示）。 */
+export function labelOf(key) {
+  var k = String(key == null ? '' : key);
+  return (KEY_LABELS && KEY_LABELS[k]) ? KEY_LABELS[k] : k;
+}
+
 /** 这一层的键要不要在面板里显示 */
 export function isNoiseField(key) {
   return NOISE_FIELDS.indexOf(key) >= 0;
@@ -903,7 +1027,7 @@ export function sectionsOf(stat, settings) {
       /* 地点：三个字段（realm/area/spot）对用户没意义，**合成一行**可读地名。
          这是"键名该省就省"的落地 —— 用户要看的是"迷雾森林大区 · 林缘哨所区 · 石碑遗迹"，
          不是三行 realm_forest / area_woods_entry / spot_ancient_altar。 */
-      rows.push({ key: id, value: locationText(shown, stat) });
+      rows.push({ key: labelOf(id), value: locationText(shown, stat) });
     } else if (typeof shown === 'object' && !Array.isArray(shown)) {
       var keys = Object.keys(shown);
       for (var k = 0; k < keys.length; k++) {
@@ -911,7 +1035,7 @@ export function sectionsOf(stat, settings) {
         var cell = shown[keys[k]];
         /* 这一层的值也可能是地点结构（status.location 就是）→ 同样合成一行地名 */
         rows.push({
-          key: resolveRef(keys[k], index),
+          key: labelOf(resolveRef(keys[k], index)),
           value: isPlaceRef(cell) ? locationText(cell, stat) : resolveValue(cell, index)
         });
       }

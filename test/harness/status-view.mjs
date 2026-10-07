@@ -14,6 +14,7 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'layoutOf', 'clampUserWidth', 'BREAKPOINT', 'HANDLE_W', 'MIN_USER_W', 'MAX_USER_W',
   'splitWeatherIcon', 'viewStateOf', 'LOADING_MS',
   'buildNameIndex', 'resolveRef', 'resolveValue', 'isPlaceRef', 'NOISE_FIELDS', 'isNoiseField',
+  'KEY_LABELS', 'labelOf',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -552,10 +553,15 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   const allOn = M.mergeSettings({ modules: M.MODULES.reduce((a, m) => (a[m.id] = true, a), {}) });
   const secs = M.sectionsOf(S, allOn);
   const st = secs.find(x => x.id === 'status');
-  const loc = st.rows.find(r => r.key === 'location');
+  /* 标签是"占位 + 键名"，所以能按键定位（不带键名的话这里只能按值找，很脆） */
+  const loc = st.rows.find(r => r.key === M.KEY_LABELS['location']);
+  ok(!!loc, '⑮ 找得到地点那一行');
   eq(loc.value, '迷雾森林大区 · 林缘哨所区 · 石碑遗迹', '⑮ **地点三个字段合成一行可读地名**');
-  ok(!st.rows.some(r => r.key === 'realm' || r.key === 'area' || r.key === 'spot'),
-    '⑮ 不再出现 realm / area / spot 这三个键');
+  /* 三个 ID 合成了**一行**：整段里不该再出现任何一个原始地名 ID */
+  const statusBlob = JSON.stringify(st);
+  ok(statusBlob.indexOf('realm_forest') < 0 && statusBlob.indexOf('area_woods_entry') < 0
+    && statusBlob.indexOf('spot_ancient_altar') < 0, '⑮ 地点三个原始 ID 都不在渲染结果里');
+  eq(st.rows.filter(r => String(r.value).indexOf('迷雾森林大区') >= 0).length, 1, '⑮ 地点只占一行，不是三行');
 
   /* ── 硬要求：整份渲染里不许有下划线形式的原始 ID ── */
   /* 区分两件事：
@@ -589,7 +595,7 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(chs.rows.some(r => r.key === '雷恩') && chs.rows.some(r => r.key === '艾莉丝'),
     '⑮ 角色实体的键是名字');
   /* 纯记账字段被省掉 */
-  ok(!chs.rows.some(r => r.key === 'is_user'), '⑮ is_user 这类记账字段省掉');
+  ok(!chs.rows.some(r => r.key === 'is_user' || r.key === M.labelOf('is_user')), '⑮ is_user 这类记账字段省掉');
   const items = (chs.rows.find(r => r.key === '雷恩').value || {}).items || {};
   const firstItem = items[Object.keys(items)[0]] || {};
   /* 注意：equipped 只在**第一层**被省（sectionsOf 那一层）；items 是第二层，
@@ -607,6 +613,98 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(src80.indexOf('resolveRef(') >= 0, '⑮ 面板用了共用的 resolveRef');
   ok(src80.indexOf('function buildNameIndex') < 0, '⑮ 80 号里**没有第二份**索引实现');
   ok(src80.indexOf('function locationText') < 0, '⑮ 80 号里**没有第二份**地名解析');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑯ 面板字段名中文化：查表 / 占位前缀 / 未登记退回原键名
+ * ════════════════════════════════════════════════════════════ */
+{
+  ok(!!M.KEY_LABELS && typeof M.KEY_LABELS === 'object', '⑯ KEY_LABELS 表在');
+  const keys = Object.keys(M.KEY_LABELS);
+  ok(keys.length >= 110, '⑯ 表里登记了足够多的 schema 键（实际 ' + keys.length + ' 个）');
+  /* 从手写变量文档的 schema 枚举出来的四套 RPG 模块组属性：DND 之外的三套也要有标签，
+     否则用 FU / WOD / FATE 的人会看到一屏英文原名（清单漏了不会有人想起来） */
+  for (const k of ['might','agility','insight','willpower','sta','wits','res','pre','man','com',
+                   'physique','athletics','melee','shoot','notice','empathy','rapport','deceive',
+                   'provoke','contacts','investigate','crafts','burglary','stealth','drive','resources','will','tag_name']) {
+    ok(k in M.KEY_LABELS, '⑯ 文档里那四套 RPG 模块组的字段 ' + k + ' 也登记了');
+  }
+
+  /* ① 只要是**占位**，就必须以占位前缀开头 —— 防止实现自己编文案。
+     这条对"文案已交付"也成立：真的文案里不该出现「占位」二字。
+     （所以刻意写成"含占位标记就必须以它开头"，而不是"必须等于占位"——
+      这样文案 Agent 交稿后这条断言照样守着，不用改测试。） */
+  const PLACEHOLDER = '【占位·待文案】';
+  const badPrefix = keys.filter(k => {
+    const v = String(M.KEY_LABELS[k]);
+    return v.indexOf(PLACEHOLDER) >= 0 && v.indexOf(PLACEHOLDER) !== 0;
+  });
+  eq(badPrefix, [], '⑯ **凡带占位标记的，都以「【占位·待文案】」开头**（实现不自己编）');
+  /* ② 占位阶段要**带键名** —— 否则每一行左边都长一样，面板等于不可用 */
+  const noKey = keys.filter(k => String(M.KEY_LABELS[k]) === PLACEHOLDER);
+  eq(noKey, [], '⑯ 占位值都带上了键名（面板上分得清哪行是哪个字段）');
+  const wrongKey = keys.filter(k => {
+    const v = String(M.KEY_LABELS[k]);
+    return v.indexOf(PLACEHOLDER) === 0 && v.indexOf(k, PLACEHOLDER.length) < 0;
+  });
+  eq(wrongKey, [], '⑯ 占位值里的键名与它自己的键一致');
+  const empty = keys.filter(k => !M.KEY_LABELS[k]);
+  eq(empty, [], '⑯ 没有空标签');
+
+  /* ② 查表路径 */
+  eq(M.labelOf('location'), M.KEY_LABELS['location'], '⑯ 查得到就走表里的标签');
+  eq(M.labelOf('weather'), M.KEY_LABELS['weather'], '⑯ weather 也查得到');
+
+  /* ③ 未登记就退回原键名 —— 新字段不会因为没人登记而消失 */
+  eq(M.labelOf('一个还没登记的新字段'), '一个还没登记的新字段', '⑯ **未登记退回原键名**');
+  eq(M.labelOf('brand_new_field'), 'brand_new_field', '⑯ 未登记的英文键也退回原样');
+  eq(M.labelOf(''), '', '⑯ 空键返回空串');
+  eq(M.labelOf(null), '', '⑯ null 不炸');
+  eq(M.labelOf(undefined), '', '⑯ undefined 不炸');
+  /* 实体名（数据）不在表里，照原样显示 */
+  eq(M.labelOf('雷恩'), '雷恩', '⑯ 实体名是数据，不进表也不被改');
+
+  /* ④ 渲染真的走了查表路径（不是只在纯逻辑里躺着） */
+  const S = M.SAMPLE_STAT;
+  const allOn = M.mergeSettings({ modules: M.MODULES.reduce((a, m) => (a[m.id] = true, a), {}) });
+  const secs = M.sectionsOf(S, allOn);
+  const st = secs.find(x => x.id === 'status');
+  /* 标签是占位串时所有键**长得一样**，所以这里断言"没有一个键还是原始 schema 键" */
+  ok(!st.rows.some(r => r.key === 'time' || r.key === 'weather' || r.key === 'location' || r.key === 'round'),
+    '⑯ **面板上不再有原始 schema 键名**（都查过表了）');
+  /* 现在每行标签各不相同（占位里带了键名），所以可以**按键定位**了 ——
+     这正是采纳"占位+键名"那条建议带来的好处。 */
+  ok(st.rows.some(r => r.key === M.KEY_LABELS['time']), '⑯ status 的时间行用的是表里的标签');
+  ok(st.rows.some(r => r.key === M.KEY_LABELS['location']), '⑯ 地点行也用表里的标签');
+  ok(st.rows.every(r => String(r.key).indexOf('【占位·待文案】') === 0), '⑯ status 每一行的键都来自表');
+  /* 登记齐全时不该有任何一个键退回原样 */
+  const allOnKeys = secs.flatMap(x => x.rows.map(r => r.key));
+  ok(!allOnKeys.some(k => /^[a-z][a-z0-9_]*$/.test(k)),
+    '⑯ 登记齐全的分区里，没有键退回成英文原名（实际退回 ' +
+    JSON.stringify(allOnKeys.filter(k => /^[a-z][a-z0-9_]*$/.test(k)).slice(0, 5)) + '）');
+
+  /* ⑤ 未登记的键在真实渲染里照样出现（拿掉一个键的登记试试） */
+  const saved = M.KEY_LABELS['health'];
+  delete M.KEY_LABELS['health'];
+  const chs = M.sectionsOf(S, allOn).find(x => x.id === 'characters');
+  const one = chs.rows.find(r => r.key === '雷恩').value || {};
+  ok('health' in one, '⑯ 拿掉登记后 health 字段本身还在（不丢字段）');
+  /* health 在**第二层**（characters.雷恩.health），sectionsOf 只出顶层行 ——
+     所以这里验的是"没登记时 labelOf 退回原键名"，渲染层照它显示就是英文键。 */
+  eq(M.labelOf('health'), 'health', '⑯ **未登记的键退回原键名**（面板上会直接显示 health）');
+  ok('health' in one, '⑯ 值本身没丢（只是标签退回原键名）');
+  M.KEY_LABELS['health'] = saved;
+  eq(M.labelOf('health'), saved, '⑯ 登记恢复');
+
+  /* ⑥ 故意不换的键：纯记账字段已经整条省掉，压根不需要标签 */
+  for (const noise of M.NOISE_FIELDS) {
+    ok(!(noise in M.KEY_LABELS), '⑯ 记账字段 ' + noise + ' 故意不登记（它根本不会渲染）');
+  }
+
+  /* ⑦ 源码级：渲染路径必须查表 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('labelOf(') >= 0, '⑯ 80 号渲染时查表');
+  ok(src80.indexOf('KEY_LABELS') < 0, '⑯ 80 号里没有第二份标签表（表只有一份）');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
