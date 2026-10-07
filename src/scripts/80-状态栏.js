@@ -170,7 +170,7 @@
        左缘落在**球心 x**、高度**等于图标高度**、顶边与球齐平 —— 三个数都由
        _status-view.js 的 headerGeom() 算好，以 --kami-ribbon-* 下发。
        横幅在**下面一层**（z-index 0），球在上面（z-index 1）。 */
-    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));padding-left:var(--kami-ribbon-inset,0px);overflow:hidden;border-radius:var(--kami-status-r,var(--kami-r-md,12px));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
+    '#' + PANEL_ID + ' .kami-status-ribbon{position:absolute;left:0;top:0;margin:0;z-index:0;display:none;align-items:center;box-sizing:border-box;transform:translate3d(var(--kami-ribbon-x,0px),var(--kami-ribbon-y,0px),0);width:var(--kami-ribbon-w,0px);height:var(--kami-ribbon-h,0px);padding-right:var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));padding-left:var(--kami-ribbon-inset,0px);overflow:hidden;border-radius:var(--kami-status-r,var(--kami-r-md,12px));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));box-shadow:var(--kami-shadow-sm,0 4px 14px rgba(0,0,0,.35));pointer-events:auto;}',
     /* 用户 2026-10-05：兜底底色原来是 rgba(20,20,24)，在深色背景上**几乎隐形**。
        换成 rgba(40,42,52)，并把描边兜底提到 28% 白 —— 这样深黑、中灰、浅色三种无皮肤背景
        上都看得出边界（截图见报告）。皮肤一跑起来，两个令牌都由皮肤接管，这里的兜底自动失效。 */
@@ -204,7 +204,10 @@
     '#' + PANEL_ID + ' .kami-status-sample{display:inline-block;margin:0 0 2px;padding:0 5px;border-radius:var(--kami-r-pill,999px);font-size:calc(var(--kami-fs-xs,11px) * .9);line-height:1.5;color:var(--kami-accent,#7aa2f7);border:var(--kami-border-w,1px) solid var(--kami-accent-line,rgba(122,162,247,.45));}',
 
     /* ── 展开后的状态栏面板 ── */
-    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;box-sizing:border-box;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:var(--kami-panel-w,320px);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,15px);overflow:hidden;}',
+        /* ⚠️ margin:0 是**必须**的：src/skin/base.css 里有一条通用子元素规则会给它加上
+       margin-top:10px，于是连体面板被顶下去 10px、接缝裂开（皮肤截图里实测到的）。
+       这个脚本的几何一律由 layoutOf 算，**不许被基础样式扰动**。 */
+    '#' + PANEL_ID_PANEL + '{position:absolute;left:0;top:0;margin:0;box-sizing:border-box;transform:translate3d(var(--kami-panel-x,40px),var(--kami-panel-y,80px),0);z-index:1;width:var(--kami-panel-w,320px);max-height:70vh;display:none;flex-direction:column;pointer-events:auto;background:var(--kami-card,rgba(20,20,24,.97));color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.18));border-radius:var(--kami-r-lg,12px);box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));font-size:var(--kami-fs,15px);overflow:hidden;}',
     '#' + PANEL_ID_PANEL + '[data-kami-open="1"]{display:flex;}',
     /* ── 连体：面板与横幅**共享一条边**，像从横幅长出来 ──
        ① 位置：面板 left/top 由 layoutOf 一次算出（左缘=横幅左缘、上缘=横幅下缘），
@@ -692,23 +695,28 @@
       box.appendChild(s);
       return;
     }
-    if (d.kind === 'text' || d.kind === 'number') { box.appendChild(mk('span', '', String(v))); return; }
+    if (d.kind === 'text') { box.appendChild(mk('span', '', String(resolveRef(v, nameIndex)))); return; }
+    if (d.kind === 'number') { box.appendChild(mk('span', '', String(v))); return; }
     if (d.kind === 'list') {
       var parts = [];
       for (i = 0; i < d.items.length; i++) {
         var it = d.items[i];
-        parts.push(typeof it === 'object' ? String(it && it.name ? it.name : '·') : String(it));
+        parts.push(typeof it === 'object'
+          ? String(it && it.name ? it.name : '·')
+          : String(resolveRef(it, nameIndex)));
       }
       box.appendChild(mk('span', '', parts.join(' / ')));
       return;
     }
-    /* group：再摊一层 */
+    /* group：再摊一层。键和值都可能是实体 ID（relations 的键就是角色 ID），
+       统一走共用的名字索引解析 —— 与标题栏、与 sectionsOf 是同一份逻辑。 */
     var keys = Object.keys(v);
     if (!keys.length) { box.appendChild(mk('span', 'kami-status-empty', '—')); return; }
     var wrap = mk('div', '');
     for (i = 0; i < keys.length; i++) {
+      if (isNoiseField(keys[i])) { continue; }
       var row = mk('div', 'kami-status-row');
-      row.appendChild(mk('span', 'kami-status-k', keys[i]));
+      row.appendChild(mk('span', 'kami-status-k', String(resolveRef(keys[i], nameIndex))));
       var vb = mk('span', 'kami-status-v');
       renderValue(v[keys[i]], vb);
       row.appendChild(vb);
@@ -717,8 +725,12 @@
     box.appendChild(wrap);
   }
 
+  /* 当前这一屏用的名字索引（与标题栏共用 buildNameIndex） */
+  var nameIndex = {};
+
   function renderPanelBody() {
     if (!panelBody) { return; }
+    nameIndex = buildNameIndex(currentStat);
     while (panelBody.firstChild) { panelBody.removeChild(panelBody.firstChild); }
 
     if (activeTab === '__settings') { renderSettings(); return; }

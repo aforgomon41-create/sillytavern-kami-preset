@@ -26,9 +26,9 @@ export var STATUS_COPY = {
   emptyHint: '可在设置里开启无数据时显示示例预览布局，继续对话后会自动填充',
   expandHint: '点击展开查看详情',
   close: '关闭',
-  gripTip: '【占位·待文案】拖动可调整宽度，双击恢复默认',
-  gripLabel: '【占位·待文案】调整标题栏宽度',
-  loading: '【占位·待文案】正在读取剧情状态…',
+  gripTip: '拖动调整宽度，双击恢复默认',
+  gripLabel: '调整标题栏宽度',
+  loading: '正在读取剧情数据，请稍候',
   settingsTab: '设置',
   settingsModules: '模块显示开关',
   settingsOptions: '界面显示选项',
@@ -194,6 +194,31 @@ export var SAMPLE_STAT = {
         body: { ear: { desc: '耳尖微薄，容易泛红', dev: '未开发', sens: 'weakspot', status: '微热紧绷' } }
       }
     },
+    char_grand_master: {
+      is_user: false,
+      name: '大团长 · 塞维恩',
+      alias: '白鸦之首',
+      role: 'minor',
+      age: '58',
+      identities: ['晨曦骑士团大团长'],
+      location: 'area_ruins',
+      health: '旧伤缠身，右眼蒙着布',
+      summary: '执掌骑士团三十年的老人，誓词只有他一人读过全文',
+      appearance: '银甲外罩白袍，声音低沉',
+      goals: { long_term: '让日轮誓约继续传下去', short_term: '把失窃的圣印追回来' },
+      thoughts: '那个孩子带着徽记跑了 —— 她不知道自己在替谁背罪',
+      plan: ['封锁森林主干道', '向守林人施压'],
+      relations: {},
+      rank: '团长',
+      stats: { fu: {}, wod: {}, fate: {}, dnd: { str: 13, dex: 9, con: 14, int: 15, wis: 17, cha: 16 } },
+      special_stats: {},
+      skills: { 誓约压制: '面对团员时对方难以违逆' },
+      traits: {},
+      items: {},
+      wealth: { 金币: 200 },
+      mount: {},
+      nsfw: { libido: '', exp: '', kinks: [], latent_kinks: [], lust: 0, body: {} }
+    },
     char_warden: {
       is_user: false,
       name: '老哨人 · 卡尔',
@@ -249,6 +274,15 @@ export var SAMPLE_STAT = {
               real_desc: '', bg_image: '', bgm: ''
             }
           }
+        },
+        area_lake: {
+          name: '沉星湖岸',
+          is_found: false,
+          desc: '林子西侧一片终年不冻的湖水，夜里能看见倒影里的星',
+          real_desc: '湖底沉着上古祭坛的基座',
+          bg_image: '', bgm: '',
+          connections: ['area_woods_entry'],
+          spots: {}
         },
         area_ruins: {
           name: '塌陷回廊', is_found: false,
@@ -527,6 +561,114 @@ function txt(v) {
 }
 
 /**
+ * 建一张 **实体 ID → 可读名字** 的索引，一次遍历把八个模块里的命名实体全收进来。
+ * 标题栏和面板**共用这一份** —— 本仓库的规矩：同一件事别写两套（写两套已经丢过功能）。
+ * 覆盖：角色（含坐骑）、地图大区/区域/地点、势力、据点、剧情线、任务。
+ * 名字为空就**不收**，这样解析时自然退回 ID，不会把没名字的实体显示成空白。
+ */
+export function buildNameIndex(stat) {
+  var idx = {};
+  if (!stat || typeof stat !== 'object') { return idx; }
+  var k, sub, sub2, keys, i;
+  var chars = stat.characters || {};
+  keys = Object.keys(chars);
+  for (i = 0; i < keys.length; i++) {
+    k = keys[i];
+    if (!chars[k]) { continue; }
+    if (chars[k].name) { idx[k] = chars[k].name; }
+    /* 坐骑与道具也是"有名字的实体"，它们的 ID 同样会当键出现在面板上 */
+    var mounts = chars[k].mount || {};
+    var mk = Object.keys(mounts);
+    for (var j = 0; j < mk.length; j++) {
+      if (mounts[mk[j]] && mounts[mk[j]].name) { idx[mk[j]] = mounts[mk[j]].name; }
+    }
+    var items = chars[k].items || {};
+    var ik = Object.keys(items);
+    for (var n = 0; n < ik.length; n++) {
+      if (items[ik[n]] && items[ik[n]].name) { idx[ik[n]] = items[ik[n]].name; }
+    }
+  }
+  var mn = stat.map_nodes || {};
+  keys = Object.keys(mn);
+  for (i = 0; i < keys.length; i++) {
+    k = keys[i];
+    if (!mn[k]) { continue; }
+    if (mn[k].name) { idx[k] = mn[k].name; }
+    sub = mn[k].areas || {};
+    var ak = Object.keys(sub);
+    for (var a = 0; a < ak.length; a++) {
+      if (sub[ak[a]] && sub[ak[a]].name) { idx[ak[a]] = sub[ak[a]].name; }
+      sub2 = (sub[ak[a]] && sub[ak[a]].spots) || {};
+      var sk = Object.keys(sub2);
+      for (var s = 0; s < sk.length; s++) {
+        if (sub2[sk[s]] && sub2[sk[s]].name) { idx[sk[s]] = sub2[sk[s]].name; }
+      }
+    }
+  }
+  var fa = stat.factions || {};
+  keys = Object.keys(fa);
+  for (i = 0; i < keys.length; i++) { if (fa[keys[i]] && fa[keys[i]].name) { idx[keys[i]] = fa[keys[i]].name; } }
+  var es = stat.estates || {};
+  keys = Object.keys(es);
+  for (i = 0; i < keys.length; i++) { if (es[keys[i]] && es[keys[i]].name) { idx[keys[i]] = es[keys[i]].name; } }
+  var sl = stat.storylines || {};
+  keys = Object.keys(sl);
+  for (i = 0; i < keys.length; i++) { if (sl[keys[i]] && sl[keys[i]].title) { idx[keys[i]] = sl[keys[i]].title; } }
+  var qs = stat.quests || {};
+  keys = Object.keys(qs);
+  for (i = 0; i < keys.length; i++) { if (qs[keys[i]] && qs[keys[i]].name) { idx[keys[i]] = qs[keys[i]].name; } }
+  /* 设定集用 title 当名字 */
+  var lo = stat.lore || {};
+  keys = Object.keys(lo);
+  for (i = 0; i < keys.length; i++) { if (lo[keys[i]] && lo[keys[i]].title) { idx[keys[i]] = lo[keys[i]].title; } }
+  return idx;
+}
+
+/** 值是实体 ID 就换成名字；认不出来原样返回（宁可显示得难看，也不要显示成空）。 */
+export function resolveRef(value, index) {
+  if (typeof value !== 'string' || !index) { return value; }
+  return index[value] ? index[value] : value;
+}
+
+/* 纯记账字段：对用户没有叙事价值，面板里省掉（"该省就省"）。
+   注意**不含** real_desc / secret / truth / latent_kinks —— 那几个归"显示剧透内容"开关管。 */
+export var NOISE_FIELDS = [
+  'is_user', 'equipped', 'is_found', 'count', 'bg_image', 'bgm',
+  'spot_id', 'key_event', 'icon', 'color'
+];
+
+/** 这一层的键要不要在面板里显示 */
+export function isNoiseField(key) {
+  return NOISE_FIELDS.indexOf(key) >= 0;
+}
+
+/** 递归把"值是实体 ID"的字符串换成名字。数组、对象都下去。 */
+export function resolveValue(v, index) {
+  if (typeof v === 'string') { return resolveRef(v, index); }
+  if (Array.isArray(v)) {
+    var a = [];
+    for (var i = 0; i < v.length; i++) { a.push(resolveValue(v[i], index)); }
+    return a;
+  }
+  if (v && typeof v === 'object') {
+    /* ⚠️ **键也要解析**：relations 的键是角色 ID、items 的键是道具 ID、
+       map_nodes 的键是地点 ID —— 只解析值的话这些 ID 照样会露在面板上（实测漏了 9 个）。 */
+    var o = {}, k = Object.keys(v);
+    for (var j = 0; j < k.length; j++) {
+      o[resolveRef(k[j], index)] = resolveValue(v[k[j]], index);
+    }
+    return o;
+  }
+  return v;
+}
+
+/** 是不是"地点引用"结构（{realm,area,spot}）—— 是的话合成一行地名，不拆成三行 ID */
+export function isPlaceRef(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) { return false; }
+  return !!(v.realm || v.area || v.spot);
+}
+
+/**
  * 地点可能是字符串（地图关），也可能是 {realm,area,spot}（地图开）。
  * ⚠️ 地图开着时存的是**实体 ID**（文档原话："填入实体ID结构对象"），
  * 直接显示会变成 realm_forest · area_woods_entry · spot_ancient_altar —— 用户看不懂。
@@ -536,16 +678,13 @@ export function locationText(loc, stat) {
   if (!loc) { return ''; }
   if (typeof loc === 'string') { return loc.trim(); }
   if (typeof loc !== 'object') { return ''; }
-  var nodes = (stat && stat.map_nodes) || {};
-  var ids = ['realm', 'area', 'spot'], parts = [], cur = null, i, id, name;
+  /* 走共用的名字索引 —— 面板和标题栏是同一份解析，不会一处会换名字、另一处还在显示 ID */
+  var idx = buildNameIndex(stat);
+  var ids = ['realm', 'area', 'spot'], parts = [], i, id;
   for (i = 0; i < ids.length; i++) {
     id = txt(loc[ids[i]]);
     if (!id) { continue; }
-    name = '';
-    if (i === 0) { cur = nodes[id] || null; name = cur ? txt(cur.name) : ''; }
-    else if (i === 1) { var ar = cur && cur.areas ? cur.areas[id] : null; cur = ar || null; name = ar ? txt(ar.name) : ''; }
-    else { var sp = cur && cur.spots ? cur.spots[id] : null; name = sp ? txt(sp.name) : ''; }
-    parts.push(name || id);   /* 查不到就退回 ID：宁可显示得难看，也不要显示成空 */
+    parts.push(resolveRef(id, idx));
   }
   return parts.join(' · ');
 }
@@ -571,7 +710,7 @@ export function headerLines(stat, nameOf) {
   /* 在场人物同理：存的是角色 ID，显示要换成名字。
      没传 nameOf 时**自己从 stat.characters 里查**（调用方就不用重复这份查找逻辑了）。 */
   var present = Array.isArray(s.present_chars) ? s.present_chars : [];
-  var chars = (stat && stat.characters) || {};
+  var idx = buildNameIndex(stat);
   var names = [];
   for (var i = 0; i < present.length; i++) {
     var id = txt(present[i]);
@@ -579,7 +718,7 @@ export function headerLines(stat, nameOf) {
     var nm = '';
     try {
       if (typeof nameOf === 'function') { nm = txt(nameOf(id)); }
-      else if (chars[id]) { nm = txt(chars[id].name); }
+      else { nm = txt(resolveRef(id, idx)); }
     } catch (e) { nm = ''; }
     names.push(nm || id);
   }
@@ -759,13 +898,25 @@ export function sectionsOf(stat, settings) {
     if (v === undefined || v === null) { continue; }
     var rows = [];
     var shown = stripHidden(v, showHidden);
-    if (typeof shown === 'object' && !Array.isArray(shown)) {
+    var index = buildNameIndex(stat);
+    if (isPlaceRef(shown)) {
+      /* 地点：三个字段（realm/area/spot）对用户没意义，**合成一行**可读地名。
+         这是"键名该省就省"的落地 —— 用户要看的是"迷雾森林大区 · 林缘哨所区 · 石碑遗迹"，
+         不是三行 realm_forest / area_woods_entry / spot_ancient_altar。 */
+      rows.push({ key: id, value: locationText(shown, stat) });
+    } else if (typeof shown === 'object' && !Array.isArray(shown)) {
       var keys = Object.keys(shown);
       for (var k = 0; k < keys.length; k++) {
-        rows.push({ key: keys[k], value: shown[keys[k]] });
+        if (isNoiseField(keys[k])) { continue; }   /* 纯记账字段省掉 */
+        var cell = shown[keys[k]];
+        /* 这一层的值也可能是地点结构（status.location 就是）→ 同样合成一行地名 */
+        rows.push({
+          key: resolveRef(keys[k], index),
+          value: isPlaceRef(cell) ? locationText(cell, stat) : resolveValue(cell, index)
+        });
       }
     } else {
-      rows.push({ key: id, value: shown });
+      rows.push({ key: id, value: resolveValue(shown, index) });
     }
     out.push({ id: id, titleKey: mods[i].copy, rows: rows });
   }

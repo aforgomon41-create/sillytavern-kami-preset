@@ -13,6 +13,7 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'emptyStateText', 'panelTabPlan', 'isSampleOn',
   'layoutOf', 'clampUserWidth', 'BREAKPOINT', 'HANDLE_W', 'MIN_USER_W', 'MAX_USER_W',
   'splitWeatherIcon', 'viewStateOf', 'LOADING_MS',
+  'buildNameIndex', 'resolveRef', 'resolveValue', 'isPlaceRef', 'NOISE_FIELDS', 'isNoiseField',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -152,14 +153,15 @@ const ok = (c, label) => eq(!!c, true, label);
   const secs = M.sectionsOf(stat, D);
   eq(secs.map(s => s.id), ['status', 'characters'], '⑧ 只画开着的模块（factions/lore 默认关）');
   const ch = secs.find(s => s.id === 'characters');
-  ok(ch.rows.some(r => r.key === 'c1'), '⑧ 角色区块列出实体');
+  /* 键也要解析：characters 的键就是角色 ID，用户不该看到 char_player */
+  ok(ch.rows.some(r => r.key === '雷恩'), '⑧ 角色区块的键是**解析后的名字**，不是 char_player');
   /* 剧透字段藏在第二层（characters.c1.real_desc）—— 必须递归过滤，只过滤顶层等于没过滤 */
-  const c1 = ch.rows.find(r => r.key === 'c1').value;
+  const c1 = ch.rows.find(r => r.key === '雷恩').value;
   ok(c1.name === '雷恩', '⑧ 实体里正常字段还在');
   ok(!('real_desc' in c1), '⑧ **第二层的剧透字段也被过滤掉**');
 
   const withHidden = M.sectionsOf(stat, M.mergeSettings({ options: { showHidden: true } }));
-  ok('real_desc' in withHidden.find(s => s.id === 'characters').rows.find(r => r.key === 'c1').value, '⑧ 打开选项后剧透字段出现');
+  ok('real_desc' in withHidden.find(s => s.id === 'characters').rows.find(r => r.key === '雷恩').value, '⑧ 打开选项后剧透字段出现');
 
   eq(M.sectionsOf(null, D), [], '⑧ 没数据 → 没有区块');
   eq(M.sectionsOf({}, D), [], '⑧ 空数据 → 没有区块');
@@ -518,6 +520,93 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(src80.indexOf('flex:0 0 auto;width:max-content') >= 0, '⑭ head 不压缩（缺陷 3 的根因防线）');
   ok(src80.indexOf('sampleTagEl = mk(') < 0, '⑭ **不再创建示例徽标**（缺陷 1）');
   ok(src80.indexOf("STATUS_COPY.label + (currentIsSample") < 0, '⑭ **面板标题不再缀「（示例）」**（缺陷 2）');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑮ 面板不再显示原始 ID / 字段名（Lead 2026-10-06 点出的内容层缺陷）
+ *   硬要求：**渲染结果里不许出现下划线形式的原始 ID**
+ * ════════════════════════════════════════════════════════════ */
+{
+  const S = M.SAMPLE_STAT;
+  /* 索引本身 */
+  const idx = M.buildNameIndex(S);
+  eq(idx['char_player'], '雷恩', '⑮ 索引收得到角色');
+  eq(idx['realm_forest'], '迷雾森林大区', '⑮ 索引收得到地图大区');
+  eq(idx['area_woods_entry'], '林缘哨所区', '⑮ 索引收得到区域');
+  eq(idx['spot_ancient_altar'], '石碑遗迹', '⑮ 索引收得到地点');
+  eq(idx['faction_dawn'], '晨曦骑士团', '⑮ 索引收得到势力');
+  eq(idx['estate_hunter_cabin'], '林间废弃猎人小屋', '⑮ 索引收得到据点');
+  eq(idx['quest_scout'], '遗迹的侦察委托', '⑮ 索引收得到任务');
+  eq(idx['line_holy_relic'], '圣印窃案的真相', '⑮ 索引收得到剧情线');
+  eq(idx['mount_horse'], '杂色驽马', '⑮ 索引收得到坐骑');
+  eq(idx['不存在的ID'], undefined, '⑮ 索引里没有的就是没有');
+  eq(M.buildNameIndex(null), {}, '⑮ 空数据建索引不炸');
+  eq(M.resolveRef('char_player', idx), '雷恩', '⑮ 解析：ID → 名字');
+  eq(M.resolveRef('未知ID', idx), '未知ID', '⑮ 解析不到**退回原值**（不显示成空）');
+  eq(M.resolveRef(42, idx), 42, '⑮ 非字符串原样返回');
+  eq(M.resolveValue(['char_player', 'char_heroine'], idx), ['雷恩', '艾莉丝'], '⑮ 数组里的 ID 也解析');
+  eq(M.isPlaceRef({ realm: 'x' }), true, '⑮ 认得地点结构');
+  eq(M.isPlaceRef({ name: 'x' }), false, '⑮ 普通对象不是地点结构');
+
+  /* 三个字段合成一行地名，不是三行 ID */
+  const allOn = M.mergeSettings({ modules: M.MODULES.reduce((a, m) => (a[m.id] = true, a), {}) });
+  const secs = M.sectionsOf(S, allOn);
+  const st = secs.find(x => x.id === 'status');
+  const loc = st.rows.find(r => r.key === 'location');
+  eq(loc.value, '迷雾森林大区 · 林缘哨所区 · 石碑遗迹', '⑮ **地点三个字段合成一行可读地名**');
+  ok(!st.rows.some(r => r.key === 'realm' || r.key === 'area' || r.key === 'spot'),
+    '⑮ 不再出现 realm / area / spot 这三个键');
+
+  /* ── 硬要求：整份渲染里不许有下划线形式的原始 ID ── */
+  /* 区分两件事：
+     · **字段名**（present_chars / map_nodes 这种）是 schema 的名字，允许出现 —— 它们不是 ID；
+     · **实体 ID**（char_player / area_woods_entry）必须换成人话，一个都不许漏。
+     判据就是"这个字符串是不是名字索引里的一个键"。 */
+  const IDLIKE = /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/;
+  const rawIds = new Set(Object.keys(M.buildNameIndex(S)));
+  const leakedValues = [];
+  const leakedKeys = [];
+  const walk = (v, path) => {
+    if (typeof v === 'string') { if (IDLIKE.test(v)) { leakedValues.push(path + ' = ' + v); } return; }
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, path + '[' + i + ']')); return; }
+    if (v && typeof v === 'object') { Object.keys(v).forEach(k => walk(v[k], path + '.' + k)); }
+  };
+  for (const sec of M.sectionsOf(S, allOn)) {
+    for (const row of sec.rows) {
+      walk(row.value, sec.id + '.' + row.key);
+      if (rawIds.has(row.key)) { leakedKeys.push(sec.id + '.key = ' + row.key); }
+    }
+  }
+  eq(leakedValues, [], '⑮ **渲染出来的值里没有任何下划线形式的原始 ID**');
+  eq(leakedKeys, [], '⑮ **没有任何实体 ID 还留在键上**（char_player 这种）');
+  /* 索引里的 ID 一个都不能出现在渲染结果里（正面列举，比正则更死） */
+  const blob = JSON.stringify(M.sectionsOf(S, allOn));
+  const stillRaw = [...rawIds].filter(id => blob.indexOf('"' + id + '"') >= 0);
+  eq(stillRaw, [], '⑮ 名字索引里的每个 ID 都不再以原样出现在渲染结果里');
+
+  /* 键名也换了：characters 的键是名字 */
+  const chs = secs.find(x => x.id === 'characters');
+  ok(chs.rows.some(r => r.key === '雷恩') && chs.rows.some(r => r.key === '艾莉丝'),
+    '⑮ 角色实体的键是名字');
+  /* 纯记账字段被省掉 */
+  ok(!chs.rows.some(r => r.key === 'is_user'), '⑮ is_user 这类记账字段省掉');
+  const items = (chs.rows.find(r => r.key === '雷恩').value || {}).items || {};
+  const firstItem = items[Object.keys(items)[0]] || {};
+  /* 注意：equipped 只在**第一层**被省（sectionsOf 那一层）；items 是第二层，
+     由 80 号的 renderValue 逐层过滤。这里断言的是"深层的键仍然解析成名字"。 */
+  ok(!Object.keys(items).some(k => IDLIKE.test(k)), '⑮ 道具的键（item_longbow）也换成了名字');
+  ok(firstItem.name === '精钢猎弓', '⑮ 道具解析后拿得到名字');
+
+  /* 剧透开关仍然独立生效（别被这轮改动带坏） */
+  const on = M.sectionsOf(S, M.mergeSettings({ modules: allOn.modules, options: { showHidden: true } }));
+  ok(JSON.stringify(on).length > JSON.stringify(secs).length, '⑮ 剧透开关仍然有效');
+
+  /* 源码级：面板与标题栏**共用**同一份解析，不是各写一套 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('buildNameIndex(') >= 0, '⑮ 面板用了共用的 buildNameIndex');
+  ok(src80.indexOf('resolveRef(') >= 0, '⑮ 面板用了共用的 resolveRef');
+  ok(src80.indexOf('function buildNameIndex') < 0, '⑮ 80 号里**没有第二份**索引实现');
+  ok(src80.indexOf('function locationText') < 0, '⑮ 80 号里**没有第二份**地名解析');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
