@@ -279,6 +279,72 @@
     '#' + PANEL_ID_PANEL + ' .kami-w-bool{font-size:var(--kami-fs-xs,11px);}',
     '#' + PANEL_ID_PANEL + ' .kami-w-bool[data-kami-on="1"]{color:var(--kami-accent,#7aa2f7);}',
     '#' + PANEL_ID_PANEL + ' .kami-w-bool[data-kami-on="0"]{color:var(--kami-fg-mute,#a8a8b0);}',
+    /* ── 信息架构层（分区专属排版）── 全部走令牌，不写死颜色 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-sec{margin:0 0 var(--kami-gap-lg,12px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-sec-t{font-weight:600;color:var(--kami-accent,#7aa2f7);margin:0 0 2px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-sec-s{color:var(--kami-fg-mute,#a8a8b0);font-size:var(--kami-fs-xs,11px);margin:0 0 var(--kami-gap,8px);}',
+    /* HUD：一句话能看完 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-hud-line{display:flex;align-items:center;gap:var(--kami-gap,8px);flex-wrap:wrap;font-size:var(--kami-status-fs-main,var(--kami-fs-sm,13px));color:var(--kami-fg,#f2f2f4);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-hud-where{margin-top:2px;color:var(--kami-fg-dim,#cfcfd6);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-self{display:flex;align-items:center;gap:var(--kami-gap,8px);margin-top:var(--kami-gap,8px);padding:var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-self-name{font-weight:600;color:var(--kami-fg,#f2f2f4);}',
+    /* 头像：没图必须兜底，不能空着 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:var(--kami-status-avatar,40px);height:var(--kami-status-avatar,40px);border-radius:var(--kami-status-avatar-r,var(--kami-r-sm,9px));overflow:hidden;background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-accent,#7aa2f7);font-weight:700;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar-img{width:100%;height:100%;object-fit:cover;}',
+    /* 角色卡 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-card{margin:0 0 var(--kami-gap,8px);padding:var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-card.is-self{border-color:var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-card-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-card-name{font-weight:600;color:var(--kami-fg,#f2f2f4);display:flex;align-items:center;gap:calc(var(--kami-gap,8px)/2);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-card-alias{color:var(--kami-fg-mute,#a8a8b0);font-size:var(--kami-fs-xs,11px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-bars{margin:var(--kami-gap,8px) 0 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-bar-row{display:flex;align-items:center;gap:var(--kami-gap,8px);margin:2px 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-bar-row .kami-status-k{flex:none;width:var(--kami-status-kw,3.4em);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-rels{margin-top:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-rel{display:flex;align-items:center;gap:var(--kami-gap,8px);margin:2px 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-rel-to{flex:none;color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 折叠：所有分区共用同一个交互 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold{margin:var(--kami-gap,8px) 0 0;border-top:var(--kami-border-w,1px) dashed var(--kami-line,rgba(255,255,255,.10));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold-h{display:flex;align-items:center;gap:calc(var(--kami-gap,8px)/2);width:100%;margin:0;padding:calc(var(--kami-gap,8px)/2) 0;appearance:none;font:inherit;text-align:left;cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold-b{display:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold[data-kami-open="1"] .kami-ia-fold-b{display:block;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-caret{flex:none;color:var(--kami-fg-mute,#a8a8b0);}',
+    /* 迷雾：未探明统一长这样 */
+    '#' + PANEL_ID_PANEL + ' [data-kami-fog="1"]{filter:blur(var(--kami-status-fog-blur,.6px));opacity:var(--kami-status-fog-dim,.55);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fog{color:var(--kami-fg-mute,#a8a8b0);font-style:italic;}',
+    /* 地图层级 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-area{margin:var(--kami-gap,8px) 0 0 var(--kami-gap-lg,12px);padding-left:var(--kami-gap,8px);border-left:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.10));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-area-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-spot{display:flex;gap:var(--kami-gap,8px);margin:2px 0 0 var(--kami-gap-lg,12px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-spot-t{flex:none;color:var(--kami-fg,#f2f2f4);}',
+    /* 任务日志 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-quest-group{margin:0 0 var(--kami-gap-lg,12px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-quest{padding:var(--kami-gap,8px);margin:0 0 var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-quest.is-done{opacity:.68;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-quest-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-quest-n{font-weight:600;color:var(--kami-fg,#f2f2f4);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-rep{display:flex;align-items:center;gap:var(--kami-gap,8px);margin:2px 0;}',
+    /* 时间线 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-line{margin:0 0 var(--kami-gap-lg,12px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-line-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-timeline{margin-top:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node{display:flex;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-dot{flex:none;width:7px;height:7px;margin-top:.45em;border-radius:50%;background:var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-c{flex:1;min-width:0;padding-bottom:var(--kami-gap,8px);border-left:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.10));padding-left:var(--kami-gap,8px);margin-left:-4px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 不动产 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-estate{margin:0 0 var(--kami-gap-lg,12px);padding:var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-facilities{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--kami-status-cell,108px),1fr));gap:var(--kami-gap,8px);margin-top:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-facility{padding:calc(var(--kami-gap,8px)/2);border-radius:var(--kami-r-xs,6px);background:var(--kami-line,rgba(255,255,255,.10));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-facility.is-built{box-shadow:inset 0 0 0 var(--kami-border-w,1px) var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-facility-n{font-weight:600;color:var(--kami-fg,#f2f2f4);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-facility-d{font-size:var(--kami-fs-xs,11px);color:var(--kami-fg-mute,#a8a8b0);}',
+    /* 设定集 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-lore{margin:0 0 var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-lore-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-truth{margin-top:2px;display:flex;gap:var(--kami-gap,8px);color:var(--kami-fg-dim,#cfcfd6);}',
+    /* 浮动 ✕ 与标签行不重叠：标签行右侧预留的空间由上面的 padding-right 保证 */
     '#' + PANEL_ID_PANEL + ' .kami-status-hint{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:2px 0 8px;}'
   ].join('\n');
 
@@ -842,12 +908,346 @@
   /* 当前这一屏用的名字索引（与标题栏共用 buildNameIndex） */
   var nameIndex = {};
 
+  /* ── 信息架构层的小积木 ──
+     这一层不做任何"判断"，只把纯函数给的结构画出来。 */
+  function sec(title, sub) {
+    var box = mk('div', 'kami-ia-sec');
+    if (title) { box.appendChild(mk('div', 'kami-ia-sec-t', String(title))); }
+    if (sub) { box.appendChild(mk('div', 'kami-ia-sec-s', String(sub))); }
+    return box;
+  }
+  function line(k, v) {
+    var r = mk('div', 'kami-status-row');
+    if (k !== null && k !== undefined && k !== '') { r.appendChild(mk('span', 'kami-status-k', String(k))); }
+    var vb = mk('span', 'kami-status-v');
+    if (v && v.nodeType) { vb.appendChild(v); } else { vb.appendChild(HDOC.createTextNode(String(v == null ? '' : v))); }
+    r.appendChild(vb);
+    return r;
+  }
+  /* 折叠块：**所有分区共用同一个交互**（用户要求"细节折叠要统一"） */
+  function fold(id, title, inner, defaultOpen) {
+    var box = mk('div', 'kami-ia-fold');
+    var head = mk('button', 'kami-ia-fold-h');
+    head.type = 'button';
+    head.setAttribute('data-kami-fold', id);
+    head.setAttribute('aria-expanded', defaultOpen ? 'true' : 'false');
+    head.appendChild(mk('span', 'kami-ia-caret', defaultOpen ? '▾' : '▸'));
+    head.appendChild(mk('span', '', title));
+    var body = mk('div', 'kami-ia-fold-b');
+    body.appendChild(inner);
+    box.appendChild(head); box.appendChild(body);
+    if (defaultOpen) { box.setAttribute('data-kami-open', '1'); }
+    head.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var on = box.getAttribute('data-kami-open') === '1';
+      box.setAttribute('data-kami-open', on ? '0' : '1');
+      head.setAttribute('aria-expanded', on ? 'false' : 'true');
+      head.firstChild.textContent = on ? '▸' : '▾';
+    });
+    return box;
+  }
+  /* 迷雾：未探明统一长这样 */
+  function fogText(t) { var s = mk('span', 'kami-ia-fog', String(t)); s.setAttribute('data-kami-fog', '1'); return s; }
+  /* 头像兜底：有图用图，没图用首字 —— 绝不空着 */
+  function avatarNode(a) {
+    var box = mk('span', 'kami-ia-avatar');
+    if (a && a.kind === 'image') {
+      var im = mk('img', 'kami-ia-avatar-img'); im.src = a.src; im.alt = '';
+      box.appendChild(im);
+    } else {
+      box.setAttribute('data-kami-fallback', '1');
+      box.appendChild(mk('span', 'kami-ia-avatar-t', (a && a.text) || '?'));
+    }
+    return box;
+  }
+  function barNode(b) {
+    var el = mk('span', 'kami-w-bar');
+    var f = mk('span', 'kami-w-bar-fill'); f.style.width = b.pct.toFixed(1) + '%';
+    el.appendChild(f); el.appendChild(mk('span', 'kami-w-bar-num', String(b.value)));
+    return el;
+  }
+  function signedNode(r) {
+    var el = mk('span', 'kami-w-bar is-signed' + (r.negative ? ' is-neg' : ''));
+    var z = mk('span', 'kami-w-bar-zero'); z.style.left = r.zero.toFixed(1) + '%';
+    var f = mk('span', 'kami-w-bar-fill'); f.style.left = r.fillLeft.toFixed(1) + '%'; f.style.width = r.fillWidth.toFixed(1) + '%';
+    el.appendChild(z); el.appendChild(f);
+    el.appendChild(mk('span', 'kami-w-bar-num', (r.value > 0 ? '+' : '') + r.value));
+    return el;
+  }
+  function chipsNode(items) {
+    var el = mk('span', 'kami-w-chips');
+    for (var i = 0; i < items.length; i++) { el.appendChild(mk('span', 'kami-w-chip', String(items[i]))); }
+    return el;
+  }
+  function badgeNode(text, tone) {
+    var el = mk('span', 'kami-w-badge', String(text));
+    el.setAttribute('data-kami-tone', String(tone === undefined ? 0 : tone));
+    return el;
+  }
+
+  /* ── ① 状态：HUD（一句话能看完）── */
+  function secHud(stat) {
+    var h = hudOf(stat), box = mk('div', '');
+    var l1 = mk('div', 'kami-ia-hud-line');
+    if (h.round !== null) { l1.appendChild(badgeNode('第 ' + h.round + ' 回合', 0)); }
+    if (h.when) { l1.appendChild(mk('span', 'kami-ia-hud-when', h.when)); }
+    if (h.weatherIcon) { l1.appendChild(mk('span', 'kami-status-wx', h.weatherIcon)); }
+    box.appendChild(l1);
+    if (h.where) { box.appendChild(mk('div', 'kami-ia-hud-where', h.where)); }
+    if (h.self) {
+      var self = mk('div', 'kami-ia-self');
+      self.appendChild(avatarNode(h.self.avatar));
+      var col = mk('div', 'kami-ia-self-col');
+      col.appendChild(mk('div', 'kami-ia-self-name', h.self.name + (h.self.health ? '' : '')));
+      if (h.self.health) { col.appendChild(badgeNode(h.self.health, h.self.tone)); }
+      self.appendChild(col);
+      box.appendChild(self);
+    }
+    if (h.present.length) {
+      box.appendChild(line(labelOf('present_chars'), chipsNode(h.present)));
+    }
+    return box;
+  }
+
+  /* ── ② 角色：角色卡 + 关系方向 + 细节收起 ── */
+  function secRoster(stat) {
+    var list = rosterOf(stat, settings), box = mk('div', ''), i;
+    for (i = 0; i < list.length; i++) {
+      (function (c) {
+        var card = mk('div', 'kami-ia-card' + (c.isSelf ? ' is-self' : ''));
+        var head = mk('div', 'kami-ia-card-h');
+        head.appendChild(avatarNode(c.avatar));
+        var col = mk('div', 'kami-ia-card-col');
+        var nm = mk('div', 'kami-ia-card-name', c.name);
+        if (c.isSelf) { nm.appendChild(mk('span', 'kami-w-chip', '我')); }
+        col.appendChild(nm);
+        if (c.alias) { col.appendChild(mk('div', 'kami-ia-card-alias', c.alias)); }
+        if (c.health) { col.appendChild(badgeNode(c.health, c.tone)); }
+        head.appendChild(col);
+        card.appendChild(head);
+        if (c.summary) { card.appendChild(mk('p', 'kami-w-text', c.summary)); }
+        /* 只画**生效那一套**的属性条 */
+        if (c.bars.length) {
+          var bars = mk('div', 'kami-ia-bars');
+          for (var j = 0; j < c.bars.length; j++) {
+            var row = mk('div', 'kami-ia-bar-row');
+            row.appendChild(mk('span', 'kami-status-k', c.bars[j].key));
+            row.appendChild(barNode(c.bars[j]));
+            bars.appendChild(row);
+          }
+          card.appendChild(bars);
+        }
+        /* 关系要有方向感：→ 谁 */
+        if (c.relations.length) {
+          var rel = mk('div', 'kami-ia-rels');
+          for (var m = 0; m < c.relations.length; m++) {
+            var r = c.relations[m];
+            var rr = mk('div', 'kami-ia-rel');
+            rr.appendChild(mk('span', 'kami-ia-rel-to', '→ ' + r.toward));
+            rr.appendChild(signedNode({ value: r.affinity, negative: r.negative, zero: 50,
+              fillLeft: r.negative ? 50 - r.pct / 2 : 50, fillWidth: r.pct / 2 }));
+            rel.appendChild(rr);
+          }
+          card.appendChild(rel);
+        }
+        /* 细节默认收起 */
+        for (var d = 0; d < c.details.length; d++) {
+          var blk = c.details[d], inner = mk('div', '');
+          for (var e = 0; e < blk.rows.length; e++) {
+            var rw = blk.rows[e];
+            var vn = mk('span', '');
+            renderWidget(blk.id, rw.value, vn, ['characters', blk.id]);
+            var rline = line(rw.key, vn);
+            if (rw.equipped) { rline.appendChild(mk('span', 'kami-w-chip', '已装备')); }
+            inner.appendChild(rline);
+          }
+          card.appendChild(fold(c.id + '-' + blk.id, blk.label, inner, false));
+        }
+        box.appendChild(card);
+      })(list[i]);
+    }
+    return box;
+  }
+
+  /* ── ③ 地图：层级 + 连通 + 迷雾 ── */
+  function secMap(stat) {
+    var tree = mapTreeOf(stat), box = mk('div', ''), i, j, k;
+    for (i = 0; i < tree.length; i++) {
+      var r = tree[i], rb = sec(r.found ? r.name : '？？？', r.desc);
+      if (!r.found) { rb.setAttribute('data-kami-fog', '1'); }
+      for (j = 0; j < r.areas.length; j++) {
+        var a = r.areas[j], ab = mk('div', 'kami-ia-area' + (a.found ? '' : ' is-fog'));
+        if (!a.found) { ab.setAttribute('data-kami-fog', '1'); }
+        ab.appendChild(mk('div', 'kami-ia-area-t', a.found ? a.name : '未探明区域'));
+        if (a.found && a.desc) { ab.appendChild(mk('div', 'kami-ia-sec-s', a.desc)); }
+        if (a.links.length) { ab.appendChild(line('通往', chipsNode(a.links))); }
+        for (k = 0; k < a.spots.length; k++) {
+          var sp = a.spots[k];
+          var sr = mk('div', 'kami-ia-spot' + (sp.found ? '' : ' is-fog'));
+          if (!sp.found) { sr.setAttribute('data-kami-fog', '1'); }
+          sr.appendChild(mk('span', 'kami-ia-spot-t', sp.found ? sp.name : '？？？'));
+          if (sp.found && sp.desc) { sr.appendChild(mk('span', 'kami-status-v', sp.desc)); }
+          ab.appendChild(sr);
+        }
+        rb.appendChild(ab);
+      }
+      box.appendChild(rb);
+    }
+    return box;
+  }
+
+  /* ── ④ 任务：按状态分组的日志 ── */
+  var QUEST_LABEL = { active: '进行中', pending: '待办', done: '已完成', failed: '已失败' };
+  function secQuests(stat) {
+    var log = questLogOf(stat), box = mk('div', ''), i, j;
+    for (i = 0; i < log.length; i++) {
+      var g = log[i], gb = mk('div', 'kami-ia-quest-group');
+      gb.appendChild(mk('div', 'kami-ia-sec-t', (QUEST_LABEL[g.status] || g.status) + ' · ' + g.items.length));
+      for (j = 0; j < g.items.length; j++) {
+        var q = g.items[j], qb = mk('div', 'kami-ia-quest' + (g.status === 'done' ? ' is-done' : ''));
+        var qh = mk('div', 'kami-ia-quest-h');
+        qh.appendChild(badgeNode(QUEST_LABEL[g.status] || g.status, g.status === 'done' ? 1 : (g.status === 'failed' ? -1 : 0)));
+        qh.appendChild(mk('span', 'kami-ia-quest-n', q.name));
+        qb.appendChild(qh);
+        if (q.objective) { qb.appendChild(mk('p', 'kami-w-text', q.objective)); }
+        if (q.client) { qb.appendChild(line('委托人', q.client)); }
+        if (q.reward) { qb.appendChild(line('报酬', q.reward)); }
+        if (q.limits) { qb.appendChild(line('限制', q.limits)); }
+        gb.appendChild(qb);
+      }
+      box.appendChild(gb);
+    }
+    return box;
+  }
+
+  /* ── ⑤ 势力：声望双向 + 外交 ── */
+  function secFactions(stat) {
+    var list = factionsOf(stat), box = mk('div', ''), i, j;
+    for (i = 0; i < list.length; i++) {
+      var f = list[i], fb = sec(f.name, [f.type, f.alias].filter(Boolean).join(' · '));
+      if (f.summary) { fb.appendChild(mk('p', 'kami-w-text', f.summary)); }
+      for (j = 0; j < f.reps.length; j++) {
+        var r = f.reps[j];
+        var row = mk('div', 'kami-ia-rep');
+        row.appendChild(mk('span', 'kami-status-k', (r.title || '声望') + ' · ' + r.who));
+        row.appendChild(signedNode(r));
+        fb.appendChild(row);
+      }
+      for (j = 0; j < f.diplomacy.length; j++) {
+        var d = f.diplomacy[j];
+        fb.appendChild(line('对 ' + d.toward, d.relation + (d.trends ? '（' + d.trends + '）' : '')));
+      }
+      box.appendChild(fb);
+    }
+    return box;
+  }
+
+  /* ── ⑥ 剧情线：时间线 ── */
+  function secStorylines(stat) {
+    var lines = timelineOf(stat), box = mk('div', ''), i, j;
+    for (i = 0; i < lines.length; i++) {
+      var l = lines[i], lb = mk('div', 'kami-ia-line');
+      var lh = mk('div', 'kami-ia-line-h');
+      lh.appendChild(badgeNode(l.priority === 'main' ? '主线' : (l.priority === 'personal' ? '个人' : '支线'), l.priority === 'main' ? 1 : 0));
+      lh.appendChild(mk('span', 'kami-ia-card-name', l.title));
+      lb.appendChild(lh);
+      if (l.summary) { lb.appendChild(mk('p', 'kami-w-text', l.summary)); }
+      var tl = mk('div', 'kami-ia-timeline');
+      for (j = 0; j < l.nodes.length; j++) {
+        var n = l.nodes[j], nb = mk('div', 'kami-ia-node');
+        nb.appendChild(mk('span', 'kami-ia-node-dot', ''));
+        var nc = mk('div', 'kami-ia-node-c');
+        var nh = mk('div', 'kami-ia-node-h');
+        if (n.round !== null) { nh.appendChild(mk('span', 'kami-w-num', '#' + n.round)); }
+        nh.appendChild(mk('span', 'kami-ia-node-t', n.title));
+        nc.appendChild(nh);
+        if (n.log) { nc.appendChild(mk('p', 'kami-w-text', n.log)); }
+        if (n.chars.length) { nc.appendChild(chipsNode(n.chars)); }
+        nb.appendChild(nc);
+        tl.appendChild(nb);
+      }
+      lb.appendChild(tl);
+      box.appendChild(lb);
+    }
+    return box;
+  }
+
+  /* ── ⑦ 不动产：产业卡 + 设施格子 ── */
+  function secEstates(stat) {
+    var list = estatesOf(stat), box = mk('div', ''), i, j;
+    for (i = 0; i < list.length; i++) {
+      var e = list[i], eb = mk('div', 'kami-ia-estate');
+      if (!e.found) { eb.setAttribute('data-kami-fog', '1'); }
+      eb.appendChild(mk('div', 'kami-ia-card-name', e.found ? e.name : '未探明产业'));
+      eb.appendChild(mk('div', 'kami-ia-sec-s', [e.type, e.owner].filter(Boolean).join(' · ')));
+      if (e.desc) { eb.appendChild(mk('p', 'kami-w-text', e.desc)); }
+      if (e.facilities.length) {
+        var grid = mk('div', 'kami-ia-facilities');
+        for (j = 0; j < e.facilities.length; j++) {
+          var fa = e.facilities[j];
+          var cell = mk('div', 'kami-ia-facility' + (fa.built ? ' is-built' : ''));
+          cell.appendChild(mk('div', 'kami-ia-facility-n', fa.name));
+          if (fa.desc) { cell.appendChild(mk('div', 'kami-ia-facility-d', fa.desc)); }
+          grid.appendChild(cell);
+        }
+        eb.appendChild(grid);
+      }
+      if (e.residents.length) { eb.appendChild(line('居住', chipsNode(e.residents))); }
+      box.appendChild(eb);
+    }
+    return box;
+  }
+
+  /* ── ⑧ 设定集：按分类分组，truth 只在剧透开关打开时出现 ── */
+  function secLore(stat) {
+    var groups = loreOf(stat, settings), box = mk('div', ''), i, j;
+    for (i = 0; i < groups.length; i++) {
+      var g = groups[i], gb = sec(g.category, g.items.length + ' 条');
+      for (j = 0; j < g.items.length; j++) {
+        var it = g.items[j], ib = mk('div', 'kami-ia-lore' + (it.found ? '' : ' is-fog'));
+        if (!it.found) { ib.setAttribute('data-kami-fog', '1'); }
+        ib.appendChild(mk('div', 'kami-ia-lore-t', it.found ? it.title : '未探明'));
+        if (it.summary) { ib.appendChild(mk('p', 'kami-w-text', it.summary)); }
+        /* truth 是剧透：loreOf 在开关没开时**根本不会给**，这里只负责画 */
+        if (it.truth) {
+          var tr = mk('div', 'kami-ia-truth');
+          tr.appendChild(mk('span', 'kami-w-chip', '真相'));
+          tr.appendChild(mk('span', '', it.truth));
+          ib.appendChild(tr);
+        }
+        gb.appendChild(ib);
+      }
+      box.appendChild(gb);
+    }
+    return box;
+  }
+
+  var SECTION_RENDER = {
+    status: secHud, characters: secRoster, map_nodes: secMap, quests: secQuests,
+    factions: secFactions, storylines: secStorylines, estates: secEstates, lore: secLore
+  };
+
   function renderPanelBody() {
     if (!panelBody) { return; }
     nameIndex = buildNameIndex(currentStat);
     while (panelBody.firstChild) { panelBody.removeChild(panelBody.firstChild); }
 
     if (activeTab === '__settings') { renderSettings(); return; }
+
+    /* ── 分区专属架构 ──
+       ⚠️ 这里**不再**走"把这一层的键平铺成一行一行"的通用渲染（用户判定那等于没做）。
+       每个分区有自己的组织方式，全在 SECTION_RENDER 里。 */
+    var build = SECTION_RENDER[activeTab];
+    if (build) {
+      var bodyBox = null;
+      try { bodyBox = build(currentStat); } catch (e) { log('分区渲染失败（' + activeTab + '）：' + msgOf(e)); }
+      if (bodyBox && bodyBox.firstChild) { panelBody.appendChild(bodyBox); return; }
+      /* 这个分区真的没内容 → 走统一空态（"这一块还没有内容"+引导句） */
+      var planEmpty = panelTabPlan(currentStat, settings, activeTab);
+      var lines = planEmpty.lines && planEmpty.lines.length ? planEmpty.lines : [STATUS_COPY.emptyHint];
+      for (var q = 0; q < lines.length; q++) { panelBody.appendChild(mk('div', 'kami-status-empty', lines[q])); }
+      return;
+    }
 
     /* 空态统一走纯函数 panelTabPlan —— 它会带上引导句（"怎么才会有内容"），
        而且在"示例数据开着"时**不会**同时喊"没有数据"（那就自相矛盾了）。 */

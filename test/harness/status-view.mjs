@@ -17,6 +17,9 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'KEY_LABELS', 'labelOf',
   'widgetOf', 'fillPct', 'rankOf', 'signedBar', 'statGroupOf', 'toneOf',
   'RANGE', 'FATE_RANKS', 'BADGE_FIELDS', 'BAR_FIELDS', 'TEXT_WRAP_AT',
+  'isFogged', 'activeStatGroup', 'avatarOf', 'relationListOf', 'hudOf', 'rosterOf',
+  'detailBlocksOf', 'mapTreeOf', 'questLogOf', 'factionsOf', 'timelineOf', 'estatesOf', 'loreOf',
+  'QUEST_ORDER', 'DETAIL_GROUPS',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -834,6 +837,142 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(src80.indexOf('widgetOf(') >= 0, '⑰ 80 号渲染时用了 widgetOf');
   ok(src80.indexOf('fillPct(') < 0, '⑰ 80 号里没有第二份范围换算');
   ok(src80.indexOf('signedBar(') < 0, '⑰ 80 号里没有第二份双向条计算');
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑱ 信息架构：每个分区自己的组织方式（不再是"把键平铺出来"）
+ * ════════════════════════════════════════════════════════════ */
+{
+  const S = M.SAMPLE_STAT;
+  const show = M.mergeSettings({ modules: { lore: true }, options: { showHidden: false } });
+  const showAll = M.mergeSettings({ modules: { lore: true }, options: { showHidden: true } });
+
+  /* ── 迷雾 ── */
+  eq(M.isFogged({ is_found: false }), true, '⑱ is_found:false → 迷雾');
+  eq(M.isFogged({ is_found: true }), false, '⑱ is_found:true → 不是迷雾');
+  eq(M.isFogged({}), false, '⑱ **认不出就当已探明**（不把有内容的条目误打码）');
+  eq(M.isFogged(null), false, '⑱ null 不是迷雾');
+
+  /* ── 生效的规则组：四套互斥，只显示一套 ── */
+  eq(M.activeStatGroup({ stats: { fu: {}, dnd: { str: 1 }, wod: { str: 2 }, fate: {} } }), 'dnd', '⑱ 只有 dnd 有键 → dnd');
+  eq(M.activeStatGroup({ stats: { fu: { might: 8 }, dnd: {} } }), 'fu', '⑱ 只有 fu 有键 → fu');
+  eq(M.activeStatGroup({ stats: { fu: {}, dnd: {}, wod: {}, fate: {} } }), '', '⑱ **四套都是空对象 → 一套都不生效**（空对象不算）');
+  eq(M.activeStatGroup({}), '', '⑱ 没有 stats → 空');
+  eq(M.activeStatGroup(null), '', '⑱ null 不炸');
+
+  /* ── 头像兜底 ── */
+  eq(M.avatarOf({ name: '雷恩' }).kind, 'letter', '⑱ 没图 → 用首字兜底');
+  eq(M.avatarOf({ name: '雷恩' }).text, '雷', '⑱ 首字取第一个字');
+  eq(M.avatarOf({ name: '艾莉丝' }).text, '艾', '⑱ 中文名取首字');
+  eq(M.avatarOf({ avatar: 'a.png', name: '雷恩' }).kind, 'image', '⑱ 有图就用图');
+  eq(M.avatarOf({}).text, '?', '⑱ 连名字都没有 → 问号（**绝不空着**）');
+  eq(M.avatarOf(null).text, '?', '⑱ null 也给问号');
+
+  /* ── 状态 HUD：一句话能看完 ── */
+  const hud = M.hudOf(S);
+  eq(hud.when, '第四纪元-2023年-11月-15日-15:00', '⑱ HUD 有时间');
+  eq(hud.where, '迷雾森林大区 · 林缘哨所区 · 石碑遗迹', '⑱ HUD 地点已解析成地名');
+  eq(hud.weather, '雾', '⑱ HUD 有天气');
+  eq(hud.weatherIcon, M.WEATHER_ICON['雾'], '⑱ HUD 带天气图标');
+  eq(hud.present, ['雷恩', '艾莉丝'], '⑱ HUD 在场人物解析成名字');
+  eq(hud.round, 12, '⑱ HUD 有回合数');
+  ok(!!hud.self, '⑱ **HUD 认得出玩家自己**');
+  eq(hud.self.name, '雷恩', '⑱ 自己是雷恩（is_user）');
+  eq(hud.self.tone, -1, '⑱ 自己的状态语气（轻度疲惫 → 差）');
+  eq(hud.self.avatar.kind, 'letter', '⑱ 自己也有头像兜底');
+
+  /* ── 角色卡 ── */
+  const roster = M.rosterOf(S, show);
+  eq(roster.length, 4, '⑱ 四张角色卡');
+  eq(roster[0].isSelf, true, '⑱ **玩家自己排最前**');
+  eq(roster[0].name, '雷恩', '⑱ 第一张是自己');
+  ok(roster.every(c => c.group === 'dnd'), '⑱ **四张卡都只带生效的那一套（dnd）**');
+  const lei = roster[0];
+  eq(lei.bars.length, 6, '⑱ 角色卡上正好六个属性条');
+  ok(lei.bars.every(b => b.pct >= 0 && b.pct <= 100), '⑱ 条都在 0-100');
+  eq(lei.bars[0].pct, M.fillPct(14, 1, 20), '⑱ 条按 D&D 范围算');
+  /* 关系有方向 */
+  eq(lei.relations.length, 1, '⑱ 雷恩有一条关系');
+  eq(lei.relations[0].toward, '艾莉丝', '⑱ **关系有方向：对谁**');
+  eq(lei.relations[0].affinity, 15, '⑱ 带好感度数值');
+  eq(lei.relations[0].negative, false, '⑱ 正负标出来了');
+  /* 细节默认收起（结构上有，但不平铺） */
+  ok(lei.details.length > 0, '⑱ 细节块存在（点开才看）');
+  ok(lei.details.some(d => d.id === 'goals'), '⑱ 有"目标与打算"块');
+  ok(lei.details.some(d => d.id === 'skills'), '⑱ 有"能力"块');
+  ok(lei.details.some(d => d.id === 'items'), '⑱ 有"资产"块');
+  /* 装备要标出来 */
+  const itemBlock = lei.details.find(d => d.id === 'items');
+  ok(itemBlock.rows.some(r => r.equipped === true), '⑱ **已装备的资产有标记**');
+
+  /* ── 地图：层级 + 连通 + 迷雾 ── */
+  const tree = M.mapTreeOf(S);
+  eq(tree.length, 1, '⑱ 一个大区');
+  eq(tree[0].name, '迷雾森林大区', '⑱ 大区有名字');
+  eq(tree[0].areas.length, 3, '⑱ 三个区域');
+  ok(tree[0].areas[0].found === true, '⑱ **已探明的区域排前面**');
+  ok(tree[0].areas[tree[0].areas.length - 1].found === false, '⑱ 未探明的沉底');
+  const entry = tree[0].areas.find(a => a.name === '林缘哨所区');
+  eq(entry.spots.length, 2, '⑱ 区域下面有地点（层级）');
+  ok(entry.links.length >= 1, '⑱ **连通关系留着（通往…）**');
+  /* 层级是真的，不是平铺：区域挂在大区下，地点挂在区域下 */
+  ok(tree[0].areas.every(a => Array.isArray(a.spots)), '⑱ 每个区域都有自己的地点数组');
+
+  /* ── 任务日志：按状态分组 ── */
+  const log = M.questLogOf(S);
+  ok(log.length >= 2, '⑱ 任务分了组');
+  eq(log[0].status, 'active', '⑱ **进行中排最前**');
+  eq(M.QUEST_ORDER, ['active', 'pending', 'done', 'failed'], '⑱ 状态顺序固定：进行中→待办→完成→失败');
+  const scout = log[0].items.find(q => q.name === '遗迹的侦察委托');
+  ok(!!scout, '⑱ 找得到那条委托');
+  eq(scout.client, '艾莉丝', '⑱ **委托人解析成名字**');
+  ok(scout.reward.length > 0, '⑱ 有报酬');
+  ok(!('secret' in scout), '⑱ **剧透的 secret 不在任务条目里**');
+
+  /* ── 势力：双向声望 ── */
+  const facs = M.factionsOf(S);
+  eq(facs.length, 2, '⑱ 两个势力');
+  ok(facs[0].reps.length > 0 && facs[0].reps[0].value < 0, '⑱ **对我最差的势力排最前**');
+  const dawn = facs.find(f => f.name === '晨曦骑士团');
+  eq(dawn.reps[0].who, '艾莉丝', '⑱ 声望条目有方向（对谁）');
+  eq(dawn.reps[0].negative, true, '⑱ -75 标成负的');
+  ok(dawn.reps[0].fillWidth > 0, '⑱ 负的也有填充段');
+  eq(dawn.reps[0].fillLeft + dawn.reps[0].fillWidth, dawn.reps[0].zero, '⑱ **负的填充段紧贴零点左侧**');
+  ok(dawn.diplomacy.length > 0, '⑱ 外交关系在');
+
+  /* ── 剧情线：时间线 ── */
+  const lines = M.timelineOf(S);
+  ok(lines.length >= 2, '⑱ 两条线');
+  eq(lines[0].priority, 'main', '⑱ **主线排最前**');
+  const main = lines[0];
+  eq(main.nodes.length, 3, '⑱ 主线三个节点');
+  const rounds = main.nodes.map(n => n.round);
+  eq(rounds, rounds.slice().sort((a, b) => a - b), '⑱ **节点按回合升序（看得出推进顺序）**');
+  ok(main.nodes[0].chars.length > 0, '⑱ 节点带参与角色（已解析成名字）');
+
+  /* ── 不动产：设施格子 ── */
+  const est = M.estatesOf(S);
+  eq(est.length, 1, '⑱ 一处产业');
+  eq(est[0].owner, '雷恩', '⑱ 归属解析成名字');
+  eq(est[0].facilities.length, 2, '⑱ 两个设施格子');
+  ok(est[0].facilities.every(f => f.built === true), '⑱ 设施有"已建"标记');
+  ok(est[0].residents.length > 0, '⑱ 居住者在');
+
+  /* ── 设定集：按分类分组 + truth 只在剧透开关打开时出现 ── */
+  const lore = M.loreOf(S, show);
+  ok(lore.length >= 2, '⑱ 设定集按分类分组');
+  ok(lore.every(g => typeof g.category === 'string' && g.items.length > 0), '⑱ 每组都有分类名与条目');
+  const blobOff = JSON.stringify(M.loreOf(S, show));
+  const blobOn = JSON.stringify(M.loreOf(S, showAll));
+  ok(blobOff.indexOf('神明残骸') < 0, '⑱ **剧透关闭时 truth 根本不在数据里**（不是靠 CSS 藏）');
+  ok(blobOn.indexOf('神明残骸') >= 0, '⑱ 打开后 truth 出现');
+  ok(blobOn.length > blobOff.length, '⑱ 打开后内容确实变多');
+
+  /* ── 源码级：通用平铺渲染必须消失 ── */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  for (const fn of ['hudOf(', 'rosterOf(', 'mapTreeOf(', 'questLogOf(', 'factionsOf(', 'timelineOf(', 'estatesOf(', 'loreOf(']) {
+    ok(src80.indexOf(fn) >= 0, '⑱ 80 号用了分区专属架构 ' + fn.replace('(', ''));
+  }
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

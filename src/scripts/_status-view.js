@@ -1264,6 +1264,375 @@ export function widgetOf(key, value, path) {
   return { kind: 'kv', text: s2 };
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ * 信息架构：每个分区回答一个**玩家真会问的问题**
+ * ----------------------------------------------------------------------
+ * 用户 2026-10-06：「现在简直是一坨屎，没有任何可用价值」—— 问题不在控件，
+ * 在于**每个分区都是"把这一层对象的键平铺成一行一行"**。控件换了，架构没变。
+ *
+ * 所以这里**一个分区一个构造函数**，每个都按自己的信息优先级组织：
+ *   状态    我现在在哪、什么时候、谁在场、我自己怎么样
+ *   角色    这个人是谁、现在什么状态、跟我什么关系、细节（收起）
+ *   地图    我从哪来、能去哪、哪儿还没去过
+ *   任务    我该做什么、做完了什么
+ *   势力    谁对我好、谁对我坏
+ *   剧情线  事情是怎么一步步发展到现在的
+ *   不动产  我有什么产业、里面建了什么
+ *   设定集  这个世界有什么、什么是真的
+ * 通用渲染（遍历键）在这一层被**彻底废掉**。
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/** 未探明 = 迷雾。认不出就当"已探明"，不要把有内容的条目误打码。 */
+export function isFogged(entity) {
+  return !!(entity && typeof entity === 'object' && entity.is_found === false);
+}
+
+/**
+ * 当前**生效**的那套 RPG 属性系统。四套互斥，只该显示一套。
+ * 返回 'fu' / 'dnd' / 'wod' / 'fate'，一套都没有就给空串。
+ * 判据是"这套里有键"，不是"这个字段存在" —— 空对象不算生效。
+ */
+export function activeStatGroup(char) {
+  var st = (char && char.stats) || {};
+  var order = ['fu', 'dnd', 'wod', 'fate'];
+  for (var i = 0; i < order.length; i++) {
+    var g = st[order[i]];
+    if (g && typeof g === 'object' && Object.keys(g).length > 0) { return order[i]; }
+  }
+  return '';
+}
+
+/** 头像兜底：没有图就给一个字（名字首字），绝不空着 */
+export function avatarOf(char) {
+  var c = char || {};
+  if (c.avatar || c.portrait || c.icon) { return { kind: 'image', src: c.avatar || c.portrait || c.icon }; }
+  var n = String(c.name || '').trim();
+  return { kind: 'letter', text: n ? Array.from(n)[0] : '?' };
+}
+
+/** 关系要有方向感：对**谁**、多少、正负 */
+export function relationListOf(char, stat) {
+  var rel = (char && char.relations) || {};
+  var idx = buildNameIndex(stat || {});
+  var out = [], keys = Object.keys(rel), i;
+  for (i = 0; i < keys.length; i++) {
+    var r = rel[keys[i]] || {};
+    var aff = Number(r.affinity);
+    if (!isFinite(aff)) { aff = 0; }
+    out.push({
+      toward: resolveRef(keys[i], idx),
+      affinity: aff,
+      negative: aff < 0,
+      pct: Math.abs(aff) > 100 ? 100 : Math.abs(aff),
+      ties: Array.isArray(r.ties) ? r.ties : [],
+      impression: r.impression || ''
+    });
+  }
+  out.sort(function (a, b) { return b.affinity - a.affinity; });
+  return out;
+}
+
+/* ── ① 状态：一句话能看完的 HUD ── */
+export function hudOf(stat) {
+  var s = (stat && stat.status) || {};
+  var idx = buildNameIndex(stat || {});
+  var present = Array.isArray(s.present_chars) ? s.present_chars : [];
+  var who = [], i;
+  for (i = 0; i < present.length; i++) { who.push(resolveRef(present[i], idx)); }
+  /* 玩家自己：is_user 为真那个；没有就取第一个核心角色 */
+  var chars = (stat && stat.characters) || {};
+  var self = null, ks = Object.keys(chars);
+  for (i = 0; i < ks.length; i++) { if (chars[ks[i]] && chars[ks[i]].is_user) { self = chars[ks[i]]; break; } }
+  if (!self) { for (i = 0; i < ks.length; i++) { if (chars[ks[i]] && chars[ks[i]].role === 'core') { self = chars[ks[i]]; break; } } }
+  return {
+    round: (s.round === undefined || s.round === null) ? null : s.round,
+    when: String(s.time || ''),
+    where: locationText(s.location, stat),
+    weather: String(s.weather || ''),
+    weatherIcon: weatherIcon(s.weather),
+    present: who,
+    self: self ? {
+      name: String(self.name || ''),
+      avatar: avatarOf(self),
+      health: String(self.health || ''),
+      tone: toneOf(self.health || '')
+    } : null
+  };
+}
+
+/* ── ② 角色：角色卡 + 关系方向 + 细节收起 ── */
+export function rosterOf(stat, settings) {
+  var chars = (stat && stat.characters) || {};
+  var keys = Object.keys(chars), out = [], i;
+  var group = '';
+  for (i = 0; i < keys.length; i++) {
+    var g = activeStatGroup(chars[keys[i]]);
+    if (g) { group = g; break; }        /* 一套生效的规则组，取第一个有的 */
+  }
+  for (i = 0; i < keys.length; i++) {
+    var c = chars[keys[i]] || {};
+    var st = (c.stats && group) ? (c.stats[group] || {}) : {};
+    var bars = [], sk = Object.keys(st);
+    for (var j = 0; j < sk.length; j++) {
+      bars.push({ key: labelOf(sk[j]), value: st[sk[j]], pct: fillPct(st[sk[j]], RANGE[group].min, RANGE[group].max) });
+    }
+    out.push({
+      id: keys[i],
+      isSelf: !!c.is_user,
+      name: String(c.name || resolveRef(keys[i], buildNameIndex(stat || {}))),
+      alias: String(c.alias || ''),
+      role: String(c.role || ''),
+      avatar: avatarOf(c),
+      summary: String(c.summary || ''),
+      health: String(c.health || ''),
+      tone: toneOf(c.health || ''),
+      group: group,
+      bars: bars,
+      relations: relationListOf(c, stat),
+      /* 细节默认收起 */
+      details: detailBlocksOf(c, stat)
+    });
+  }
+  /* 玩家自己排最前 */
+  out.sort(function (a, b) { return (b.isSelf ? 1 : 0) - (a.isSelf ? 1 : 0); });
+  return out;
+}
+
+/* 角色卡里"点开才看"的部分。每组一个可折叠块。 */
+export var DETAIL_GROUPS = [
+  { id: 'goals', label: '目标与打算' },
+  { id: 'skills', label: '能力' },
+  { id: 'items', label: '资产' },
+  { id: 'body', label: '身体' },
+  { id: 'nsfw', label: '成人内容' }
+];
+
+export function detailBlocksOf(char, stat) {
+  var c = char || {}, out = [], i, k;
+  /* 目标：long_term / short_term / plan 三样合成一块 */
+  var goals = c.goals || {}, plan = Array.isArray(c.plan) ? c.plan : [];
+  var grows = [];
+  for (k in goals) { if (goals[k]) { grows.push({ key: labelOf(k), value: goals[k] }); } }
+  if (plan.length) { grows.push({ key: labelOf('plan'), value: plan }); }
+  if (grows.length) { out.push({ id: 'goals', label: labelOf('goals'), rows: grows }); }
+  /* 能力：skills + traits + special_stats 合成一块 */
+  var arows = [];
+  var packs = [['skills', c.skills], ['traits', c.traits], ['special_stats', c.special_stats]];
+  for (i = 0; i < packs.length; i++) {
+    var src = packs[i][1] || {}, sk2 = Object.keys(src);
+    for (var j = 0; j < sk2.length; j++) { arows.push({ key: sk2[j], value: src[sk2[j]] }); }
+  }
+  if (arows.length) { out.push({ id: 'skills', label: labelOf('skills'), rows: arows }); }
+  /* 资产：items + mount + wealth */
+  var irows = [];
+  var items = c.items || {}, ik = Object.keys(items);
+  for (i = 0; i < ik.length; i++) {
+    var it = items[i] || {}, raw = items[ik[i]] || {};
+    irows.push({
+      key: String(raw.name || ik[i]),
+      value: (raw.count > 1 ? '×' + raw.count + ' ' : '') + String(raw.desc || ''),
+      equipped: raw.equipped === true
+    });
+  }
+  var w = c.wealth || {}, wk = Object.keys(w);
+  if (wk.length) {
+    var money = [];
+    for (i = 0; i < wk.length; i++) { money.push(wk[i] + ' ' + w[wk[i]]); }
+    irows.push({ key: labelOf('wealth'), value: money.join(' · ') });
+  }
+  if (irows.length) { out.push({ id: 'items', label: labelOf('items'), rows: irows }); }
+  /* 身体 / 成人内容：只在允许时给 */
+  var nsfw = c.nsfw || {}, nk = Object.keys(nsfw);
+  if (nk.length) {
+    var nrows = [];
+    for (i = 0; i < nk.length; i++) {
+      if (isNoiseField(nk[i])) { continue; }
+      nrows.push({ key: labelOf(nk[i]), value: resolveValue(nsfw[nk[i]], buildNameIndex(stat || {})) });
+    }
+    if (nrows.length) { out.push({ id: 'nsfw', label: labelOf('nsfw'), rows: nrows }); }
+  }
+  return out;
+}
+
+/* ── ③ 地图：层级 + 连通 + 迷雾 ── */
+export function mapTreeOf(stat) {
+  var mn = (stat && stat.map_nodes) || {};
+  var rk = Object.keys(mn), out = [], i, j, k;
+  for (i = 0; i < rk.length; i++) {
+    var r = mn[rk[i]] || {};
+    var areas = r.areas || {}, ak = Object.keys(areas), aout = [];
+    for (j = 0; j < ak.length; j++) {
+      var a = areas[ak[j]] || {};
+      var spots = a.spots || {}, sk = Object.keys(spots), sout = [];
+      for (k = 0; k < sk.length; k++) {
+        var sp = spots[sk[k]] || {};
+        sout.push({ id: sk[k], name: String(sp.name || sk[k]), found: !isFogged(sp), desc: String(sp.desc || '') });
+      }
+      sout.sort(function (x, y) { return (y.found ? 1 : 0) - (x.found ? 1 : 0); });
+      aout.push({
+        id: ak[j], name: String(a.name || ak[j]), found: !isFogged(a),
+        desc: String(a.desc || ''), spots: sout,
+        links: Array.isArray(a.connections) ? a.connections : []
+      });
+    }
+    /* 已探明的排前面 —— 没去过的沉底 */
+    aout.sort(function (x, y) { return (y.found ? 1 : 0) - (x.found ? 1 : 0); });
+    out.push({
+      id: rk[i], name: String(r.name || rk[i]), found: !isFogged(r),
+      desc: String(r.desc || ''), areas: aout,
+      links: Array.isArray(r.connections) ? r.connections : []
+    });
+  }
+  out.sort(function (x, y) { return (y.found ? 1 : 0) - (x.found ? 1 : 0); });
+  return out;
+}
+
+/* ── ④ 任务：按状态分组排序的日志 ── */
+export var QUEST_ORDER = ['active', 'pending', 'done', 'failed'];
+
+export function questLogOf(stat) {
+  var qs = (stat && stat.quests) || {};
+  var keys = Object.keys(qs), idx = buildNameIndex(stat || {}), groups = {}, i;
+  for (i = 0; i < QUEST_ORDER.length; i++) { groups[QUEST_ORDER[i]] = []; }
+  groups['其他'] = [];
+  for (i = 0; i < keys.length; i++) {
+    var q = qs[keys[i]] || {};
+    var st = String(q.status || '').trim();
+    var bucket = QUEST_ORDER.indexOf(st) >= 0 ? st : '其他';
+    groups[bucket].push({
+      id: keys[i],
+      name: String(q.name || keys[i]),
+      status: st,
+      objective: String(q.objective || ''),
+      client: resolveRef(String(q.client || ''), idx),
+      reward: String(q.reward || ''),
+      limits: String(q.limits || ''),
+      line: resolveRef(String(q.line_id || ''), idx)
+    });
+  }
+  var out = [];
+  for (i = 0; i < QUEST_ORDER.length; i++) {
+    if (groups[QUEST_ORDER[i]].length) { out.push({ status: QUEST_ORDER[i], items: groups[QUEST_ORDER[i]] }); }
+  }
+  if (groups['其他'].length) { out.push({ status: '其他', items: groups['其他'] }); }
+  return out;
+}
+
+/* ── ⑤ 势力：声望双向 + 外交态度 ── */
+export function factionsOf(stat) {
+  var fs = (stat && stat.factions) || {};
+  var keys = Object.keys(fs), idx = buildNameIndex(stat || {}), out = [], i, j;
+  for (i = 0; i < keys.length; i++) {
+    var f = fs[keys[i]] || {};
+    var rep = f.rep || {}, rk = Object.keys(rep), reps = [];
+    for (j = 0; j < rk.length; j++) {
+      var r = rep[rk[j]] || {};
+      var v = Number(r.value);
+      if (!isFinite(v)) { v = 0; }
+      var sb = signedBar(v, RANGE.rep.min, RANGE.rep.max);
+      reps.push({
+        who: resolveRef(rk[j], idx), title: String(r.title || ''),
+        value: v, negative: sb.negative, fillLeft: sb.fillLeft, fillWidth: sb.fillWidth, zero: sb.zero
+      });
+    }
+    /* 对我最差的排前面 —— 那是玩家最需要知道的 */
+    reps.sort(function (x, y) { return x.value - y.value; });
+    var dip = f.diplomacy || {}, dk = Object.keys(dip), dips = [];
+    for (j = 0; j < dk.length; j++) {
+      var d = dip[dk[j]] || {};
+      dips.push({ toward: resolveRef(dk[j], idx), relation: String(d.relation || ''), trends: String(d.trends || '') });
+    }
+    out.push({
+      id: keys[i], name: String(f.name || keys[i]), type: String(f.type || ''),
+      alias: String(f.alias || ''), summary: String(f.summary || ''),
+      domain: String(f.domain || ''), reps: reps, diplomacy: dips
+    });
+  }
+  out.sort(function (x, y) {
+    var xv = x.reps.length ? x.reps[0].value : 0, yv = y.reps.length ? y.reps[0].value : 0;
+    return xv - yv;
+  });
+  return out;
+}
+
+/* ── ⑥ 剧情线：时间线 ── */
+export function timelineOf(stat) {
+  var sl = (stat && stat.storylines) || {};
+  var keys = Object.keys(sl), idx = buildNameIndex(stat || {}), out = [], i, j;
+  for (i = 0; i < keys.length; i++) {
+    var l = sl[keys[i]] || {};
+    var nodes = Array.isArray(l.nodes) ? l.nodes.slice() : [];
+    nodes.sort(function (x, y) { var a = Number(x.round), b = Number(y.round); return (isFinite(a) ? a : 0) - (isFinite(b) ? b : 0); });
+    var nout = [];
+    for (j = 0; j < nodes.length; j++) {
+      var n = nodes[j] || {};
+      var cs = Array.isArray(n.chars) ? n.chars : [], cwho = [];
+      for (var k = 0; k < cs.length; k++) { cwho.push(resolveRef(cs[k], idx)); }
+      nout.push({
+        round: (n.round === undefined ? null : n.round),
+        time: String(n.time || ''),
+        title: String(n.title || ''),
+        log: String(n.log || ''),
+        chars: cwho
+      });
+    }
+    out.push({ id: keys[i], title: String(l.title || keys[i]), priority: String(l.priority || ''), summary: String(l.summary || ''), nodes: nout });
+  }
+  /* 主线排前面 */
+  var rank = { main: 0, side: 1, personal: 2 };
+  out.sort(function (x, y) {
+    var a = rank[x.priority] === undefined ? 3 : rank[x.priority];
+    var b = rank[y.priority] === undefined ? 3 : rank[y.priority];
+    return a - b;
+  });
+  return out;
+}
+
+/* ── ⑦ 不动产：产业卡 + 设施格子 ── */
+export function estatesOf(stat) {
+  var es = (stat && stat.estates) || {};
+  var keys = Object.keys(es), idx = buildNameIndex(stat || {}), out = [], i, j;
+  for (i = 0; i < keys.length; i++) {
+    var e = es[keys[i]] || {};
+    var fac = e.facilities || {}, fk = Object.keys(fac), fout = [];
+    for (j = 0; j < fk.length; j++) {
+      fout.push({ name: fk[j], desc: String(fac[fk[j]] || ''), built: true });
+    }
+    var residents = Array.isArray(e.residents) ? e.residents : [], rout = [];
+    for (j = 0; j < residents.length; j++) { rout.push(resolveRef(residents[j], idx)); }
+    out.push({
+      id: keys[i], name: String(e.name || keys[i]), type: String(e.type || ''),
+      owner: resolveRef(String(e.owner || ''), idx), found: !isFogged(e),
+      desc: String(e.desc || ''), facilities: fout, residents: rout
+    });
+  }
+  out.sort(function (x, y) { return (y.found ? 1 : 0) - (x.found ? 1 : 0); });
+  return out;
+}
+
+/* ── ⑧ 设定集：按分类分组，truth 只在剧透开关打开时出现 ── */
+export function loreOf(stat, settings) {
+  var lo = (stat && stat.lore) || {};
+  var keys = Object.keys(lo), byCat = {}, order = [], i;
+  var showHidden = !!(settings && settings.options && settings.options.showHidden);
+  for (i = 0; i < keys.length; i++) {
+    var l = lo[keys[i]] || {};
+    var cat = String(l.category || '未分类');
+    if (!byCat[cat]) { byCat[cat] = []; order.push(cat); }
+    var item = {
+      id: keys[i], title: String(l.title || keys[i]), summary: String(l.summary || ''),
+      found: !isFogged(l)
+    };
+    /* ⚠️ truth 是剧透：开关没开就**根本不放进去**（不是靠 CSS 藏） */
+    if (showHidden && l.truth) { item.truth = String(l.truth); }
+    byCat[cat].push(item);
+  }
+  var out = [];
+  for (i = 0; i < order.length; i++) { out.push({ category: order[i], items: byCat[order[i]] }); }
+  out.sort(function (x, y) { return y.items.length - x.items.length; });
+  return out;
+}
+
 /** 设置里"无数据时显示示例"是否开着 */
 export function isSampleOn(settings) {
   return !!(settings && settings.options && settings.options.useSample);
