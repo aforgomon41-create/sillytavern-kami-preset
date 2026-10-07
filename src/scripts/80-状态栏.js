@@ -226,12 +226,14 @@
     '#' + PANEL_ID_PANEL + ' .kami-status-bar:active{cursor:grabbing;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
         /* 浮动 ✕：绝对定位在面板右上角，**不占布局** —— 少了一行标题也不会让接缝错位 */
-    '#' + PANEL_ID_PANEL + ' .kami-status-x{position:absolute;top:var(--kami-gap,8px);right:var(--kami-gap,8px);z-index:3;appearance:none;font:inherit;line-height:1;padding:2px 7px;border-radius:var(--kami-r-xs,6px);cursor:pointer;background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));opacity:.85;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-x{position:static;flex:none;appearance:none;font:inherit;line-height:1;padding:2px 7px;border-radius:var(--kami-r-xs,6px);cursor:pointer;background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.16));opacity:.85;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-x:hover{opacity:1;color:var(--kami-fg,#f2f2f4);}',
         /* ⚠️ flex:none 是关键 —— 标签行是 flex item，默认 flex-shrink:1，
        内容一多它就被压缩到几乎没高度（用户看到的"被底下内容挡住"）。
        z-index 再兜一道：即使有内容越界也盖不住它。 */
-    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;flex:none;position:relative;z-index:2;gap:var(--kami-gap,8px);overflow-x:auto;overflow-y:hidden;padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) calc(var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) + 26px) calc(var(--kami-gap,8px) / 2) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));}',
+    /* 标签行这一排：左边是可滚动的标签，右边是固定的 ✕ —— 两者是 flex 兄弟，互不重叠 */
+    '#' + PANEL_ID_PANEL + ' .kami-status-tabsrow{display:flex;align-items:center;flex:none;position:relative;z-index:2;gap:var(--kami-gap,8px);padding:var(--kami-status-pad-y,var(--kami-pad-lg-y,12px)) var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) calc(var(--kami-gap,8px) / 2);}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-tabs{display:flex;flex:1 1 auto;min-width:0;position:relative;gap:var(--kami-gap,8px);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab{appearance:none;font:inherit;white-space:nowrap;padding:5px 10px;border-radius:var(--kami-r-sm,8px);cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:var(--kami-border-w,1px) solid transparent;}',
     '#' + PANEL_ID_PANEL + ' .kami-status-tab.is-on{background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-fg,#f2f2f4);border-color:var(--kami-line,rgba(255,255,255,.16));}',
         /* min-height:0 必须写：flex 子项的默认 min-height:auto 会让它**顶开**容器而不滚动；
@@ -289,7 +291,10 @@
     '#' + PANEL_ID_PANEL + ' .kami-ia-self{display:flex;align-items:center;gap:var(--kami-gap,8px);margin-top:var(--kami-gap,8px);padding:var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-self-name{font-weight:600;color:var(--kami-fg,#f2f2f4);}',
     /* 头像：没图必须兜底，不能空着 */
-    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:var(--kami-status-avatar,40px);height:var(--kami-status-avatar,40px);border-radius:var(--kami-status-avatar-r,var(--kami-r-sm,9px));overflow:hidden;background:var(--kami-accent-soft,rgba(122,162,247,.18));color:var(--kami-accent,#7aa2f7);font-weight:700;}',
+    /* 头像：没图时按名字取一个**稳定但各不相同**的色相 → 不同角色一眼能分开 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:var(--kami-status-avatar,40px);height:var(--kami-status-avatar,40px);border-radius:var(--kami-status-avatar-r,var(--kami-r-sm,9px));overflow:hidden;font-weight:700;background:var(--kami-status-avatar-bg,hsl(var(--kami-ia-hue,220) 45% 34% / .55));color:var(--kami-status-avatar-fg,hsl(var(--kami-ia-hue,220) 85% 78%));box-shadow:inset 0 0 0 var(--kami-border-w,1px) hsl(var(--kami-ia-hue,220) 70% 60% / .45);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar[data-kami-fallback="1"]::after{content:"";position:absolute;width:150%;height:150%;background:radial-gradient(circle at 30% 25%,hsl(var(--kami-ia-hue,220) 90% 70% / .28),transparent 60%);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-avatar{position:relative;}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-avatar-img{width:100%;height:100%;object-fit:cover;}',
     /* 角色卡 */
     '#' + PANEL_ID_PANEL + ' .kami-ia-card{margin:0 0 var(--kami-gap,8px);padding:var(--kami-gap,8px);border-radius:var(--kami-status-r,var(--kami-r-md,12px));border:var(--kami-border-w,1px) solid var(--kami-status-line,var(--kami-line-strong,rgba(255,255,255,.28)));background:var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));}',
@@ -306,12 +311,24 @@
     /* 折叠：所有分区共用同一个交互 */
     '#' + PANEL_ID_PANEL + ' .kami-ia-fold{margin:var(--kami-gap,8px) 0 0;border-top:var(--kami-border-w,1px) dashed var(--kami-line,rgba(255,255,255,.10));}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-fold-h{display:flex;align-items:center;gap:calc(var(--kami-gap,8px)/2);width:100%;margin:0;padding:calc(var(--kami-gap,8px)/2) 0;appearance:none;font:inherit;text-align:left;cursor:pointer;background:transparent;color:var(--kami-fg-dim,#cfcfd6);border:0;}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-fold-b{display:none;}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-fold[data-kami-open="1"] .kami-ia-fold-b{display:block;}',
+    /* 折叠动效：grid-template-rows 0fr→1fr 可以做"高度自适应"的过渡；尊重减动效偏好 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold-b{display:grid;grid-template-rows:0fr;overflow:hidden;transition:grid-template-rows var(--kami-status-anim,180ms) ease;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold-b>div{min-height:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fold[data-kami-open="1"] .kami-ia-fold-b{grid-template-rows:1fr;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-caret{transition:transform var(--kami-status-anim,180ms) ease;}',
+    '@media (prefers-reduced-motion: reduce){',
+    '  #' + PANEL_ID_PANEL + ' .kami-ia-fold-b,#' + PANEL_ID_PANEL + ' .kami-ia-caret,#' + PANEL_ID_PANEL + ' .kami-w-bar-fill{transition:none !important;}',
+    '}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-caret{flex:none;color:var(--kami-fg-mute,#a8a8b0);}',
     /* 迷雾：未探明统一长这样 */
-    '#' + PANEL_ID_PANEL + ' [data-kami-fog="1"]{filter:blur(var(--kami-status-fog-blur,.6px));opacity:var(--kami-status-fog-dim,.55);}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-fog{color:var(--kami-fg-mute,#a8a8b0);font-style:italic;}',
+    /* 未探明：**真正的遮罩感** —— 斜纹盖一层 + 模糊 + 压暗，不是单纯 blur */
+    '#' + PANEL_ID_PANEL + ' [data-kami-fog="1"]{position:relative;filter:blur(var(--kami-status-fog-blur,1px));opacity:var(--kami-status-fog-dim,.6);}',
+    '#' + PANEL_ID_PANEL + ' [data-kami-fog="1"]::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:repeating-linear-gradient(45deg,var(--kami-status-fog-hatch,rgba(255,255,255,.06)) 0 4px,transparent 4px 8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-fog{color:var(--kami-fg-mute,#a8a8b0);font-style:italic;letter-spacing:.15em;}',
+    /* 地图连通：用连接符把"能去哪"串成一条可见的路径 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-links{display:flex;flex-wrap:wrap;align-items:center;gap:calc(var(--kami-gap,8px)/2);margin:2px 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-link{display:inline-flex;align-items:center;gap:calc(var(--kami-gap,8px)/2);padding:0 calc(var(--kami-gap,8px)*.6);border-radius:var(--kami-r-pill,999px);background:var(--kami-line,rgba(255,255,255,.10));color:var(--kami-fg-dim,#cfcfd6);font-size:var(--kami-fs-xs,11px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-link::before{content:"⌁";color:var(--kami-accent,#7aa2f7);}',
     /* 地图层级 */
     '#' + PANEL_ID_PANEL + ' .kami-ia-area{margin:var(--kami-gap,8px) 0 0 var(--kami-gap-lg,12px);padding-left:var(--kami-gap,8px);border-left:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.10));}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-area-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
@@ -328,9 +345,18 @@
     '#' + PANEL_ID_PANEL + ' .kami-ia-line{margin:0 0 var(--kami-gap-lg,12px);}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-line-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-timeline{margin-top:var(--kami-gap,8px);}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-node{display:flex;gap:var(--kami-gap,8px);}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-node-dot{flex:none;width:7px;height:7px;margin-top:.45em;border-radius:50%;background:var(--kami-accent,#7aa2f7);}',
-    '#' + PANEL_ID_PANEL + ' .kami-ia-node-c{flex:1;min-width:0;padding-bottom:var(--kami-gap,8px);border-left:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.10));padding-left:var(--kami-gap,8px);margin-left:-4px;}',
+    /* 时间线：节点之间**有连线**；已发生实心、未发生空心虚线 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node{position:relative;display:flex;gap:var(--kami-gap,8px);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node::before{content:"";position:absolute;left:3px;top:1.1em;bottom:0;width:var(--kami-border-w,1px);background:var(--kami-status-tl-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node:last-child::before{display:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-dot{position:relative;z-index:1;flex:none;width:7px;height:7px;margin-top:.45em;border-radius:50%;background:var(--kami-status-node,var(--kami-accent,#7aa2f7));box-shadow:0 0 0 3px var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96)));}',
+    /* 未发生：空心 + 虚线连线，一眼看出"还没到那儿" */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node.is-future .kami-ia-node-dot{background:transparent;border:var(--kami-border-w,1px) dashed var(--kami-status-tl-line,var(--kami-line-strong,rgba(255,255,255,.28)));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node.is-future{opacity:.72;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node.is-future::before{background:transparent;border-left:var(--kami-border-w,1px) dashed var(--kami-status-tl-line,var(--kami-line-strong,rgba(255,255,255,.28)));width:0;}',
+    /* 当前节点：强调 */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node.is-now .kami-ia-node-dot{box-shadow:0 0 0 3px var(--kami-status-bg,var(--kami-card,rgba(40,42,52,.96))),0 0 0 5px var(--kami-accent-soft,rgba(122,162,247,.18));}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-node-c{flex:1;min-width:0;padding-bottom:var(--kami-gap-lg,12px);padding-left:var(--kami-gap,8px);}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-node-h{display:flex;align-items:center;gap:var(--kami-gap,8px);}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-node-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
     /* 不动产 */
@@ -727,7 +753,7 @@
 
   /* ───────── 展开面板：tab 是各模块，**最后一个 tab 是设置页** ───────── */
   var panelEl = null, panelBody = null, panelTabsEl = null;
-  var panelOpen = false, activeTab = null;
+  var panelOpen = false, activeTab = null, tabsRowEl = null;
 
   function tabsList() {
     var mods = enabledModules(settings), out = [], i;
@@ -748,16 +774,21 @@
        关闭入口改成**两个**（用户建议"两个都做"）：
          · 熟悉的人：**再点一次横幅/球** → togglePanel() 收起（横幅本来就是这个行为）；
          · 不熟悉的人：面板右上角这枚**浮动 ✕**（绝对定位，不占布局、不影响接缝）。 */
+    /* ⚠️ 上一版把 ✕ 做成 position:absolute，靠给标签行加内边距避让 ——
+       **只有滚到最右才不重叠**，中间滚动位置下标签照样从它底下穿过（截图里看得见）。
+       真正的修法：把 ✕ 放进标签行这一排里当 **flex 兄弟**（flex:none），
+       它永远占着自己的位置，标签行只能滚到它左边 —— **与滚动位置无关，永不重叠**。 */
+    tabsRowEl = mk('div', 'kami-status-tabsrow');
+    panelTabsEl = mk('div', 'kami-status-tabs');
+    tabsRowEl.appendChild(panelTabsEl);
     var x = mk('button', 'kami-status-x', '✕');
     x.type = 'button';
     x.setAttribute('data-kami-act', 'status-close');
     x.setAttribute('aria-label', STATUS_COPY.close);
     x.setAttribute('title', STATUS_COPY.close);
     x.addEventListener('click', function (ev) { ev.stopPropagation(); togglePanel(false); });
-    panelEl.appendChild(x);
-
-    panelTabsEl = mk('div', 'kami-status-tabs');
-    panelEl.appendChild(panelTabsEl);
+    tabsRowEl.appendChild(x);
+    panelEl.appendChild(tabsRowEl);
 
     panelBody = mk('div', 'kami-status-body');
     panelEl.appendChild(panelBody);
@@ -956,6 +987,8 @@
       box.appendChild(im);
     } else {
       box.setAttribute('data-kami-fallback', '1');
+      /* 按名字取色相 → 不同角色一眼分得开（同一个名字永远同一个色） */
+      box.style.setProperty('--kami-ia-hue', String(hueOf((a && a.hueKey) || (a && a.text) || '')));
       box.appendChild(mk('span', 'kami-ia-avatar-t', (a && a.text) || '?'));
     }
     return box;
@@ -1080,7 +1113,15 @@
         if (!a.found) { ab.setAttribute('data-kami-fog', '1'); }
         ab.appendChild(mk('div', 'kami-ia-area-t', a.found ? a.name : '未探明区域'));
         if (a.found && a.desc) { ab.appendChild(mk('div', 'kami-ia-sec-s', a.desc)); }
-        if (a.links.length) { ab.appendChild(line('通往', chipsNode(a.links))); }
+        /* 连通关系：做成看得见的一条路径（连接符 + 胶囊），不是干巴巴一行字 */
+        if (a.links.length) {
+          var links = mk('div', 'kami-ia-links');
+          links.appendChild(mk('span', 'kami-status-k', '通往'));
+          for (var li = 0; li < a.links.length; li++) {
+            links.appendChild(mk('span', 'kami-ia-link', nameIndex[a.links[li]] || a.links[li]));
+          }
+          ab.appendChild(links);
+        }
         for (k = 0; k < a.spots.length; k++) {
           var sp = a.spots[k];
           var sr = mk('div', 'kami-ia-spot' + (sp.found ? '' : ' is-fog'));
@@ -1154,7 +1195,8 @@
       if (l.summary) { lb.appendChild(mk('p', 'kami-w-text', l.summary)); }
       var tl = mk('div', 'kami-ia-timeline');
       for (j = 0; j < l.nodes.length; j++) {
-        var n = l.nodes[j], nb = mk('div', 'kami-ia-node');
+        var n = l.nodes[j];
+        var nb = mk('div', 'kami-ia-node' + (n.phase === 'future' ? ' is-future' : (n.phase === 'now' ? ' is-now' : '')));
         nb.appendChild(mk('span', 'kami-ia-node-dot', ''));
         var nc = mk('div', 'kami-ia-node-c');
         var nh = mk('div', 'kami-ia-node-h');
@@ -1380,7 +1422,7 @@
     dropCss();
     try { if (stage && stage.parentNode) { stage.parentNode.removeChild(stage); } } catch (e) { }
     stage = null; ball = null; img = null;
-    headEls = null; sampleTagEl = null; ribbon = null; panelEl = null; panelBody = null; panelTabsEl = null;
+    headEls = null; sampleTagEl = null; ribbon = null; panelEl = null; panelBody = null; panelTabsEl = null; tabsRowEl = null;
     panelOpen = false; activeTab = null; injectedStat = undefined; gripDrag = null;
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }

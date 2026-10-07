@@ -1302,12 +1302,27 @@ export function activeStatGroup(char) {
   return '';
 }
 
+/**
+ * 按名字取一个**稳定又各不相同**的色相（0-359）。
+ * 没图的角色全是同一个字母块 → 长得一样分不出谁是谁（用户点出来的）。
+ * 用名字的字符码求和取模：同一个名字永远同一个色，不同名字基本不同色。
+ * 纯函数、可测 —— 不依赖任何随机数（随机数会导致每次渲染换个颜色）。
+ */
+export function hueOf(name) {
+  var s = String(name == null ? '' : name);
+  if (!s) { return 220; }
+  var h = 0, i;
+  for (i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) % 100003; }
+  return h % 360;
+}
+
 /** 头像兜底：没有图就给一个字（名字首字），绝不空着 */
 export function avatarOf(char) {
   var c = char || {};
   if (c.avatar || c.portrait || c.icon) { return { kind: 'image', src: c.avatar || c.portrait || c.icon }; }
   var n = String(c.name || '').trim();
-  return { kind: 'letter', text: n ? Array.from(n)[0] : '?' };
+  /* hueKey 用**整个名字**而不是首字：否则"雷恩"和"雷诺"会撞成同一个颜色 */
+  return { kind: 'letter', text: n ? Array.from(n)[0] : '?', hueKey: n || '?' };
 }
 
 /** 关系要有方向感：对**谁**、多少、正负 */
@@ -1563,17 +1578,22 @@ export function timelineOf(stat) {
     var l = sl[keys[i]] || {};
     var nodes = Array.isArray(l.nodes) ? l.nodes.slice() : [];
     nodes.sort(function (x, y) { var a = Number(x.round), b = Number(y.round); return (isFinite(a) ? a : 0) - (isFinite(b) ? b : 0); });
+    /* 已发生 / 当前 / 未发生：拿节点回合和"现在第几回合"比。
+       没有回合数的节点当已发生（它已经在记录里了）。 */
+    var now = Number(((stat && stat.status) || {}).round);
+    if (!isFinite(now)) { now = Infinity; }
     var nout = [];
     for (j = 0; j < nodes.length; j++) {
       var n = nodes[j] || {};
       var cs = Array.isArray(n.chars) ? n.chars : [], cwho = [];
       for (var k = 0; k < cs.length; k++) { cwho.push(resolveRef(cs[k], idx)); }
+      var rd = (n.round === undefined ? null : n.round);
+      var rn = Number(rd);
+      var phase = 'past';
+      if (isFinite(rn) && isFinite(now)) { phase = (rn > now) ? 'future' : (rn === now ? 'now' : 'past'); }
       nout.push({
-        round: (n.round === undefined ? null : n.round),
-        time: String(n.time || ''),
-        title: String(n.title || ''),
-        log: String(n.log || ''),
-        chars: cwho
+        round: rd, time: String(n.time || ''), title: String(n.title || ''),
+        log: String(n.log || ''), chars: cwho, phase: phase
       });
     }
     out.push({ id: keys[i], title: String(l.title || keys[i]), priority: String(l.priority || ''), summary: String(l.summary || ''), nodes: nout });

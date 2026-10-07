@@ -19,7 +19,7 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'RANGE', 'FATE_RANKS', 'BADGE_FIELDS', 'BAR_FIELDS', 'TEXT_WRAP_AT',
   'isFogged', 'activeStatGroup', 'avatarOf', 'relationListOf', 'hudOf', 'rosterOf',
   'detailBlocksOf', 'mapTreeOf', 'questLogOf', 'factionsOf', 'timelineOf', 'estatesOf', 'loreOf',
-  'QUEST_ORDER', 'DETAIL_GROUPS',
+  'QUEST_ORDER', 'DETAIL_GROUPS', 'hueOf',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
   'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
@@ -974,6 +974,52 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   for (const fn of ['hudOf(', 'rosterOf(', 'mapTreeOf(', 'questLogOf(', 'factionsOf(', 'timelineOf(', 'estatesOf(', 'loreOf(']) {
     ok(src80.indexOf(fn) >= 0, '⑱ 80 号用了分区专属架构 ' + fn.replace('(', ''));
   }
+}
+
+/* ════════════════════════════════════════════════════════════
+ * ⑲ 视觉精修的纯逻辑：头像取色稳定 / 时间线阶段
+ * ════════════════════════════════════════════════════════════ */
+{
+  /* 头像取色：稳定（同名同色）+ 分散（不同名基本不同色） */
+  eq(M.hueOf('雷恩'), M.hueOf('雷恩'), '⑲ **同一个名字永远同一个色**（不是随机）');
+  ok(M.hueOf('雷恩') !== M.hueOf('艾莉丝'), '⑲ 两个角色颜色不同（分得开）');
+  ok(M.hueOf('雷恩') !== M.hueOf('雷诺'), '⑲ **首字相同但名字不同 → 颜色也不同**（用整名取色）');
+  ok(M.hueOf('雷恩') >= 0 && M.hueOf('雷恩') < 360, '⑲ 色相在 0-359');
+  eq(M.hueOf(''), 220, '⑲ 空名字给默认色相');
+  eq(M.hueOf(null), 220, '⑲ null 给默认色相');
+  /* 分散度：八个不同的名字应该落在多个不同的色相上 */
+  const names = ['雷恩', '艾莉丝', '老哨人 · 卡尔', '大团长 · 塞维恩', '迷雾森林大区', '晨曦骑士团', '石碑遗迹', '深渊瘴气'];
+  const hues = new Set(names.map(n => M.hueOf(n)));
+  ok(hues.size >= 6, '⑲ 八个名字至少落在 6 个不同色相上（实际 ' + hues.size + ' 个）');
+  /* 头像兜底带 hueKey */
+  eq(M.avatarOf({ name: '雷恩' }).hueKey, '雷恩', '⑲ 头像兜底带整名做取色键');
+  eq(M.avatarOf({}).hueKey, '?', '⑲ 没名字也给一个键');
+
+  /* 时间线阶段：已发生 / 当前 / 未发生 */
+  const future = JSON.parse(JSON.stringify(M.SAMPLE_STAT));
+  future.status.round = 10;   /* 现在第 10 回合，节点 3 和 9 已发生、12 未发生 */
+  const lines = M.timelineOf(future);
+  const main = lines[0];
+  eq(main.nodes.map(n => n.phase), ['past', 'past', 'future'], '⑲ **当前回合之前=已发生，之后=未发生**');
+  const at = JSON.parse(JSON.stringify(M.SAMPLE_STAT));
+  at.status.round = 12;
+  eq(M.timelineOf(at)[0].nodes.map(n => n.phase), ['past', 'past', 'now'], '⑲ **正好在当前回合的节点标成"当前"**');
+  const noRound = JSON.parse(JSON.stringify(M.SAMPLE_STAT));
+  delete noRound.status.round;
+  eq(M.timelineOf(noRound)[0].nodes.map(n => n.phase), ['past', 'past', 'past'], '⑲ 没有回合数时全当已发生（已经在记录里了）');
+  eq(M.timelineOf(M.SAMPLE_STAT)[0].nodes.map(n => n.round), [3, 9, 12], '⑲ 节点仍按回合升序');
+
+  /* 源码级：连线、迷雾遮罩、动效与减动效都真的写进了样式 */
+  const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80.indexOf('kami-ia-node::before') >= 0, '⑲ 时间线有连线（伪元素）');
+  ok(src80.indexOf('.kami-ia-node.is-future .kami-ia-node-dot') >= 0, '⑲ 未发生的节点是空心虚线');
+  ok(src80.indexOf('.kami-ia-node.is-now') >= 0, '⑲ 当前节点有强调');
+  ok(src80.indexOf('repeating-linear-gradient(45deg') >= 0, '⑲ 迷雾是**斜纹遮罩**，不只是模糊');
+  ok(src80.indexOf('prefers-reduced-motion') >= 0, '⑲ **尊重减动效偏好**');
+  ok(src80.indexOf('.kami-ia-link::before') >= 0, '⑲ 地图连通有连接符');
+  ok(src80.indexOf('--kami-ia-hue') >= 0, '⑲ 头像按色相区分');
+  ok(src80.indexOf('.kami-status-tabsrow') >= 0, '⑲ ✕ 与标签行是 flex 兄弟（不是绝对定位避让）');
+  ok(src80.indexOf("' .kami-status-x{position:static;flex:none;") >= 0, '⑲ ✕ 不再是 position:absolute');
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
