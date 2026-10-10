@@ -371,14 +371,68 @@
         ③ 只改那**一个数字**，其余一个字符都不许动：下面的 setVarInContent 只做一次精确的
           字符串替换（找 `setvar::名::旧值`，只换掉旧值那一段）。 */
 
-  /* 把 content 里第一处 `setvar::<name>::<oldValue>` 的数字换成 newValue。
-     找不到（预设已被改过、或值不是纯数字）就返回 null —— 绝不猜、绝不整段重写。 */
-  function setVarInContent(content, name, oldValue, newValue) {
+  /* 读出场正文里某个变量**当前**的值。读不到 / 是空值 / 正文残缺都返回 null。
+     ⚠️ 为什么需要它：面板的输入框把"渲染那一刻的值"存在 data-kami-old 里当钥匙。
+     可用户完全可能在酒馆里**直接改预设正文**（或在别处改过这个变量），
+     于是正文里的值跟面板缓存的对不上 —— 2026-10-10 用户报的 bug 就是这个：
+     面板报「预设里找不到 setvar::名::旧值（预设被改过？）」并拒绝写入。
+     解法：**变量名才是钥匙，值不是**。写之前先拿这个名字现读一次真实值。 */
+  function readVarValue(content, name) {
     if (typeof content !== 'string') { return null; }
-    var needle = 'setvar::' + name + '::' + oldValue;
-    var at = content.indexOf(needle);
+    var head = 'setvar::' + name + '::';
+    var at = content.indexOf(head);
     if (at < 0) { return null; }
-    return content.slice(0, at) + 'setvar::' + name + '::' + newValue + content.slice(at + needle.length);
+    var rest = content.slice(at + head.length);
+    /* 必须有收尾的 }}：没有说明这段正文残缺（用户改坏了 / 还没写完）。
+       残文一律返回 null —— 宁可不改，也不在一片坏文本上动手。 */
+    if (rest.indexOf('}}') < 0) { return null; }
+    return rest.split('}}')[0];
+  }
+
+  /* 把 content 里第一处 `setvar::<name>::…` 的值换成 newValue。
+     返回 { ok:true, after } 或 { ok:false, why } —— 绝不猜、绝不整段重写。
+
+     ── 两段式匹配（2026-10-10 修 bug 时改的）──
+     ① **精确匹配** `setvar::名::旧值` 优先。值跟面板记的一致时，行为与以前一模一样。
+     ② ① 落空才退到**按名锚定**：只认 `setvar::名::` 这段前缀，把后面的值换掉。
+        退之前必须过几道闸，守住"只改那一个数字"的老规矩（第 371 行那段注释）。
+        ⚠️ 闸门失败要**说清是哪种**（why 字段）—— 用户看到"找不到该变量"会去翻预设，
+        其实可能只是这个变量的值本来是文字。原先一律报"找不到"，是很误导人的。
+
+     why 取值：
+       `no-entry`   条目里根本没有这个变量名
+       `no-close`   有 `setvar::名::` 但没有收尾的 `}}` —— 正文残缺
+       `empty`      值是空的（`setvar::名::}}`）
+       `not-number` 值不是纯数字（多行文本、小数、全角数字、科学计数法…）
+       `minus`      值以减号开头（负数；面板是整数框，且会与 `::1` 前缀混淆） */
+  function setVarInContent(content, name, oldValue, newValue) {
+    if (typeof content !== 'string') { return { ok: false, why: 'no-entry' }; }
+    /* ⚠️ oldValue 为空串时**绝不能**走精确匹配：needle 会退化成 `setvar::名::`，
+       它在正文里必然命中，然后 `at + needle.length` 只跳过前缀、没跳过原来的数字 ——
+       结果是新旧值叠在一起写出 `300250` 这种脏数据（2026-10-10 自测抓到的）。
+       空值直接走下面的按名锚定。 */
+    if (oldValue !== '' && oldValue !== null && oldValue !== undefined) {
+      var needle = 'setvar::' + name + '::' + oldValue;
+      var at = content.indexOf(needle);
+      if (at >= 0) {
+        return { ok: true, after: content.slice(0, at) + 'setvar::' + name + '::' + newValue + content.slice(at + needle.length) };
+      }
+    }
+    /* ① 落空 → ② 按名锚定 */
+    var head = 'setvar::' + name + '::';
+    var hAt = content.indexOf(head);
+    if (hAt < 0) { return { ok: false, why: 'no-entry' }; }
+    var rest = content.slice(hAt + head.length);
+    if (rest.indexOf('}}') < 0) { return { ok: false, why: 'no-close' }; }
+    var cur = rest.split('}}')[0];
+    if (cur === '') { return { ok: false, why: 'empty' }; }
+    /* ⚠️ 减号必须**先判**：负数（-5）本来就通不过纯数字那道闸，
+       顺序反了它会一路落到 not-number，用户看到的就是含糊的"值不是数字"，
+       而他真正需要知道的是"面板不认负数"。 */
+    if (cur.charAt(0) === '-') { return { ok: false, why: 'minus' }; }
+    if (!/^\d+$/.test(cur)) { return { ok: false, why: 'not-number' }; }
+    var valAt = hAt + head.length;
+    return { ok: true, after: content.slice(0, valAt) + newValue + content.slice(valAt + cur.length) };
   }
 
   /* ── 当前预设名：多重兜底（真机上这一步原先 100% 失败） ──────────────────
@@ -685,6 +739,17 @@
 
   /* pairs: [{ identifier, name, old, value }]，全部来自同一张变量卡。
      幂等：值没变的那几条根本不会进来（调用方先比过 data-kami-old）。 */
+  /* 改不动时到底为什么 —— 人话版。原先一律报"预设里找不到 setvar::名::值（预设被改过？）"，
+     用户会一头雾水地去翻预设，其实可能只是那个变量的值本来是文字。 */
+  function varWhyText(why, name) {
+    if (why === 'no-entry') { return '这个条目里没有 \'' + name + '\' 这个变量（它可能被删掉了）'; }
+    if (why === 'no-close') { return '\'' + name + '\' 这段正文残缺：setvar 少了收尾的 }}，请先在预设里把它补全'; }
+    if (why === 'empty') { return '\'' + name + '\' 当前是空值，面板不敢猜原来的数字，请先给它填一个数'; }
+    if (why === 'not-number') { return '\'' + name + '\' 当前的值不是纯数字（可能是文字或多行内容），面板不会去动它'; }
+    if (why === 'minus') { return '\'' + name + '\' 当前是负数，面板只认非负整数，请直接在预设里改'; }
+    return '\'' + name + '\' 改不动（原因未知）';
+  }
+
   function commitVars(pairs) {
     var raw = readRaw();
     if (!raw.ok) { return { ok: false, changed: 0, msg: raw.error }; }
@@ -697,9 +762,17 @@
       }
       if (!ent) { return { ok: false, changed: 0, msg: '预设里找不到条目 ' + p.identifier }; }
       var before = (typeof ent.content === 'string') ? ent.content : '';
-      var after = setVarInContent(before, p.name, p.old, p.value);
-      if (after === null) { return { ok: false, changed: 0, msg: '预设里找不到 setvar::' + p.name + '::' + p.old + '（预设被改过？）' }; }
-      plan.push({ prompt: ent, identifier: p.identifier, name: p.name, old: p.old, value: p.value, before: before, after: after });
+      /* ⚠️ 钥匙是**变量名**，不是面板缓存的值。先按名现读一次正文里的真实值 ——
+         读到了就用真实值当旧值（这样精确匹配那一段能命中，改动最小、行为可预测）；
+         读不到（真没这个变量）就退回面板缓存值，让 setVarInContent 去决定能不能救。
+         2026-10-10：用户手改过预设正文后，面板缓存的值与正文不一致，
+         旧代码拿缓存值当钥匙 → 找不到 → 拒绝写入。 */
+      var realOld = readVarValue(before, p.name);
+      var useOld = (realOld !== null && realOld !== '') ? realOld : p.old;
+      var res = setVarInContent(before, p.name, useOld, p.value);
+      if (!res.ok) { return { ok: false, changed: 0, why: res.why, msg: varWhyText(res.why, p.name) }; }
+      var after = res.after;
+      plan.push({ prompt: ent, identifier: p.identifier, name: p.name, old: useOld, panelOld: p.old, value: p.value, before: before, after: after });
     }
     if (!plan.length) { return { ok: true, changed: 0, msg: '没有变化' }; }
     for (i = 0; i < plan.length; i++) { plan[i].prompt.content = plan[i].after; }   // ① 只动活设置
@@ -710,7 +783,8 @@
     }
     varWrites += plan.length;
     for (i = 0; i < plan.length; i++) {
-      log('写回变量：' + plan[i].name + ' ' + plan[i].old + ' → ' + plan[i].value + '（' + diffDots(plan[i].before, plan[i].after) + '）');
+      log('写回变量：' + plan[i].name + ' ' + plan[i].old + ' → ' + plan[i].value + '（' + diffDots(plan[i].before, plan[i].after) + '）'
+        + (plan[i].panelOld !== plan[i].old ? '　⚠️ 面板缓存的是 ' + plan[i].panelOld + '，正文里其实是 ' + plan[i].old + '（已按正文为准）' : ''));
     }
     lastWrite = writeText(nowText(), plan.length, []);
     return { ok: true, changed: plan.length, plan: plan, msg: '' };
