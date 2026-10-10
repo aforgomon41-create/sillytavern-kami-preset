@@ -207,5 +207,40 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(atYield2 >= 0 && atOpen > atYield2, '⑩ 让位发生在打开裁决页之前');
 }
 
+
+/* ── ⑪ 2026-10-11 事故（关闭按钮点了没反应）的回归断言 ── */
+{
+  const src = readFileSync(new URL('../../src/scripts/70-远程更新.js', import.meta.url), 'utf8');
+
+  /* 变量只能声明一次。2026-10-11 就是声明了两次，后一次执行时把已挂上的
+     "点外面也关"的监听器引用冲成 null，功能整个失效。 */
+  const decls = (src.match(/var documentTapCloser/g) || []).length;
+  eq(decls, 1, '⑪ documentTapCloser 只声明一次（两次会把已挂的监听器冲掉）');
+
+  /* 关闭必须"整屏可关"：不再要求点中按钮。
+     2026-10-11 用户报"点了没反应" —— 按钮上挂 click 在手机 WebView 里可能一个都不派发，
+     所以改成挂在 document 上，点屏幕任何地方都关。 */
+  ok(/for \(var evName of \['pointerdown', 'mousedown', 'click', 'touchend'\]\)/.test(src),
+    '⑪ 关闭监听铺四种事件（pointerdown / mousedown / click / touchend）');
+  ok(/documentTapCloser = function/.test(src), '⑪ 关闭监听挂在 document 上（不要求点中按钮）');
+  ok(/t\.closest && t\.closest\('\.kami-upd-btn'\)/.test(src),
+    '⑪ 点按钮也走同一条路（点在窗口里面时只有按钮才算）');
+  ok(/hsetTimeout\(function \(\) \{ armed = true; \}, 400\)/.test(src),
+    '⑪ 挂监听前先等 400ms（免得打开窗口那一下顺手关掉自己）');
+  ok(/for \(var evn of \['pointerdown', 'mousedown', 'click', 'touchend'\]\)/.test(src),
+    '⑪ 关窗口时把四个监听都摘掉（否则越挂越多）');
+
+  /* 先清引用再删 DOM：removeChild 抛异常也不能让窗口留在原地 */
+  ok(/try \{ closeProgress\(\); \} catch \(e\) \{ warn\('关闭进度窗口出错/.test(src),
+    '⑪ 关闭失败也不静默（有 warn 兜底）');
+
+  /* 成功后自动关：不再依赖用户点得准 */
+  ok(/更新已完成，自动收起进度窗口/.test(src), '⑪ 更新成功后自动收起');
+  ok(/progState && progState\.status === 'done'/.test(src), '⑪ 只在成功时自动关（失败要留着给用户看重试）');
+
+  /* 文案要跟行为一致：既然会自动关，就别再说"可以关闭了" */
+  ok(M.UPDATE_COPY.doneHint.indexOf('自动') >= 0, '⑪ 完成文案说明会自动关闭（与行为一致）');
+}
+
 console.log((fail ? '✗ ' : '✓ ') + '更新进度纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
 if (fail) { console.log('\n' + bad.join('\n')); process.exitCode = 1; }

@@ -1188,6 +1188,7 @@
      我们代码里没有任何关闭动作。想"不关"就只能自己开一个面板 —— 就是下面这个。
      样式全用内联（与 buildPopupHtml 同一路子），不依赖皮肤，也不给 .kami-root 以外的东西写样式。 */
   var progEls = null, progState = newProgress(0), progTimer = null, progSpin = 0, progLastPaint = 0;
+  var documentTapCloser = null;   /* document 级「点哪都关」的监听器；关窗口时要摘掉，别越挂越多 */
   var progRetry = null;   /* 面板上点「重试」时重跑的那个 remote */
 
   /* ⚠️ 面板是"锦上添花"，**绝不许它把更新流程带崩**：
@@ -1288,7 +1289,45 @@
       log('用户在进度面板上点了重试');
       doUpdate(progRetry, true);
     });
-    closeBtn.addEventListener('click', function () { closeProgress(); });
+    /* ── 关闭按钮：**必须点得动**（2026-10-11 用户报"点了没反应"）──
+       只挂一个 click 在手机上不一定靠得住：某些 WebView 里，
+       如果按钮上方还压着别的浮层、或者 tap 被当成手势吃掉，click 就不会派发。
+       所以这里铺三条路，任一命中就关：
+         ① pointerdown —— 手指按下的那一刻就关，不等 click（最快、最不容易被手势吃掉）
+         ② click      —— 键盘 Enter / 鼠标 / 无 pointer 事件的环境
+         ③ touchend   —— 老式触摸事件兜底
+       用 closed 标志保证只执行一次（三条路可能同时到达）。 */
+    var closed = false;
+    function shutIt() {
+      if (closed) { return; }
+      closed = true;
+      /* ⚠️ 先清引用再删 DOM：万一 removeChild 抛了（节点被别人挪走），
+         引用也已经是 null，后续 progressRoot() 会重建一个新窗口而不是"幽灵"。
+         2026-10-11：以前用早返回写在前面，一旦抛异常就整个函数没生效，窗口留在原地。 */
+      try { closeProgress(); } catch (e) { warn('关闭进度窗口出错（已尽力）：' + ((e && e.message) || e)); }
+    }
+    /* ⚠️ 2026-10-11 第二次修：在按钮上挂事件仍然可能"点了没反应" ——
+       手机上 tap 可能被 WebView 当成手势吃掉、也可能被上层浮层拦下，
+       按钮上的 listener 就一个都不派发。所以改成挂在 **document** 上：
+       只要用户在窗口出现后**点屏幕任何地方**，就关掉它。
+       这样不再要求他精确命中那个按钮，也不再依赖某个具体事件类型能冒泡到按钮上。 */
+    var doc = (HDOC || document);
+    var armed = false;
+    hsetTimeout(function () { armed = true; }, 400);   /* 免得"打开窗口的那一下点击"顺手把它关掉 */
+    documentTapCloser = function (ev) {
+      if (!armed) { return; }
+      if (!progEls || !progEls.root) { return; }
+      var t = ev && ev.target;
+      /* 点窗口**里面**时：只有点到关闭/重试按钮才算数，点正文别误关 */
+      var inside = t && progEls.root.contains && progEls.root.contains(t);
+      var onBtn = false;
+      try { onBtn = !!(t && t.closest && t.closest('.kami-upd-btn')); } catch (e6) { onBtn = false; }
+      if (inside && !onBtn) { return; }
+      shutIt();
+    };
+    for (var evName of ['pointerdown', 'mousedown', 'click', 'touchend']) {
+      try { doc.addEventListener(evName, documentTapCloser, true); } catch (e7) { }
+    }
     progEls = { root: root, title: title, stage: stage, track: track, bar: bar, bytes: bytes, detail: detail, row: row, note: note, retry: retryBtn, close: closeBtn };
     return progEls;
   }
@@ -1334,6 +1373,9 @@
   }
 
   /* 关掉进度窗口。**可重复调用**（没人开过、已关过都安全）。
+     （progOutsideCloser 声明在上面 progressRoot 那一带，别在这儿再声明一次 ——
+       2026-10-11 就是这么踩的：两处 var，后一处执行时把已挂上的监听器引用冲成 null，
+       于是"点外面也关"整个失效。）
      ⚠️ 2026-10-10 修 bug：以前这个函数只被「关闭」按钮调用，而按钮又只在
      status 变成 done / failed 之后才显示。于是更新流程里**没有任何一处主动关它** ——
      窗口就一直盖在屏幕正中间（z-index 十万、不透明、吃掉所有点击）。
@@ -1346,6 +1388,13 @@
   function closeProgress() {
     stopProgressTimer();
     if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
+    if (documentTapCloser) {
+      var cd = (HDOC || document);
+      for (var evn of ['pointerdown', 'mousedown', 'click', 'touchend']) {
+        try { cd.removeEventListener(evn, documentTapCloser, true); } catch (e1) { }
+      }
+      documentTapCloser = null;
+    }
     progEls = null;
     progRetry = null;
   }
@@ -1426,6 +1475,20 @@
       doneProgress(progState, remote.version || remote.name, Date.now());
       paintProgress();
       log('更新流程结束：' + (r && r.action ? r.action : 'ok'));
+      /* ── 更新成功后**自动关掉进度窗口**（2026-10-11 用户报"关闭按钮点了没反应"）──
+         用户的原话就是这个窗口关不掉。修完阻挡确认框之后，它在正常路径上本来就会被
+         写盘前的 yieldScreen 收掉；但你手机上那份仍然停在"更新完成"，
+         说明还存在我这边复现不到的路径（WebView 里 tap 被吃掉之类）。
+         与其继续猜"为什么点不动"，不如**让它不需要点**：
+         完成后 2.5 秒自己收掉，窗口上那句话也改成会走的说法。
+         失败时**不自动关** —— 那种情况用户要看原因、还要点重试，留着才对。 */
+      hsetTimeout(function () {
+        if (!progEls || !progEls.root) { return; }
+        if (progState && progState.status === 'done') {
+          log('更新已完成，自动收起进度窗口');
+          closeProgress();
+        }
+      }, 2500);
       return r;
     })['catch'](function (e) {
       last.error = (e && e.message) || String(e);

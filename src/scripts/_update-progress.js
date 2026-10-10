@@ -40,7 +40,7 @@ export var UPDATE_COPY = {
   indeterminate: '未能获取总大小，正在持续下载',
   retry: '重试',
   close: '关闭',
-  doneHint: '更新已完成，现在可以关闭这个窗口了',
+  doneHint: '更新已完成，这个窗口马上自动关闭',
   retryHint: '更新遇到问题，可以点击重试再来一次',
   dupGuard: '更新还在进行中，请不要重复点击',
   /* 重试不设上限（Lead 2026-10-05 定）：用户自己点的，卡上限反而碍事；
