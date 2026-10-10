@@ -27,6 +27,18 @@
  *   注释（条目正文开头的 {{//…}}）：**以他为准**（他改过的注释就是最终文案）。
  *         工具会列出「文案表里的文字与他文件不一致」的行，要同步就加 --sync-comments。
  *
+ * ── ⚠️ 危险：他文件里**没有**的字段，合并会把它**从主干删掉**（2026-10-09 实测踩到）──
+ *   酒馆导出预设时会丢掉几个字段，最常见的三个是 attach_index / attach_role / attach_side
+ *   （注入类条目的"插到对话哪一侧"配置）。它们不是"用户删掉了"，而是"酒馆没导出"。
+ *   一律以他为准的写法会把它们静默删掉 —— 条目还在，但注入行为变了，而且没有任何报错。
+ *
+ *   实测：2026-10-09 那次手改合并，🎭 角色生成 / 🐱 Gemini倒打一耙 / 🐱 Gemini抗输入审
+ *   三条的 attach_index=1 / attach_role="user" / attach_side="end" 被删掉，
+ *   是事后拿 dist/_preset.base.合并前备份.json 逐字段比对才发现的。
+ *
+ *   **现在的处理**：合并仍然是"以他为准"，但会在输出里列出**被删掉的字段**（见 --apply 的报告），
+ *   请人工确认那是用户有意删的、还是酒馆导出丢的。是后者就从备份补回来。
+ *
  * ── 他文件里表达不了、只能由构建期接管的部分（不参与合并，构建时重新生成）──
  *   脚本正文 / 脚本名字 / info / button / export_with（来自 src/scripts/meta.json + 脚本源码）
  *   他没有的脚本（构建期仍会装上）、正则正文
@@ -199,7 +211,15 @@ function diffPresets(base, his) {
       else if (hasH && !hasB) { diffs.push(k + '(只他有)'); }
       else if (hasB && !hasH) { diffs.push(k + '(只主干有)'); }
     }
-    if (diffs.length) { fieldChanged.push({ name: h.name || b.name, fields: diffs }); }
+    if (diffs.length) {
+      fieldChanged.push({
+        name: h.name || b.name,
+        fields: diffs,
+        /* ⚠️ "只主干有"= 这次合并会把它们**删掉**。酒馆导出丢字段（attach_* 那类）就落在这里，
+           所以单独拎出来，让报告能显眼地列一遍、逼人确认。 */
+        dropped: diffs.filter(x => x.indexOf('(只主干有)') >= 0).map(x => x.replace('(只主干有)', ''))
+      });
+    }
   }
   out.prompts = { added, removed, renamed, bodyChanged, commentOnly, enabledChanged, fieldChanged };
 
@@ -311,6 +331,15 @@ function render(d, meta) {
   L.push('  · 改名 ' + P.renamed.length + ' 条' + (P.renamed.length ? '：' + P.renamed.slice(0, 6).map(x => x.from + ' → ' + x.to).join('、') : ''));
   L.push('  · 条目开关 ' + P.enabledChanged.length + ' 条' + (P.enabledChanged.length ? '：' + P.enabledChanged.slice(0, 6).map(x => x.name + ' ' + (x.from ? '开' : '关') + '→' + (x.to ? '开' : '关')).join('、') : ''));
   L.push('  · 其它字段 ' + P.fieldChanged.length + ' 条' + (P.fieldChanged.length ? '：' + P.fieldChanged.slice(0, 6).map(x => x.name + '[' + x.fields.join('/') + ']').join('、') : ''));
+  /* ⚠️ 被删字段单独列一遍。它会真的写进主干，而"酒馆导出丢字段"与"用户主动删字段"
+     在这一步长得一模一样 —— 所以必须让人看见，不能混在"其它字段"里一笔带过。 */
+  const dropped = [];
+  for (const it of P.fieldChanged) { for (const f of (it.dropped || [])) { dropped.push(it.name + '.' + f); } }
+  if (dropped.length) {
+    L.push('  · ⚠️ 下面这些字段他文件里没有，合并会**从主干删掉**（' + dropped.length + ' 处）：' + dropped.slice(0, 12).join('、'));
+    L.push('      请确认是"用户有意删的"还是"酒馆导出丢的"（attach_index / attach_role / attach_side 常见于后者）。');
+    L.push('      是导出丢的：拿 dist/_preset.base.合并前备份.json 比一下，按 identifier 补回来再构建。');
+  }
   L.push('  · 新增 ' + P.added.length + ' 条' + (P.added.length ? '：' + P.added.slice(0, 6).join('、') : '') +
     '；删除 ' + P.removed.length + ' 条' + (P.removed.length ? '：' + P.removed.slice(0, 6).join('、') : ''));
   L.push('  · 注释文字不同 ' + P.commentOnly.length + ' 条' + (P.commentOnly.length ? '：' + P.commentOnly.slice(0, 4).map(x => x.name).join('、') : ''));
