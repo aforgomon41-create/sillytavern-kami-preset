@@ -47,8 +47,14 @@ function git(args, opts) {
       并与根目录 version.json 核对一致 —— 免得拿旧版本的产物去发新版本号） */
 const distDir = path.join(ROOT, 'dist');
 const wantVersion = String(JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).version || '').trim();
+/* ⚠️ 版本号要**转义**再进正则。不转义的话，模式里那个点是"任意字符"，
+   于是发 0.92-15 时会把 kami-v0.91-15-….json 一起匹配上，
+   脚本报"找到 2 个匹配的文件，无法确定用哪个"（2026-10-11 实测撞到）。
+   改成用 version.json 的版本号、转义后匹配 —— 顺带就是"名字里的版本必须等于
+   当前版本"这条核对，比原来硬写 \\d+\\.\\d+ 更严。 */
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, function (m) { return '\\' + m; });
 const hit = fs.readdirSync(distDir)
-  .filter(f => new RegExp('^kami-v(\\d+\\.\\d+)-' + N + '-\\d{8}\\.json$', 'i').test(f));
+  .filter(f => new RegExp('^kami-v' + escRe(wantVersion) + '-' + N + '-\\d{8}\\.json$', 'i').test(f));
 if (hit.length !== 1) {
   console.error('在 dist/ 里找到 ' + hit.length + ' 个匹配「kami-v<版本>-' + N + '-<日期>.json」的文件，无法确定用哪个：' + hit.join(', '));
   process.exit(1);
