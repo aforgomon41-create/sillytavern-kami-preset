@@ -242,5 +242,30 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(M.UPDATE_COPY.doneHint.indexOf('自动') >= 0, '⑪ 完成文案说明会自动关闭（与行为一致）');
 }
 
+
+/* ── ⑫ 更新说明的加粗记号（2026-10-11 用户要求"公告第一条要用加粗"）──
+   弹窗是 escText 转义后再拼 <br> 的，所以公告里**直接写 <b> 没用**（会显示成字面标签）。
+   给 notesHtml 加了 \*\*加粗\*\* 记号：转义之后再把记号换成 <b>。
+   顺序反了就会被转义掉，所以这里连顺序一起钉住。 */
+{
+  const src70 = readFileSync(new URL('../../src/scripts/70-远程更新.js', import.meta.url), 'utf8');
+  const ls = src70.split(/\r?\n/);
+  const grab = (sig) => { const a = ls.findIndex(l => l.startsWith('  function ' + sig)); let b = a; while (b < ls.length && ls[b].replace(/\s+$/, '') !== '  }') b++; return ls.slice(a, b + 1).join('\n'); };
+  const NH = new Function(grab('cleanStr(') + '\n' + grab('escText(') + '\n' + grab('notesHtml(') +
+    '\nreturn { notesHtml: notesHtml };')();
+
+  eq(NH.notesHtml('**加粗**'), '<b>加粗</b>', '⑫ **x** 渲染成粗体');
+  ok(NH.notesHtml('<b>x</b>').indexOf('&lt;b&gt;') >= 0,
+    '⑫ 公告里直接写 HTML 标签会被转义成字面（这正是需要记号的原因）');
+  eq(NH.notesHtml('a**b\nc**d'), 'a**b<br>c**d', '⑫ 记号不跨行');
+  eq(NH.notesHtml('多行\n**第二行**'), '多行<br><b>第二行</b>', '⑫ 加粗与换行共存');
+  eq(NH.notesHtml('未配对 *x*'), '未配对 *x*', '⑫ 单个星号不动');
+
+  /* 顺序：先转义、后替换记号。反了记号就会被转义掉 */
+  const atEsc = src70.indexOf('var t = escText(notes);');
+  const atBold = src70.indexOf("t.replace(/\\*\\*([^*\\n]+)\\*\\*/g, '<b>$1</b>')");
+  ok(atEsc >= 0 && atBold > atEsc, '⑫ 先转义、后换记号（顺序反了加粗会失效）');
+}
+
 console.log((fail ? '✗ ' : '✓ ') + '更新进度纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
 if (fail) { console.log('\n' + bad.join('\n')); process.exitCode = 1; }
