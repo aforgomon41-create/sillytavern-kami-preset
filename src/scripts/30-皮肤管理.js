@@ -54,6 +54,34 @@
   if (typeof D20_SRC === 'string' && D20_SRC) { DECORS[0].src = D20_SRC; }
   if (typeof D10_SRC === 'string' && D10_SRC) { DECORS[1].src = D10_SRC; }
 
+  /* RPG 界面的图标集（design/icons/*.svg，构建期内联成一张表）——**这是通用素材**：
+     状态栏的分区图标、物品/技能/势力的类型图标都从这里取，别的脚本也能用。
+     表里只存 viewBox 与 path 的 d，外壳现拼，所以图标天然吃 currentColor（皮肤能染色）。
+     同时挂到全局（window.KamiIcons），让没被内联进脚本的场景（比如将来新增的前端）也能取到。 */
+  /* @@KAMI_ICONS@@ */
+  try {
+    if (typeof ICON_SVG !== 'undefined' && ICON_SVG) {
+      var _icons = {
+        ids: function () { return Object.keys(ICON_SVG); },
+        has: function (id) { return !!ICON_SVG[id]; },
+        table: function () { return ICON_SVG; },
+        /* 现拼成一段 SVG 文本；拿不到就返回空串（调用方据此不画） */
+        svg: function (id, size) {
+          var t = ICON_SVG[id];
+          if (!t) { return ''; }
+          var s = size || 16, out = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + (t.vb || '0 0 24 24') +
+            '" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="2" ' +
+            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+          for (var i = 0; i < (t.d || []).length; i++) { out += '<path d="' + t.d[i] + '"/>'; }
+          out += '</svg>';
+          return out;
+        }
+      };
+      try { HOST.KamiIcons = _icons; } catch (e) { }
+      try { window.KamiIcons = _icons; } catch (e) { }
+    }
+  } catch (e) { }
+
   /* 皮肤包由构建脚本注入（src/skins/<id>/） */
   /* @@KAMI_SKINS@@ */
 

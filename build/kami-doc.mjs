@@ -349,6 +349,12 @@ export function expandPanelGestures(root, code) {
   code = expandUpdateProgress(root, code);
   code = expandStatusView(root, code);
   code = expandIconStatus(root, code);
+  code = expandIconsUi(root, code);
+  /* ⚠️ 图标展开必须排在下面那条提前 return **之前**：
+     @@KAMI_ICONS@@ 要进的是 30-皮肤管理.js（通用素材），而皮肤管理脚本里
+     没有 @@KAMI_PANEL_GESTURES@@ 占位符 —— 挂在 return 之后的话，
+     这个展开器对那份脚本永远不生效（实测踩到：30 号返回"展开不全"，
+     于是整个预览台连带状态栏都装不进去）。 */
   if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
   return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
 }
@@ -380,6 +386,68 @@ export function expandIconStatus(root, code) {
     throw new Error('图标 data URI 里出现了占位符字面量（不可能，但拦住为妙）');
   }
   return code.replace(ICON_STATUS_MARK, () => 'var ICON_STATUS = ' + JSON.stringify(src) + ';');
+}
+
+/* ────────────────────────────────────────────────────────────
+ * 状态栏 RPG 界面的图标集（design/icons/*.svg）：构建期内联成一张表。
+ *
+ * 为什么走内联而不是把 SVG 贴进源码：
+ *   · 35 枚图标、每枚 400–700 字节，贴进去源码里就是两万多字符的路径串，没人 review 得动；
+ *   · 图标的唯一真相是 design/icons/ 里那些 .svg（从 Tabler Icons 取的，MIT，见该目录 LICENSE）；
+ *   · 各前端运行时只读一张紧凑表 ICON_SVG（**只存 viewBox 与 path 的 d**，
+ *     外壳每次现拼），所以**图标颜色天然吃 currentColor**，18 套皮肤零改动就能染色。
+ *
+ * 表的结构：{ 名字: { vb:'0 0 24 24', d:['M…','M…'] } }
+ * 多路径图标（grip / backpack / flask / key / cards / horse / weight 等）逐条保留，
+ * 少了任何一条都会画成残缺图形。非 path 元素（Tabler 有个别图标带 <circle>）也收进来，
+ * 否则那枚图标会缺一块。任何一枚图标解析不出路径就直接报错中止构建 —— 宁可构建失败，
+ * 也不要静默产出一张空白图标（"空白球"那个坑已经踩过一次）。
+ * ──────────────────────────────────────────────────────────── */
+export const ICONS_UI_MARK = '/* @@KAMI_ICONS@@ */';
+export const ICONS_UI_DIR = 'design/icons';
+
+export function iconsUiTable(root) {
+  const dir = path.join(root, ICONS_UI_DIR);
+  if (!fs.existsSync(dir)) {
+    throw new Error('找不到图标目录：' + ICONS_UI_DIR + '（构建期内联的唯一真相）');
+  }
+  const files = fs.readdirSync(dir).filter(f => /\.svg$/i.test(f)).sort();
+  if (!files.length) { throw new Error(ICONS_UI_DIR + ' 里一个 .svg 都没有'); }
+  const out = {};
+  for (const f of files) {
+    const name = f.replace(/\.svg$/i, '');
+    const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+    const vb = (/viewBox\s*=\s*"([^"]+)"/.exec(raw) || [])[1];
+    if (!vb) { throw new Error('图标缺 viewBox：' + f); }
+    const paths = [], shapes = [];
+    const re = /<(path|circle|rect|line|polyline|polygon)\b([^>]*?)\/?>/g;
+    let m;
+    while ((m = re.exec(raw))) {
+      const tag = m[1], attrs = m[2];
+      const d = (/\bd\s*=\s*"([^"]+)"/.exec(attrs) || [])[1];
+      if (tag === 'path') {
+        if (!d) { continue; }
+        /* 丢掉整幅背景矩形（game-icons 那类图标会带一条 M0 0h24v24H0z） */
+        if (/^M0 0h(24|512)v(24|512)H0z?$/i.test(d.trim())) { continue; }
+        paths.push(d);
+      } else {
+        /* 其余形状：保留标签与它的几何属性（去掉 fill/stroke 之类会跟 currentColor 打架的） */
+        const keep = attrs.replace(/\b(fill|stroke|stroke-width|stroke-linecap|stroke-linejoin)\s*=\s*"[^"]*"/g, '').trim();
+        shapes.push(tag + (keep ? ' ' + keep : ''));
+      }
+    }
+    if (!paths.length && !shapes.length) { throw new Error('图标解析不出任何图形：' + f); }
+    out[name] = { vb: vb, d: paths };
+    if (shapes.length) { out[name].s = shapes; }
+  }
+  return out;
+}
+
+/** 把脚本里的图标占位换成内联表。占位不存在时原样返回（幂等）。 */
+export function expandIconsUi(root, code) {
+  if (code.indexOf(ICONS_UI_MARK) < 0) { return code; }
+  const table = iconsUiTable(root);
+  return code.replace(ICONS_UI_MARK, () => 'var ICON_SVG = ' + JSON.stringify(table) + ';');
 }
 
 /* ────────────────────────────────────────────────────────────

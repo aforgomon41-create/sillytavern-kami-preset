@@ -572,7 +572,12 @@ async function setupMergeProbe(ST) {
    残留占位、或 40/50 里拿不到 customStyleBlock，都在这里当场抛，由 loadScript 的 catch 报出来。 */
 const KEEP_MARKS = ['@@KAMI_BUILD_N@@', '@@KAMI_PRESET_NAME@@'];
 function assertDevExpanded(w, code, file) {
-  const left = [...new Set([...code.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
+  /* ⚠️ 检查前先去掉注释块：占位符的名字会在注释里被提到
+     （30-皮肤管理.js 就有一句"占位 @@KAMI_DECOR_D20@@ / @@KAMI_DECOR_D10@@"的说明），
+     纯文本搜会把说明当成"没展开"并当场抛 —— 皮肤管理连带状态栏全装不进去。
+     2026-10-07 实测踩到。server.mjs 里那道同类检查也一起改了。 */
+  const codeNoComment = code.replace(/\/\*[\s\S]*?\*\//g, '');
+  const left = [...new Set([...codeNoComment.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
   if (left.length) {
     throw new Error('展开不全：' + file + ' 里还剩 ' + left.join(' / ') +
       '（build/kami-doc.mjs 的展开器漏挂了，或者 server 改完没重启）');

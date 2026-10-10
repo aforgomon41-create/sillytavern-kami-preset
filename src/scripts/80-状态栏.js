@@ -59,6 +59,12 @@
      字段自适应分类、剧透字段过滤。DOM / 拖拽 / 持久化留在本文件。 */
   /* @@KAMI_STATUS_VIEW@@ */
 
+  /* RPG 界面的图标集（design/icons/*.svg，构建期内联成一张表）。
+     表里只存 viewBox 与 path 的 d，外壳由 icon() 现拼 —— 所以图标**天然吃 currentColor**，
+     18 套皮肤零改动就能给它们染色。表本身在 _status-view.js 之后内联，
+     因为 icon() 要用它。 */
+  /* @@KAMI_ICONS@@ */
+
   var COPY = {
     "tip": "状态栏（实验）· 拖动可以移动位置，暂时还没有功能",
     "label": "状态栏（实验）",
@@ -129,6 +135,7 @@
     if (typeof saved.size === 'number' && saved.size >= 24 && saved.size <= 200) { geom.size = saved.size; }
     /* 存下来的设置一律不可信（手改过 / 旧版本结构不同）→ 交给纯函数逐字段兜底 */
     settings = mergeSettings(saved.settings);
+    normalizeUi();
     /* 宽度原样读出来，夹取交给 layoutOf（它知道当时视口多宽） */
     if (typeof saved.w === 'number' && isFinite(saved.w) && saved.w > 0) { userWidth = saved.w; }
   }
@@ -371,7 +378,119 @@
     '#' + PANEL_ID_PANEL + ' .kami-ia-lore-t{font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
     '#' + PANEL_ID_PANEL + ' .kami-ia-truth{margin-top:2px;display:flex;gap:var(--kami-gap,8px);color:var(--kami-fg-dim,#cfcfd6);}',
     /* 浮动 ✕ 与标签行不重叠：标签行右侧预留的空间由上面的 padding-right 保证 */
-    '#' + PANEL_ID_PANEL + ' .kami-status-hint{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:2px 0 8px;}'
+    '#' + PANEL_ID_PANEL + ' .kami-status-hint{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:2px 0 8px;}',
+    /* ══ RPG 界面层（2026-10-07）══
+       全部走 base.css 里新登记的那批令牌（--kami-sunken / --kami-bar-fill / --kami-map-* …），
+       皮肤不定义任何一个也有一份像样的默认外观。 */
+
+    /* 图标：只占位、吃 currentColor */
+    '#' + PANEL_ID_PANEL + ' .kami-ico{display:inline-flex;align-items:center;justify-content:center;flex:none;line-height:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-ico svg{display:block;width:100%;height:100%;}',
+
+    /* 主标签行：只留图标，当前项带文字（9 个标签在 420px 里排得下的关键） */
+    '#' + PANEL_ID_PANEL + ' .kami-status-tab{display:inline-flex;align-items:center;gap:5px;position:relative;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-tab b{font-weight:600;}',
+    '#' + PANEL_ID_PANEL + ' .kami-status-tab.is-on::after{content:"";position:absolute;left:6px;right:6px;bottom:-7px;height:2px;background:var(--kami-accent,#7aa2f7);border-radius:2px;}',
+
+    /* 子 tab 条 */
+    '#' + PANEL_ID_PANEL + ' .kami-subrow{display:flex;flex:none;padding:6px var(--kami-status-pad-x,var(--kami-pad-lg-x,14px));background:var(--kami-sunken,rgba(0,0,0,.30));border-bottom:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));}',
+    '#' + PANEL_ID_PANEL + ' .kami-subs{display:flex;gap:4px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-subs::-webkit-scrollbar{display:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-subtab{appearance:none;font:inherit;font-size:11.5px;white-space:nowrap;padding:4px 12px;border-radius:var(--kami-r-pill,999px);background:transparent;color:var(--kami-fg-mute,#8f99a3);border:var(--kami-border-w,1px) solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-subtab.is-on{background:var(--kami-surface-2,var(--kami-card,rgba(40,42,52,.96)));color:var(--kami-fg,#f2f2f4);border-color:var(--kami-edge,var(--kami-line-strong,rgba(255,255,255,.28)));box-shadow:inset 0 -2px 0 var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-subtab-n{font-size:10px;opacity:.75;font-variant-numeric:tabular-nums;}',
+
+    /* 筛选条 */
+    '#' + PANEL_ID_PANEL + ' .kami-filterrow{display:flex;flex:none;padding:6px var(--kami-status-pad-x,var(--kami-pad-lg-x,14px)) 0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-fchips{display:flex;gap:5px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-fchips::-webkit-scrollbar{display:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-fchip{appearance:none;font:inherit;font-size:11px;white-space:nowrap;padding:3px 10px;border-radius:var(--kami-r-pill,999px);background:var(--kami-sunken,rgba(0,0,0,.30));color:var(--kami-fg-mute,#8f99a3);border:var(--kami-border-w,1px) solid var(--kami-line,rgba(255,255,255,.12));cursor:pointer;}',
+    '#' + PANEL_ID_PANEL + ' .kami-fchip.is-on{background:var(--kami-accent-soft,rgba(122,162,247,.20));color:var(--kami-fg,#f2f2f4);border-color:var(--kami-accent-line,rgba(122,162,247,.55));}',
+
+    /* 卡片：折叠主体 */
+    '#' + PANEL_ID_PANEL + ' .kami-card{margin:0 0 8px;padding:9px;border-radius:var(--kami-card-r,var(--kami-r-md,10px));background:var(--kami-surface-2,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-edge,var(--kami-line-strong,rgba(255,255,255,.28)));box-shadow:inset 0 1px 0 var(--kami-edge-in,rgba(255,255,255,.07));}',
+    '#' + PANEL_ID_PANEL + ' .kami-card.is-compact{padding:8px 9px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card.is-bad{border-color:var(--kami-status-warn,var(--kami-fg-mute,#a8a8b0));}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-h{display:flex;align-items:center;gap:9px;cursor:pointer;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-col{flex:1 1 auto;min-width:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-name{font-weight:600;font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-alias{color:var(--kami-fg-mute,#8f99a3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-n{flex:none;font-variant-numeric:tabular-nums;font-size:12px;font-weight:600;color:var(--kami-fg-dim,#cfcfd6);}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-mark{flex:none;width:1.2em;text-align:center;color:var(--kami-fg-mute,#8f99a3);font-size:13px;line-height:1;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-sum{color:var(--kami-fg-mute,#8f99a3);font-size:11.5px;margin-top:5px;padding-top:5px;border-top:var(--kami-border-w,1px) dashed var(--kami-line,rgba(255,255,255,.12));overflow:hidden;text-overflow:ellipsis;}',
+    /* 折叠动效：grid-template-rows 0fr→1fr 可以过渡"高度自适应"，且尊重减动效偏好 */
+    '#' + PANEL_ID_PANEL + ' .kami-card-body{display:grid;grid-template-rows:0fr;overflow:hidden;transition:grid-template-rows var(--kami-status-anim,180ms) ease;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-body>div{min-height:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card.is-open .kami-card-body{grid-template-rows:1fr;}',
+    '#' + PANEL_ID_PANEL + ' .kami-card-inner{padding-top:8px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-detail{display:block;}',
+    '#' + PANEL_ID_PANEL + ' .kami-role-tag{font-size:10px;padding:0 6px;line-height:1.6;border-radius:var(--kami-r-xs,4px);background:var(--kami-line,rgba(255,255,255,.10));color:var(--kami-fg-mute,#8f99a3);font-weight:400;}',
+    '#' + PANEL_ID_PANEL + ' .kami-eq-tag{font-size:10px;padding:0 6px;line-height:1.6;border-radius:var(--kami-r-xs,4px);background:var(--kami-accent-soft,rgba(122,162,247,.20));color:var(--kami-accent,#7aa2f7);border:var(--kami-border-w,1px) solid var(--kami-accent-line,rgba(122,162,247,.55));font-weight:400;}',
+    /* 图标槽：凹陷的小方格（物品 / 势力 / 产业共用） */
+    '#' + PANEL_ID_PANEL + ' .kami-slot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--kami-r-sm,8px);background:var(--kami-sunken,rgba(0,0,0,.30));box-shadow:inset 0 1px 2px rgba(0,0,0,.35),inset 0 0 0 var(--kami-border-w,1px) var(--kami-sunken-line,rgba(255,255,255,.10));color:var(--kami-fg-mute,#8f99a3);}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-item{color:var(--kami-status-tier-3,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-faction{color:var(--kami-status-tier-4,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-estate{color:var(--kami-status-tier-2,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-skill{color:var(--kami-status-tier-3,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-line{color:var(--kami-status-tier-4,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-quest{color:var(--kami-status-tier-5,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-lore{color:var(--kami-status-tier-2,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-dip{color:var(--kami-fg-dim,#cfcfd6);}',
+    '#' + PANEL_ID_PANEL + ' .kami-slot.is-mount{color:var(--kami-status-tier-4,var(--kami-accent,#7aa2f7));}',
+
+    /* 档位菱形：外框转 45°，文字反向转回来 */
+    '#' + PANEL_ID_PANEL + ' .kami-rank-d{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;transform:rotate(45deg);background:var(--kami-rank-bg,rgba(122,162,247,.20));border:var(--kami-border-w,1px) solid var(--kami-rank-edge,rgba(122,162,247,.55));border-radius:3px;margin:0 .35em;}',
+    '#' + PANEL_ID_PANEL + ' .kami-rank-d-t{transform:rotate(-45deg);font-size:.68em;font-weight:700;color:var(--kami-rank-fg,#bcd4fb);line-height:1;}',
+
+    /* 条：轨道是**凹陷槽**，填充是渐变 + 顶部高光（游戏的"厚"感主要来自这一层） */
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar{background:var(--kami-sunken,rgba(0,0,0,.30));box-shadow:inset 0 1px 2px rgba(0,0,0,.45),inset 0 0 0 var(--kami-border-w,1px) var(--kami-sunken-line,rgba(255,255,255,.10));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar-fill{background:var(--kami-bar-fill,linear-gradient(180deg,#8fb4f0,#5f86d6));box-shadow:inset 0 1px 0 var(--kami-bar-gloss,rgba(255,255,255,.28));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar.is-signed.is-neg .kami-w-bar-fill{background:var(--kami-bar-fill-neg,linear-gradient(180deg,#d98f8f,#a85252));}',
+    '#' + PANEL_ID_PANEL + ' .kami-w-bar-num{text-shadow:0 1px 2px rgba(0,0,0,.7);}',
+
+    /* 主角块 */
+    '#' + PANEL_ID_PANEL + ' .kami-hero{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--kami-card-r,var(--kami-r-md,10px));background:var(--kami-surface-2,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-accent,#7aa2f7);box-shadow:inset 0 1px 0 var(--kami-edge-in,rgba(255,255,255,.07));}',
+    '#' + PANEL_ID_PANEL + ' .kami-hero-col{flex:1 1 auto;min-width:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-hero-name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-hero-meta{color:var(--kami-fg-mute,#8f99a3);font-size:11.5px;margin:1px 0 3px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-thought{margin:6px 0;padding:6px 9px;border-left:3px solid var(--kami-accent-line,rgba(122,162,247,.55));background:var(--kami-sunken,rgba(0,0,0,.30));border-radius:0 var(--kami-r-xs,6px) var(--kami-r-xs,6px) 0;color:var(--kami-fg-dim,#cfcfd6);font-size:12px;}',
+
+    /* 背包 */
+    '#' + PANEL_ID_PANEL + ' .kami-wealth{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--kami-card-r,var(--kami-r-md,10px));background:var(--kami-surface-2,var(--kami-card,rgba(40,42,52,.96)));border:var(--kami-border-w,1px) solid var(--kami-edge,var(--kami-line-strong,rgba(255,255,255,.28)));color:var(--kami-status-tier-4,var(--kami-accent,#7aa2f7));font-variant-numeric:tabular-nums;margin-bottom:4px;flex-wrap:wrap;}',
+    '#' + PANEL_ID_PANEL + ' .kami-wealth-i{font-weight:600;}',
+    '#' + PANEL_ID_PANEL + ' .kami-slotgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-bottom:4px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-slotcell{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 6px;border-radius:var(--kami-card-r,var(--kami-r-md,10px));background:var(--kami-sunken,rgba(0,0,0,.30));box-shadow:inset 0 1px 2px rgba(0,0,0,.4),inset 0 0 0 var(--kami-border-w,1px) var(--kami-sunken-line,rgba(255,255,255,.10));color:var(--kami-fg-mute,#8f99a3);text-align:center;}',
+    '#' + PANEL_ID_PANEL + ' .kami-slotcell.is-on{background:var(--kami-surface-2,var(--kami-card,rgba(40,42,52,.96)));box-shadow:inset 0 1px 0 var(--kami-edge-in,rgba(255,255,255,.07)),inset 0 0 0 var(--kami-border-w,1px) var(--kami-accent,#7aa2f7);color:var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-slotcell i{font-style:normal;font-size:10px;opacity:.8;}',
+    '#' + PANEL_ID_PANEL + ' .kami-slotcell b{font-weight:600;font-size:11.5px;color:var(--kami-fg,#f2f2f4);overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap;}',
+
+    /* 分区标题（带图标与计数） */
+    '#' + PANEL_ID_PANEL + ' .kami-ia-sec-t{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--kami-accent,#7aa2f7);font-size:12.5px;margin:12px 0 5px;padding-left:7px;border-left:3px solid var(--kami-accent,#7aa2f7);}',
+    '#' + PANEL_ID_PANEL + ' .kami-ia-sec-t:first-child{margin-top:0;}',
+    '#' + PANEL_ID_PANEL + ' .kami-sec-n{margin-left:auto;font-weight:400;color:var(--kami-fg-mute,#8f99a3);font-size:11px;}',
+
+    /* 地图节点图 */
+    '#' + PANEL_ID_PANEL + ' .kami-graph{display:block;width:100%;height:auto;border-radius:var(--kami-card-r,var(--kami-r-md,10px));background:var(--kami-map-void,radial-gradient(circle at 40% 35%,#1e2530,#161b21 70%));}',
+    '#' + PANEL_ID_PANEL + ' .kami-graph-edges line{stroke:var(--kami-map-edge,#4b5563);stroke-width:1.4;}',
+    '#' + PANEL_ID_PANEL + ' .kami-graph-edges line.is-fog{stroke:var(--kami-map-edge-dash,#3a434e);stroke-dasharray:3 2.5;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode circle{fill:var(--kami-map-node-fill,#232a33);stroke:var(--kami-map-node-edge,var(--kami-accent,#7aa2f7));stroke-width:1.4;cursor:pointer;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode.is-fog circle{fill:var(--kami-map-fog-fill,#1a1f26);stroke:var(--kami-map-fog-edge,#3a434e);stroke-dasharray:3 2.5;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode.is-here circle{fill:var(--kami-map-here-fill,rgba(122,162,247,.22));stroke-width:2;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode-ring{fill:none;stroke:var(--kami-map-here-ring,rgba(122,162,247,.50));stroke-width:1.2;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode-t{fill:var(--kami-map-node-fg,#dbe4ee);font-size:5.2px;pointer-events:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-gnode.is-fog .kami-gnode-t{fill:var(--kami-map-fog-fg,#6b7784);}',
+    '#' + PANEL_ID_PANEL + ' .kami-graph-legend{display:flex;align-items:center;gap:12px;padding:7px 2px 0;font-size:11px;color:var(--kami-fg-mute,#8f99a3);flex-wrap:wrap;}',
+    '#' + PANEL_ID_PANEL + ' .kami-lg{display:inline-flex;align-items:center;gap:4px;}',
+    '#' + PANEL_ID_PANEL + ' .kami-lg-dot{width:10px;height:10px;border-radius:50%;flex:none;}',
+    '#' + PANEL_ID_PANEL + ' .kami-lg.is-here .kami-lg-dot{background:var(--kami-map-here-fill,rgba(122,162,247,.22));border:2px solid var(--kami-map-node-edge,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-lg.is-found .kami-lg-dot{background:var(--kami-map-node-fill,#232a33);border:2px solid var(--kami-map-node-edge,var(--kami-accent,#7aa2f7));}',
+    '#' + PANEL_ID_PANEL + ' .kami-lg.is-unknown .kami-lg-dot{background:var(--kami-map-fog-fill,#1a1f26);border:2px dashed var(--kami-map-fog-edge,#3a434e);}',
+
+    /* 面板内容容器：滚动在它上面，标签行 / 子 tab / 筛选条都不动 */
+    '#' + PANEL_ID_PANEL + ' .kami-panelbox{display:block;}',
+    '@media (prefers-reduced-motion: reduce){',
+    '  #' + PANEL_ID_PANEL + ' .kami-card-body{transition:none !important;}',
+    '}'
   ].join('\n');
 
   function injectCss() {
@@ -652,6 +771,20 @@
     });
   }
 
+  /* ───────── 界面选择状态（子 tab / 筛选 / 折叠）─────────
+     为什么单独有一份"明账"而不是从 DOM 上读：
+       · 面板每次重画都会换掉所有节点，从 DOM 读等于每次都丢（旧版就是这样把折叠弄丢的）；
+       · 存成数据之后，它可以进脚本变量、跟着账号走，重开酒馆还在原处；
+       · 它也能被用例直接构造，于是"折叠状态"这件事是可测的，不必真机点。
+     形状：{ sub: { 面板id: 子tabid }, filter: { 面板id: 档位id }, folds: { 折叠id: true=折起 } } */
+  function normalizeUi() {
+    var u = (settings && settings.ui) || {};
+    if (!u.sub || typeof u.sub !== 'object') { u.sub = {}; }
+    if (!u.filter || typeof u.filter !== 'object') { u.filter = {}; }
+    if (!u.folds || typeof u.folds !== 'object') { u.folds = {}; }
+    settings.ui = u;
+  }
+
   /* ───────── 数据：拿得到就渲染，拿不到就只有球 ─────────
      ⚠️ 绝不伪造数据。读不到就是 readStat() 返回 null，界面退回"一颗球"。
      读取口径照 00-mvu初始化测试.js:103-119 那套（楼层对象的 variables / swipes_data 里找
@@ -791,6 +924,9 @@
     panelEl.appendChild(tabsRowEl);
 
     panelBody = mk('div', 'kami-status-body');
+    /* 两个委托监听器（内容区挂一次，不是每张卡挂一次）：卡片开合、二级折叠标题 */
+    panelBody.addEventListener('click', onPanelBodyClick);
+    panelBody.addEventListener('click', onFoldHeadClick);
     panelEl.appendChild(panelBody);
 
     /* ⚠️ 面板**不再独立拖拽**：连体之后它必须跟着横幅走。
@@ -802,17 +938,24 @@
     if (!panelTabsEl) { return; }
     while (panelTabsEl.firstChild) { panelTabsEl.removeChild(panelTabsEl.firstChild); }
     var list = tabsList(), i;
-    /* 默认落**第一个模块页**（Lead 2026-10-05 定）。
-       理由：用户点球是想看自己的剧情状态，默认甩给他一屏设置开关是错的第一印象；
-       而 tab 就在眼前，不需要靠"默认落在设置页"来教他。设置页仍然钉在最后一个。 */
+    /* 默认落**第一个模块页**（Lead 2026-10-05 定）：用户点球是想看自己的剧情状态，
+       甩给他一屏设置开关是错的第一印象。设置页仍然钉在最后一个。 */
     if (!activeTab || !list.some(function (t) { return t.id === activeTab; })) {
       activeTab = list.length ? list[0].id : '__settings';
     }
     for (i = 0; i < list.length; i++) {
       (function (tab) {
-        var b = mk('button', 'kami-status-tab' + (tab.id === activeTab ? ' is-on' : ''), tab.label);
+        /* 标签行只留图标，**只有当前项带文字** ——
+           9 个"图标+文字"标签在 420px 宽的面板里排不下，末尾会被挤掉（实测）。
+           文字仍挂在 title 上，鼠标悬停与读屏都拿得到。 */
+        var on = tab.id === activeTab;
+        var b = mk('button', 'kami-status-tab' + (on ? ' is-on' : ''));
         b.type = 'button';
         b.setAttribute('data-kami-tab', tab.id);
+        b.setAttribute('aria-label', tab.label);
+        b.title = tab.label;
+        if (tab.icon) { b.appendChild(icon(tab.icon, 15)); }
+        if (on) { b.appendChild(mk('b', '', tab.label)); }
         b.addEventListener('click', function () { activeTab = tab.id; renderTabs(); renderPanelBody(); });
         panelTabsEl.appendChild(b);
       })(list[i]);
@@ -936,17 +1079,18 @@
     box.appendChild(wrap);
   }
 
-  /* 当前这一屏用的名字索引（与标题栏共用 buildNameIndex） */
+    /* 当前这一屏用的名字索引（与标题栏共用 buildNameIndex）。
+     ⚠️ 原来这一行在旧的"信息架构层"块开头，重构时那块被整段替换掉，
+     声明跟着一起没了 —— 结果卡里的关系对象与地图的连通胶囊都取不到名字，
+     浏览器直接抛 ReferenceError: nameIndex is not defined（实测踩到）。 */
   var nameIndex = {};
 
-  /* ── 信息架构层的小积木 ──
-     这一层不做任何"判断"，只把纯函数给的结构画出来。 */
-  function sec(title, sub) {
-    var box = mk('div', 'kami-ia-sec');
-    if (title) { box.appendChild(mk('div', 'kami-ia-sec-t', String(title))); }
-    if (sub) { box.appendChild(mk('div', 'kami-ia-sec-s', String(sub))); }
-    return box;
-  }
+  /* ───────── 信息架构层的小积木 ─────────
+     ⚠️ 这几个原来在旧的"信息架构层"块里，重构时那块被整段替换掉，
+     函数跟着一起没了（浏览器报 avatarNode is not defined）。
+     现在归到新渲染层，**只保留新卡片模型真正用到的那几个**：
+     sec()（区块标题）与 fogText() 已经不用了 —— 前者换成带图标与计数的 .kami-ia-sec-t，
+     后者换成 data-kami-fog 属性。 */
   function line(k, v) {
     var r = mk('div', 'kami-status-row');
     if (k !== null && k !== undefined && k !== '') { r.appendChild(mk('span', 'kami-status-k', String(k))); }
@@ -955,7 +1099,7 @@
     r.appendChild(vb);
     return r;
   }
-  /* 折叠块：**所有分区共用同一个交互**（用户要求"细节折叠要统一"） */
+  /* 折叠块：所有二级细节共用同一个交互（用户要求"细节折叠要统一"） */
   function fold(id, title, inner, defaultOpen) {
     var box = mk('div', 'kami-ia-fold');
     var head = mk('button', 'kami-ia-fold-h');
@@ -968,18 +1112,10 @@
     body.appendChild(inner);
     box.appendChild(head); box.appendChild(body);
     if (defaultOpen) { box.setAttribute('data-kami-open', '1'); }
-    head.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      var on = box.getAttribute('data-kami-open') === '1';
-      box.setAttribute('data-kami-open', on ? '0' : '1');
-      head.setAttribute('aria-expanded', on ? 'false' : 'true');
-      head.firstChild.textContent = on ? '▸' : '▾';
-    });
+    /* 事件走内容区的委托（onFoldHeadClick），这里**不挂监听器** —— 卡片每次重画都会换节点 */
     return box;
   }
-  /* 迷雾：未探明统一长这样 */
-  function fogText(t) { var s = mk('span', 'kami-ia-fog', String(t)); s.setAttribute('data-kami-fog', '1'); return s; }
-  /* 头像兜底：有图用图，没图用首字 —— 绝不空着 */
+  /* 头像：有图用图，没图按名字取色相兜底（同名同色、异名异色） */
   function avatarNode(a) {
     var box = mk('span', 'kami-ia-avatar');
     if (a && a.kind === 'image') {
@@ -987,7 +1123,6 @@
       box.appendChild(im);
     } else {
       box.setAttribute('data-kami-fallback', '1');
-      /* 按名字取色相 → 不同角色一眼分得开（同一个名字永远同一个色） */
       box.style.setProperty('--kami-ia-hue', String(hueOf((a && a.hueKey) || (a && a.text) || '')));
       box.appendChild(mk('span', 'kami-ia-avatar-t', (a && a.text) || '?'));
     }
@@ -1018,303 +1153,10 @@
     return el;
   }
 
-  /* ── ① 状态：HUD（一句话能看完）── */
-  function secHud(stat) {
-    var h = hudOf(stat), box = mk('div', '');
-    var l1 = mk('div', 'kami-ia-hud-line');
-    if (h.round !== null) { l1.appendChild(badgeNode('第 ' + h.round + ' 回合', 0)); }
-    if (h.when) { l1.appendChild(mk('span', 'kami-ia-hud-when', h.when)); }
-    if (h.weatherIcon) { l1.appendChild(mk('span', 'kami-status-wx', h.weatherIcon)); }
-    box.appendChild(l1);
-    if (h.where) { box.appendChild(mk('div', 'kami-ia-hud-where', h.where)); }
-    if (h.self) {
-      var self = mk('div', 'kami-ia-self');
-      self.appendChild(avatarNode(h.self.avatar));
-      var col = mk('div', 'kami-ia-self-col');
-      col.appendChild(mk('div', 'kami-ia-self-name', h.self.name + (h.self.health ? '' : '')));
-      if (h.self.health) { col.appendChild(badgeNode(h.self.health, h.self.tone)); }
-      self.appendChild(col);
-      box.appendChild(self);
-    }
-    if (h.present.length) {
-      box.appendChild(line(labelOf('present_chars'), chipsNode(h.present)));
-    }
-    return box;
-  }
-
-  /* ── ② 角色：角色卡 + 关系方向 + 细节收起 ── */
-  function secRoster(stat) {
-    var list = rosterOf(stat, settings), box = mk('div', ''), i;
-    for (i = 0; i < list.length; i++) {
-      (function (c) {
-        var card = mk('div', 'kami-ia-card' + (c.isSelf ? ' is-self' : ''));
-        var head = mk('div', 'kami-ia-card-h');
-        head.appendChild(avatarNode(c.avatar));
-        var col = mk('div', 'kami-ia-card-col');
-        var nm = mk('div', 'kami-ia-card-name', c.name);
-        if (c.isSelf) { nm.appendChild(mk('span', 'kami-w-chip', '我')); }
-        col.appendChild(nm);
-        if (c.alias) { col.appendChild(mk('div', 'kami-ia-card-alias', c.alias)); }
-        if (c.health) { col.appendChild(badgeNode(c.health, c.tone)); }
-        head.appendChild(col);
-        card.appendChild(head);
-        if (c.summary) { card.appendChild(mk('p', 'kami-w-text', c.summary)); }
-        /* 只画**生效那一套**的属性条 */
-        if (c.bars.length) {
-          var bars = mk('div', 'kami-ia-bars');
-          for (var j = 0; j < c.bars.length; j++) {
-            var row = mk('div', 'kami-ia-bar-row');
-            row.appendChild(mk('span', 'kami-status-k', c.bars[j].key));
-            row.appendChild(barNode(c.bars[j]));
-            bars.appendChild(row);
-          }
-          card.appendChild(bars);
-        }
-        /* 关系要有方向感：→ 谁 */
-        if (c.relations.length) {
-          var rel = mk('div', 'kami-ia-rels');
-          for (var m = 0; m < c.relations.length; m++) {
-            var r = c.relations[m];
-            var rr = mk('div', 'kami-ia-rel');
-            rr.appendChild(mk('span', 'kami-ia-rel-to', '→ ' + r.toward));
-            rr.appendChild(signedNode({ value: r.affinity, negative: r.negative, zero: 50,
-              fillLeft: r.negative ? 50 - r.pct / 2 : 50, fillWidth: r.pct / 2 }));
-            rel.appendChild(rr);
-          }
-          card.appendChild(rel);
-        }
-        /* 细节默认收起 */
-        for (var d = 0; d < c.details.length; d++) {
-          var blk = c.details[d], inner = mk('div', '');
-          for (var e = 0; e < blk.rows.length; e++) {
-            var rw = blk.rows[e];
-            var vn = mk('span', '');
-            renderWidget(blk.id, rw.value, vn, ['characters', blk.id]);
-            var rline = line(rw.key, vn);
-            if (rw.equipped) { rline.appendChild(mk('span', 'kami-w-chip', '已装备')); }
-            inner.appendChild(rline);
-          }
-          card.appendChild(fold(c.id + '-' + blk.id, blk.label, inner, false));
-        }
-        box.appendChild(card);
-      })(list[i]);
-    }
-    return box;
-  }
-
-  /* ── ③ 地图：层级 + 连通 + 迷雾 ── */
-  function secMap(stat) {
-    var tree = mapTreeOf(stat), box = mk('div', ''), i, j, k;
-    for (i = 0; i < tree.length; i++) {
-      var r = tree[i], rb = sec(r.found ? r.name : '？？？', r.desc);
-      if (!r.found) { rb.setAttribute('data-kami-fog', '1'); }
-      for (j = 0; j < r.areas.length; j++) {
-        var a = r.areas[j], ab = mk('div', 'kami-ia-area' + (a.found ? '' : ' is-fog'));
-        if (!a.found) { ab.setAttribute('data-kami-fog', '1'); }
-        ab.appendChild(mk('div', 'kami-ia-area-t', a.found ? a.name : '未探明区域'));
-        if (a.found && a.desc) { ab.appendChild(mk('div', 'kami-ia-sec-s', a.desc)); }
-        /* 连通关系：做成看得见的一条路径（连接符 + 胶囊），不是干巴巴一行字 */
-        if (a.links.length) {
-          var links = mk('div', 'kami-ia-links');
-          links.appendChild(mk('span', 'kami-status-k', '通往'));
-          for (var li = 0; li < a.links.length; li++) {
-            links.appendChild(mk('span', 'kami-ia-link', nameIndex[a.links[li]] || a.links[li]));
-          }
-          ab.appendChild(links);
-        }
-        for (k = 0; k < a.spots.length; k++) {
-          var sp = a.spots[k];
-          var sr = mk('div', 'kami-ia-spot' + (sp.found ? '' : ' is-fog'));
-          if (!sp.found) { sr.setAttribute('data-kami-fog', '1'); }
-          sr.appendChild(mk('span', 'kami-ia-spot-t', sp.found ? sp.name : '？？？'));
-          if (sp.found && sp.desc) { sr.appendChild(mk('span', 'kami-status-v', sp.desc)); }
-          ab.appendChild(sr);
-        }
-        rb.appendChild(ab);
-      }
-      box.appendChild(rb);
-    }
-    return box;
-  }
-
-  /* ── ④ 任务：按状态分组的日志 ── */
-  var QUEST_LABEL = { active: '进行中', pending: '待办', done: '已完成', failed: '已失败' };
-  function secQuests(stat) {
-    var log = questLogOf(stat), box = mk('div', ''), i, j;
-    for (i = 0; i < log.length; i++) {
-      var g = log[i], gb = mk('div', 'kami-ia-quest-group');
-      gb.appendChild(mk('div', 'kami-ia-sec-t', (QUEST_LABEL[g.status] || g.status) + ' · ' + g.items.length));
-      for (j = 0; j < g.items.length; j++) {
-        var q = g.items[j], qb = mk('div', 'kami-ia-quest' + (g.status === 'done' ? ' is-done' : ''));
-        var qh = mk('div', 'kami-ia-quest-h');
-        qh.appendChild(badgeNode(QUEST_LABEL[g.status] || g.status, g.status === 'done' ? 1 : (g.status === 'failed' ? -1 : 0)));
-        qh.appendChild(mk('span', 'kami-ia-quest-n', q.name));
-        qb.appendChild(qh);
-        if (q.objective) { qb.appendChild(mk('p', 'kami-w-text', q.objective)); }
-        if (q.client) { qb.appendChild(line('委托人', q.client)); }
-        if (q.reward) { qb.appendChild(line('报酬', q.reward)); }
-        if (q.limits) { qb.appendChild(line('限制', q.limits)); }
-        gb.appendChild(qb);
-      }
-      box.appendChild(gb);
-    }
-    return box;
-  }
-
-  /* ── ⑤ 势力：声望双向 + 外交 ── */
-  function secFactions(stat) {
-    var list = factionsOf(stat), box = mk('div', ''), i, j;
-    for (i = 0; i < list.length; i++) {
-      var f = list[i], fb = sec(f.name, [f.type, f.alias].filter(Boolean).join(' · '));
-      if (f.summary) { fb.appendChild(mk('p', 'kami-w-text', f.summary)); }
-      for (j = 0; j < f.reps.length; j++) {
-        var r = f.reps[j];
-        var row = mk('div', 'kami-ia-rep');
-        row.appendChild(mk('span', 'kami-status-k', (r.title || '声望') + ' · ' + r.who));
-        row.appendChild(signedNode(r));
-        fb.appendChild(row);
-      }
-      for (j = 0; j < f.diplomacy.length; j++) {
-        var d = f.diplomacy[j];
-        fb.appendChild(line('对 ' + d.toward, d.relation + (d.trends ? '（' + d.trends + '）' : '')));
-      }
-      box.appendChild(fb);
-    }
-    return box;
-  }
-
-  /* ── ⑥ 剧情线：时间线 ── */
-  function secStorylines(stat) {
-    var lines = timelineOf(stat), box = mk('div', ''), i, j;
-    for (i = 0; i < lines.length; i++) {
-      var l = lines[i], lb = mk('div', 'kami-ia-line');
-      var lh = mk('div', 'kami-ia-line-h');
-      lh.appendChild(badgeNode(l.priority === 'main' ? '主线' : (l.priority === 'personal' ? '个人' : '支线'), l.priority === 'main' ? 1 : 0));
-      lh.appendChild(mk('span', 'kami-ia-card-name', l.title));
-      lb.appendChild(lh);
-      if (l.summary) { lb.appendChild(mk('p', 'kami-w-text', l.summary)); }
-      var tl = mk('div', 'kami-ia-timeline');
-      for (j = 0; j < l.nodes.length; j++) {
-        var n = l.nodes[j];
-        var nb = mk('div', 'kami-ia-node' + (n.phase === 'future' ? ' is-future' : (n.phase === 'now' ? ' is-now' : '')));
-        nb.appendChild(mk('span', 'kami-ia-node-dot', ''));
-        var nc = mk('div', 'kami-ia-node-c');
-        var nh = mk('div', 'kami-ia-node-h');
-        if (n.round !== null) { nh.appendChild(mk('span', 'kami-w-num', '#' + n.round)); }
-        nh.appendChild(mk('span', 'kami-ia-node-t', n.title));
-        nc.appendChild(nh);
-        if (n.log) { nc.appendChild(mk('p', 'kami-w-text', n.log)); }
-        if (n.chars.length) { nc.appendChild(chipsNode(n.chars)); }
-        nb.appendChild(nc);
-        tl.appendChild(nb);
-      }
-      lb.appendChild(tl);
-      box.appendChild(lb);
-    }
-    return box;
-  }
-
-  /* ── ⑦ 不动产：产业卡 + 设施格子 ── */
-  function secEstates(stat) {
-    var list = estatesOf(stat), box = mk('div', ''), i, j;
-    for (i = 0; i < list.length; i++) {
-      var e = list[i], eb = mk('div', 'kami-ia-estate');
-      if (!e.found) { eb.setAttribute('data-kami-fog', '1'); }
-      eb.appendChild(mk('div', 'kami-ia-card-name', e.found ? e.name : '未探明产业'));
-      eb.appendChild(mk('div', 'kami-ia-sec-s', [e.type, e.owner].filter(Boolean).join(' · ')));
-      if (e.desc) { eb.appendChild(mk('p', 'kami-w-text', e.desc)); }
-      if (e.facilities.length) {
-        var grid = mk('div', 'kami-ia-facilities');
-        for (j = 0; j < e.facilities.length; j++) {
-          var fa = e.facilities[j];
-          var cell = mk('div', 'kami-ia-facility' + (fa.built ? ' is-built' : ''));
-          cell.appendChild(mk('div', 'kami-ia-facility-n', fa.name));
-          if (fa.desc) { cell.appendChild(mk('div', 'kami-ia-facility-d', fa.desc)); }
-          grid.appendChild(cell);
-        }
-        eb.appendChild(grid);
-      }
-      if (e.residents.length) { eb.appendChild(line('居住', chipsNode(e.residents))); }
-      box.appendChild(eb);
-    }
-    return box;
-  }
-
-  /* ── ⑧ 设定集：按分类分组，truth 只在剧透开关打开时出现 ── */
-  function secLore(stat) {
-    var groups = loreOf(stat, settings), box = mk('div', ''), i, j;
-    for (i = 0; i < groups.length; i++) {
-      var g = groups[i], gb = sec(g.category, g.items.length + ' 条');
-      for (j = 0; j < g.items.length; j++) {
-        var it = g.items[j], ib = mk('div', 'kami-ia-lore' + (it.found ? '' : ' is-fog'));
-        if (!it.found) { ib.setAttribute('data-kami-fog', '1'); }
-        ib.appendChild(mk('div', 'kami-ia-lore-t', it.found ? it.title : '未探明'));
-        if (it.summary) { ib.appendChild(mk('p', 'kami-w-text', it.summary)); }
-        /* truth 是剧透：loreOf 在开关没开时**根本不会给**，这里只负责画 */
-        if (it.truth) {
-          var tr = mk('div', 'kami-ia-truth');
-          tr.appendChild(mk('span', 'kami-w-chip', '真相'));
-          tr.appendChild(mk('span', '', it.truth));
-          ib.appendChild(tr);
-        }
-        gb.appendChild(ib);
-      }
-      box.appendChild(gb);
-    }
-    return box;
-  }
-
-  var SECTION_RENDER = {
-    status: secHud, characters: secRoster, map_nodes: secMap, quests: secQuests,
-    factions: secFactions, storylines: secStorylines, estates: secEstates, lore: secLore
-  };
-
-  function renderPanelBody() {
-    if (!panelBody) { return; }
-    nameIndex = buildNameIndex(currentStat);
-    while (panelBody.firstChild) { panelBody.removeChild(panelBody.firstChild); }
-
-    if (activeTab === '__settings') { renderSettings(); return; }
-
-    /* ── 分区专属架构 ──
-       ⚠️ 这里**不再**走"把这一层的键平铺成一行一行"的通用渲染（用户判定那等于没做）。
-       每个分区有自己的组织方式，全在 SECTION_RENDER 里。 */
-    var build = SECTION_RENDER[activeTab];
-    if (build) {
-      var bodyBox = null;
-      try { bodyBox = build(currentStat); } catch (e) { log('分区渲染失败（' + activeTab + '）：' + msgOf(e)); }
-      if (bodyBox && bodyBox.firstChild) { panelBody.appendChild(bodyBox); return; }
-      /* 这个分区真的没内容 → 走统一空态（"这一块还没有内容"+引导句） */
-      var planEmpty = panelTabPlan(currentStat, settings, activeTab);
-      var lines = planEmpty.lines && planEmpty.lines.length ? planEmpty.lines : [STATUS_COPY.emptyHint];
-      for (var q = 0; q < lines.length; q++) { panelBody.appendChild(mk('div', 'kami-status-empty', lines[q])); }
-      return;
-    }
-
-    /* 空态统一走纯函数 panelTabPlan —— 它会带上引导句（"怎么才会有内容"），
-       而且在"示例数据开着"时**不会**同时喊"没有数据"（那就自相矛盾了）。 */
-    var plan = panelTabPlan(currentStat, settings, activeTab);
-    if (plan.kind === 'empty') {
-      for (var k = 0; k < plan.lines.length; k++) {
-        panelBody.appendChild(mk('div', 'kami-status-empty', plan.lines[k]));
-      }
-      return;
-    }
-    for (var i = 0; i < plan.rows.length; i++) {
-      var row = mk('div', 'kami-status-row');
-      row.appendChild(mk('span', 'kami-status-k', labelOf(plan.rows[i].key)));
-      var vb = mk('span', 'kami-status-v');
-      /* 顶层行的值走控件分派（形态判断在 widgetOf 里）；key 用原始字段名查表 */
-      renderWidget(plan.rows[i].rawKey || plan.rows[i].key, plan.rows[i].value, vb, [activeTab]);
-      row.appendChild(vb);
-      panelBody.appendChild(row);
-    }
-  }
-
+  /* 设置项：一行标签 + 一枚开关（原样保留旧的 checkbox，只是搬了位置） */
   function checkbox(labelText, hint, checked, onChange) {
     var row = mk('label', 'kami-status-set');
-    var t = mk('span', '', labelText);
-    row.appendChild(t);
+    row.appendChild(mk('span', '', labelText));
     var cb = mk('input', '');
     cb.type = 'checkbox';
     cb.checked = !!checked;
@@ -1324,6 +1166,707 @@
     box.appendChild(row);
     if (hint) { box.appendChild(mk('div', 'kami-status-hint', hint)); }
     return box;
+  }
+
+  /* ───────── 图标（内联表 → 行内 SVG）─────────
+     表里只存 path 的 d，外壳每次现拼：这样 fill/stroke 走 currentColor，图标跟着文字变色，
+     皮肤不需要为图标单独配一套颜色规则。拿不到图标（名字拼错 / 表里没有）时返回空 span，
+     界面不会因为少一枚图标而塌。 */
+  function icon(name, size) {
+    var e = mk('span', 'kami-ico');
+    var t = (typeof ICON_SVG !== 'undefined' && ICON_SVG) ? ICON_SVG[name] : null;
+    var s = size || 16;
+    e.style.width = s + 'px';
+    e.style.height = s + 'px';
+    if (!t) { return e; }
+    var svg = HDOC.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', t.vb || '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    var i, el;
+    for (i = 0; i < (t.d || []).length; i++) {
+      el = HDOC.createElementNS('http://www.w3.org/2000/svg', 'path');
+      el.setAttribute('d', t.d[i]);
+      svg.appendChild(el);
+    }
+    for (i = 0; i < ((t.s || []).length); i++) {
+      var parts = String(t.s[i]).split(' ');
+      try {
+        el = HDOC.createElementNS('http://www.w3.org/2000/svg', parts[0]);
+        for (var j = 1; j < parts.length; j++) {
+          var kv = parts[j].split('=');
+          if (kv.length === 2) { el.setAttribute(kv[0], kv[1].replace(/"/g, '')); }
+        }
+        svg.appendChild(el);
+      } catch (err) { }
+    }
+    e.appendChild(svg);
+    return e;
+  }
+
+  /* ───────── 子 tab（RPG 界面层：每个主 tab 下面挂一层）─────────
+     数据全部来自纯函数 panelPlanOf()，这里只负责画。
+     子 tab 条只在**有两个以上**子 tab 时出现（只有一个就是没有选择，少占一行）。 */
+  var curPlan = null;          /* panelPlanOf 最近一次的产物，排障与用例读它 */
+  var panelPlan = null;        /* 当前面板 id */
+  var subPlan = null;          /* 当前子 tab id */
+  var panelBodyBox = null;     /* 子 tab 与筛选条下面的那块容器（滚动在它上面） */
+
+  function renderSubRow(plan) {
+    var row = mk('div', 'kami-subrow');
+    if (!plan || !plan.subs || plan.subs.length < 2) { row.hidden = true; return row; }
+    var wrap = mk('div', 'kami-subs');
+    for (var i = 0; i < plan.subs.length; i++) {
+      (function (s) {
+        var b = mk('button', 'kami-subtab' + (s.id === plan.sub ? ' is-on' : ''));
+        b.type = 'button';
+        b.setAttribute('data-kami-sub', s.id);
+        b.appendChild(HDOC.createTextNode(s.label));
+        if (s.count) { b.appendChild(mk('span', 'kami-subtab-n', String(s.count))); }
+        b.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (disposed || !settings.ui) { return; }
+          settings.ui.sub[panelPlan] = s.id;
+          /* 换子 tab 时把筛选档清掉：不同子 tab 的档位不是一套，留着会指向不存在的档 */
+          settings.ui.filter[panelPlan] = 'all';
+          saveVars();
+          renderTabs();
+          renderPanelBody();
+        });
+        wrap.appendChild(b);
+      })(plan.subs[i]);
+    }
+    row.appendChild(wrap);
+    return row;
+  }
+
+  function renderFilterRow(plan) {
+    var row = mk('div', 'kami-filterrow');
+    if (!plan || !plan.filters || plan.filters.length < 2) { row.hidden = true; return row; }
+    var wrap = mk('div', 'kami-fchips');
+    for (var i = 0; i < plan.filters.length; i++) {
+      (function (f) {
+        var b = mk('button', 'kami-fchip' + (f.id === plan.filterId ? ' is-on' : ''));
+        b.type = 'button';
+        b.setAttribute('data-kami-filter', f.id);
+        b.appendChild(HDOC.createTextNode(f.label + (f.count ? ' ' + f.count : '')));
+        b.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (disposed || !settings.ui) { return; }
+          settings.ui.filter[panelPlan] = f.id;
+          saveVars();
+          renderPanelBody();
+        });
+        wrap.appendChild(b);
+      })(plan.filters[i]);
+    }
+    row.appendChild(wrap);
+    return row;
+  }
+
+  /* ───────── 折叠 ─────────
+     折叠状态是**数据**（settings.ui.folds），不是 DOM 上读来的 ——
+     所以重画一次不会把用户折开的块合上（这正是旧版清空重画丢状态的那个 bug）。 */
+  function isFolded(foldId, dflt) {
+    if (settings.ui && settings.ui.folds && Object.prototype.hasOwnProperty.call(settings.ui.folds, foldId)) {
+      return settings.ui.folds[foldId] !== true;
+    }
+    return dflt === true;
+  }
+  function setFolded(foldId, folded) {
+    if (!settings.ui) { return; }
+    settings.ui.folds[foldId] = !!folded;
+    saveVars();
+  }
+  function foldHead(el, foldId) {
+    el.classList.add('kami-foldable');
+    var grid = HDOC.createElement('div');
+    grid.className = 'kami-foldgrid';
+    return { el: el, grid: grid };
+  }
+
+  /* ───────── 卡片 ─────────
+     一张卡 = 头部（图标槽 + 名字 + 类型 + 数量）+ 摘要行 + 详情。
+     详情里的东西按 kind 分派；收起时**保留一行关键摘要**，否则全是一模一样的标题条，扫不出信息。 */
+  function detailOf(card) {
+    var box = mk('div', 'kami-detail'), i, j, row;
+    if (card.kind === 'item') {
+      if (card.realDesc) { box.appendChild(truthRow(card.realDesc)); }
+      row = mk('div', 'kami-status-row');
+      row.appendChild(mk('span', 'kami-status-k', labelOf('type')));
+      row.appendChild(mk('span', 'kami-status-v', card.typeLabel + ' · ×' + card.count));
+      box.appendChild(row);
+      return box;
+    }
+    if (card.kind === 'skill') {
+      if (card.desc) { box.appendChild(mk('p', 'kami-w-text', card.desc)); }
+      return box;
+    }
+    if (card.kind === 'area') {
+      var sr;
+      for (i = 0; i < (card.spots || []).length; i++) {
+        sr = mk('div', 'kami-ia-spot' + (card.spots[i].found ? '' : ' is-fog'));
+        if (!card.spots[i].found) { sr.setAttribute('data-kami-fog', '1'); }
+        sr.appendChild(mk('span', 'kami-ia-spot-t', card.spots[i].found ? card.spots[i].name : '？？？'));
+        if (card.spots[i].found && card.spots[i].desc) { sr.appendChild(mk('span', 'kami-status-v', card.spots[i].desc)); }
+        box.appendChild(sr);
+      }
+      if ((card.links || []).length) {
+        var links = mk('div', 'kami-ia-links');
+        links.appendChild(mk('span', 'kami-status-k', cpyText('reach')));
+        for (i = 0; i < card.links.length; i++) {
+          links.appendChild(mk('span', 'kami-ia-link', nameIndex[card.links[i]] || card.links[i]));
+        }
+        box.appendChild(links);
+      }
+      return box;
+    }
+    if (card.kind === 'faction') {
+      for (i = 0; i < (card.reps || []).length; i++) {
+        var r = card.reps[i];
+        row = mk('div', 'kami-ia-rep');
+        row.appendChild(mk('span', 'kami-status-k', (r.title || STATUS_COPY.subRep) + ' · ' + r.who));
+        row.appendChild(signedNode(r));
+        box.appendChild(row);
+      }
+      if (card.domain) { box.appendChild(line(cpyText('factionDomain'), card.domain)); }
+      for (i = 0; i < (card.diplomacy || []).length; i++) {
+        box.appendChild(line('对 ' + card.diplomacy[i].toward,
+          card.diplomacy[i].relation + (card.diplomacy[i].trends ? '（' + card.diplomacy[i].trends + '）' : '')));
+      }
+      return box;
+    }
+    if (card.kind === 'dip') {
+      if (card.trends) { box.appendChild(mk('p', 'kami-w-text', card.trends)); }
+      return box;
+    }
+    if (card.kind === 'line') {
+      if (card.summary) { box.appendChild(mk('p', 'kami-w-text', card.summary)); }
+      var tl = mk('div', 'kami-ia-timeline');
+      for (i = 0; i < (card.nodes || []).length; i++) {
+        var n = card.nodes[i];
+        var nb = mk('div', 'kami-ia-node' + (n.phase === 'future' ? ' is-future' : (n.phase === 'now' ? ' is-now' : '')));
+        nb.appendChild(mk('span', 'kami-ia-node-dot', ''));
+        var nc = mk('div', 'kami-ia-node-c');
+        var nh = mk('div', 'kami-ia-node-h');
+        if (n.round !== null && n.round !== undefined) { nh.appendChild(mk('span', 'kami-w-num', '#' + n.round)); }
+        nh.appendChild(mk('span', 'kami-ia-node-t', n.title));
+        nc.appendChild(nh);
+        if (n.log) { nc.appendChild(mk('p', 'kami-w-text', n.log)); }
+        if ((n.chars || []).length) { nc.appendChild(chipsNode(n.chars)); }
+        nb.appendChild(nc);
+        tl.appendChild(nb);
+      }
+      box.appendChild(tl);
+      return box;
+    }
+    if (card.kind === 'quest') {
+      if (card.objective) { box.appendChild(mk('p', 'kami-w-text', card.objective)); }
+      if (card.client) { box.appendChild(line(cpyText('questClient'), card.client)); }
+      if (card.line) { box.appendChild(line(cpyText('questLine'), card.line)); }
+      if (card.reward) { box.appendChild(line(cpyText('questReward'), card.reward)); }
+      if (card.limits) { box.appendChild(line(cpyText('questLimits'), card.limits)); }
+      return box;
+    }
+    if (card.kind === 'estate') {
+      if (card.desc) { box.appendChild(mk('p', 'kami-w-text', card.desc)); }
+      if ((card.facilities || []).length) {
+        var grid = mk('div', 'kami-ia-facilities');
+        for (i = 0; i < card.facilities.length; i++) {
+          var cell = mk('div', 'kami-ia-facility' + (card.facilities[i].built ? ' is-built' : ''));
+          cell.appendChild(mk('div', 'kami-ia-facility-n', card.facilities[i].name));
+          if (card.facilities[i].desc) { cell.appendChild(mk('div', 'kami-ia-facility-d', card.facilities[i].desc)); }
+          grid.appendChild(cell);
+        }
+        box.appendChild(grid);
+      }
+      if ((card.residents || []).length) { box.appendChild(line(cpyText('estateResidents'), chipsNode(card.residents))); }
+      return box;
+    }
+    if (card.kind === 'lore') {
+      if (card.summary) { box.appendChild(mk('p', 'kami-w-text', card.summary)); }
+      if (card.truth) { box.appendChild(truthRow(card.truth)); }
+      return box;
+    }
+    /* ── 角色卡（kind 为空）：属性条 + 关系 + 身份与外貌；细节块默认收起 ── */
+    var detail = card.foldId + ':more';
+    if (card.identityLine || (card.identities || []).length || card.appearance || card.thoughts) {
+      var inner = mk('div', '');
+      if ((card.identities || []).length) { inner.appendChild(line(labelOf('identities'), chipsNode(card.identities))); }
+      if (card.appearance) { inner.appendChild(line(labelOf('appearance'), card.appearance)); }
+      if (card.thoughts) { inner.appendChild(line(labelOf('thoughts'), card.thoughts)); }
+      for (i = 0; i < (card.details || []).length; i++) {
+        var blk = card.details[i], ib = mk('div', '');
+        for (j = 0; j < blk.rows.length; j++) {
+          var vn = mk('span', '');
+          renderWidget(blk.id, blk.rows[j].value, vn, ['characters', blk.id]);
+          ib.appendChild(line(blk.rows[j].key, vn));
+        }
+        inner.appendChild(fold(blk.id, blk.label, ib, false));
+      }
+      box.appendChild(fold(detail, cpyText('moreInfo'), inner, false));
+    }
+    return box;
+  }
+  function truthRow(t) {
+    var r = mk('div', 'kami-ia-truth');
+    r.appendChild(mk('span', 'kami-w-chip', cpyText('truth')));
+    r.appendChild(mk('span', '', String(t)));
+    return r;
+  }
+  function cpyText(k) { return (STATUS_COPY && STATUS_COPY[k]) || k; }
+
+  /** 纯文本折行：卡片头部那个 ＋ / − 的箭头用文本，不用图标（省一枚图标，也更容易对齐） */
+  function foldMark(open) { return open ? '−' : '＋'; }
+
+  function cardNode(card, plan) {
+    var open = isFolded(card.foldId, true) === false;   /* 默认收起 → 只有显式存了"展开"才是展开 */
+    var box = mk('div', 'kami-card' + (card.headless ? ' is-compact' : '') + (open ? ' is-open' : ' is-closed')
+      + (card.tone === -1 ? ' is-bad' : (card.tone === 1 ? ' is-good' : '')));
+    box.setAttribute('data-kami-fold', card.foldId);
+
+    var head = mk('div', 'kami-card-h');
+    if (card.avatar) { head.appendChild(avatarNode(card.avatar)); }
+    else if (card.icon) { head.appendChild(slotNode(card.icon, card.kind || 'default')); }
+    var col = mk('div', 'kami-card-col');
+    var nm = mk('div', 'kami-card-name');
+    nm.appendChild(HDOC.createTextNode(card.name || card.title || ''));
+    if (card.role) { nm.appendChild(mk('span', 'kami-role-tag', card.role)); }
+    if (card.rank) { nm.appendChild(diamondNode(card.rank)); }
+    if (card.typeLabel) { nm.appendChild(mk('span', 'kami-role-tag', card.typeLabel)); }
+    if (card.equipped) { nm.appendChild(mk('span', 'kami-eq-tag', cpyText('equipped'))); }
+    col.appendChild(nm);
+    var sub = card.alias || '';
+    if (!sub && card.kind === 'item') { sub = card.typeLabel || ''; }
+    if (!sub && card.kind === 'faction') { sub = [card.alias, card.type].filter(Boolean).join(' · '); }
+    if (!sub && card.kind === 'estate') { sub = [card.type, card.owner].filter(Boolean).join(' · '); }
+    if (!sub && card.kind === 'dip') { sub = card.name; }
+    if (!sub && card.kind === 'area') { sub = card.realm + (card.found ? '' : ' · ' + cpyText('subUnknown')); }
+    if (!sub && card.kind === 'lore') { sub = card.category || ''; }
+    if (!sub && card.age) { sub = card.age; }
+    if (sub) { col.appendChild(mk('div', 'kami-card-alias', sub)); }
+    head.appendChild(col);
+    if (card.count !== undefined && card.count !== null && card.count !== 1) {
+      head.appendChild(mk('span', 'kami-card-n', '×' + card.count));
+    }
+    var mark = mk('span', 'kami-card-mark', foldMark(open));
+    head.appendChild(mark);
+    box.appendChild(head);
+
+    var sum = card.summaryLine || '';
+    if (sum && !open) { box.appendChild(mk('div', 'kami-card-sum', String(sum))); }
+
+    var body = mk('div', 'kami-card-body');
+    var inner = mk('div', 'kami-card-inner');
+    var d = detailOf(card);
+    if (d.firstChild) { inner.appendChild(d); }
+    if (card.kind === '' || card.kind === undefined) {
+      if ((card.bars || []).length) {
+        var bars = mk('div', 'kami-ia-bars');
+        for (var b = 0; b < card.bars.length; b++) {
+          var brow = mk('div', 'kami-ia-bar-row');
+          brow.appendChild(mk('span', 'kami-status-k', card.bars[b].key));
+          brow.appendChild(barNode(card.bars[b]));
+          bars.appendChild(brow);
+        }
+        inner.appendChild(bars);
+      }
+      for (var m = 0; m < (card.relations || []).length; m++) {
+        var rel = card.relations[m], rr = mk('div', 'kami-ia-rel');
+        rr.appendChild(mk('span', 'kami-ia-rel-to', '→ ' + rel.toward));
+        rr.appendChild(signedNode({ value: rel.affinity, negative: rel.negative, zero: 50,
+          fillLeft: rel.negative ? 50 - rel.pct / 2 : 50, fillWidth: rel.pct / 2 }));
+        inner.appendChild(rr);
+      }
+      if ((card.goals && Object.keys(card.goals).length) || (card.plan || []).length) {
+        var gi = mk('div', '');
+        var gk = Object.keys(card.goals || {});
+        for (var q = 0; q < gk.length; q++) { gi.appendChild(line(labelOf(gk[q]), card.goals[gk[q]])); }
+        if ((card.plan || []).length) { gi.appendChild(line(labelOf('plan'), chipsNode(card.plan))); }
+        inner.appendChild(fold(card.foldId + ':goals', labelOf('goals'), gi, false));
+      }
+    }
+    body.appendChild(inner);
+    box.appendChild(body);
+    /* 整卡可点：点头部开合（事件走内容区的委托，不给每张卡各挂一个监听器） */
+    head.setAttribute('role', 'button');
+    head.setAttribute('tabindex', '0');
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    box.setAttribute('data-kami-fold-open', open ? '1' : '0');
+    return box;
+  }
+
+  function slotNode(iconName, kind) {
+    var e = mk('span', 'kami-slot' + (kind ? ' is-' + kind : ''));
+    e.appendChild(icon(iconName, 16));
+    return e;
+  }
+  function diamondNode(text) {
+    var e = mk('span', 'kami-rank-d');
+    e.appendChild(mk('span', 'kami-rank-d-t', String(text)));
+    return e;
+  }
+
+  /* ───────── 主角概览 ───────── */
+  function renderOverview(card) {
+    var frag = HDOC.createDocumentFragment();
+    if (!card) { return frag; }
+    var hero = mk('div', 'kami-hero');
+    hero.appendChild(avatarNode(card.avatar));
+    var col = mk('div', 'kami-hero-col');
+    var nm = mk('div', 'kami-hero-name', card.name || '');
+    nm.appendChild(mk('span', 'kami-w-chip', cpyText('isSelf')));
+    col.appendChild(nm);
+    var meta = [card.alias, card.age, card.rank].filter(Boolean).join(' · ');
+    if (meta) { col.appendChild(mk('div', 'kami-hero-meta', meta)); }
+    if ((card.identities || []).length) {
+      var ch = mk('div', 'kami-w-chips');
+      for (var i = 0; i < card.identities.length; i++) { ch.appendChild(mk('span', 'kami-w-chip', card.identities[i])); }
+      col.appendChild(ch);
+    }
+    hero.appendChild(col);
+    frag.appendChild(hero);
+
+    if (card.health) { frag.appendChild(badgeLine(cpyText('health'), card.health, card.tone)); }
+    if ((card.bars || []).length) {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', labelOf('stats')));
+      var bars = mk('div', 'kami-ia-bars');
+      for (var b = 0; b < card.bars.length; b++) {
+        var row = mk('div', 'kami-ia-bar-row');
+        row.appendChild(mk('span', 'kami-status-k', card.bars[b].key));
+        row.appendChild(barNode(card.bars[b]));
+        bars.appendChild(row);
+      }
+      frag.appendChild(bars);
+    }
+    var gk = Object.keys(card.goals || {});
+    if (gk.length || card.thoughts || (card.plan || []).length) {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', labelOf('goals')));
+      for (var g = 0; g < gk.length; g++) { frag.appendChild(line(labelOf(gk[g]), String(card.goals[gk[g]]))); }
+      if (card.thoughts) { frag.appendChild(mk('div', 'kami-thought', '「' + card.thoughts + '」')); }
+      if ((card.plan || []).length) { frag.appendChild(line(labelOf('plan'), chipsNode(card.plan))); }
+    }
+    return frag;
+  }
+  function badgeLine(key, text, tone) {
+    var row = mk('div', 'kami-status-row');
+    row.appendChild(mk('span', 'kami-status-k', key));
+    var v = mk('span', 'kami-status-v');
+    v.appendChild(badgeNode(text, tone === undefined ? 0 : (tone > 0 ? 1 : (tone < 0 ? -1 : 0))));
+    row.appendChild(v);
+    return row;
+  }
+
+  /* ───────── 背包 ───────── */
+  function renderBag(plan) {
+    var frag = HDOC.createDocumentFragment(), i;
+    if ((plan.wealth || []).length) {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', cpyText('wealth')));
+      var wrow = mk('div', 'kami-wealth');
+      wrow.appendChild(icon('coin', 15));
+      for (i = 0; i < plan.wealth.length; i++) {
+        wrow.appendChild(mk('span', 'kami-wealth-i', plan.wealth[i].name + ' ' + plan.wealth[i].value));
+      }
+      frag.appendChild(wrow);
+    }
+    var worn = 0;
+    for (i = 0; i < (plan.slots || []).length; i++) { if (plan.slots[i].filled) { worn++; } }
+    if (worn) {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', cpyText('wornSlots')));
+      var grid = mk('div', 'kami-slotgrid');
+      for (i = 0; i < plan.slots.length; i++) {
+        var slot = plan.slots[i];
+        var c = mk('div', 'kami-slotcell' + (slot.filled ? ' is-on' : ''));
+        c.appendChild(icon(slot.icon, 18));
+        c.appendChild(mk('i', '', slot.label));
+        c.appendChild(mk('b', '', slot.name));
+        grid.appendChild(c);
+      }
+      frag.appendChild(grid);
+    }
+    frag.appendChild(mk('div', 'kami-ia-sec-t', labelOf('items') + ((plan.cards || []).length ? ' · ' + plan.cards.length : '')));
+    frag.appendChild(cardsFragment(plan));
+    if ((plan.mounts || []).length) {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', cpyText('mount')));
+      for (i = 0; i < plan.mounts.length; i++) {
+        var m = plan.mounts[i];
+        var mc = mk('div', 'kami-card is-compact');
+        var mh = mk('div', 'kami-card-h');
+        mh.appendChild(slotNode('horse', 'mount'));
+        var mcol = mk('div', 'kami-card-col');
+        var mnm = mk('div', 'kami-card-name');
+        mnm.appendChild(HDOC.createTextNode(m.name));
+        if (m.equipped) { mnm.appendChild(mk('span', 'kami-eq-tag', cpyText('riding'))); }
+        mcol.appendChild(mnm);
+        var msub = [m.type, m.status].filter(Boolean).join(' · ');
+        if (msub) { mcol.appendChild(mk('div', 'kami-card-alias', msub)); }
+        mh.appendChild(mcol);
+        mc.appendChild(mh);
+        if (m.desc) { mc.appendChild(mk('div', 'kami-card-sum', m.desc)); }
+        frag.appendChild(mc);
+      }
+    }
+    return frag;
+  }
+
+  /* ───────── 技能 ───────── */
+  function renderSkill(plan) {
+    var frag = HDOC.createDocumentFragment(), i, j;
+    if (!(plan.groups || []).length) { return frag; }
+    for (i = 0; i < plan.groups.length; i++) {
+      var g = plan.groups[i];
+      var title = mk('div', 'kami-ia-sec-t');
+      title.appendChild(icon(g.icon, 13));
+      title.appendChild(HDOC.createTextNode(g.label));
+      title.appendChild(mk('span', 'kami-sec-n', String(g.count)));
+      frag.appendChild(title);
+      for (j = 0; j < plan.cards.length; j++) {
+        if (plan.cards[j].section === g.id) { frag.appendChild(cardNode(plan.cards[j], plan)); }
+      }
+    }
+    return frag;
+  }
+
+  /* ───────── 地图节点图（SVG）─────────
+     坐标由纯函数 mapGraphOf 算好（归一化 0..1），这里只乘视野尺寸。
+     节点连线的颜色全部走令牌，皮肤可以整套换；圆点半径在 DB 上放大 ——
+     手机上 8px 的圆点根本点不中。 */
+  function renderGraph(graph) {
+    var frag = HDOC.createDocumentFragment(), i;
+    if (!graph || !graph.nodes.length) { return frag; }
+    var VB_W = 100, VB_H = 100;
+    var svg = HDOC.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + VB_W + ' ' + VB_H);
+    svg.setAttribute('class', 'kami-graph');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', STATUS_COPY.subGraph);
+    var gEdges = HDOC.createElementNS('http://www.w3.org/2000/svg', 'g');
+    gEdges.setAttribute('class', 'kami-graph-edges');
+    var pos = {}, j;
+    for (j = 0; j < graph.nodes.length; j++) { pos[graph.nodes[j].id] = graph.nodes[j]; }
+    for (j = 0; j < graph.edges.length; j++) {
+      var a = pos[graph.edges[j].a], b = pos[graph.edges[j].b];
+      if (!a || !b) { continue; }
+      var ln = HDOC.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ln.setAttribute('x1', (a.x * VB_W).toFixed(1));
+      ln.setAttribute('y1', (a.y * VB_H).toFixed(1));
+      ln.setAttribute('x2', (b.x * VB_W).toFixed(1));
+      ln.setAttribute('y2', (b.y * VB_H).toFixed(1));
+      ln.setAttribute('class', graph.edges[j].found ? 'is-found' : 'is-fog');
+      gEdges.appendChild(ln);
+    }
+    svg.appendChild(gEdges);
+    var gNodes = HDOC.createElementNS('http://www.w3.org/2000/svg', 'g');
+    gNodes.setAttribute('class', 'kami-graph-nodes');
+    for (j = 0; j < graph.nodes.length; j++) {
+      var n = graph.nodes[j];
+      var g = HDOC.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'kami-gnode' + (n.found ? '' : ' is-fog') + (n.current ? ' is-here' : ''));
+      g.setAttribute('data-kami-node', n.id);
+      if (n.current) {
+        var ring = HDOC.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ring.setAttribute('cx', (n.x * VB_W).toFixed(1));
+        ring.setAttribute('cy', (n.y * VB_H).toFixed(1));
+        ring.setAttribute('r', '9');
+        ring.setAttribute('class', 'kami-gnode-ring');
+        g.appendChild(ring);
+      }
+      var c = HDOC.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', (n.x * VB_W).toFixed(1));
+      c.setAttribute('cy', (n.y * VB_H).toFixed(1));
+      c.setAttribute('r', '6');
+      g.appendChild(c);
+      var tx = HDOC.createElementNS('http://www.w3.org/2000/svg', 'text');
+      tx.setAttribute('x', (n.x * VB_W).toFixed(1));
+      tx.setAttribute('y', ((n.y * VB_H) + 11.5).toFixed(1));
+      tx.setAttribute('text-anchor', 'middle');
+      tx.setAttribute('class', 'kami-gnode-t');
+      tx.appendChild(HDOC.createTextNode(n.found ? n.name : '？？？'));
+      g.appendChild(tx);
+      gNodes.appendChild(g);
+    }
+    svg.appendChild(gNodes);
+    frag.appendChild(svg);
+    var legend = mk('div', 'kami-graph-legend');
+    legend.appendChild(legendItem('here', cpyText('mapHere')));
+    legend.appendChild(legendItem('found', cpyText('filterFound')));
+    legend.appendChild(legendItem('unknown', cpyText('filterUnknown')));
+    /* 图例说明：三档之外再补一句"虚线=未探明通路"，否则用户不知道虚线什么意思 */
+    legend.appendChild(legendItem('dash', cpyText('legendDash')));
+    frag.appendChild(legend);
+    return frag;
+  }
+  function legendItem(kind, text) {
+    var e = mk('span', 'kami-lg is-' + kind);
+    e.appendChild(mk('span', 'kami-lg-dot', ''));
+    e.appendChild(HDOC.createTextNode(text));
+    return e;
+  }
+
+  /* ───────── 通用卡片列表 ───────── */
+  function cardsFragment(plan) {
+    var frag = HDOC.createDocumentFragment(), i;
+    if (!(plan.cards || []).length) {
+      var lines = plan.emptyLines && plan.emptyLines.length ? plan.emptyLines : emptyStateText({ isSample: currentIsSample });
+      for (i = 0; i < lines.length; i++) { frag.appendChild(mk('div', 'kami-status-empty', lines[i])); }
+      return frag;
+    }
+    for (i = 0; i < plan.cards.length; i++) { frag.appendChild(cardNode(plan.cards[i], plan)); }
+    return frag;
+  }
+
+  /* ───────── 设置（三个子 tab：模块 / 显示 / 关于）───────── */
+  function renderSettingsSub(plan) {
+    var frag = HDOC.createDocumentFragment(), i;
+    if (plan.sub === 'about') {
+      frag.appendChild(mk('div', 'kami-ia-sec-t', cpyText('about')));
+      frag.appendChild(line(cpyText('aboutPreset'), selfNameOf()));
+      frag.appendChild(line(cpyText('aboutTavern'), tavernVer()));
+      frag.appendChild(line(cpyText('aboutHelper'), helperVer()));
+      return frag;
+    }
+    if (plan.sub === 'display') {
+      frag.appendChild(checkbox(STATUS_COPY.optShowHeader, STATUS_COPY.optShowHeaderHint, settings.options.showHeader, function (on) {
+        settings.options.showHeader = on; saveVars(); paintHeader(currentStat);
+      }));
+      frag.appendChild(checkbox(STATUS_COPY.optShowHidden, STATUS_COPY.optShowHiddenHint, settings.options.showHidden, function (on) {
+        settings.options.showHidden = on; saveVars(); renderPanelBody();
+      }));
+      frag.appendChild(checkbox(STATUS_COPY.optUseSample, STATUS_COPY.optUseSampleHint, settings.options.useSample, function (on) {
+        settings.options.useSample = on; saveVars(); refresh();
+      }));
+      frag.appendChild(checkbox(STATUS_COPY.optAutoCloseGraph || '图太挤时自动切列表', '', settings.options.graphAutoList !== false, function (on) {
+        settings.options.graphAutoList = on; saveVars(); renderPanelBody();
+      }));
+      return frag;
+    }
+    frag.appendChild(mk('div', 'kami-ia-sec-t', STATUS_COPY.settingsModules));
+    for (i = 0; i < MODULES.length; i++) {
+      (function (mod) {
+        frag.appendChild(checkbox(STATUS_COPY[mod.copy], '', settings.modules[mod.id], function (on) {
+          settings.modules[mod.id] = on;
+          saveVars();
+          renderTabs();
+          renderPanelBody();
+        }));
+      })(MODULES[i]);
+    }
+    frag.appendChild(mk('div', 'kami-status-hint', STATUS_COPY.modulesHint || ''));
+    return frag;
+  }
+  function selfNameOf() { try { return (typeof SELF_NAME === 'string' && SELF_NAME) ? SELF_NAME : ''; } catch (e) { return ''; } }
+  function tavernVer() { try { var v = (typeof getTavernVersion === 'function') ? getTavernVersion() : ''; return String(v || '未知'); } catch (e) { return '未知'; } }
+  function helperVer() { try { var v = (typeof getTavernHelperVersion === 'function') ? getTavernHelperVersion() : ''; return String(v || '未知'); } catch (e) { return '未知'; } }
+
+
+  /* ───────── 面板主体 ─────────
+     全部交给纯函数 panelPlanOf 决定"这一屏画什么"，这里只负责画。
+     DOM 层做的判断只剩一件：把折叠/子 tab/筛选的**用户选择**存进 settings.ui。 */
+  function renderPanelBody() {
+    if (!panelBody) { return; }
+    nameIndex = buildNameIndex(currentStat);
+
+    var pid = (activeTab === '__settings' || !activeTab) ? 'settings' : activeTab;
+    var plan = null;
+    try {
+      plan = panelPlanOf(currentStat, settings, pid, {
+        sub: settings.ui ? settings.ui.sub[pid] : null,
+        filter: settings.ui ? settings.ui.filter[pid] : null
+      }, curLayout && curLayout.mobile ? 'drawer' : 'ribbon');
+    } catch (e) {
+      log('面板计划失败（' + pid + '）：' + msgOf(e));
+    }
+    if (!plan) { return; }
+    curPlan = plan;
+    panelPlan = pid;
+    subPlan = plan.sub;
+
+    /* 空白重建的最小面：子 tab 行与筛选行先移除，主体容器复用 */
+    while (panelBody.firstChild) { panelBody.removeChild(panelBody.firstChild); }
+    panelBody.appendChild(renderSubRow(plan));
+    panelBody.appendChild(renderFilterRow(plan));
+    panelBodyBox = mk('div', 'kami-panelbox');
+    panelBody.appendChild(panelBodyBox);
+
+    var frag;
+    try {
+      if (pid === 'settings') { frag = renderSettingsSub(plan); }
+      else if (pid === 'status' && plan.sub === 'overview') {
+        frag = HDOC.createDocumentFragment();
+        var hero = renderOverview(plan.cards[0]);
+        if (hero) { frag.appendChild(hero); }
+      } else if (pid === 'status' && plan.sub === 'bag') { frag = renderBag(plan); }
+      else if (pid === 'status' && plan.sub === 'skill') { frag = renderSkill(plan); }
+      else if (pid === 'map_nodes' && plan.sub === 'graph') {
+        frag = HDOC.createDocumentFragment();
+        if (plan.listMode) {
+          frag.appendChild(mk('div', 'kami-status-hint', STATUS_COPY.graphTooMany));
+        } else {
+          frag.appendChild(renderGraph(plan.graph));
+        }
+      } else { frag = cardsFragment(plan); }
+    } catch (e) {
+      log('渲染失败（' + pid + '/' + plan.sub + '）：' + msgOf(e));
+      frag = HDOC.createDocumentFragment();
+      frag.appendChild(mk('div', 'kami-status-empty', STATUS_COPY.emptyHint));
+    }
+    panelBodyBox.appendChild(frag);
+  }
+
+  /* ───────── 内容区事件委托 ─────────
+     内容区每次重画都会换掉所有卡片，所以**不能**给每张卡各挂一个监听器
+     （挂上就随重画一起丢掉，或者积累成一堆指向旧节点的闭包）。
+     一个委托监听器吃三种点击：折叠开关、折叠标题、图上的节点。 */
+  function onPanelBodyClick(ev) {
+    if (disposed) { return; }
+    var t = ev.target, guard = 0;
+    while (t && t !== panelBody && guard++ < 12) {
+      if (t.getAttribute && t.getAttribute('data-kami-fold-toggle') !== null) { break; }
+      if (t.classList && t.classList.contains('kami-card-h')) { break; }
+      if (t.getAttribute && t.getAttribute('data-kami-node')) { break; }
+      t = t.parentNode;
+    }
+    if (!t || t === panelBody) { return; }
+    if (t.getAttribute && t.getAttribute('data-kami-node')) {
+      /* 点节点 = 跳到"地点详情"子 tab（图里点开某个区域，等价于去详情页看它） */
+      try { ev.stopPropagation(); } catch (e) { }
+      if (settings.ui) { settings.ui.sub[panelPlan] = 'detail'; settings.ui.filter[panelPlan] = 'all'; }
+      saveVars(); renderTabs(); renderPanelBody();
+      return;
+    }
+    var card = t, g2 = 0;
+    while (card && card !== panelBody && g2++ < 8) {
+      if (card.classList && card.classList.contains('kami-card')) { break; }
+      card = card.parentNode;
+    }
+    if (!card || card === panelBody) { return; }
+    var id = card.getAttribute('data-kami-fold');
+    if (!id) { return; }
+    try { ev.stopPropagation(); } catch (e) { }
+    var open = card.getAttribute('data-kami-fold-open') === '1';
+    setFolded(id, open);          /* 存的是"折起来了吗"，所以传反过来的值 */
+    renderPanelBody();
+  }
+
+  /* 折叠块的标题点击（角色卡里的"细节"、目标这些二级折叠块） */
+  function onFoldHeadClick(ev) {
+    if (disposed) { return; }
+    var t = ev.target, guard = 0;
+    while (t && guard++ < 8) {
+      if (t.classList && t.classList.contains('kami-ia-fold')) { break; }
+      t = t.parentNode;
+    }
+    if (!t || !t.classList || !t.classList.contains('kami-ia-fold')) { return; }
+    ev.stopPropagation();
+    var on = t.getAttribute('data-kami-open') === '1';
+    t.setAttribute('data-kami-open', on ? '0' : '1');
+    var head = t.firstChild;
+    if (head && head.getAttribute) { head.setAttribute('aria-expanded', on ? 'false' : 'true'); }
+    if (head && head.firstChild) { head.firstChild.textContent = on ? '▸' : '▾'; }
   }
 
   /* 设置页：模块开关 + 可选项。改一下就立刻存（saveVars 自带防抖） */
@@ -1510,6 +2053,7 @@
 
   function boot() {
     readVars();
+    normalizeUi();
     build();
     injectCss();
     refreshView();   /* 首次夹取前先量一次视口（clampGeom 平时只读缓存） */

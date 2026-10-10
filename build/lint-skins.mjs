@@ -14,7 +14,29 @@ const only = process.argv.slice(2);
 
 const base = fs.readFileSync(path.join(ROOT, 'src', 'skin', 'base.css'), 'utf8');
 const ALL_TOKENS = [...new Set([...base.matchAll(/(--kami-[a-z0-9-]+)\s*:/g)].map(m => m[1]))];
-const MUST = ALL_TOKENS.filter(t => !t.endsWith('-v'));
+
+/* 可选令牌：**新增的令牌一律先落这里，再逐套皮肤补值**（2026-10-07 立的规矩）。
+   为什么需要这张表：base.css 是"兜底皮肤"的参考实现，往里加一支令牌，
+   上面那条 MUST 逻辑就会要求**18 套皮肤全都定义**，缺一个就构建失败。
+   而新令牌从"设计定稿"到"18 套皮肤都配好色"之间必然有一个中间态 ——
+   没有这张表，那个中间态里仓库是**红的**，谁都不敢提交。
+   规矩：令牌在 base.css 里带**完整默认值**（皮肤不定义也能看），名字进这张表；
+   等 18 套皮肤都在生成块里给了值，再把它从表里摘掉，转成必填。 */
+const OPTIONAL_TOKENS = new Set([
+  /* RPG 界面层 —— 状态栏重构新增，四个面板共用 */
+  '--kami-surface-2', '--kami-surface-3', '--kami-surface-4',
+  '--kami-sunken', '--kami-sunken-line', '--kami-edge', '--kami-edge-in',
+  '--kami-bar-h', '--kami-bar-fill', '--kami-bar-fill-pos', '--kami-bar-fill-neg', '--kami-bar-gloss',
+  '--kami-rank-bg', '--kami-rank-edge', '--kami-rank-fg',
+  '--kami-ico-size', '--kami-ico-size-sm',
+  '--kami-sb-card-cols', '--kami-sb-row-gap',
+  /* 地图节点图（状态栏地图页） */
+  '--kami-map-void', '--kami-map-node-fill', '--kami-map-node-edge', '--kami-map-node-fg',
+  '--kami-map-fog-fill', '--kami-map-fog-edge', '--kami-map-fog-fg',
+  '--kami-map-here-fill', '--kami-map-here-ring', '--kami-map-edge', '--kami-map-edge-dash',
+]);
+
+const MUST = ALL_TOKENS.filter(t => !t.endsWith('-v') && !OPTIONAL_TOKENS.has(t));
 
 const REQUIRED_LABEL_TOKENS = ['--kami-label-think-title', '--kami-label-options-title'];
 const DQ = String.fromCharCode(34);

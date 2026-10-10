@@ -151,7 +151,13 @@ function devScript(file) {
      所以这里收口：只放行 build.mjs 自己管的两个（产物号 / 预设名，要等预设有名字才替换），
      其余任何一个残留都当场报出来。 */
   const KEEP_MARKS = ['@@KAMI_BUILD_N@@', '@@KAMI_PRESET_NAME@@'];
-  const left = [...new Set([...code.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
+  /* ⚠️ 检查前必须**先去掉注释**：占位符名字会在注释里被提到（30-皮肤管理.js 第 41 行那句
+     "占位 @@KAMI_DECOR_D20@@ / @@KAMI_DECOR_D10@@" 就是纯说明文字），
+     纯文本搜会把它们当成"没展开"，于是整个脚本被换成一个 throw ——
+     预览台里皮肤管理连带状态栏全装不进去，而真正的原因和报错文字差着十万八千里。
+     2026-10-07 实测踩到（当时状态栏刚重构完，怎么都装不上）。 */
+  const codeNoComment = code.replace(/\/\*[\s\S]*?\*\//g, '');
+  const left = [...new Set([...codeNoComment.matchAll(/@@[A-Z_0-9]+@@/g)].map(m => m[0]))].filter(x => KEEP_MARKS.indexOf(x) < 0);
   if (left.length) {
     throw new Error('展开不全：src/scripts/' + file + ' 里还剩 ' + left.join(' / ') +
       '。两种可能：① build/kami-doc.mjs 的某个展开器没挂进 expandPanelGestures()；' +

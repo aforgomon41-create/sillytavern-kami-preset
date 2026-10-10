@@ -21,7 +21,14 @@ const NAMES = ['SAMPLE_STAT', 'STATUS_COPY', 'WEATHER_ICON', 'WEATHER_FALLBACK',
   'detailBlocksOf', 'mapTreeOf', 'questLogOf', 'factionsOf', 'timelineOf', 'estatesOf', 'loreOf',
   'QUEST_ORDER', 'DETAIL_GROUPS', 'hueOf',
   'weatherIcon', 'defaultSettings', 'mergeSettings', 'enabledModules', 'pickStat', 'isEmptyStat',
-  'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel'];
+  'shouldShowHeader', 'locationText', 'headerLines', 'describeField', 'sectionsOf', 'moduleLabel',
+  /* RPG 界面层（2026-10-07） */
+  'PANELS', 'ITEM_TYPES', 'SKILL_SECTIONS', 'LINE_PRIORITY', 'panelTabsOf', 'panelPlanOf',
+  'selfCharOf', 'isPresent', 'skillItemsOf', 'charCardsOf', 'summaryLineOf', 'itemCardsOf',
+  'itemTypeLabel', 'itemIcon', 'wealthOf', 'mountsOf', 'slotsOf', 'loreCategoriesOf',
+  'filterOptionsOf', 'applyFilter', 'mapGraphOf', 'stableHash', 'currentAreaOf',
+  'shouldUseList', 'shouldUseListWith', 'GRAPH_MAX_NODES',
+  'DEF_PANEL_W', 'MIN_PANEL_W'];
 const src = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8')
   .split('\n').map(l => (l.slice(0, 7) === 'export ') ? l.slice(7) : l).join('\n');
 const M = new Function(src + '\nreturn {' + NAMES.map(n => n + ': ' + n).join(', ') + '};')();
@@ -382,10 +389,15 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   /* 设置页不是空态（它有自己的内容） */
   eq(M.panelTabPlan(emptyStat, M.defaultSettings(), '__settings').kind, 'settings', '⑫ 设置页走自己的分支');
 
-  /* 源码级：面板的空态必须走这条路，不许在 DOM 层另写一套 */
+  /* 源码级：面板要画什么**必须由纯函数决定**，不许在 DOM 层另写一套。
+     ⚠️ 2026-10-07 翻了面：原来断言的是"80 号空态走 panelTabPlan"，
+     那时 block 的取舍逻辑还在 DOM 层；RPG 重构之后所有取舍都收进 panelPlanOf，
+     80 号只负责画。代理条件失效，改成直接断言新架构。 */
   const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
-  ok(src80.indexOf('panelTabPlan(') >= 0, '⑫ 80 号的面板空态走 panelTabPlan');
+  ok(src80.indexOf('panelPlanOf(') >= 0, '⑫ 80 号的面板内容由 panelPlanOf 决定');
+  ok(src80.indexOf('panelTabPlan(') < 0, '⑫ 80 号不再自己算空态（那一层已经收进 panelPlanOf）');
   ok(src80.indexOf("STATUS_COPY.noData") < 0, '⑫ 80 号里没有绕过纯函数直接写 noData 的地方');
+  ok(src80.indexOf('SECTION_RENDER') < 0, '⑫ 旧的八个分区渲染表已经不在 DOM 层（改走卡片模型）');
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -404,15 +416,27 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   eq(F({ viewW: 1440 }).mobile, false, '⑬ 1440 → PC');
   eq(F({ viewW: 390, isMobile: false }).mobile, false, '⑬ isMobile 显式给了就听它的');
 
-  /* ── 手机：连球一起占满整行 ── */
+  /* ── 手机：连球一起占满整行 ──
+     ⚠️ 2026-10-07 改了语义。旧实现写死"球在左边、横幅向右铺"：
+     mLeft = 球的 x、mW = 视口右缘 - mLeft。可球默认就在右上角，
+     于是 390 视口下 mW = 390-310-8 = **72px** —— 面板被压成一条缝、文字竖排
+     （实测截图抓到的）。新语义：**球是这一行的排头图标，横幅铺满球另一侧的整行**，
+     球偏左向右铺、球偏右向左铺（与 PC 的镜像复核同一个思路）。 */
   const m = F({ viewW: 390, ball: B(16, 30, 64) });
-  eq(m.left, 16, '⑬ **手机横幅左缘 = 球的左缘**（球成了排头，不再压住横幅）');
-  eq(m.width, 390 - 16 - 8, '⑬ 手机横幅铺到右边距 → 球+横幅**占满整行**');
+  eq(m.left, 16 + 32, '⑬ 手机横幅左缘 = 球心（球是排头图标，横幅从它右边展开）');
+  eq(m.width, 390 - (16 + 32) - 8, '⑬ 手机横幅铺到右边距');
+  eq(m.left + m.width, 390 - 8, '⑬ **球 + 横幅占满整行**');
   eq(m.height, 64, '⑬ 手机高度仍等于图标高度');
-  eq(m.dir, 'right', '⑬ 手机永远向右（满宽没有镜像的意义）');
+  eq(m.dir, 'right', '⑬ 球偏左 → 向右铺');
   const m0 = F({ viewW: 390, ball: B(0, 30, 64) });
   eq(m0.left + m0.width, 390 - 8, '⑬ 球贴左缘时横幅一路铺到右边距');
-  eq(F({ viewW: 390, ball: B(500, 30, 64) }).left, 390, '⑬ 球跑到视口外时左缘夹进视口');
+  /* 球在右上（默认位置）→ 镜像向左，**面板仍然是满宽**（这条就是那个 72px 的回归测试） */
+  const mr = F({ viewW: 390, ball: B(326, 96, 64) });
+  eq(mr.dir, 'left', '⑬ 球偏右 → 镜像向左铺');
+  eq(mr.left + mr.width, 326 + 32, '⑬ 镜像时横幅右缘 = 球心（球是这一行末尾的图标）');
+  eq(mr.panel.width, mr.width, '⑬ **球在右上时面板仍然是满宽**（旧实现只有 72px）');
+  eq(mr.panel.left, mr.left, '⑬ 手机下面板左缘仍然 = 横幅左缘（连体）');
+  ok(mr.panel.width > 300, '⑬ 手机面板宽到能读（不是一条缝）');
 
   /* ── PC：内容撑开 ── */
   const d = F({ viewW: 1440, contentW: 300, ball: B(40, 40, 64) });
@@ -461,12 +485,28 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   eq(F({ viewW: 0 }).width, 0, '⑬ 视口量不到 → 宽度 0');
   eq(F({ viewW: 60, isMobile: false, ball: B(0, 0, 64) }).width >= 0, true, '⑬ 极窄 PC 也不给负数');
 
-  /* ── 连体面板：共享一条边 ── */
+  /* ── 连体面板：共享一条边 ──
+     ⚠️ 2026-10-07 改了契约：**面板与横幅共享的是"一条边"，不是"同一个宽度"**。
+     旧实现把 panel.width 直接赋值成横幅宽度，于是"球停在右上角 → 横幅只剩 176px
+     → 面板也只有 176px"，九个标签排不下、两列卡片挤成一列（实测截图抓到）。
+     现在：左缘对齐（空间够时）+ 上缘相接（永远）+ 面板有自己的默认宽与下限。 */
   for (const c of [d, m, nearRight, wide, grew, tight]) {
-    eq(c.panel.left, c.left, '⑬ **面板左缘 = 横幅左缘**');
     eq(c.panel.top, c.top + c.height, '⑬ **面板上缘 = 横幅下缘**（共享边，读数 0）');
-    eq(c.panel.width, c.width, '⑬ 面板与横幅同宽（像从横幅长出来）');
+    ok(c.panel.width >= M.MIN_PANEL_W - 1 || c.panel.width >= c.width - 1,
+      '⑬ 面板宽度不低于下限（空间不够时才跟着横幅一起缩）');
   }
+  /* 空间够时：左缘严格对齐 + 用默认宽 */
+  for (const c of [d, m, wide, grew]) {
+    const room = c.viewW === undefined ? 1440 : c.viewW;
+    if (room - c.left - 8 >= M.MIN_PANEL_W) {
+      eq(c.panel.left, c.left, '⑬ **空间够时面板左缘 = 横幅左缘**');
+    }
+  }
+  ok(d.panel.width !== d.width || d.width >= M.DEF_PANEL_W, '⑬ 面板不再被横幅的文字宽度绑架');
+  eq(F({ viewW: 1440, contentW: 120, ball: B(680, 40, 64) }).panel.width, 420,
+    '⑬ 内容很窄时面板仍然是默认宽（实测 420，不再跟着横幅缩到 176）');
+  eq(M.DEF_PANEL_W, 420, '⑬ 面板默认宽 420');
+  eq(M.MIN_PANEL_W, 300, '⑬ 面板下限 300（再窄就读不了）');
 
   /* ── 拖动同步：球一动，横幅与面板一起动 ── */
   const at40 = F({ viewW: 1440, contentW: 300, ball: B(40, 40, 64) });
@@ -969,10 +1009,19 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(blobOn.indexOf('神明残骸') >= 0, '⑱ 打开后 truth 出现');
   ok(blobOn.length > blobOff.length, '⑱ 打开后内容确实变多');
 
-  /* ── 源码级：通用平铺渲染必须消失 ── */
+  /* ── 源码级：通用平铺渲染必须消失 ──
+     ⚠️ 2026-10-07 翻了面。原来断言的是"80 号里出现 hudOf( / rosterOf( …"——
+     那时每个分区各有一个 DOM 渲染函数直接调这些纯函数。RPG 重构之后，
+     八个分区的数据整理统一收进 panelPlanOf → 卡片模型，80 号一个都不再直接调。
+     所以那条代理条件**使命完成**：它想保证的是"不许退回通用键值平铺"，
+     现在改成断言这八条路仍然存在（在纯逻辑模块里），且 DOM 层不再自己摊数据。 */
+  const srcPure = readFileSync(new URL('../../src/scripts/_status-view.js', import.meta.url), 'utf8');
+  for (const fn of ['hudOf(', 'rosterOf(', 'mapTreeOf(', 'questLogOf(', 'factionsOf(', 'timelineOf(', 'estatesOf(', 'loreOf(']) {
+    ok(srcPure.indexOf(fn) >= 0, '⑱ 分区数据整理仍在（纯逻辑层）' + fn.replace('(', ''));
+  }
   const src80 = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
   for (const fn of ['hudOf(', 'rosterOf(', 'mapTreeOf(', 'questLogOf(', 'factionsOf(', 'timelineOf(', 'estatesOf(', 'loreOf(']) {
-    ok(src80.indexOf(fn) >= 0, '⑱ 80 号用了分区专属架构 ' + fn.replace('(', ''));
+    ok(src80.indexOf(fn) < 0, '⑱ DOM 层不再自己摊分区数据 ' + fn.replace('(', ''));
   }
 }
 
@@ -1020,6 +1069,194 @@ ok(M.STATUS_COPY.emptyHint.indexOf('【占位') < 0 && M.STATUS_COPY.emptyHint.l
   ok(src80.indexOf('--kami-ia-hue') >= 0, '⑲ 头像按色相区分');
   ok(src80.indexOf('.kami-status-tabsrow') >= 0, '⑲ ✕ 与标签行是 flex 兄弟（不是绝对定位避让）');
   ok(src80.indexOf("' .kami-status-x{position:static;flex:none;") >= 0, '⑲ ✕ 不再是 position:absolute');
+}
+
+
+/* ════════════════════════════════════════════════════════════
+ * ⑳ RPG 界面层：每页子 tab / 主角背包与技能 / NPC 筛选 / 地图节点图
+ *    （2026-10-07 用户四条修正 + 追加背包与技能子 tab）
+ * ════════════════════════════════════════════════════════════ */
+{
+  const S = M.SAMPLE_STAT;
+  const set = M.defaultSettings();
+  const plan = (pid, st, form) => M.panelPlanOf(S, set, pid, st || {}, form || 'ribbon');
+
+  /* ── 子 tab 是数据驱动的：有内容的才出现 ── */
+  const self = M.selfCharOf(S);
+  eq(self && self.id, 'char_player', '⑳ 主角靠 is_user 定位');
+  const pStatus = plan('status');
+  eq(pStatus.subs.map(s => s.id), ['overview', 'bag', 'skill'], '⑳ 主角页三个子 tab：概览/背包/技能');
+  eq(pStatus.sub, 'overview', '⑳ 默认落在概览');
+  ok(pStatus.subs.filter(s => s.id === 'bag')[0].count === 2, '⑳ 背包子 tab 带物品计数');
+
+  /* 没有物品与技能的角色 → 只有概览一档（不给用户看空页） */
+  /* 注意：背包子 tab 的出现条件是"有物品**或**有货币"。示例数据里主角有 12 金币 45 银币，
+     所以只删 items 的话背包页仍应出现（钱包也是背包的一部分）。这里把货币一起删干净，
+     才能验"什么都没有时不出现空页"。 */
+  const bare = JSON.parse(JSON.stringify(S));
+  delete bare.characters.char_player.items;
+  delete bare.characters.char_player.skills;
+  delete bare.characters.char_player.traits;
+  delete bare.characters.char_player.special_stats;
+  delete bare.characters.char_player.mount;
+  delete bare.characters.char_player.wealth;
+  const pBare = M.panelPlanOf(bare, set, 'status', {}, 'ribbon');
+  eq(pBare.subs.map(s => s.id), ['overview'], '⑳ 物品/货币/技能都没有时只剩概览（不出现空页）');
+  const onlyWealth = JSON.parse(JSON.stringify(S));
+  delete onlyWealth.characters.char_player.items;
+  ok(M.panelPlanOf(onlyWealth, set, 'status', {}, 'ribbon').subs.some(s => s.id === 'bag'),
+    '⑳ 只有货币时背包页仍然出现（钱包也是背包）');
+
+  /* ── 主角页不重复标题栏：概览里不许有时间/地点/天气/在场 ── */
+  /* ⚠️ 别拿整张卡的 JSON 去搜地名/天气：卡里还有 thoughts / appearance 这些自由文本，
+     里面出现"迷雾森林"完全正常（人物描写里就会提到）。要验的是**标题栏那三样没被搬进来**，
+     所以只搜卡上那几个结构化字段。 */
+  const hero = pStatus.cards[0];
+  eq(hero.where, undefined, '⑳ 主角概览里没有"地点"字段（标题栏已经有了）');
+  eq(hero.weather, undefined, '⑳ 主角概览里没有"天气"字段');
+  eq(hero.when, undefined, '⑳ 主角概览里没有"时间"字段');
+  eq(hero.present, undefined, '⑳ 主角概览里没有"在场人物"字段');
+
+  /* ── 背包 ── */
+  const pBag = plan('status', { sub: 'bag' });
+  eq(pBag.sub, 'bag', '⑳ 请求背包子 tab 生效');
+  ok(pBag.wealth.length === 2, '⑳ 货币按原样给两种');
+  eq(pBag.slots.filter(s => s.filled).length, 1, '⑳ 装备槽按 equipped 点亮（数据里只有一件）');
+  eq(pBag.cards[0].equipped, true, '⑳ 已装备的排在最前');
+  ok(pBag.filters.length >= 3, '⑳ 背包按类型出筛选档');
+  ok(pBag.filters.every(f => f.count === 0 || f.count > 0), '⑳ 筛选档带计数');
+  eq(pBag.filters.filter(f => f.id === 'all')[0].count, 2, '⑳ "全部"档计数等于物品数');
+  /* 类型筛选真的收窄 */
+  const pBagProp = plan('status', { sub: 'bag', filter: 'equip' });
+  eq(pBagProp.cards.length, 1, '⑳ 按 equip 筛选只剩装备');
+  /* 剧透：real_desc 默认不给 */
+  ok(JSON.stringify(pBag.cards).indexOf('暗槽') < 0, '⑳ **剧透关闭时 real_desc 根本不在数据里**');
+  const setShow = M.mergeSettings({ options: { showHidden: true } });
+  const pBagShow = M.panelPlanOf(S, setShow, 'status', { sub: 'bag' }, 'ribbon');
+  ok(JSON.stringify(pBagShow.cards).indexOf('暗槽') >= 0, '⑳ 打开剧透后 real_desc 出现');
+
+  /* ── 技能 ── */
+  const pSkill = plan('status', { sub: 'skill' });
+  eq(pSkill.groups.map(g => g.id), ['active', 'passive', 'special'], '⑳ 技能三节顺序固定');
+  ok(pSkill.cards.length === 3, '⑳ 三个节各有一条');
+  const pSkill2 = plan('status', { sub: 'skill', filter: 'passive' });
+  eq(pSkill2.cards.length, 1, '⑳ 技能按节筛选生效');
+  eq(pSkill2.cards[0].section, 'passive', '⑳ 筛出来的确实是被动');
+
+  /* ── 角色页：只出 NPC，主角不在列表里 ── */
+  const pRosterAll = plan('characters', { sub: 'all' });
+  ok(pRosterAll.cards.every(c => c.id !== 'char_player'), '⑳ 角色页不含主角自己');
+  eq(pRosterAll.subs.map(s => s.id), ['present', 'all'], '⑳ 角色页两个子 tab：在场/全部');
+  eq(pRosterAll.cards.length, 3, '⑳ 全部 NPC 三个');
+  const pPresent = plan('characters');
+  eq(pPresent.cards.length, 1, '⑳ 在场子 tab 只出 present_chars 里的人');
+  eq(pPresent.cards[0].id, 'char_heroine', '⑳ 在场的那个人是艾莉丝');
+  ok(!!pPresent.cards[0].summaryLine, '⑳ 折叠态带着一行摘要（否则收起后扫不出信息）');
+  /* 角色筛选按 role */
+  /* 示例数据里只有一个 core（艾莉丝）、两个 minor —— 正好能验收窄 */
+  eq(plan('characters', { sub: 'all' }).filters.map(f => f.id), ['all', 'core', 'minor'],
+    '⑳ 角色页按 role 出筛选档');
+  const pMinor = plan('characters', { sub: 'all', filter: 'minor' });
+  eq(pMinor.cards.length, 2, '⑳ 按 role=minor 筛出两个人');
+  ok(pMinor.cards.every(c => c.role === 'minor'), '⑳ 按 role 筛选生效');
+
+  /* ── 地图节点图 ── */
+  const g = M.mapGraphOf(S);
+  eq(g.nodes.length, 3, '⑳ 三个区域 → 三个节点');
+  ok(g.nodes.some(n => n.current), '⑳ 当前所在的区域被标出来');
+  eq(g.nodes.filter(n => n.current)[0].id, 'area_woods_entry', '⑳ 当前所在地取自 status.location.area');
+  ok(g.nodes.every(n => n.x >= 0 && n.x <= 1 && n.y >= 0 && n.y <= 1), '⑳ 坐标归一化在 0..1');
+  ok(g.edges.length === 2, '⑳ 两条连通各画一条边');
+  ok(g.edges.every(e => e.found === false), '⑳ 对端未探明 → 边是虚线');
+  /* 稳定：同一个 ID 永远同一张图 */
+  eq(JSON.stringify(M.mapGraphOf(S)), JSON.stringify(M.mapGraphOf(S)), '⑳ 图布局是确定性的（可复现）');
+  ok(M.mapGraphOf(S).nodes[0].x === M.mapGraphOf(JSON.parse(JSON.stringify(S))).nodes[0].x, '⑳ 深拷贝后坐标不变');
+  /* connections 指到不存在的 ID：忽略，不伪造节点 */
+  const badMap = { status: { location: { area: 'a1' } }, map_nodes: { r1: { name: 'R', is_found: true, areas: {
+    a1: { name: 'A1', is_found: true, connections: ['ghost'] } } } } };
+  const gBad = M.mapGraphOf(badMap);
+  eq(gBad.nodes.length, 1, '⑳ connections 指向不存在的 ID 不生成假节点');
+  eq(gBad.edges.length, 0, '⑳ 假边也不画');
+  /* 列表退化只看手机形态 + 节点数 */
+  eq(M.shouldUseList(3, 'drawer'), false, '⑳ 节点少时手机也画图');
+  eq(M.shouldUseList(20, 'drawer'), true, '⑳ 节点多时手机退列表');
+  eq(M.shouldUseList(20, 'ribbon'), false, '⑳ PC 不退列表');
+  eq(M.shouldUseListWith(M.mergeSettings({ options: { graphAutoList: false } }), 20, 'drawer'), false,
+    '⑳ 关掉自动退化就永远画图');
+  const pGraph = plan('map_nodes');
+  eq(pGraph.sub, 'graph', '⑳ 地图默认子 tab 是节点图');
+  ok(!!pGraph.graph, '⑳ 节点图数据跟着 plan 一起给出来');
+  eq(pGraph.listMode, false, '⑳ PC 形态下不退化');
+  const pGraphPhone = plan('map_nodes', {}, 'drawer');
+  eq(pGraphPhone.listMode, false, '⑳ 只有 3 个节点时手机也不退化');
+  eq(plan('map_nodes', { sub: 'detail' }).cards.length, 3, '⑳ 地点详情子 tab 列出全部区域');
+
+  /* ── 势力三分 / 剧情线三档 / 任务三档 / 不动产 / 设定集 ── */
+  eq(plan('factions').subs.map(s => s.id), ['rep', 'dip', 'org'], '⑳ 势力三分：声望/外交/组织');
+  eq(plan('factions', { sub: 'dip' }).cards.length, 1, '⑳ 外交子 tab 摊出外交关系卡');
+  ok(plan('storylines').subs.every(s => ['main', 'side', 'personal'].includes(s.id)), '⑳ 剧情线按优先级分子 tab');
+  eq(plan('quests').subs.map(s => s.id).sort(), ['active', 'pending'], '⑳ 任务子 tab 按状态（示例里没有已结束）');
+  ok(plan('quests').cards.every(c => c.status === 'active'), '⑳ 任务默认落在进行中');
+  eq(plan('estates').cards.length, 1, '⑳ 不动产"自有"页出主角的产业');
+  ok(plan('estates').cards[0].id === 'estate_hunter_cabin', '⑳ 归属判定认 ID（owner: char_player）');
+  ok(plan('lore').subs.length >= 2, '⑳ 设定集按数据里的分类出子 tab');
+  ok(plan('settings').subs.map(s => s.id).join() === 'modules,display,about', '⑳ 设置页三个子 tab');
+
+  /* ── 折叠状态是数据，不是 DOM 副作用 ── */
+  eq(M.mergeSettings({ ui: { folds: { 'char:char_heroine': true } } }).ui.folds['char:char_heroine'], true,
+    '⑳ 折叠状态能存能读');
+  eq(M.mergeSettings({ ui: { folds: { x: 'bad' } } }).ui.folds.x, undefined, '⑳ 坏掉的折叠值被丢掉');
+  eq(M.mergeSettings({ ui: { sub: { status: 'bag' } } }).ui.sub.status, 'bag', '⑳ 子 tab 选择能存能读');
+  eq(M.mergeSettings(null).ui.sub, {}, '⑳ 没有存过就是空表');
+
+  /* ── 存档里的选择失效时回退，不崩 ── */
+  const pStale = plan('status', { sub: 'nope', filter: 'nope' });
+  eq(pStale.sub, 'overview', '⑳ 失效的子 tab 回退到第一个');
+  eq(pStale.filterId, 'all', '⑳ 失效的筛选档回退到第一档');
+  const pStaleF = plan('factions', { sub: 'rep', filter: 'nope' });
+  eq(pStaleF.filterId, 'rep', '⑳ "按声望升序"这种没有 all 的档位，回退到第一档而不是 all');
+  eq(plan('factions', { sub: 'rep' }).filterId, 'rep', '⑳ 势力声望页默认就是"按声望升序"');
+  ok(plan('factions', { sub: 'rep' }).cards.length > 0, '⑳ 默认档位下列表不为空（踩过：默认 all 导致空列表）');
+
+  /* ── 没有主角实体：不崩，给引导 ── */
+  const noSelf = { status: {}, characters: { npc1: { name: '甲' } } };
+  const pNo = M.panelPlanOf(noSelf, set, 'status', {}, 'ribbon');
+  eq(pNo.cards.length, 0, '⑳ 没有主角时主角页不出卡');
+  ok(pNo.emptyLines.length > 0, '⑳ 没有主角时给引导句');
+
+  /* ── 物品类型 ── */
+  eq(M.itemTypeLabel('equip'), '装备', '⑳ 物品类型有中文名');
+  eq(M.itemTypeLabel('weird'), 'weird', '⑳ 认不出的类型原样显示（不乱归到"其他"）');
+  eq(M.itemIcon('key'), 'key', '⑳ 关键物品用钥匙图标');
+  eq(M.itemIcon('prop'), 'flask', '⑳ 道具用药瓶图标');
+
+  /* ── 源码级：DOM 层必须走卡片模型 + 走差异更新友好的状态账 ── */
+  const src80b = readFileSync(new URL('../../src/scripts/80-状态栏.js', import.meta.url), 'utf8');
+  ok(src80b.indexOf('data-kami-fold') >= 0, '⑳ 折叠写在 data-kami-fold 上');
+  ok(src80b.indexOf('settings.ui.folds') >= 0 || src80b.indexOf('ui && settings.ui.folds') >= 0
+    || src80b.indexOf('settings.ui') >= 0, '⑳ 折叠状态存在 settings.ui 里（不是读 DOM）');
+  ok(src80b.indexOf('panelPlanOf(') >= 0, '⑳ 面板内容由纯函数决定');
+  ok(src80b.indexOf('createElementNS') >= 0, '⑳ 节点图用 SVG 画（不是 div 拼）');
+  ok(src80b.indexOf('data-kami-node') >= 0, '⑳ 图上的节点可点（带 data 标记）');
+  ok(src80b.indexOf('ICON_SVG') >= 0, '⑳ 图标走内联表 ICON_SVG');
+  ok(src80b.indexOf('@@KAMI_ICONS@@') >= 0, '⑳ 图标占位符还在（构建期展开）');
+  ok(src80b.indexOf('currentColor') >= 0, '⑳ 图标吃 currentColor（皮肤能染色）');
+  /* 三条"不许删"的防线 */
+  ok(src80b.indexOf('margin:0') >= 0, '⑳ 横幅与面板的 margin:0 还在（接缝靠它）');
+  ok(src80b.indexOf('min-height:0') >= 0, '⑳ 内容区 min-height:0 还在（否则被顶开）');
+  ok(src80b.indexOf('flex:none') >= 0, '⑳ 标签行 flex:none 还在（否则被压扁）');
+
+  /* ── 契约：新增令牌都进了 base.css，且默认值齐全 ── */
+  const base = readFileSync(new URL('../../src/skin/base.css', import.meta.url), 'utf8');
+  for (const tk of ['--kami-sunken', '--kami-bar-fill', '--kami-edge-in', '--kami-rank-bg',
+    '--kami-map-node-fill', '--kami-map-void', '--kami-map-here-ring']) {
+    ok(base.indexOf(tk + ':') >= 0, '⑳ base.css 登记了 ' + tk);
+  }
+  /* 可选令牌必须真的在 lint 的放行名单里，否则 18 套皮肤会全部构建失败 */
+  const lint = readFileSync(new URL('../../build/lint-skins.mjs', import.meta.url), 'utf8');
+  for (const tk of ['--kami-sunken', '--kami-map-void', '--kami-surface-2']) {
+    ok(lint.indexOf("'" + tk + "'") >= 0, '⑳ lint-skins 把 ' + tk + ' 列为可选（不然 18 套皮肤全红）');
+  }
 }
 
 console.log((fail ? '✗ ' : '✓ ') + '状态栏纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));

@@ -51,6 +51,10 @@ console.log('=== 状态栏悬浮球验证（' + path.basename(p) + '） ===');
 ok(!!entry, '① 产物里有「状态栏」脚本', entry ? entry.name : '没找到');
 ok(entry && entry.enabled === false, '② 默认关闭（实验脚本不许默认出现在所有人界面上）', entry ? 'enabled=' + entry.enabled : '');
 ok(entry && /\bv?[0-9]+\.[0-9]+\b/.test(String(entry.name)), '② 名字里带版本号', entry && entry.name);
+/* 2026-10-08 用户裁定：状态栏暂时停止制作，名字上必须带「制作中」标记。
+   钉在守卫里是因为它是一句**给人看的警告** —— 删掉它不会让任何测试变红，
+   但会让别人以为这个脚本可以打开用了。 */
+ok(entry && String(entry.name).indexOf('制作中') >= 0, '② 名字里有「制作中」标记（暂停制作，别打开）', entry && entry.name);
 
 /* ③ 图标：占位符必须已展开，且内联的字节与 design/icon 里那张 PNG 逐字节一致 */
 const iconPath = path.join(ROOT, 'design', 'icon', 'kami-statusbar.png');

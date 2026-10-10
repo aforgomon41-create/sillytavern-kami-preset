@@ -112,6 +112,42 @@ html:not([data-kami-skin]) .kami-root {
   --kami-kind-fun: #dfc06a;
   --kami-kind-nsfw: #e08aa0;
   --kami-kind-other: #a8b2bc;
+
+  /* ---- RPG 界面层（2026-10-07 新增，状态栏重构用；名字不带 status，四个面板都能用）----
+     这些**全部可选**：皮肤不定义就走下面的默认值。
+     build/lint-skins.mjs 的必填清单已把它们排除（见该文件 OPTIONAL_TOKENS）。 */
+  --kami-surface-2: var(--kami-card, rgba(40, 42, 52, .96));      /* L1 抬起层（卡片面） */
+  --kami-surface-3: var(--kami-card-hover, rgba(52, 55, 66, .96));/* L2 再抬一层 */
+  --kami-surface-4: var(--kami-bg-soft, rgba(26, 28, 36, .97));   /* 浮层 / 抽屉面 */
+  --kami-sunken: rgba(0, 0, 0, .30);            /* 凹陷槽底（条轨道 / 空槽 / 输入框） */
+  --kami-sunken-line: rgba(255, 255, 255, .10); /* 凹陷槽描边 */
+  --kami-edge: var(--kami-line-strong, rgba(255, 255, 255, .28)); /* 卡片外描边 */
+  --kami-edge-in: rgba(255, 255, 255, .07);     /* 内高光（外深内亮的倒角感） */
+  --kami-bar-h: 14px;                           /* 条高 */
+  --kami-bar-fill: linear-gradient(180deg, #8fb4f0, #5f86d6);
+  --kami-bar-fill-pos: linear-gradient(180deg, #8fd0a8, #4f9d78);
+  --kami-bar-fill-neg: linear-gradient(180deg, #d98f8f, #a85252);
+  --kami-bar-gloss: rgba(255, 255, 255, .28);   /* 填充顶部那 1px 高光 */
+  --kami-rank-bg: rgba(122, 162, 247, .20);     /* 档位菱形底 */
+  --kami-rank-edge: rgba(122, 162, 247, .55);   /* 档位菱形描边 */
+  --kami-rank-fg: #bcd4fb;
+  --kami-ico-size: 16px;
+  --kami-ico-size-sm: 13px;
+  --kami-sb-card-cols: 230px;                   /* 卡片两列的下限（每列至少这么宽） */
+  --kami-sb-row-gap: 3px;                       /* 条与条之间的行距 */
+
+  /* ---- 地图节点图（状态栏地图页专用；其余组件不会用到，放这里是为了能按皮肤配色）---- */
+  --kami-map-void: radial-gradient(circle at 40% 35%, #1e2530, #161b21 70%);
+  --kami-map-node-fill: #232a33;
+  --kami-map-node-edge: var(--kami-accent, #7aa2f7);
+  --kami-map-node-fg: #dbe4ee;
+  --kami-map-fog-fill: #1a1f26;
+  --kami-map-fog-edge: #3a434e;
+  --kami-map-fog-fg: #6b7784;
+  --kami-map-here-fill: rgba(122, 162, 247, .22);
+  --kami-map-here-ring: rgba(122, 162, 247, .50);
+  --kami-map-edge: #4b5563;
+  --kami-map-edge-dash: #3a434e;
 }
 
 /* ---------- 令牌：亮色 ---------- */
@@ -144,6 +180,34 @@ html:not([data-kami-skin]) .kami-root {
     --kami-kind-fun: #82630c;
     --kami-kind-nsfw: #a83b5e;
     --kami-kind-other: #5e6873;
+
+    /* ---- RPG 界面层：亮色档（凹陷与高光方向要反过来，这是最容易做错的地方）---- */
+    --kami-surface-2: var(--kami-card, rgba(255, 255, 255, .62));
+    --kami-surface-3: var(--kami-card-hover, rgba(255, 255, 255, .92));
+    --kami-surface-4: var(--kami-bg-soft, rgba(255, 255, 255, .86));
+    --kami-sunken: rgba(30, 40, 50, .08);
+    --kami-sunken-line: rgba(30, 40, 50, .12);
+    --kami-edge: var(--kami-line-strong, rgba(30, 40, 50, .52));
+    --kami-edge-in: rgba(255, 255, 255, .70);
+    --kami-bar-fill: linear-gradient(180deg, #6f9be0, #4670bd);
+    --kami-bar-fill-pos: linear-gradient(180deg, #6bbd8b, #3d8a63);
+    --kami-bar-fill-neg: linear-gradient(180deg, #cf7a7a, #9a4343);
+    --kami-bar-gloss: rgba(255, 255, 255, .55);
+    --kami-rank-bg: rgba(91, 107, 122, .14);
+    --kami-rank-edge: rgba(91, 107, 122, .45);
+    --kami-rank-fg: #3f5470;
+
+    --kami-map-void: radial-gradient(circle at 40% 35%, #eef2f6, #e3e8ee 70%);
+    --kami-map-node-fill: #ffffff;
+    --kami-map-node-edge: var(--kami-accent, #5b6b7a);
+    --kami-map-node-fg: #2c333c;
+    --kami-map-fog-fill: #e9edf1;
+    --kami-map-fog-edge: rgba(30, 40, 50, .28);
+    --kami-map-fog-fg: #8a949e;
+    --kami-map-here-fill: rgba(91, 107, 122, .16);
+    --kami-map-here-ring: rgba(91, 107, 122, .45);
+    --kami-map-edge: rgba(30, 40, 50, .34);
+    --kami-map-edge-dash: rgba(30, 40, 50, .20);
   }
 }
 

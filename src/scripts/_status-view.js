@@ -48,7 +48,104 @@ export var STATUS_COPY = {
   secStorylines: '剧情线',
   secQuests: '任务',
   secEstates: '不动产',
-  secLore: '设定集'
+  secLore: '设定集',
+
+  /* ── RPG 界面重构（2026-10-07）：子 tab、背包、技能、筛选、折叠 ── */
+  subOverview: '概览',
+  subBag: '背包',
+  subSkill: '技能',
+  subPresent: '在场',
+  subAll: '全部',
+  subGraph: '节点图',
+  subDetail: '地点详情',
+  subRep: '声望',
+  subDip: '外交',
+  subOrg: '组织',
+  subMain: '主线',
+  subSide: '支线',
+  subPersonal: '个人',
+  subActive: '进行中',
+  subPending: '待办',
+  subClosed: '已结束',
+  subOwned: '自有',
+  subByType: '按类型',
+  subUnknown: '未探明',
+  subModules: '模块',
+  subDisplay: '显示',
+  subAbout: '关于',
+
+  filterAll: '全部',
+  filterFound: '已探明',
+  filterUnknown: '未探明',
+  filterClosed: '已完结',
+  filterOpen: '未完结',
+  filterByRep: '按声望升序',
+  filterByName: '按名称',
+  filterAllTypes: '全部类型',
+
+  /* 背包 */
+  wealth: '货币',
+  equipped: '已装备',
+  wornSlots: '装备槽',
+  slotWeapon: '武器',
+  slotArmor: '护甲',
+  slotTrinket: '饰品',
+  slotEmpty: '空',
+  bagEmpty: '背包里还没有东西',
+  bagEmptyHint: '让剧情推进到主角取得物品后，这里会自动出现',
+  mount: '坐骑与载具',
+  countUnit: '件',
+
+  /* 技能 */
+  skillEmpty: '还没有学会任何能力',
+  skillActive: '主动技能',
+  skillPassive: '被动特性',
+  skillSpecial: '专有机制',
+
+  /* 通用 */
+  filterLabel: '筛选',
+  foldHint: '展开',
+  unfoldHint: '收起',
+  mapEmpty: '还没有任何已探明的地点',
+  mapEmptyHint: '去过的地方会自动出现在这张图上',
+  graphTooMany: '区域太多，已切到列表视图',
+  peopleFolded: '收起',
+  questObjective: '目标',
+  questClient: '委托人',
+  questLine: '关联',
+  questReward: '报酬',
+  questLimits: '限制',
+  factionLeader: '领袖',
+  factionDomain: '控制范围',
+  factionGoals: '目标',
+  factionPlan: '计划',
+  factionDiplomacy: '外交动向',
+  estateFacilities: '设施',
+  estateResidents: '常驻',
+
+  /* 生存状态点（好/中/差三档的语气词，配环形徽章左侧那枚色点） */
+  toneGood: '良好',
+  toneBad: '不佳',
+
+  /* ── 下面是 RPG 界面层真正在用的键 ──
+     ⚠️ 少登记一个的后果不是"少一句话"，而是**界面上直接显示英文键名**：
+     cpyText() 查不到就把键名原样返回（图例里那个漏出来的 "mapHere" 就是这么来的，
+     实测截图抓到）。所以新增界面文案必须同时登记在这里。 */
+  mapHere: '当前所在',
+  legendDash: '未探明通路',
+  moreInfo: '更多信息',
+  truth: '真相',
+  isSelf: '主角',
+  health: '生理状态',
+  riding: '骑乘中',
+  reach: '通往',
+  factionDomain: '控制范围',
+  modulesHint: '关掉的模块不会出现在标签行里，也不再读取它的数据。',
+  graphAutoListLabel: '图太挤时自动切列表',
+  about: '版本信息',
+  aboutPreset: '预设版本',
+  aboutTavern: '酒馆版本',
+  aboutHelper: '酒馆助手版本'
 };
 
 
@@ -443,12 +540,17 @@ export function defaultSettings() {
       status: true, characters: true, map_nodes: true,
       factions: false, storylines: false, quests: true, estates: false, lore: false
     },
+    /* 界面选择状态（子 tab / 筛选 / 折叠）。**放在 settings 里是为了跟着账号走**，
+       与位置、模块开关共用同一份脚本变量。形状见 80 号的 normalizeUi()。 */
+    ui: { sub: {}, filter: {}, folds: {} },
     options: {
       showHeader: true,
       showHidden: false,
       /* 示例数据默认**开着**（用户 2026-10-05：调试期方便看布局；调完会删掉示例数据）。
          但"真实数据优先"没有变：readStat() 先读楼层变量，读到真实数据示例立刻让位。 */
-      useSample: true
+      useSample: true,
+      /* 图太挤时（手机形态 + 节点数超过阈值）自动退化成列表，见 shouldUseList */
+      graphAutoList: true
     }
   };
 }
@@ -471,6 +573,22 @@ export function mergeSettings(saved) {
     if (typeof o.showHeader === 'boolean') { d.options.showHeader = o.showHeader; }
     if (typeof o.showHidden === 'boolean') { d.options.showHidden = o.showHidden; }
     if (typeof o.useSample === 'boolean') { d.options.useSample = o.useSample; }
+    if (typeof o.graphAutoList === 'boolean') { d.options.graphAutoList = o.graphAutoList; }
+  }
+  /* 界面选择状态：逐字段验类型，坏的那一项丢掉、其余照旧（不整份退回） */
+  var u = saved.ui;
+  if (u && typeof u === 'object') {
+    var maps = ['sub', 'filter', 'folds'], mi, src, dst, k;
+    for (mi = 0; mi < maps.length; mi++) {
+      src = u[maps[mi]];
+      if (!src || typeof src !== 'object') { continue; }
+      dst = d.ui[maps[mi]];
+      for (k in src) {
+        if (!Object.prototype.hasOwnProperty.call(src, k)) { continue; }
+        if (maps[mi] === 'folds') { if (typeof src[k] === 'boolean') { dst[k] = src[k]; } }
+        else if (typeof src[k] === 'string') { dst[k] = src[k]; }
+      }
+    }
   }
   return d;
 }
@@ -861,6 +979,13 @@ export function headerLines(stat, nameOf) {
 /* 横幅至少要有这么宽才值得往右探；放不下就镜像到左边去。
    160 ≈ 一行十来个小字，比这更窄的横幅只剩个色块，不如换边。 */
 export var MIN_RIBBON_W = 160;
+/* 面板的默认宽度与下限（PC）。
+   为什么面板宽度**不跟着横幅**：两者共享的是**一条边**（左缘对齐、上缘相接），
+   宽度本来就该各自独立。旧实现把 panel.width 直接赋值成横幅宽度，于是
+   "球停在右上角 → 横幅只剩 176px → 面板也只剩 176px"，标签行排不下、
+   两列卡片挤成一列（实测截图抓到）。现在面板有自己的默认宽与下限。 */
+export var DEF_PANEL_W = 420;
+export var MIN_PANEL_W = 300;
 
 /* 手机 / PC 的分界。Lead 2026-10-05 认了这个数，推导：
    球 64 + 横幅最小可用 160 + 两侧边距 16 ≈ 240 是"内容真的放得下"的下界；
@@ -924,18 +1049,38 @@ export function layoutOf(input) {
 
   if (!isFinite(viewW) || viewW <= 0) { return empty; }   /* 视口量不到：什么都不画 */
 
-  /* ── 手机：占满整行 ── */
+  /* ── 手机：横幅连球占满整行，面板与横幅同宽 ──
+     ⚠️ 原来这里写死了"球在左边、横幅向右铺"：mLeft = 球的 x、mW = 视口右缘 - mLeft。
+     可球是可以拖到右边的（默认就在右上角！），那时 mW = 390 - 310 - 8 = **72px** ——
+     面板被压成一条缝、文字竖排（实测截图抓到的）。
+     正确的语义是「球是这一行的排头图标，横幅铺满**球另一侧**的整行」：
+     球偏左就向右铺，球偏右就向左铺（与 PC 的镜像复核同一个思路）。
+     面板左缘仍然与横幅左缘对齐（连体共享一条边）。 */
   if (mobile) {
-    var mLeft = Math.max(0, Math.min(bx, viewW));
-    var mW = Math.max(0, viewW - mLeft - gap);
+    var mLeft, mW, mDir;
+    var roomRight = Math.max(0, viewW - center - gap);
+    var roomLeft = Math.max(0, center - gap);
+    if (roomRight >= roomLeft) {
+      /* 球偏左：横幅从球心向右铺到视口右缘 */
+      mLeft = center; mW = roomRight; mDir = 'right';
+    } else {
+      /* 球偏右：镜像到左边，右缘落在球心（球是这一行末尾的图标） */
+      mW = roomLeft; mLeft = Math.max(0, center - mW); mDir = 'left';
+    }
+    if (mW <= 0) { return empty; }
     return {
-      mobile: true, left: mLeft, top: by, height: size, width: mW, dir: 'right',
-      gripLeft: mLeft + mW - HANDLE_W,
-      panel: { left: mLeft, top: by + size, width: mW }
+      mobile: true, left: Math.round(mLeft), top: by, height: size, width: Math.round(mW), dir: mDir,
+      gripLeft: mDir === 'left' ? mLeft : mLeft + mW - HANDLE_W,
+      panel: { left: Math.round(mLeft), top: by + size, width: Math.round(mW) }
     };
   }
 
-  /* ── PC：内容撑开，用户可覆盖 ── */
+  /* ── PC：内容撑开，用户可覆盖 ──
+     ⚠️ 横幅宽度 = **面板宽度**（两者共享一条边，连体）。所以"内容撑开"有个坑：
+     球停在右上角时右边没空间，镜像到左边后可用余量只有 176px 左右，
+     面板就变成 176px 宽 —— 九个标签排不下、两列卡片挤成一列（实测截图抓到的）。
+     修法：没被用户调过宽时，取「内容宽」与「默认面板宽」的**较大者**。
+     用户拖过手柄就完全听用户的（那是一次明确的表态）。 */
   var user = clampUserWidth(o.userWidth, viewW);
   var content = numOf(o.contentW, 0);
   var want = (user !== null) ? user : Math.max(MIN_RIBBON_W, content);
@@ -955,10 +1100,25 @@ export function layoutOf(input) {
     left = center; width = rightRoom; dir = 'right';
   }
 
+  /* ── 面板宽度：与横幅**共享左缘**，但宽度独立 ──
+     用户调过宽就跟着横幅（他调的其实是"这块地方多宽"）；
+     没调过就用默认宽 420，再夹到"从左缘到视口右边"的可用空间里，下限 300。
+     夹完之后若连下限都放不下（球贴最右边），向左挪一点 —— 宁可失掉
+     "左缘完全对齐"这个美观约束，也不能把面板挤成一条缝。 */
+  var panelW = (user !== null) ? width : DEF_PANEL_W;
+  var avail = Math.max(0, viewW - left - gap);
+  var panelLeft = left;
+  if (avail < MIN_PANEL_W) {
+    panelLeft = Math.max(0, viewW - MIN_PANEL_W - gap);
+    avail = Math.max(0, viewW - panelLeft - gap);
+  }
+  panelW = Math.max(Math.min(panelW, avail), Math.min(MIN_PANEL_W, avail));
+
   return {
     mobile: false, left: left, top: by, height: size, width: width, dir: dir,
+    panelW: Math.round(panelW), panelLeft: Math.round(panelLeft),
     gripLeft: (dir === 'left' ? left : left + width - HANDLE_W),
-    panel: { left: left, top: by + size, width: width }
+    panel: { left: panelLeft, top: by + size, width: panelW }
   };
 }
 
@@ -1688,4 +1848,924 @@ export function panelTabPlan(stat, settings, tabId) {
 export function moduleLabel(id) {
   for (var i = 0; i < MODULES.length; i++) { if (MODULES[i].id === id) { return MODULES[i].copy; } }
   return id;
+}
+
+
+/* ============================================================================
+ * RPG 界面层（2026-10-07）：**每页一个 panel，panel 下面挂子 tab**
+ * ----------------------------------------------------------------------------
+ * 用户的要求：「角色的各模块应该做成子 tab 页」「其他页也需要」。
+ *
+ * 这一层只做**纯计算**：每个 panel 有哪些子 tab、每个子 tab 有哪些卡片、
+ * 每个卡片折叠态显示什么摘要、筛选条有哪些档、地图节点怎么摆。
+ * DOM 一行都不碰 —— 所以这些全都能离线单测，不必真机跑 MVU。
+ *
+ * 命名说明：`panel` = 一个主标签页（与 settings.modules 的 id 一一对应，
+ * 唯一例外是 '__settings'）；`sub` = 子 tab；`filter` = 子 tab 内的筛选档。
+ * ============================================================================ */
+
+/** 主标签页的顺序与显示名（copy 指向 STATUS_COPY 的键） */
+export var PANELS = [
+  { id: 'status', copy: 'secStatus', icon: 'status' },
+  { id: 'characters', copy: 'secCharacters', icon: 'roster' },
+  { id: 'map_nodes', copy: 'secMap', icon: 'map' },
+  { id: 'factions', copy: 'secFactions', icon: 'factions' },
+  { id: 'storylines', copy: 'secStorylines', icon: 'storylines' },
+  { id: 'quests', copy: 'secQuests', icon: 'quests' },
+  { id: 'estates', copy: 'secEstates', icon: 'estates' },
+  { id: 'lore', copy: 'secLore', icon: 'lore' },
+  { id: 'settings', copy: 'settingsTab', icon: 'settings' }
+];
+
+/** 面板里要出哪几个主标签（模块开关关掉的不出；设置页永远钉在最后） */
+export function panelTabsOf(settings) {
+  var mods = enabledModules(settings), out = [], i;
+  for (i = 0; i < mods.length; i++) {
+    for (var j = 0; j < PANELS.length; j++) {
+      if (PANELS[j].id === mods[i].id) { out.push(PANELS[j]); break; }
+    }
+  }
+  for (i = 0; i < PANELS.length; i++) { if (PANELS[i].id === 'settings') { out.push(PANELS[i]); break; } }
+  return out;
+}
+
+/* ── 物品类型 ──
+   类型名与 design/_discussion/mvu/手写变量结构.yaml 第 121 行的枚举一一对应。
+   认不出的类型**原样显示**，不乱归到"其他"——那会让用户以为数据坏了。 */
+export var ITEM_TYPES = [
+  { id: 'equip', copy: '装备', icon: 'sword' },
+  { id: 'prop', copy: '道具', icon: 'flask' },
+  { id: 'consume', copy: '消耗', icon: 'flask' },
+  { id: 'key', copy: '关键', icon: 'key' },
+  { id: 'misc', copy: '杂物', icon: 'cards' }
+];
+
+/** 技能三节的顺序：主动 → 被动 → 专有机制 */
+export var SKILL_SECTIONS = [
+  { id: 'active', copy: 'skillActive', icon: 'bolt', src: 'skills' },
+  { id: 'passive', copy: 'skillPassive', icon: 'sparkles', src: 'traits' },
+  { id: 'special', copy: 'skillSpecial', icon: 'weight', src: 'special_stats' }
+];
+
+/** 剧情线优先级 → 子 tab（与 yaml 第 205 行的 main/side/personal 一一对应） */
+export var LINE_PRIORITY = [
+  { id: 'main', copy: 'subMain', icon: 'storylines' },
+  { id: 'side', copy: 'subSide', icon: 'storylines' },
+  { id: 'personal', copy: 'subPersonal', icon: 'storylines' }
+];
+
+/* ── 小工具 ── */
+function cpy(k) { return STATUS_COPY[k] || k; }
+function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+function objKeys(v) { return isObj(v) ? Object.keys(v) : []; }
+/** 这个键下面有没有真东西（空对象 / 空数组都算没有） */
+function hasAny(v) {
+  if (v === undefined || v === null) { return false; }
+  if (Array.isArray(v)) { return v.length > 0; }
+  if (typeof v === 'object') { return Object.keys(v).length > 0; }
+  return String(v).length > 0;
+}
+
+/** 玩家自己：is_user 为真那个；没有就退回第一个 core；再没有就 null */
+export function selfCharOf(stat) {
+  var chars = (stat && stat.characters) || {};
+  var ks = Object.keys(chars), i;
+  for (i = 0; i < ks.length; i++) { if (chars[ks[i]] && chars[ks[i]].is_user) { return { id: ks[i], char: chars[ks[i]] }; } }
+  for (i = 0; i < ks.length; i++) { if (chars[ks[i]] && chars[ks[i]].role === 'core') { return { id: ks[i], char: chars[ks[i]] }; } }
+  return null;
+}
+
+/** 在场判定：ID 在 status.present_chars 里（也可能写成角色名字，所以名字也认） */
+export function isPresent(stat, id, name) {
+  var list = ((stat && stat.status) || {}).present_chars;
+  if (!Array.isArray(list)) { return false; }
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] === id) { return true; }
+    if (name && list[i] === name) { return true; }
+  }
+  return false;
+}
+
+/** 把「{键: 描述}」形状的字典摊成技能条目（skills / traits / special_stats 三处共用） */
+export function skillItemsOf(char, src) {
+  var d = (char && char[src]) || {}, ks = Object.keys(d), out = [], i;
+  for (i = 0; i < ks.length; i++) {
+    out.push({ id: src + ':' + ks[i], name: ks[i], desc: String(d[ks[i]] === null || d[ks[i]] === undefined ? '' : d[ks[i]]) });
+  }
+  return out;
+}
+
+/* ── 卡片构造 ──
+   每张卡都是同一个形状，DOM 层只认这几个字段，不认数据来源：
+   id / foldId / headless / summary / icon / tone / [分区各自的载荷] */
+
+/** NPC 卡（角色页与主角页都用它；主角页只出自己那一张） */
+export function charCardsOf(stat, char, id) {
+  var idx = buildNameIndex(stat || {});
+  var group = activeStatGroup(char) || '';
+  var st = (char && char.stats && group) ? (char.stats[group] || {}) : {};
+  var bars = [], sk = Object.keys(st), i;
+  for (i = 0; i < sk.length; i++) {
+    bars.push({ key: labelOf(sk[i]), value: st[sk[i]], pct: fillPct(st[sk[i]], RANGE[group].min, RANGE[group].max) });
+  }
+  var health = String((char && char.health) || '');
+  return {
+    id: id,
+    foldId: 'char:' + id,
+    headless: false,
+    name: String((char && char.name) || resolveRef(id, idx)),
+    alias: String((char && char.alias) || ''),
+    role: String((char && char.role) || ''),
+    age: String((char && char.age) || ''),
+    identities: Array.isArray(char && char.identities) ? char.identities.slice() : [],
+    rank: String((char && char.rank) || ''),
+    avatar: avatarOf(char || {}),
+    health: health,
+    tone: toneOf(health),
+    summary: String((char && char.summary) || ''),
+    appearance: String((char && char.appearance) || ''),
+    goals: (char && char.goals) || {},
+    thoughts: String((char && char.thoughts) || ''),
+    plan: Array.isArray(char && char.plan) ? char.plan.slice() : [],
+    group: group,
+    bars: bars,
+    relations: relationListOf(char || {}, stat),
+    /* 折叠态的那一行摘要：状态 + 关系数，收起时也扫得出信息 */
+    summaryLine: summaryLineOf(health, toneOf(health), (char && char.relations) || {})
+  };
+}
+
+/** 折叠态摘要："状态良好 · 好感 +8"；两样都没有就给空串（DOM 层不画那一行） */
+export function summaryLineOf(health, tone, relations) {
+  var parts = [], ks = objKeys(relations), i, best = null;
+  if (health) { parts.push(health); }
+  for (i = 0; i < ks.length; i++) {
+    var r = relations[ks[i]] || {}, v = Number(r.affinity);
+    if (!isFinite(v)) { continue; }
+    if (best === null || Math.abs(v) < Math.abs(best)) { best = v; }   /* 取绝对值最小的那个当代表 */
+  }
+  if (best !== null) { parts.push('好感 ' + (best > 0 ? '+' : '') + best); }
+  return parts.join(' · ');
+}
+
+/* ── 背包 ── */
+export function itemCardsOf(char) {
+  var items = (char && char.items) || {}, ks = Object.keys(items), out = [], i;
+  for (i = 0; i < ks.length; i++) {
+    var it = items[ks[i]] || {};
+    var type = String(it.type || 'misc');
+    out.push({
+      id: ks[i],
+      foldId: 'item:' + ks[i],
+      headless: true,
+      kind: 'item',
+      type: type,
+      typeLabel: itemTypeLabel(type),
+      icon: itemIcon(type),
+      name: String(it.name || ks[i]),
+      count: (it.count === undefined || it.count === null) ? 1 : it.count,
+      desc: String(it.desc || ''),
+      realDesc: String(it.real_desc || ''),   /* 剧透字段：只在开关打开时给，见 itemCardsFiltered */
+      equipped: it.equipped === true,
+      summaryLine: String(it.desc || '')
+    });
+  }
+  /* 已装备的排前面，其余按名字稳定排序 */
+  out.sort(function (a, b) {
+    if (a.equipped !== b.equipped) { return a.equipped ? -1 : 1; }
+    return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+  });
+  return out;
+}
+
+/** 物品类型的中文名；认不出的原样返回 */
+export function itemTypeLabel(type) {
+  for (var i = 0; i < ITEM_TYPES.length; i++) { if (ITEM_TYPES[i].id === type) { return ITEM_TYPES[i].copy; } }
+  return String(type || '');
+}
+export function itemIcon(type) {
+  for (var i = 0; i < ITEM_TYPES.length; i++) { if (ITEM_TYPES[i].id === type) { return ITEM_TYPES[i].icon; } }
+  return 'cards';
+}
+
+/** 货币：主货币优先、其余按原顺序跟在后面。非数值的等价物原样显示 */
+export function wealthOf(char) {
+  var w = (char && char.wealth) || {}, ks = Object.keys(w), out = [], i;
+  for (i = 0; i < ks.length; i++) {
+    out.push({ name: ks[i], value: w[ks[i]], numeric: typeof w[ks[i]] === 'number' });
+  }
+  return out;
+}
+
+/** 坐骑 / 载具 */
+export function mountsOf(char) {
+  var m = (char && char.mount) || {}, ks = Object.keys(m), out = [], i;
+  for (i = 0; i < ks.length; i++) {
+    var x = m[ks[i]] || {};
+    out.push({
+      id: ks[i], name: String(x.name || ks[i]), type: String(x.type || ''),
+      desc: String(x.desc || ''), realDesc: String(x.real_desc || ''),
+      status: String(x.status || ''), equipped: x.equipped === true
+    });
+  }
+  return out;
+}
+
+/** 装备槽：数据里**没有部位字段**，所以只按"`equipped` 有几件"点亮同样多的通用槽 */
+export var SLOT_NAMES = ['slotWeapon', 'slotArmor', 'slotTrinket'];
+export function slotsOf(items) {
+  var worn = [], i;
+  for (i = 0; i < items.length; i++) { if (items[i].equipped) { worn.push(items[i]); } }
+  var out = [];
+  for (i = 0; i < SLOT_NAMES.length; i++) {
+    out.push({
+      label: cpy(SLOT_NAMES[i]),
+      filled: i < worn.length,
+      name: i < worn.length ? worn[i].name : cpy('slotEmpty'),
+      icon: i < worn.length ? worn[i].icon : 'shirt'
+    });
+  }
+  return out;
+}
+
+/* ── 设定集分类 ──
+   分类名来自数据（yaml 第 246 行列了六类），所以**不硬编码顺序**：
+   按数据里第一次出现的顺序走，这样自定义分类也能出来。 */
+export function loreCategoriesOf(stat, settings) {
+  var groups = loreOf(stat, settings), out = [], i;
+  for (i = 0; i < groups.length; i++) { out.push({ id: groups[i].category, label: groups[i].category, count: groups[i].items.length }); }
+  return out;
+}
+
+/* ── 筛选档 ──
+   一个选项的形状：{ id, label, count }。count 用于显示，也用于"0 条不出档"。 */
+function opt(id, label, count) { return { id: id, label: label, count: count }; }
+
+/** 按某个取值字段分组出档位（去重 + 计数），用于"按类型""按分类"这类 */
+function optsFromField(items, field, allLabel) {
+  var seen = {}, order = [], i, v;
+  for (i = 0; i < items.length; i++) {
+    v = String((items[i] && items[i][field]) || '');
+    if (!v) { continue; }
+    if (!seen[v]) { seen[v] = 0; order.push(v); }
+    seen[v]++;
+  }
+  /* 只有一种取值（或一个都没有）→ 等于没有筛选，连"全部"都不给，DOM 据此不画那一行 */
+  if (order.length < 2) { return [opt('all', allLabel, items.length)]; }
+  var out = [opt('all', allLabel, items.length)];
+  for (i = 0; i < order.length; i++) { out.push(opt(order[i], order[i], seen[order[i]])); }
+  return out;
+}
+
+/**
+ * 一个子 tab 的筛选档。**返回 1 档就是"没有筛选"**（DOM 层据此不画那一行）。
+ * counts 由调用方先算好（它知道每个档位该数什么）。
+ */
+/**
+ * 筛选档定义。**键是 `主面板id:子tabid`，主面板 id 必须与 PANELS / MODULES 那套一致**
+ * （characters 不是 roster、map_nodes 不是 map）—— 写岔了不会报错，只会静默退回
+ * "只有全部一档"，表现就是"筛选条不出现"（实测踩过一次，探针抓出来的）。
+ * 只写主面板 id 的键表示"这一页所有子 tab 共用这一套档"。
+ */
+export var FILTER_DEFS = {
+  'status:bag': function (ctx) {
+    var items = ctx.items, out = [opt('all', cpy('filterAll'), items.length)], i, j;
+    for (i = 0; i < ITEM_TYPES.length; i++) {
+      var n = 0;
+      for (j = 0; j < items.length; j++) { if (items[j].type === ITEM_TYPES[i].id) { n++; } }
+      if (n > 0) { out.push(opt(ITEM_TYPES[i].id, ITEM_TYPES[i].copy, n)); }
+    }
+    return out;
+  },
+  'status:skill': function (ctx) {
+    /* ⚠️ 这里数的是"每个节里有几条"，不是"几节"。
+       分组对象是 {id,label,icon,count}，条目要现数 —— 直接把分组当条目用过一次，
+       结果是 s[i].items.length 崩掉（探针抓到的）。 */
+    var groups = ctx.skillGroups || [], out = [], i, total = 0;
+    for (i = 0; i < groups.length; i++) { total += groups[i].count; }
+    out.push(opt('all', cpy('filterAll'), total));
+    for (i = 0; i < groups.length; i++) {
+      out.push(opt(groups[i].id, groups[i].label, groups[i].count));
+    }
+    return out;
+  },
+  'characters:all': function (ctx) {
+    /* ⚠️ "只有一档"时把 'all' 也去掉 —— 留一个孤零零的"全部 N"是没意义的，
+       而 DOM 层的判断是"档数 < 2 就不画这一行"。原来写成 out.length > 2 时返回 out，
+       于是只有一种 role 的场合会剩下一档"全部"，DOM 照样画一行点不动的筛选条。 */
+    var out = [opt('all', cpy('filterAll'), ctx.items.length)], i;
+    var roles = [['core', 'core'], ['major', 'major'], ['minor', 'minor']];
+    for (i = 0; i < roles.length; i++) {
+      var n = 0;
+      for (var j = 0; j < ctx.items.length; j++) { if (ctx.items[j].role === roles[i][0]) { n++; } }
+      if (n > 0) { out.push(opt(roles[i][0], roles[i][1], n)); }
+    }
+    /* 一共只有一档 → 等于没有筛选 */
+    return out.length > 1 ? out : [opt('all', cpy('filterAll'), ctx.items.length)];
+  },
+  'map_nodes:detail': function (ctx) {
+    var found = 0, i, un = 0;
+    for (i = 0; i < ctx.areas.length; i++) { if (ctx.areas[i].found) { found++; } else { un++; } }
+    var out = [opt('all', cpy('filterAll'), ctx.areas.length)];
+    if (found) { out.push(opt('found', cpy('filterFound'), found)); }
+    if (un) { out.push(opt('unknown', cpy('filterUnknown'), un)); }
+    return out;
+  },
+  'factions:rep': function () { return [opt('rep', cpy('filterByRep'), 0), opt('name', cpy('filterByName'), 0)]; },
+  'storylines': function (ctx) {
+    /* "未完结"= 有节点正处在"当前"这一回合；"已完结"= 没有当前节点。
+       注意 phase 的取值是 past / now / future（见 timelineOf，第 1669 行），不是 done。 */
+    var out = [opt('all', cpy('filterAll'), ctx.items.length)], n = 0, i;
+    for (i = 0; i < ctx.items.length; i++) { if (ctx.items[i].phase === 'now') { n++; } }
+    if (n) { out.push(opt('open', cpy('filterOpen'), n)); }
+    if (ctx.items.length - n) { out.push(opt('closed', cpy('filterClosed'), ctx.items.length - n)); }
+    return out;
+  },
+  'quests': function (ctx) { return optsFromField(ctx.items, 'qtype', cpy('filterAllTypes')); },
+  'estates:type': function (ctx) { return optsFromField(ctx.items, 'type', cpy('filterAllTypes')); },
+  'estates:owned': function (ctx) { return optsFromField(ctx.items, 'type', cpy('filterAllTypes')); },
+  'lore': function () { return [opt('all', cpy('filterAll'), 0)]; }
+};
+
+/** 取某个 (panel, sub) 的筛选档；没有定义就返回"只有全部"一档 */
+export function filterOptionsOf(panelId, subId, ctx) {
+  var key = panelId + ':' + subId;
+  var fn = FILTER_DEFS[key] || FILTER_DEFS[panelId];
+  if (typeof fn !== 'function') { return [opt('all', cpy('filterAll'), (ctx && ctx.items ? ctx.items.length : 0))]; }
+  var out = fn(ctx || {});
+  return (out && out.length) ? out : [opt('all', cpy('filterAll'), 0)];
+}
+
+/** 按筛选档把卡片筛一遍。筛掉的档位若被存下来了，回退到第一档。 */
+export function applyFilter(cards, panelId, subId, filterId) {
+  if (!filterId || filterId === 'all') { return { cards: cards, filterId: 'all' }; }
+  if (panelId === 'status' && subId === 'bag') {
+    return { cards: keep(cards, function (c) { return c.type === filterId; }), filterId: filterId };
+  }
+  if (panelId === 'status' && subId === 'skill') {
+    return { cards: keep(cards, function (c) { return c.section === filterId; }), filterId: filterId };
+  }
+  if (panelId === 'characters' && subId === 'all') {
+    return { cards: keep(cards, function (c) { return c.role === filterId; }), filterId: filterId };
+  }
+  if (panelId === 'map_nodes' && subId === 'detail') {
+    return { cards: keep(cards, function (c) { return filterId === 'found' ? c.found : !c.found; }), filterId: filterId };
+  }
+  if (panelId === 'estates' && (subId === 'type' || subId === 'owned')) {
+    return { cards: keep(cards, function (c) { return c.type === filterId; }), filterId: filterId };
+  }
+  if (panelId === 'quests') {
+    return { cards: keep(cards, function (c) { return c.qtype === filterId; }), filterId: filterId };
+  }
+  if (panelId === 'storylines') {
+    if (filterId === 'open') { return { cards: keep(cards, function (c) { return c.phase === 'now'; }), filterId: filterId }; }
+    if (filterId === 'closed') { return { cards: keep(cards, function (c) { return c.phase !== 'now'; }), filterId: filterId }; }
+    return { cards: cards, filterId: filterId };
+  }
+  /* 排序类档位（不是筛选，是"按什么排"）：势力声望页的"按声望升序 / 按名称"。
+     ⚠️ 这里必须**原样保留 filterId**，不能落回最后那条 return ——
+     落回去就把当前档位改写成 'all'，而 'all' 根本不在可选档里，
+     于是 chip 高亮全灭、界面显示"没有选中任何排序"（实测踩到）。 */
+  if (panelId === 'factions' && subId === 'rep') {
+    var sorted = cards.slice();
+    if (filterId === 'name') {
+      sorted.sort(function (x, y) { return String(x.name).localeCompare(String(y.name), 'zh'); });
+    } else {
+      sorted.sort(function (x, y) {
+        var xv = x.reps.length ? x.reps[0].value : 0, yv = y.reps.length ? y.reps[0].value : 0;
+        return xv - yv;                       /* 最差的排最前（既有规则） */
+      });
+    }
+    return { cards: sorted, filterId: filterId };
+  }
+  return { cards: cards, filterId: filterId };
+}
+function keep(arr, fn) { var out = [], i; for (i = 0; i < arr.length; i++) { if (fn(arr[i])) { out.push(arr[i]); } } return out; }
+
+/* ── 每页的卡片构造 ──
+   统一形状：{ id, foldId, headless, name, summaryLine, icon, tone, ...载荷 } */
+
+function skillCardsOf(char, hideHidden) {
+  var out = [], i, j;
+  for (i = 0; i < SKILL_SECTIONS.length; i++) {
+    var sec = SKILL_SECTIONS[i], items = skillItemsOf(char, sec.src);
+    for (j = 0; j < items.length; j++) {
+      out.push({
+        id: items[j].id, foldId: 'skill:' + items[j].id, headless: true,
+        kind: 'skill', section: sec.id,
+        icon: sec.icon, name: items[j].name, desc: items[j].desc,
+        summaryLine: items[j].desc
+      });
+    }
+  }
+  return out;
+}
+/** 技能分组（每节一个小标题 + 条目数） */
+function skillGroupsOf(char) {
+  var out = [], i;
+  for (i = 0; i < SKILL_SECTIONS.length; i++) {
+    var items = skillItemsOf(char, SKILL_SECTIONS[i].src);
+    if (items.length) { out.push({ id: SKILL_SECTIONS[i].id, label: cpy(SKILL_SECTIONS[i].copy), icon: SKILL_SECTIONS[i].icon, count: items.length }); }
+  }
+  return out;
+}
+
+function mapDetailCardsOf(stat) {
+  var tree = mapTreeOf(stat), out = [], i, j;
+  for (i = 0; i < tree.length; i++) {
+    var r = tree[i];
+    for (j = 0; j < r.areas.length; j++) {
+      var a = r.areas[j];
+      out.push({
+        id: a.id, foldId: 'area:' + a.id, headless: false,
+        kind: 'area', realm: r.name, realmFound: r.found,
+        name: a.name, found: a.found, desc: a.desc,
+        spots: a.spots, links: a.links,
+        summaryLine: (a.found ? (a.desc || '') : cpy('subUnknown')) + (a.spots.length ? ' · ' + a.spots.length + ' 个地点' : '')
+      });
+    }
+  }
+  return out;
+}
+
+function factionCardsOf(stat) {
+  var list = factionsOf(stat), out = [], i, j;
+  for (i = 0; i < list.length; i++) {
+    var f = list[i], reps = [], dips = [];
+    for (j = 0; j < f.reps.length; j++) {
+      var r = f.reps[j];
+      reps.push({ who: r.who, title: r.title, value: r.value, negative: r.negative, zero: r.zero, fillLeft: r.fillLeft, fillWidth: r.fillWidth });
+    }
+    for (j = 0; j < f.diplomacy.length; j++) { dips.push({ toward: f.diplomacy[j].toward, relation: f.diplomacy[j].relation, trends: f.diplomacy[j].trends }); }
+    /* 自己的声望里最差的那个当头部标（对齐"最差的排前面"那条既有规则） */
+    var worst = reps.length ? reps[0] : null;
+    out.push({
+      id: f.id, foldId: 'faction:' + f.id, headless: false,
+      kind: 'faction', icon: 'factions',
+      name: f.name, alias: f.alias, type: f.type, summary: f.summary,
+      domain: f.domain, reps: reps, diplomacy: dips,
+      tone: worst ? (worst.value < 0 ? -1 : (worst.value > 0 ? 1 : 0)) : 0,
+      summaryLine: worst ? (worst.who + ' ' + (worst.value > 0 ? '+' : '') + worst.value) : (f.alias || f.type)
+    });
+  }
+  return out;
+}
+
+function storylineCardsOf(stat) {
+  var lines = timelineOf(stat), out = [], i, j;
+  for (i = 0; i < lines.length; i++) {
+    var l = lines[i], nodes = [];
+    for (j = 0; j < l.nodes.length; j++) {
+      var n = l.nodes[j];
+      nodes.push({ title: n.title, round: n.round, log: n.log, chars: n.chars, phase: n.phase });
+    }
+    /* "当前"取最后一个已发生节点；没有已发生的就取第一个 */
+    var phase = 'future';
+    for (j = 0; j < nodes.length; j++) { if (nodes[j].phase && nodes[j].phase !== 'future') { phase = nodes[j].phase; } }
+    out.push({
+      id: l.id, foldId: 'line:' + l.id, headless: false,
+      kind: 'line', priority: l.priority, icon: 'storylines',
+      title: l.title, summary: l.summary, nodes: nodes, phase: phase,
+      summaryLine: (l.summary || '') + (nodes.length ? ' · ' + nodes.length + ' 个节点' : '')
+    });
+  }
+  return out;
+}
+
+function questCardsOf(stat) {
+  var log = questLogOf(stat), out = [], i, j;
+  var raw = (stat && stat.quests) || {};
+  for (i = 0; i < log.length; i++) {
+    var g = log[i];
+    for (j = 0; j < g.items.length; j++) {
+      var q = g.items[j];
+      out.push({
+        id: q.id, foldId: 'quest:' + q.id, headless: false,
+        kind: 'quest', status: q.status, icon: 'quests',
+        qtype: String(((raw[q.id] || {}).type) || ''),
+        name: q.name, objective: q.objective, client: q.client,
+        reward: q.reward, limits: q.limits, line: q.line,
+        tone: q.status === 'done' ? 1 : (q.status === 'failed' ? -1 : 0),
+        summaryLine: q.objective || (q.client ? cpy('questClient') + ' ' + q.client : '')
+      });
+    }
+  }
+  return out;
+}
+
+function estateCardsOf(stat) {
+  var list = estatesOf(stat), out = [], i;
+  for (i = 0; i < list.length; i++) {
+    var e = list[i];
+    out.push({
+      id: e.id, foldId: 'estate:' + e.id, headless: false,
+      kind: 'estate', icon: 'estates',
+      name: e.name, type: e.type, owner: e.owner, found: e.found,
+      desc: e.desc, facilities: e.facilities, residents: e.residents,
+      summaryLine: [e.type, e.owner, (e.facilities.length ? e.facilities.length + ' 项设施' : '')].filter(Boolean).join(' · ')
+    });
+  }
+  return out;
+}
+
+function loreCardsOf(stat, settings) {
+  var groups = loreOf(stat, settings), out = [], i, j;
+  for (i = 0; i < groups.length; i++) {
+    var g = groups[i];
+    for (j = 0; j < g.items.length; j++) {
+      var it = g.items[j];
+      out.push({
+        id: it.id, foldId: 'lore:' + it.id, headless: false,
+        kind: 'lore', category: g.category, icon: 'lore',
+        title: it.title, found: it.found, summary: it.summary, truth: it.truth,
+        summaryLine: it.found ? (it.summary || '') : cpy('subUnknown')
+      });
+    }
+  }
+  return out;
+}
+
+/* ── 地图节点图 ── */
+
+/** 稳定哈希：同一个 ID 永远得到同一张图（可复现、可断言） */
+export function stableHash(s) {
+  var h = 2166136261, i, str = String(s || '');
+  for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h >>> 0;
+}
+
+/**
+ * 把 map_nodes 摊成一张图，并算好每个节点的坐标（**归一化到 0..1**，DOM 层再乘像素）。
+ * 摆法：当前所在的区域放正中；其余已探明的按 ID 哈希散在圆周上（角度稳定）；
+ * 未探明的放外圈、虚线。
+ * 边：connections 是无向的，同一对只画一条；**任一端未探明就画虚线**。
+ */
+export function mapGraphOf(stat) {
+  var tree = mapTreeOf(stat), realm = {}, areas = [], i, j, k;
+  for (i = 0; i < tree.length; i++) {
+    for (j = 0; j < tree[i].areas.length; j++) {
+      var a = tree[i].areas[j];
+      realm[a.id] = tree[i].id;
+      areas.push({ id: a.id, name: a.name, found: a.found, realm: tree[i].id, realmFound: tree[i].found, links: a.links, spots: a.spots.length });
+    }
+  }
+  var here = currentAreaOf(stat);
+  var found = [], fog = [];
+  for (i = 0; i < areas.length; i++) { (areas[i].found ? found : fog).push(areas[i]); }
+
+  /* 中心位：当前所在 > 第一个已探明 */
+  var centerId = null;
+  for (i = 0; i < found.length; i++) { if (found[i].id === here) { centerId = here; } }
+  if (!centerId && found.length) { centerId = found[0].id; }
+
+  var nodes = [], n = 0;
+  for (i = 0; i < found.length; i++) {
+    var it = found[i];
+    if (it.id === centerId) {
+      nodes.push(mkNode(it, 0.5, 0.5, true));
+    } else {
+      var ang = ringAngle(it.id, n++);
+      var rad = found.length <= 2 ? 0.42 : 0.38;
+      nodes.push(mkNode(it, 0.5 + Math.cos(ang) * rad, 0.5 + Math.sin(ang) * rad * 0.82, false));
+    }
+  }
+  /* 未探明：外圈，角度也按 ID 稳定。
+     ⚠️ 外圈半径要看**已探明有几个**：只有一个已探明时，把雾节点甩到 0.50 会让
+     那唯一一条连线横穿整张图（实测很难看）。所以少的时候往回收。 */
+  var fogRad = found.length <= 1 ? 0.34 : (found.length <= 3 ? 0.44 : 0.50);
+  for (i = 0; i < fog.length; i++) {
+    var ang2 = ringAngle(fog[i].id, i);
+    nodes.push(mkNode(fog[i], 0.5 + Math.cos(ang2) * fogRad, 0.5 + Math.sin(ang2) * fogRad * 0.86, false));
+  }
+  /* 没有已探明节点时，把未探明的也摆到内圈，免得图空成一个大圈 */
+  if (!found.length && fog.length) {
+    for (i = 0; i < nodes.length; i++) {
+      var ang3 = ringAngle(nodes[i].id, i);
+      nodes[i].x = 0.5 + Math.cos(ang3) * 0.30;
+      nodes[i].y = 0.5 + Math.sin(ang3) * 0.30 * 0.82;
+    }
+  }
+
+  var edges = [], seen = {}, byId = {};
+  for (i = 0; i < areas.length; i++) { byId[areas[i].id] = areas[i]; }
+  for (i = 0; i < areas.length; i++) {
+    for (j = 0; j < areas[i].links.length; j++) {
+      var to = areas[i].links[j];
+      if (!byId[to]) { continue; }                       /* connections 指到不存在的 ID：忽略，不伪造节点 */
+      var key = areas[i].id < to ? (areas[i].id + '|' + to) : (to + '|' + areas[i].id);
+      if (seen[key]) { continue; }
+      seen[key] = 1;
+      edges.push({ a: areas[i].id, b: to, found: areas[i].found && byId[to].found });
+    }
+  }
+  var realms = [], rk = {};
+  for (i = 0; i < tree.length; i++) { realms.push({ id: tree[i].id, name: tree[i].name, found: tree[i].found }); rk[tree[i].id] = 1; }
+  return { nodes: nodes, edges: edges, realms: realms, here: here, areaCount: areas.length, fogCount: fog.length };
+
+  function mkNode(it, x, y, current) {
+    return {
+      id: it.id, name: it.name, found: it.found, realm: it.realm, realmName: realmNameOf(it.realm),
+      spots: it.spots, links: it.links,
+      x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000,
+      current: !!current
+    };
+  }
+  function realmNameOf(id) {
+    for (var t = 0; t < tree.length; t++) { if (tree[t].id === id) { return tree[t].name; } }
+    return '';
+  }
+}
+
+/** 圆周角度：按 ID 哈希散开，同一个 ID 永远同一个角度 */
+function ringAngle(id, fallbackIndex) {
+  var h = stableHash(id);
+  return ((h % 360) + (fallbackIndex * 137)) * Math.PI / 180;
+}
+
+/** 当前所在的区域 ID（location 可能是 ID 结构，也可能是一句话，所以只认 ID 那种） */
+export function currentAreaOf(stat) {
+  var loc = ((stat && stat.status) || {}).location;
+  if (isObj(loc) && loc.area) { return String(loc.area); }
+  return null;
+}
+
+/** 区域太多就建议切列表视图（图会挤成一团、圆点小于可点尺寸） */
+export var GRAPH_MAX_NODES = 8;
+export function shouldUseList(areaCount, form) {
+  if (!areaCount) { return false; }
+  return form === 'drawer' && areaCount > GRAPH_MAX_NODES;
+}
+/** 带开关版：设置里关掉"自动切列表"就永远画图（用户能自己决定看哪种） */
+export function shouldUseListWith(settings, areaCount, form) {
+  var on = !(settings && settings.options && settings.options.graphAutoList === false);
+  return on ? shouldUseList(areaCount, form) : false;
+}
+
+/* ── 面板数据总入口 ── */
+
+/** 商店/来源不明的"其他"档：quests 的类型取自 type 字段 */
+function questTypeOf(q) { return String((q && q.type) || ''); }
+
+/**
+ * 一个面板要画什么，**全在这里决定**（DOM 层不做任何取舍判断）。
+ * 返回：{ tabs:[…], tab, sub, subs:[…], filterId, filters:[…], groups:[…], cards:[…], graph:{…} }
+ */
+export function panelPlanOf(stat, settings, panelId, state, form) {
+  var st = state || {};
+  var s = settings || defaultSettings();
+  var showHidden = !!(s.options && s.options.showHidden);
+  var selfRef = selfCharOf(stat);
+  var sum = {};                                        /* 各处的计数，喂给子 tab 与筛选档 */
+
+  /* ── ① 主角：概览 / 背包 / 技能 ── */
+  var selfCards = selfRef ? [charCardsOf(stat, selfRef.char, selfRef.id)] : [];
+  var items = selfRef ? itemCardsOf(selfRef.char) : [];
+  var skills = selfRef ? skillGroupsOf(selfRef.char) : [];
+  var wealth = selfRef ? wealthOf(selfRef.char) : [];
+  var mounts = selfRef ? mountsOf(selfRef.char) : [];
+
+  /* ── ② 角色：NPC（排除主角自己） ── */
+  var chars = (stat && stat.characters) || {}, ck = Object.keys(chars), npc = [], nk;
+  for (nk = 0; nk < ck.length; nk++) {
+    if (selfRef && ck[nk] === selfRef.id) { continue; }
+    npc.push(charCardsOf(stat, chars[ck[nk]], ck[nk]));
+  }
+  var present = [], i;
+  for (i = 0; i < npc.length; i++) { if (isPresent(stat, npc[i].id, npc[i].name)) { present.push(npc[i]); } }
+
+  /* ── ③ 地图 ── */
+  var graph = mapGraphOf(stat);
+  var areas = mapDetailCardsOf(stat);
+
+  /* ── ④–⑧ ── */
+  var factions = factionCardsOf(stat);
+  var lines = storylineCardsOf(stat);
+  var quests = questCardsOf(stat);
+  var estates = estateCardsOf(stat);
+  var loreCards = loreCardsOf(stat, settings);
+  var categories = loreCategoriesOf(stat, settings);
+
+  /* 子 tab 列表 */
+  var subs = [];
+  var subCtx = {};
+  function pushSub(id, copyKey, count) { subs.push({ id: id, label: cpy(copyKey), count: count }); }
+
+  if (panelId === 'status') {
+    if (!selfRef) { return emptyPanel(panelId, 'noSelf'); }
+    pushSub('overview', 'subOverview', 0);
+    if (items.length || wealth.length) { pushSub('bag', 'subBag', items.length); }
+    if (skills.length) { pushSub('skill', 'subSkill', skills.length); }
+    subCtx = { items: items, skillGroups: skills };
+  } else if (panelId === 'characters') {
+    if (present.length) { pushSub('present', 'subPresent', present.length); }
+    if (npc.length) { pushSub('all', 'subAll', npc.length); }
+    subCtx = { items: npc };
+  } else if (panelId === 'map_nodes') {
+    if (graph.areaCount) { pushSub('graph', 'subGraph', 0); }
+    if (areas.length) { pushSub('detail', 'subDetail', areas.length); }
+    subCtx = { areas: areas };
+  } else if (panelId === 'factions') {
+    if (factions.length) {
+      var repN = 0, dipN = 0;
+      for (i = 0; i < factions.length; i++) { repN += factions[i].reps.length; dipN += factions[i].diplomacy.length; }
+      pushSub('rep', 'subRep', repN); pushSub('dip', 'subDip', dipN); pushSub('org', 'subOrg', factions.length);
+    }
+    subCtx = { items: factions };
+  } else if (panelId === 'storylines') {
+    for (i = 0; i < LINE_PRIORITY.length; i++) {
+      var n = 0;
+      for (var j = 0; j < lines.length; j++) { if ((lines[j].priority || 'side') === LINE_PRIORITY[i].id) { n++; } }
+      if (n) { pushSub(LINE_PRIORITY[i].id, LINE_PRIORITY[i].copy, n); }
+    }
+    subCtx = { items: lines };
+  } else if (panelId === 'quests') {
+    var qg = { active: 0, pending: 0, closed: 0 };
+    for (i = 0; i < quests.length; i++) {
+      var qs = quests[i].status;
+      if (qs === 'active') { qg.active++; } else if (qs === 'pending') { qg.pending++; } else { qg.closed++; }
+    }
+    if (qg.active) { pushSub('active', 'subActive', qg.active); }
+    if (qg.pending) { pushSub('pending', 'subPending', qg.pending); }
+    if (qg.closed) { pushSub('closed', 'subClosed', qg.closed); }
+    subCtx = { items: quests };
+  } else if (panelId === 'estates') {
+    var owned = [], unknown = [], typed = {};
+    for (i = 0; i < estates.length; i++) {
+      var e = estates[i];
+      if (!e.found) { unknown.push(e); continue; }
+      if (isMineOwner(e.owner, stat, selfRef)) { owned.push(e); }
+      if (e.type) { typed[e.type] = 1; }
+    }
+    if (owned.length) { pushSub('owned', 'subOwned', owned.length); }
+    if (Object.keys(typed).length > 1) { pushSub('type', 'subByType', 0); }
+    if (unknown.length) { pushSub('unknown', 'subUnknown', unknown.length); }
+    if (!subs.length && estates.length) { pushSub('owned', 'subOwned', estates.length); }
+    subCtx = { items: estates };
+  } else if (panelId === 'lore') {
+    for (i = 0; i < categories.length; i++) { pushSub(categories[i].id, categories[i].id, categories[i].count); }
+    subCtx = { items: loreCards };
+  } else if (panelId === 'settings') {
+    pushSub('modules', 'subModules', 0); pushSub('display', 'subDisplay', 0); pushSub('about', 'subAbout', 0);
+    subCtx = {};
+  }
+
+  /* 打开的面板没内容 → 统一空态 */
+  if (!subs.length) { return emptyPanel(panelId, 'empty'); }
+
+  /* 选中的子 tab：存下来的若已失效（模块被关掉、这一档没内容）就回退到第一个 */
+  var ids = [], si;
+  for (si = 0; si < subs.length; si++) { ids.push(subs[si].id); }
+  var sub = indexOfStr(ids, st.sub) >= 0 ? st.sub : ids[0];
+
+  /* 选中的筛选档：同样回退到第一档。
+     ⚠️ 不能无条件用 'all' 兜底 —— "按声望升序"那种档位里根本没有 'all' 这个选项，
+     回退到 'all' 会让 applyFilter 一条都匹配不上、列表直接空掉。 */
+  var filters = filterOptionsOf(panelId, sub, subCtx);
+  /* ⚠️ 默认值必须是**第一档**，不能无条件写 'all'：
+     "按声望升序 / 按名称"这种档位里根本没有 'all' 这个选项，默认成 'all' 会让
+     applyFilter 一条都匹配不上 —— 表现就是"打开势力页，列表空的"。 */
+  var fid = filters.length ? filters[0].id : 'all';
+  if (st.filter) {
+    for (i = 0; i < filters.length; i++) { if (filters[i].id === st.filter) { fid = st.filter; } }
+  }
+
+  /* 卡片：按子 tab 取那一组，再按筛选档收窄 */
+  var cards = [], groups = [], extra = {};
+  if (panelId === 'status') {
+    if (sub === 'overview') { cards = selfCards; }
+    else if (sub === 'bag') {
+      cards = items;
+      extra.wealth = wealth; extra.slots = slotsOf(items); extra.mounts = mounts;
+    } else if (sub === 'skill') {
+      for (i = 0; i < skills.length; i++) { groups.push(skills[i]); }
+      /* 技能卡的筛选在 applyFilter 里统一做（'status:skill' 那一支），这里不再自己筛一遍 */
+      cards = skillCardsOf(selfRef.char, false);
+    }
+  } else if (panelId === 'characters') {
+    cards = sub === 'present' ? present : npc;
+  } else if (panelId === 'map_nodes') {
+    if (sub === 'graph') { extra.graph = graph; }
+    else { cards = areas; }
+  } else if (panelId === 'factions') {
+    if (sub === 'rep') { cards = factions.slice(); }
+    else if (sub === 'dip') { cards = factionDipCards(factions); }
+    else { cards = factions; }
+  } else if (panelId === 'storylines') {
+    cards = pickByField(lines, 'priority', sub, 'side');
+  } else if (panelId === 'quests') {
+    if (sub === 'active') { cards = pickByField(quests, 'status', 'active', ''); }
+    else if (sub === 'pending') { cards = pickByField(quests, 'status', 'pending', ''); }
+    else { cards = keepArr(quests, function (c) { return c.status !== 'active' && c.status !== 'pending'; }); }
+  } else if (panelId === 'estates') {
+    if (sub === 'owned') { cards = keepArr(estates, function (c) { return c.found && isMineOwner(c.owner, stat, selfRef); }); }
+    else if (sub === 'unknown') { cards = keepArr(estates, function (c) { return !c.found; }); }
+    else { cards = keepArr(estates, function (c) { return c.found; }); }
+  } else if (panelId === 'lore') {
+    cards = pickByField(loreCards, 'category', sub, '');
+  } else if (panelId === 'settings') {
+    cards = [];
+  }
+
+  /* 剧透开关：real_desc / truth 只在打开时给 DOM —— 关掉时数据层就不给，DOM 无从画错 */
+  if (!showHidden) {
+    for (i = 0; i < cards.length; i++) {
+      if (cards[i].realDesc) { cards[i] = shallowCopy(cards[i], { realDesc: '' }); }
+      if (cards[i].truth) { cards[i] = shallowCopy(cards[i], { truth: '' }); }
+    }
+    if (extra.mounts) {
+      var mm = [];
+      for (i = 0; i < extra.mounts.length; i++) { mm.push(shallowCopy(extra.mounts[i], { realDesc: '' })); }
+      extra.mounts = mm;
+    }
+  }
+
+  var filtered = applyFilter(cards, panelId, sub, fid);
+  cards = filtered.cards; fid = filtered.filterId;
+
+  return {
+    tabs: panelTabsOf(s),
+    tab: panelId,
+    sub: sub,
+    subs: subs,
+    filterId: fid,
+    filters: filters,
+    groups: groups,
+    cards: cards,
+    wealth: extra.wealth || [],
+    slots: extra.slots || [],
+    mounts: extra.mounts || [],
+    graph: extra.graph || null,
+    listMode: (panelId === 'map_nodes' && sub === 'graph') ? shouldUseListWith(s, graph.areaCount, form) : false,
+    emptyLines: cards.length ? [] : emptyLinesFor(panelId, sub, s)
+  };
+}
+
+/* 内部小工具（不导出） */
+function emptyPanel(panelId, why) {
+  var lines = why === 'noSelf'
+    ? ['还没有主角实体', '变量里需要一个 is_user 为 true 的角色']
+    : emptyStateText({ isSample: false });
+  return {
+    tabs: panelTabsOf(defaultSettings()), tab: panelId, sub: null, subs: [],
+    filterId: 'all', filters: [], groups: [], cards: [],
+    wealth: [], slots: [], mounts: [], graph: null, listMode: false, emptyLines: lines
+  };
+}
+function emptyLinesFor(panelId, sub, settings) {
+  if (panelId === 'status' && sub === 'bag') { return [cpy('bagEmpty'), cpy('bagEmptyHint')]; }
+  if (panelId === 'status' && sub === 'skill') { return [cpy('skillEmpty')]; }
+  if (panelId === 'map_nodes') { return [cpy('mapEmpty'), cpy('mapEmptyHint')]; }
+  return emptyStateText({ isSample: isSampleOn(settings) });
+}
+function indexOfStr(arr, v) { for (var i = 0; i < arr.length; i++) { if (arr[i] === v) { return i; } } return -1; }
+function keepArr(arr, fn) { var out = [], i; for (i = 0; i < arr.length; i++) { if (fn(arr[i])) { out.push(arr[i]); } } return out; }
+function pickByField(arr, field, value, dflt) {
+  return keepArr(arr, function (c) { return String(c[field] || dflt) === value; });
+}
+function shallowCopy(o, add) {
+  var out = {}, k;
+  for (k in o) { if (Object.prototype.hasOwnProperty.call(o, k)) { out[k] = o[k]; } }
+  for (k in add) { if (Object.prototype.hasOwnProperty.call(add, k)) { out[k] = add[k]; } }
+  return out;
+}
+/**
+ * 归属判定：owner 可能是**角色 ID**（`char_player`）、可能是自然语言（"public" / "无主"），
+ * 也可能是已经解析过的名字。所以：先按 ID 解析成名字，再跟主角的 ID / 名字比；
+ * 另外认几种自然语言写法。
+ * ⚠️ 不能只比字符串 —— 实测示例数据里就是 `owner: 'char_player'`，只比字符串会漏掉，
+ * 结果"自有"子 tab 显示 1 而列表是空的。
+ */
+function isMineOwner(owner, stat, selfRef) {
+  var raw = String(owner || '');
+  if (!raw) { return false; }
+  if (raw === '我' || raw === '自己' || raw === '主角' || raw === 'mine') { return true; }
+  if (!selfRef) { return false; }
+  if (raw === selfRef.id) { return true; }
+  var name = resolveRef(raw, buildNameIndex(stat || {}));
+  var selfName = String((selfRef.char && selfRef.char.name) || '');
+  return !!selfName && name === selfName;
+}
+/** 技能页的卡片按节筛选；不筛就全给 */
+function skillFilteredCards(char, groups, fid) {
+  var all = skillCardsOf(char, false), out = [], i;
+  if (!fid || fid === 'all') { return all; }
+  for (i = 0; i < all.length; i++) { if (all[i].section === fid) { out.push(all[i]); } }
+  return out;
+}
+/** 外交子 tab：把每个势力的外交关系摊成一张张卡 */
+function factionDipCards(factions) {
+  var out = [], i, j;
+  for (i = 0; i < factions.length; i++) {
+    var f = factions[i];
+    for (j = 0; j < f.diplomacy.length; j++) {
+      var d = f.diplomacy[j];
+      out.push({
+        id: f.id + '->' + d.toward, foldId: 'dip:' + f.id + ':' + d.toward, headless: false,
+        kind: 'dip', icon: 'factions', name: f.name, toward: d.toward,
+        relation: d.relation, trends: d.trends,
+        summaryLine: d.toward + ' · ' + d.relation
+      });
+    }
+  }
+  return out;
 }
