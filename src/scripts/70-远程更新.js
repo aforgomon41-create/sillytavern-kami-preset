@@ -1049,6 +1049,12 @@
       log('待裁决 ' + plan.conflicts.length + ' 处 → 打开「🌟 预设设置」面板的「更新合并」页让你逐条决策');
       return new Promise(function (resolve) {
         var okAsk = false;
+        /* ⚠️ 2026-10-10 修：先收掉更新进度窗口再开裁决页。
+           那个窗口是 **position:fixed; left:50%; top:50%; z-index:100000** 的不透明遮罩，
+           而「更新合并」页在 🌟 面板里（z-index 只有三万上下）——
+           两者一起开着，进度窗口正好压在裁决页的**正中间**，用户既看不全也点不到，
+           表现就是"询问是否合并的弹窗把面板挡住了"。 */
+        yieldScreen('要让出屏幕给「更新合并」裁决页');
         try {
           okAsk = P.openMergeReview(plan, function (settledPlan) {
             if (settledPlan === null) {
@@ -1080,6 +1086,8 @@
       ' cancelButton="全部保留我的"' +
       ' ' + html;
     log('面板裁决页不可用，改用原生弹窗一键裁决（待裁决 ' + plan.conflicts.length + ' 处）');
+    /* 原生弹窗同样会被我们那个居中遮罩压住，先让位 */
+    yieldScreen('要让出屏幕给合并裁决的原生弹窗');
     return runSlash(cmd).then(function (res) {
       var yes = String(res) === '1';
       log('合并裁决（原生弹窗）：' + (yes ? '全部用新版' : '全部保留我的（含没答＝Esc）'));
@@ -1105,6 +1113,16 @@
     log('第 1 步 · 先备份：把当前预设另存为「' + backupName + '」');
     return writePreset(backupName, JSON.parse(backupText), backupText).then(function () {
       log('第 2 步 · 导入合并结果：' + remote.name);
+      /* ⚠️ 这一句是 2026-10-10 那个"脚本被关掉"事故的关键修复。
+         下面这个 writePreset 会调 importRawPreset → preset_manager.savePreset，
+         而 savePreset 末尾的 updateList（preset-manager.js 第 597-632 行）会把这个新预设
+         **加进下拉框并 trigger('change')** —— 也就是**真的切预设**。
+         切预设会让酒馆和酒馆助手各弹一个确认框（嵌入式正则 / 嵌入式脚本要不要启用），
+         而它们都是"先记标记、再弹框"。
+         我们那个更新进度窗口是居中的不透明遮罩（z-index 十万、吃掉所有点击），
+         不先收掉，用户就点不到那两个框 —— 标记却已经写了，于是**再也不会问**。
+         收在这里（而不是整个流程结束后）是因为：确认框就是在这一个 await 里弹出来的。 */
+      yieldScreen('马上要写入并触发酒馆切换预设，让出屏幕给原生确认框');
       return writePreset(remote.name, merged, mergedText);
     }).then(function (r) {
       return { via: (r && r.via) || 'importRawPreset', backupName: backupName, backupBytes: backupText.length, mergedBytes: mergedText.length };
@@ -1122,6 +1140,7 @@
     var theirs = currentPresetSnapshot();
     if (!theirs) {
       log('读不到当前预设的完整内容（theirs），做不了三方合并与备份 → 按老办法整份导入（不备份）');
+      yieldScreen('马上要整份导入并触发酒馆切换预设，让出屏幕给原生确认框');
       return writePreset(remote.name, nextJson, nextText).then(function (r) {
         finishImported(remote, null, (r && r.via) || 'importRawPreset');
         return last;
@@ -1314,9 +1333,30 @@
     if (progTimer) { hclear(progTimer); progTimer = null; }
   }
 
+  /* 关掉进度窗口。**可重复调用**（没人开过、已关过都安全）。
+     ⚠️ 2026-10-10 修 bug：以前这个函数只被「关闭」按钮调用，而按钮又只在
+     status 变成 done / failed 之后才显示。于是更新流程里**没有任何一处主动关它** ——
+     窗口就一直盖在屏幕正中间（z-index 十万、不透明、吃掉所有点击）。
+
+     后果不是"多一个窗口"这么简单：写完预设时 importRawPreset 会把预设**切成新的那一份**，
+     酒馆切预设会弹两个原生确认框（正则的、酒馆助手脚本的），而那两处都是
+     **先记标记再弹框**（regex/index.js 第 1660 行、use_check_enablement_popup.ts 第 29 行），
+     用户点不到框 → 标记却已经写了 → **再也不会问第二次**，嵌入式脚本永久保持关闭。
+     所以这个窗口必须在"要弹别人家框"之前就消失。 */
   function closeProgress() {
     stopProgressTimer();
     if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
+    progEls = null;
+    progRetry = null;
+  }
+
+  /* 需要把屏幕让给原生弹窗时（合并裁决要开面板、写盘要触发酒馆切预设）先收掉自己。
+     只在"还开着"时收，收完记一笔，免得用户以为是窗口自己没了。 */
+  function yieldScreen(why) {
+    if (!progEls || !progEls.root || !progEls.root.parentNode) { return false; }
+    log('先收起更新进度窗口：' + why);
+    closeProgress();
+    return true;
   }
 
   /* isRetry：用户点了面板上的「重试」进来。只有重试才累加重试次数 ——

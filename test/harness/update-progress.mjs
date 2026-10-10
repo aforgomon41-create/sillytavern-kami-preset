@@ -173,5 +173,39 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(raw.indexOf('fetch(') < 0 && raw.indexOf('XMLHttpRequest') < 0, '⑨ 纯逻辑里没有 IO');
 }
 
+
+/* ── ⑩ 2026-10-10 事故的回归断言：进度窗口必须会让位 ──
+   事故链条（用户 2026-10-10 报的「传了一个默认关闭预设脚本的版本」）：
+     writeMergedFiles → importRawPreset → preset_manager.savePreset → updateList
+     → 下拉框 trigger('change') → 酒馆**真的切预设**
+     → 酒馆弹「嵌入式正则要不要启用」、酒馆助手弹「嵌入式脚本要不要启用」
+     → 那两处都是**先记标记、再弹框**（regex/index.js:1660、use_check_enablement_popup.ts:29）
+     → 我们那个居中的不透明进度窗口（z-index 100000）挡着，用户点不到
+     → 标记却已写入 → **再也不会问第二次** → 嵌入式脚本永久保持关闭。
+   所以：进度窗口必须在"要弹别人家框"之前主动收掉，而且关闭必须可重复调用。 */
+{
+  const src = readFileSync(new URL('../../src/scripts/70-远程更新.js', import.meta.url), 'utf8');
+
+  ok(/function yieldScreen\(/.test(src), '⑩ 有 yieldScreen（把屏幕让给原生弹窗的统一入口）');
+  ok(/progEls = null;[\s\S]{0,40}progRetry = null;/.test(src), '⑩ closeProgress 会清掉引用（可重复调用不炸）');
+  ok(/yieldScreen\('马上要写入并触发酒馆切换预设/.test(src),
+    '⑩ 三方合并写盘前让位（这一步就在 await 里弹确认框，让晚了没用）');
+  ok(/yieldScreen\('马上要整份导入并触发酒馆切换预设/.test(src),
+    '⑩ 退化路径（整份导入）也让位');
+  ok(/yieldScreen\('要让出屏幕给「更新合并」裁决页'\)/.test(src),
+    '⑩ 开「更新合并」裁决页前让位（否则进度窗口压在面板正中间）');
+  ok(/yieldScreen\('要让出屏幕给合并裁决的原生弹窗'\)/.test(src),
+    '⑩ 原生弹窗兜底路径也让位');
+
+  /* 让位必须发生在写盘调用**之前** —— 顺序反了就等于没修 */
+  const atYield = src.indexOf("yieldScreen('马上要写入并触发酒馆切换预设");
+  const atWrite = src.indexOf('return writePreset(remote.name, merged, mergedText);');
+  ok(atYield >= 0 && atWrite > atYield, '⑩ 让位发生在写盘之前（顺序对了才有效）');
+
+  const atYield2 = src.indexOf("yieldScreen('要让出屏幕给「更新合并」裁决页')");
+  const atOpen = src.indexOf('P.openMergeReview(plan,');
+  ok(atYield2 >= 0 && atOpen > atYield2, '⑩ 让位发生在打开裁决页之前');
+}
+
 console.log((fail ? '✗ ' : '✓ ') + '更新进度纯逻辑：' + pass + ' 项' + (fail ? '，' + fail + ' 项失败' : '全部通过'));
 if (fail) { console.log('\n' + bad.join('\n')); process.exitCode = 1; }
