@@ -386,4 +386,13 @@ if (dry) {
     console.error('  [中止] 自动标签处理接线验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 面板交互接线：点击委托的每个分支都必须在（少一条就有一整类控件点不动）。
+     ⚠️ 2026-10-15 加：清理临时探针时误删了「条目卡」那一条分支，
+     构建与全部单测都没报错，一路发到线上，用户报「所有开关都失效」。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-panel-click.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 面板交互接线验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
 }

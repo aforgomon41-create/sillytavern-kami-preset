@@ -1470,6 +1470,7 @@
           /* 模型卡片头：整头就是「选中这个模型」（开它名下全部条目 + 关掉别的模型专属条目） */
           if (t.getAttribute('data-kami-model') && t.tagName === 'BUTTON') { selectModel(t.getAttribute('data-kami-model')); return; }
           /* ① 条目卡：整卡就是开关，点一下翻转（原生 button，Enter/Space 也会走到这里） */
+          if (t.getAttribute('data-kami-item') && t.tagName === 'BUTTON') { toggleItem(t); return; }
           if (t.getAttribute('data-kami-tab')) { setTab(t.getAttribute('data-kami-tab')); return; }
           if (t.getAttribute('data-kami-act') === 'close') { setOpen(false); return; }
           /* 「关于」页的检查更新：调 70-远程更新.js 的全局 API（用户主动点 = force 一次真查） */
