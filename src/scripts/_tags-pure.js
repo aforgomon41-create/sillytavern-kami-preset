@@ -246,7 +246,18 @@ export function scanTags(text, specs, coverage) {
   return { tokens: toks.length, unclosed: unclosed, stray: stray, pairs: pairs, ok: !unclosed.length && !stray.length };
 }
 
-/* 一个没闭合的块，闭合标签该补在哪：
+/* ⚠️ **2026-10-11 起，补全档不再调用这个函数**（保留导出只是为了不动对外契约，
+   构建守卫 verify-tags-pure.mjs 与单测都还列着它）。
+   它实现的是**旧**规则：补到"后面那个写完整的兄弟块"前面、或消息末尾。
+   新规则（用户裁定）是"闭合标签紧贴开始标签自身"，位置 = 开始标签的 end，
+   直接算得出来，不需要绕这一圈 —— 见 repairTags 里 close 分支的注释。
+
+   旧规则为什么要退场：闭合标签插在**别处**，会把开始与闭合之间的跨度撑大，
+   于是前端那条 /<content>([\s\S]*?)<\/content>/ 抓到的
+   不再是正文本身（正文被吞、被截断，或整条不匹配 → 前端不出现）。
+   紧贴自身补出来的是**一对空标签**，不可能改变任何真标签之间的从属关系。
+
+   ——以下为旧规则原文，留作参考——
    ① 被别的闭合标签救下来的（`item.at`）→ 补在那个标签前面；
    ② 后面紧跟着一个「写完整的兄弟块」→ 补在那个块前面；
    ③ 否则补在消息末尾（`<out_body>` 与 `<medium>` 系列永远走这一条）。 */
@@ -285,12 +296,27 @@ export function repairTags(text, mode, specs, coverage) {
   var scan = scanTags(src, specs, coverage);
   var i, spec;
   if (mode === 'close') {
-    /* 没闭合的：由内向外补（列表里后面的先开，所以倒着补位置从大到小，插入不会互相挪位） */
+    /* ── 补位规则（2026-10-11 用户裁定，改掉了原来的"补到块后面"）──
+       没闭合的开始标签，闭合标签**紧贴着它自己补**：
+           <a>内容   →   <a></a>内容
+       不再去找"后面那个写完整的兄弟块"、也不再补到消息末尾。
+       原来的规则（补在兄弟块前面）有个要命的问题：闭合标签插在**别处**，
+       于是闭合与开始之间的跨度被撑大，前端那条 /<content>([\s\S]*?)<\/content>/ 抓到的
+       就不再是正文本身 —— 正文被吞、被截断，或者整条不匹配（前端不出现）。
+       紧贴自身补出来的是一对**空标签**，它不可能改变任何真标签之间的从属关系，
+       于是"AI 用 <某实体> 指代"这种写法最多留下一对空标签，伤不到成对关系。
+
+       ⚠️ 由此带来的语义变化（用户已知悉并要求这么改）：
+       标签**不再"包住"它的内容**了 —— 内容是留在标签对**外面**的。
+       因此凡是"从标签里取内容"的消费者都会拿到空内容。
+       受影响的清单见本次提交的报告（nyaruko_think / summary / options 等）。 */
     var todo = [];
     for (i = 0; i < scan.unclosed.length; i++) {
       var it = scan.unclosed[i];
-      todo.push({ at: closeAt(src, it, scan, specs), insert: '</' + it.tag + '>', tag: it.tag, label: it.label });
+      /* 插入点 = 这个开始标签的**结束位置**（原文索引）。 */
+      todo.push({ at: (typeof it.end === 'number') ? it.end : src.length, insert: '</' + it.tag + '>', tag: it.tag, label: it.label });
     }
+    /* 位置从大到小插入，插入不会互相挪位；位置全按**原文**算好，绝不边插边算 */
     todo.sort(function (a, b) { return b.at - a.at; });
     var out = src;
     for (i = 0; i < todo.length; i++) {
