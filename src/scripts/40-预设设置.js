@@ -200,6 +200,13 @@
   var aboutEls = null;              // 「关于」页的元素句柄（检查更新的结果就地写，不重画面板）
   var geom = { x: null, y: null, w: null, h: null };  // 面板位置与大小（拖动/缩放时存回脚本变量 kami-preset）
   var currentModel = null;          // 当前模型（模型 emoji）：存在脚本变量 kami-preset.currentModel 里
+  /* 对话模式（2026-10-14）：进入「💬 对话讨论」之前，把**即将被关掉**的那些条目的开关存一份，
+     切回「🎲 剧情游玩」时原样恢复。只存一份、只在第一次进入时存 ——
+     用户在对话模式期间的手动改动不该覆盖掉他的原始配置。
+     形状 { at: 时间文本, on: { identifier: true|false } }；没进过时为 null。 */
+  var dialogSaved = null;
+  /* 「对话讨论」这个模式条目的名字（唯一真相在本文件）。 */
+  var DIALOG_MODE_NAME = '对话讨论';
   var writeCount = 0, saveCount = 0, lastWrite = '';
   var lastSave = null;      // 最近一次「写预设文件」的结果（预设名 / 取自哪一层 / 通道 / 服务端回执）
   var lastNameInfo = null;  // 最近一次解析到的预设名：{ name, from }
@@ -1182,9 +1189,14 @@
         for (mk = 0; mk < (t.cards || []).length; mk++) {
           var mc = t.cards[mk];
           var mitems = modelItemsOf(mc);
+          /* 模式卡（🎛 [模式切换]）是模型 tab 里的**第一张卡**，但它不是模型：
+             条目要**单选语义**（选中一个模式顶掉另一个），而且不参与 selectModel。
+             ⚠️ 这里必须把 source 一起带过去 —— 只认 key 的话永远认不出它。 */
+          var isMode = (mc.source === 'mode-layer');
           mcards.push({
             key: 'model#' + mk, emoji: mc.emoji, label: mc.label, name: mc.name,
-            mode: null, items: mitems, isModelCard: true
+            mode: isMode ? '单选' : null, items: mitems, isModelCard: true,
+            source: mc.source || null, isModeCard: isMode
           });
         }
         out.push({
@@ -1458,7 +1470,6 @@
           /* 模型卡片头：整头就是「选中这个模型」（开它名下全部条目 + 关掉别的模型专属条目） */
           if (t.getAttribute('data-kami-model') && t.tagName === 'BUTTON') { selectModel(t.getAttribute('data-kami-model')); return; }
           /* ① 条目卡：整卡就是开关，点一下翻转（原生 button，Enter/Space 也会走到这里） */
-          if (t.getAttribute('data-kami-item') && t.tagName === 'BUTTON') { toggleItem(t); return; }
           if (t.getAttribute('data-kami-tab')) { setTab(t.getAttribute('data-kami-tab')); return; }
           if (t.getAttribute('data-kami-act') === 'close') { setOpen(false); return; }
           /* 「关于」页的检查更新：调 70-远程更新.js 的全局 API（用户主动点 = force 一次真查） */
@@ -1848,8 +1859,14 @@
      + 卡内 .kami-card-body > .kami-grid 的条目卡。引导面板的模型页调的是同一个函数。
      这里只补面板自己的登记：cardMap 记下这张卡里有哪些条目（单选联动要用）。 */
   function modelCardEl(tab, card) {
-    var box = buildModelCard(HDOC, card, currentModel, { cardKey: card.key, lock: isLockedItem });
-    cardMap[card.key] = { tabKey: tab.key, items: card.items };
+    /* 模式卡（🎛 [模式切换]）走同一颗卡片的渲染，但要**单选语义**：
+       选中一个模式要顶掉同组另一个。模型卡不给 mode（换模型是整卡的事，走 selectModel）。
+       card.key 由渲染循环补（= 'model#下标'），这里兜一层免得调用方漏填。 */
+    var key = card.key || (tab.key + '#' + tab.cards.indexOf(card));
+    var opts = { cardKey: key, lock: isLockedItem };
+    if (card.source === 'mode-layer') { opts.mode = '单选'; }
+    var box = buildModelCard(HDOC, card, currentModel, opts);
+    cardMap[key] = { tabKey: tab.key, items: card.items };
     return box;
   }
 
@@ -3513,6 +3530,91 @@
       (skipped.length ? '；按「非必要不开」跳过 ' + skipped.length + ' 条：' + skipped.join('、') : ''));
   }
 
+  /* ───────── 对话模式（2026-10-14 用户点名）────────────────────────────────
+
+     「🎲 剧情游玩 / 💬 对话讨论」是模型 tab 里「🎛 [模式切换]」卡片的两个互斥模式；
+     条目本体在预设的「🎛 运行模式」层级里，那个层级**不出 tab**（用户要求别多占一页）。
+
+     选「对话讨论」时让位给元讨论：把跑团专属的那些组整组关掉；
+     切回「剧情游玩」时，把**进入之前**的开关原样恢复。
+     要关哪些组由解析器的 dialogModeTargets() 算（纯函数，有离线单测）。 */
+  function modeEntryIds() {
+    try {
+      /* ⚠️ 不要去 tabs 里按层级名找 —— 「运行模式」不出 tab，tabs 里根本没有它，
+         按名字找永远返回空（2026-10-14 实测踩到）。正路是从 modelTab 里认 source。 */
+      var mt = (liveData && liveData.ok && liveData.tree) ? liveData.tree.modelTab : null;
+      var cards = (mt && mt.cards) || [], out = [], i, j, k;
+      for (i = 0; i < cards.length; i++) {
+        if (String(cards[i].source || '') !== 'mode-layer') { continue; }
+        var items = cards[i].items || [];
+        for (j = 0; j < items.length; j++) { if (items[j] && items[j].identifier) { out.push(items[j].identifier); } }
+      }
+      if (!out.length) {
+        for (i = 0; i < cards.length; i++) {
+          if (String(cards[i].name || '').indexOf('模式切换') < 0) { continue; }
+          var its = cards[i].items || [];
+          for (k = 0; k < its.length; k++) { if (its[k] && its[k].identifier) { out.push(its[k].identifier); } }
+        }
+      }
+      return out;
+    } catch (e) { return []; }
+  }
+  function dialogTargets() {
+    try {
+      if (typeof dialogModeTargets !== 'function') { return null; }
+      var tabs = (liveData && liveData.ok && liveData.tree) ? liveData.tree.tabs : null;
+      return dialogModeTargets(tabs || []);
+    } catch (e) { log('算对话模式要关的组时出错：' + ((e && e.message) || e)); return null; }
+  }
+  /* 某条现在开没开。
+     ⚠️ 2026-10-14 的关键坑：**不要走 readRaw()**。
+        `toggleItem` 里已经有 `for (var i = 0; ...)`（单选联动那段），
+        `var` 是函数作用域 —— 这里再写一个 `var i` 会把外层的 i 覆盖掉，
+        症状是外层循环莫名其妙提前结束。
+        正路是读**面板自己的数据模型**（`view` 里每个条目的 enabled）：
+        它与界面所见一致，也省一次读酒馆设置。 */
+  function enabledOfId(id) {
+    var out = null;
+    eachItem(function (it) {
+      if (out === null && it && it.identifier === id) { out = it.enabled !== false; }
+    });
+    return out === null ? false : out;
+  }
+  function enterDialogMode() {
+    var t = dialogTargets();
+    if (!t || !t.identifiers.length) { return []; }
+    if (!dialogSaved) {
+      var on = {};
+      for (var qi = 0; qi < t.identifiers.length; qi++) { on[t.identifiers[qi]] = enabledOfId(t.identifiers[qi]); }
+      dialogSaved = { at: nowText(), on: on };
+      saveVars();
+      log('对话模式：已存下 ' + t.identifiers.length + ' 条开关的快照（切回剧情游玩时恢复）');
+    }
+    var pairs = [];
+    for (var pi = 0; pi < t.identifiers.length; pi++) { pairs.push({ identifier: t.identifiers[pi], value: false }); }
+    log('对话模式：关掉 ' + t.groups.length + ' 个跑团专属组（共 ' + t.identifiers.length + ' 条）');
+    return pairs;
+  }
+  /* 点的是不是「💬 对话讨论」那个条目（按名字认，改名只改这一处常量）。
+     ⚠️ 2026-10-14 的关键坑：**不能靠 on（aria-pressed 取反）判断进出**。
+        「剧情游玩」是默认选中项、从没被点亮过（aria-pressed 一直是 false），
+        所以点它时 on 也是 true —— 只看 on 会把「切回剧情游玩」也当成「进入对话模式」。 */
+  function isDialogModeEntry(id) {
+    var hit = false;
+    eachItem(function (it) {
+      if (!hit && it && it.identifier === id && String(it.name || '').indexOf(DIALOG_MODE_NAME) >= 0) { hit = true; }
+    });
+    return hit;
+  }
+  function leaveDialogMode() {
+    if (!dialogSaved) { return []; }
+    var pairs = [], ids = Object.keys(dialogSaved.on || {}), li, trueC = 0;
+    for (li = 0; li < ids.length; li++) { var v = !!dialogSaved.on[ids[li]]; if (v) { trueC++; } pairs.push({ identifier: ids[li], value: v }); }
+    if (!pairs.length) { return []; }
+    log('对话模式：按快照恢复 ' + pairs.length + ' 条开关（存于 ' + (dialogSaved.at || '未知时间') + '）');
+    return pairs;
+  }
+
   /* 点一下条目卡 = 翻转它。单选卡片组：开一条就自动关掉同组其它条（写之前一起提交）。 */
   function toggleItem(el) {
     if (el.disabled) { return; }                            // 锁死：disabled 收不到 click，这是双保险
@@ -3530,6 +3632,27 @@
         }
       }
     }
+    /* ── 对话模式联动（2026-10-14）──
+       点的是模式卡（🎛 [模式切换]）里的条目时：选「💬 对话讨论」就存快照并关掉跑团专属的那些组；
+       选「🎲 剧情游玩」就按快照恢复。
+       两边的 pairs 合并成**一次** commit，免得出现「模式开了但组没关」的中间态。
+       ⚠️ 这段必须待在 toggleItem 里、commit 之前（2026-10-14 插错过两次：
+          一是被同名注释里的 commit(pairs) 骗去了 selectModel，二是被文本替换吞掉）。 */
+    try {
+      var modeIds = modeEntryIds(), isMode = false, mi;
+      for (mi = 0; mi < modeIds.length; mi++) { if (modeIds[mi] === id) { isMode = true; break; } }
+      var _nm = ''; eachItem(function (it) { if (it && it.identifier === id) { _nm = it.name; } });
+      if (isMode) {
+        var extra = isDialogModeEntry(id) ? enterDialogMode() : leaveDialogMode();
+        for (mi = 0; mi < extra.length; mi++) {
+          var dup = false, pi;
+          for (pi = 0; pi < pairs.length; pi++) { if (pairs[pi].identifier === extra[mi].identifier) { dup = true; break; } }
+          if (!dup) { pairs.push(extra[mi]); }
+        }
+        /* 切回剧情游玩且真的恢复了：快照作废，下次进入重新存 */
+        if (!isDialogModeEntry(id) && dialogSaved && extra.length) { dialogSaved = null; saveVars(); }
+      }
+    } catch (e0) { log('对话模式联动出错（不拦写入）：' + ((e0 && e0.message) || e0)); }
     var res = commit(pairs);
     if (!res.ok) {
       /* 写失败：把这一张卡弹回原样（不重画面板，只说真话），别让界面说谎 */
@@ -3608,6 +3731,11 @@
        用户 2026-09-28 点名要在面板里写明，免得看标题栏的名字时误会。 */
     if (typeof saved.inheritFrom === 'string' && saved.inheritFrom) { inheritFromName = saved.inheritFrom; }
     if (typeof saved.inheritAt === 'string' && saved.inheritAt) { inheritAtText = saved.inheritAt; }
+    /* 对话模式的开关快照（跟着预设走） */
+    if (saved.dialogSaved && typeof saved.dialogSaved === 'object' &&
+        saved.dialogSaved.on && typeof saved.dialogSaved.on === 'object') {
+      dialogSaved = { at: String(saved.dialogSaved.at || ''), on: saved.dialogSaved.on };
+    }
   }
   function saveVars() {
     if (saveTimer) { try { clearTimeout(saveTimer); } catch (e) { } }
@@ -3626,7 +3754,8 @@
           inheritAt: inheritAtText || null,
           tagFix: tagFixMode,
           tagFixCustom: tagFixCustom.slice(),
-          tagFixAll: tagFixAll ? '1' : '0'
+          tagFixAll: tagFixAll ? '1' : '0',
+          dialogSaved: dialogSaved
         };
         replaceVariables(all, { type: 'script' });
       } catch (e) { log('写脚本变量失败：' + ((e && e.message) || e)); }

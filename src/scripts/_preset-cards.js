@@ -232,7 +232,9 @@ export function buildModelCard(doc, model, currentEmoji, opts) {
   }
   box.appendChild(head);
   var body = pcMake(doc, 'div', 'kami-card-body');
-  body.appendChild(buildItemsGrid(doc, items, { key: key, mode: null }, opts));
+  /* opts.mode：模型卡自己**不用**单选语义（换模型是整卡的事，走 selectModel），
+     所以调用方不传就是 null；模式卡（🎛 [模式切换]）传 '单选' 才有单选标记。 */
+  body.appendChild(buildItemsGrid(doc, items, { key: key, mode: opts.mode || null }, opts));
   box.appendChild(body);
   return box;
 }

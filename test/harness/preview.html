@@ -605,7 +605,9 @@ async function loadScript(file, scriptId, seedVars) {
     /* 预置脚本变量：引导的「首次自动弹」按产物号判，预览台没有产物号（BUILD_N=0），
        把 kami-guide.seen 预置成 0 就等价于「看过」—— 进页面不会自动盖住其它面板。 */
     if (seedVars) { Object.assign(w.__scriptVars, JSON.parse(JSON.stringify(seedVars))); }
-    const code = await (await fetch(file)).text();
+    /* ⚠️ 必须防缓存（2026-10-14 踩坑）：脚本一天里改几十遍，浏览器缓存住旧版会让人
+       对着新代码调试半天 —— 现象是「服务器返回的是新的、页面里跑的是旧的」。 */
+    const code = await (await fetch(file + (file.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now())).text();
     var h = document.getElementById('hint');
     if (h) { h.textContent = '已取到 ' + file + ' (' + code.length + 'B)，准备注入'; }
     assertDevExpanded(w, code, file);

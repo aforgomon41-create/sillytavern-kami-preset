@@ -893,6 +893,62 @@
       "forbid_overrides": false
     },
     {
+      "identifier": "d1a10001-0000-4000-8000-000000000001",
+      "name": "🎛 运行模式🔻",
+      "enabled": true,
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "role": "user",
+      "content": "",
+      "system_prompt": false,
+      "marker": false,
+      "forbid_overrides": false,
+      "injection_trigger": []
+    },
+    {
+      "identifier": "d1a10001-0000-4000-8000-000000000002",
+      "name": "🎲 剧情游玩",
+      "enabled": true,
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "role": "user",
+      "content": "{{//剧情游玩（默认）：跑团模式，不注入任何额外说明 —— 预设原本的行为}}\n{{setvar::dialog_mode::}}",
+      "system_prompt": false,
+      "marker": false,
+      "forbid_overrides": false,
+      "injection_trigger": []
+    },
+    {
+      "identifier": "d1a10001-0000-4000-8000-000000000003",
+      "name": "💬 对话讨论",
+      "enabled": true,
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "role": "user",
+      "content": "{{//对话讨论模式：由「🤖 模型」tab 的「🎛 [模式切换]」卡片控制，选中时自动关掉跑团相关的组}}\n{{setvar::dialog_mode::\n你现在处于对话讨论模式：你暂时跳出了跑团，不再是游戏主持人，也不必推进剧情。\n请直接回答用户的问题，和他聊设定、聊人物、聊剧情可能性，像平时聊天那样自然说话。\n不要再输出预设规定的那套 XML 结构：根节点 out_body、包住正文的 content、以及前后处理的 introduction 与 appendix，这些标签一个都不要出现。想到什么就说什么，长短随意。\n这一阶段的结束由用户决定，他会手动切回剧情游玩模式；在他切换之前，你保持聊天状态就好。\n}}\n\n{{//未选中时清空，免得残留上一轮的模式说明}}\n{{setvar::dialog_mode::}}",
+      "system_prompt": false,
+      "marker": false,
+      "forbid_overrides": false,
+      "injection_trigger": []
+    },
+    {
+      "identifier": "d1a10001-0000-4000-8000-000000000009",
+      "name": "🎛 运行模式🔺",
+      "enabled": true,
+      "injection_position": 0,
+      "injection_depth": 4,
+      "injection_order": 100,
+      "role": "user",
+      "content": "",
+      "system_prompt": false,
+      "marker": false,
+      "forbid_overrides": false,
+      "injection_trigger": []
+    },
+    {
       "identifier": "prompt_1789200359809_g3ptbqx",
       "name": "🪓 神秘咒语🔻",
       "enabled": true,
@@ -3182,6 +3238,22 @@
         },
         {
           "identifier": "prompt_1788362771382_dc5i4kj",
+          "enabled": true
+        },
+        {
+          "identifier": "d1a10001-0000-4000-8000-000000000001",
+          "enabled": true
+        },
+        {
+          "identifier": "d1a10001-0000-4000-8000-000000000002",
+          "enabled": true
+        },
+        {
+          "identifier": "d1a10001-0000-4000-8000-000000000003",
+          "enabled": false
+        },
+        {
+          "identifier": "d1a10001-0000-4000-8000-000000000009",
           "enabled": true
         },
         {

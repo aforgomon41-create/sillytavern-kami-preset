@@ -26,6 +26,10 @@ export const VAR_SUFFIX = ' | var';
 export const MODEL_SUFFIX = ' | model';
 export const CARD_ONCE = ' 选一';
 export const CARD_ANY = ' 任选';
+/* 「🎛 运行模式」层级与它的卡片名（2026-10-14 对话模式）。
+   层级名与卡片名分开：层级名带 🔻/🔺 标记，卡片名是面板上显示的那个。 */
+export const MODE_LAYER_HINT = '运行模式';
+export const MODE_CARD_NAME = '🎛 [模式切换]';
 export const FULL_COLON = '：';
 
 /* 用户自定义文风的标记。与上面三个标签**同构**：判据一律 endsWith，标记必须在名字最末尾。
@@ -609,6 +613,13 @@ export function parsePreset(preset) {
     }
   }
 
+  /* 「🎛 [模式切换]」卡片（2026-10-14 用户点名）：
+     预设里有一个叫「🎛 运行模式」的层级，里面放互斥的运行模式条目
+     （🎲 剧情游玩 / 💬 对话讨论，未来可能更多）。
+     它不是模型，所以不能混进模型卡片里 —— 用户明确要求"这个卡片不能影响模型选择"。
+     做法：单独做成模型 tab 的**第一张卡**（mode: 'once'，单选语义与其它「选一」一致），
+     条目直接引用层级里那些 content 条目本身，面板照常按 identifier 写 prompt_order。
+     层级自己仍然不出 tab（没有卡片、没有变量条目），所以面板上不会多出一页。 */
   const modelTab = {
     kind: 'model',
     name: '模型',
@@ -621,6 +632,7 @@ export function parsePreset(preset) {
     registryEntries: registryEntries.slice(),
     table: table.slice(),
   };
+
   for (let i = 0; i < modelTab.cards.length; i++) {
     const card = modelTab.cards[i];
     for (const e of modelMembers) {
@@ -771,6 +783,43 @@ export function parsePreset(preset) {
     }
   }
 
+  const layersBuilt = layerRegions.map((r) => ({
+    name: r.name,
+    openIndex: r.openIndex,
+    closeIndex: r.closeIndex,
+    hasTab: r.hasTab,
+    skipReason: r.skipReason,
+    cards: r.cards.map((c) => ({ name: c.name, rawName: c.rawName, mode: c.mode, items: c.items })),
+    items: r.items,
+    vars: r.vars,
+    registries: r.registries,
+    entries: r.entryList,
+  }));
+
+  /* 「🎛 [模式切换]」卡片（2026-10-14 对话模式）：
+     预设里有一个「🎛 运行模式」层级，里面是互斥的运行模式条目（🎲 剧情游玩 / 💬 对话讨论）。
+     它不是模型 —— 用户明确要求「这个卡片不能影响模型选择」，所以单独做成模型 tab 的**第一张卡**
+     （mode 用 'once'，与其它「选一」同一个单选语义）。层级自己不出 tab，条目只在模型 tab 里出现。 */
+  {
+    const modeLayer = layersBuilt.find((l) => String(l.name || '').indexOf(MODE_LAYER_HINT) >= 0);
+    const modeItems = modeLayer ? (modeLayer.entries || []).filter((e) => e.role2 === 'item') : [];
+    if (modeItems.length) {
+      modelTab.cards.unshift({
+        name: MODE_CARD_NAME,
+        emoji: '🎛',
+        label: '运行模式',
+        mode: '单选',
+        items: modeItems.map((e) => ({
+          entry: e, identifier: e.identifier, name: e.name,
+          models: [], originLayer: modeLayer.name, originCard: MODE_CARD_NAME,
+          originCardDemoted: null, originIndex: e.index, isMirror: false, onlyInModelTab: true,
+        })),
+        itemCount: modeItems.length,
+        source: 'mode-layer',
+      });
+    }
+  }
+
   return {
     meta: {
       characterId: orders[0].character_id,
@@ -791,18 +840,7 @@ export function parsePreset(preset) {
       hasTab: r.kind === 'layer' ? r.hasTab : false,
       skipReason: r.kind === 'layer' ? r.skipReason : '结构包裹区',
     })),
-    layers: layerRegions.map((r) => ({
-      name: r.name,
-      openIndex: r.openIndex,
-      closeIndex: r.closeIndex,
-      hasTab: r.hasTab,
-      skipReason: r.skipReason,
-      cards: r.cards.map((c) => ({ name: c.name, rawName: c.rawName, mode: c.mode, items: c.items })),
-      items: r.items,
-      vars: r.vars,
-      registries: r.registries,
-      entries: r.entryList,
-    })),
+    layers: layersBuilt,
     wrappers: wrapperRegions.map((r) => ({
       name: r.name,
       openIndex: r.openIndex,
@@ -875,6 +913,28 @@ export function parseCustomName(name) {
   if (!isCustomStyleName(s)) { return { ok: false, reason: 'not-custom', display: s, name: s }; }
   const display = s.slice(0, s.length - DIY_SUFFIX.length).trim();
   if (!display) { return { ok: false, reason: 'empty-display', display: '', name: s }; }
+
+  /* 「🎛 [模式切换]」卡片（2026-10-14 对话模式）：
+     预设里有一个「🎛 运行模式」层级，里面是互斥的运行模式条目（🎲 剧情游玩 / 💬 对话讨论）。
+     它不是模型，用户明确要求「这个卡片不能影响模型选择」，所以单独做成模型 tab 的**第一张卡**
+     （mode 用 'once'，与其它「选一」同一个单选语义）。层级自己不出 tab —— 条目只在模型 tab 里出现。 */
+  {
+    const modeItems = modeLayer ? (modeLayer.entries || []).filter((e) => e.role2 === 'item') : [];
+    if (modeItems.length) {
+      modelTab.cards.unshift({
+        emoji: '🎛',
+        label: '运行模式',
+        mode: 'once',
+        items: modeItems.map((e) => ({
+          entry: e, identifier: e.identifier, name: e.name,
+          originCardDemoted: null, originIndex: e.index, isMirror: false, onlyInModelTab: true,
+        })),
+        itemCount: modeItems.length,
+        source: 'mode-layer',
+      });
+    }
+  }
+
   return { ok: true, reason: null, display: display, name: s };
 }
 
@@ -911,6 +971,44 @@ export function resolveCustomGroup(tabs, identifier) {
    找分区用的是**层级配对逻辑**（layer tab 名），不是字符串切分。
    anchorCardNames 是可选的额外锚点：调用方把手头已有的「文风页卡片名」传进来，
    卡片改名后仍能命中（引导的 PAGE_GROUPS 就是那份名单，不另立一份真相）。 */
+/* ── 对话模式（2026-10-14 用户点名）────────────────────────────────────────
+   「对话讨论」是运行模式之一，和「🎲 剧情游玩」互斥（模式卡是单选）。
+   选中对话讨论时，要把「跑团专属」的那些组整组关掉，让位给元讨论：
+     · 创作要求 / 角色塑造 / 写作指导 / 额外任务 —— 这四个层级**整层**的组全关
+     · 推理选项 —— 除了「推理格式」以外的组全关
+       （推理格式保留，因为对话讨论本身就是推理格式的第四选一，
+         选中它会由面板的单选逻辑自动顶掉其它三个）
+   返回 { groups: [{ layer, card, identifiers[] }], identifiers[] }：
+     identifiers 是**去重后**的全部目标条目，调用方直接拿去存快照与关开关。
+   纯函数：只读解析结果，不碰 DOM、不碰酒馆 API。 */
+export function dialogModeTargets(tabs) {
+  const LAYERS = ['创作要求', '角色塑造', '写作指导', '额外任务'];
+  const KEEP_CARD = '推理格式';
+  const groups = [];
+  const seen = {};
+  const identifiers = [];
+  for (const tab of (tabs || [])) {
+    const tabName = String(tab && tab.name ? tab.name : '');
+    let closeWhole = false;
+    let closeExceptFormat = false;
+    for (const key of LAYERS) { if (tabName.indexOf(key) >= 0) { closeWhole = true; break; } }
+    if (!closeWhole && tabName.indexOf('推理选项') >= 0) { closeExceptFormat = true; }
+    if (!closeWhole && !closeExceptFormat) { continue; }
+    for (const card of (tab.cards || [])) {
+      const cardName = String(card && card.name ? card.name : '');
+      if (closeExceptFormat && cardName.indexOf(KEEP_CARD) >= 0) { continue; }
+      const ids = [];
+      for (const it of (card.items || [])) {
+        if (!it || !it.identifier) { continue; }
+        ids.push(it.identifier);
+        if (!seen[it.identifier]) { seen[it.identifier] = 1; identifiers.push(it.identifier); }
+      }
+      if (ids.length) { groups.push({ layer: tabName, card: cardName, identifiers: ids }); }
+    }
+  }
+  return { groups: groups, identifiers: identifiers };
+}
+
 export function customStyleSections(tabs, anchorCardNames) {
   const list = Array.isArray(tabs) ? tabs : [];
   const anchors = (Array.isArray(anchorCardNames) ? anchorCardNames : []).map(diyText).filter(Boolean);
