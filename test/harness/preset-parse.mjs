@@ -914,27 +914,6 @@ export function parseCustomName(name) {
   const display = s.slice(0, s.length - DIY_SUFFIX.length).trim();
   if (!display) { return { ok: false, reason: 'empty-display', display: '', name: s }; }
 
-  /* 「🎛 [模式切换]」卡片（2026-10-14 对话模式）：
-     预设里有一个「🎛 运行模式」层级，里面是互斥的运行模式条目（🎲 剧情游玩 / 💬 对话讨论）。
-     它不是模型，用户明确要求「这个卡片不能影响模型选择」，所以单独做成模型 tab 的**第一张卡**
-     （mode 用 'once'，与其它「选一」同一个单选语义）。层级自己不出 tab —— 条目只在模型 tab 里出现。 */
-  {
-    const modeItems = modeLayer ? (modeLayer.entries || []).filter((e) => e.role2 === 'item') : [];
-    if (modeItems.length) {
-      modelTab.cards.unshift({
-        emoji: '🎛',
-        label: '运行模式',
-        mode: 'once',
-        items: modeItems.map((e) => ({
-          entry: e, identifier: e.identifier, name: e.name,
-          originCardDemoted: null, originIndex: e.index, isMirror: false, onlyInModelTab: true,
-        })),
-        itemCount: modeItems.length,
-        source: 'mode-layer',
-      });
-    }
-  }
-
   return { ok: true, reason: null, display: display, name: s };
 }
 
