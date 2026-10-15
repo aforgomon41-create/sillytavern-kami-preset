@@ -22,8 +22,8 @@ body { font-family: inherit; color: inherit; }
 <script type="text/plain" data-kami-payload>@@PAYLOAD@@</script>
 
 <div class="kami-root" data-kami-comp="options" data-kami-mode="fill">
-  <div class="kami-shell kami-surface">
-    <div class="kami-head">
+  <div class="kami-shell kami-surface kami-collapse" data-kami-open="1">
+    <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="true">
       <span class="kami-dot"></span>
       <span class="kami-deco" data-kami-deco="d20" aria-hidden="true"></span>
       <span class="kami-title" data-kami-slot="options-title" data-kami-label="options-title">行动选项</span>
@@ -33,16 +33,15 @@ body { font-family: inherit; color: inherit; }
           <button type="button" class="kami-seg-item is-on" data-kami-mode="fill" data-kami-slot="fill">填入</button>
           <button type="button" class="kami-seg-item" data-kami-mode="send" data-kami-slot="send">发送</button>
         </span>
+        <span class="kami-chev" aria-hidden="true">▸</span>
       </span>
     </div>
-    <div class="kami-collapse" data-kami-open="1" data-kami-role="foldbox">
-      <div class="kami-collapse-body">
-        <div class="kami-grid kami-list" data-kami-role="list"></div>
+    <div class="kami-body kami-collapse-body">
+      <div class="kami-grid kami-list" data-kami-role="list"></div>
+      <div class="kami-foot">
+        <span class="kami-sub" data-kami-role="hint" data-kami-slot="options-hint">轻点卡片即可生效</span>
+        <button type="button" class="kami-fold" data-kami-role="folddefault" aria-pressed="false">默认展开</button>
       </div>
-    </div>
-    <div class="kami-foot">
-      <span class="kami-sub" data-kami-role="hint" data-kami-slot="options-hint">轻点卡片即可生效</span>
-      <button type="button" class="kami-fold" data-kami-role="fold" aria-expanded="true" aria-label="折叠选项" title="折叠选项"><span class="kami-chev" aria-hidden="true">▾</span></button>
     </div>
     <div class="kami-toast" role="status" aria-live="polite" hidden></div>
   </div>
@@ -310,38 +309,59 @@ body { font-family: inherit; color: inherit; }
     { title: '示例选项', type: '推进', content: '把这段 JSON 交给正则替换即可渲染成可点击卡片。' }
   ];
 
-  /* ---------- 折叠展开（用户 2026-10-15 点名） ----------
+  /* ---------- 折叠展开 + 默认态（用户 2026-10-15 点名，同日按用户设计改版） ----------
+
+     分工（**与显式思维链前端同一套**，用户 2026-10-15 裁定）：
+       · **标题栏就是折叠头** —— 整条 .kami-head 可点（role=button + tabindex=0 + Enter/Space），
+         箭头 .kami-chev 放在标题栏的 .kami-actions 里。这样各皮肤那套
+         `.kami-collapse[data-kami-open="1"] > .kami-head .kami-chev` 旋转规则**直接生效**，
+         不需要前端自己换字形，也不要再新增一套箭头样式。
+       · **页脚那颗小按钮是「默认」开关** —— 靠右排布，写明当前默认是展开还是折叠。
+
      状态只写在 .kami-collapse[data-kami-open] 上，**显隐完全交给皮肤**（契约 §4.3）：
-     约束性兜底由 30-皮肤管理.js 注入，皮肤管理没跑时由 src/skin/base.css 兜。
-     本前端不碰 display / hidden —— 折叠内容必须始终留在 DOM，否则皮肤没法播收起动画。 */
+     结构性兜底由 30-皮肤管理.js 注入，皮肤管理没跑时由 src/skin/base.css 兜。
+     本前端不碰 display / hidden —— 折叠内容必须始终留在 DOM，否则皮肤没法播收起动画。
+
+     折叠头与页脚按钮**写的是同一个键**（localStorage kami.options.folded），所以两者永远一致；
+     没有这个键 = 展开（老用户的原样）。 */
   function setupFold(root) {
-    var box = q('[data-kami-role="foldbox"]', root);
-    var btn = q('[data-kami-role="fold"]', root);
-    if (!box || !btn) { return; }
-    var chev = q('.kami-chev', btn);
-    function paint(folded) {
-      box.setAttribute('data-kami-open', folded ? '0' : '1');
-      btn.setAttribute('aria-expanded', folded ? 'false' : 'true');
-      var text = folded ? '展开选项' : '折叠选项';
-      btn.setAttribute('aria-label', text);
-      btn.setAttribute('title', text);
-      /* 换字形而不是旋转：旋转要靠各皮肤自己的 CSS 规则（18 套各写各的），换字最稳 */
-      if (chev) { chev.textContent = folded ? '▸' : '▾'; }
+    var box = q('.kami-collapse', root);
+    var head = q('.kami-collapse-head', root);
+    var btn = q('[data-kami-role="folddefault"]', root);
+    if (!box || !head) { return; }
+    function paint(open) {
+      box.setAttribute('data-kami-open', open ? '1' : '0');
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (btn) {
+        btn.setAttribute('aria-pressed', open ? 'false' : 'true');
+        btn.textContent = open ? '默认展开' : '默认折叠';
+        btn.setAttribute('title', open ? '现在是默认展开，点一下改成默认折叠' : '现在是默认折叠，点一下改成默认展开');
+      }
     }
-    function foldedNow() { return store(LS_FOLD) === '1'; }
-    paint(foldedNow());
-    btn.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      /* 从 DOM 现值算下一态（不用闭包里的旧值 —— 面板那边可能刚改过）。
-         ⚠️ 语义别搞反：data-kami-open="1" = **展开中**，所以「下一态是折叠」= 当前是 "1"。
-         2026-10-15 第一版这里写成 !== '1'，症状是点一下不折叠、只把 localStorage 写了。 */
-      var next = box.getAttribute('data-kami-open') === '1';
-      paint(next);
-      store(LS_FOLD, next ? '1' : '0');
+    function openNow() { return store(LS_FOLD) !== '1'; }
+    function setOpen(open, remember) {
+      paint(open);
+      if (remember !== false) { store(LS_FOLD, open ? '0' : '1'); }
+    }
+    paint(openNow());
+    /* 标题栏 = 折叠头。两个子控件（填入/发送）自己会 stopPropagation，不会误触发这一条。 */
+    head.addEventListener('click', function () { setOpen(box.getAttribute('data-kami-open') !== '1'); });
+    head.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+        ev.preventDefault();
+        setOpen(box.getAttribute('data-kami-open') !== '1');
+      }
     });
-    /* 皮肤管理面板那一行写的是同一个键：storage 事件在**别的文档**里触发，这里即时跟上 */
+    /* 页脚那颗小按钮：把当前状态设成默认（同一个键，所以两处永远同步） */
+    if (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        setOpen(!(box.getAttribute('data-kami-open') === '1'));
+      });
+    }
+    /* 皮肤管理面板「显示」页那一行写的是同一个键：storage 事件在别的文档里触发，这里即时跟上 */
     window.addEventListener('storage', function (ev) {
-      if (ev && ev.key === LS_FOLD) { paint(ev.newValue === '1'); }
+      if (ev && ev.key === LS_FOLD) { paint(ev.newValue !== '1'); }
     });
   }
 

@@ -224,7 +224,8 @@
     '.kami-collapse[data-kami-open="1"]>.kami-collapse-body{display:block;}',
     '.kami-drop>.kami-head,.kami-drop>.kami-tabs,.kami-drop>.kami-foot{flex:0 0 auto;}',
     '.kami-drop>.kami-body{flex:1 1 auto;min-height:0;}',
-    /* 行动选项页脚那颗折叠小按钮靠右（2026-10-15 加）：脚注是 flex，auto 外边距把它顶到最右。
+    /* 行动选项页脚那颗「默认展开/折叠」小按钮靠右（2026-10-15 加）：脚注是 flex，auto 外边距顶到最右。
+       折叠头是标题栏（走上面已有的 .kami-collapse 那两条），这颗只管默认态。
        皮肤的 .kami-foot 若不用 flex，这条自然失效，退化成跟在提示后面 —— 不炸。 */
     '.kami-fold{margin-left:auto;}',
     '.kami-root[data-kami-view="raw"] [data-kami-view="render"]{display:none;}',
