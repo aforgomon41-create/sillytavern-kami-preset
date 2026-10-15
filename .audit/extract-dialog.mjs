@@ -36,20 +36,22 @@ function grab(name) {
   return out.join('\n');
 }
 
-const NAMES = ['enabledOfId', 'dialogTargets', 'isDialogModeEntry', 'enterDialogMode', 'leaveDialogMode'];
+const NAMES = ['enabledOfId', 'dialogTargets', 'isModeLayerEntry', 'isDialogModeEntry', 'enterDialogMode', 'leaveDialogMode'];
 
 const mocks = [
   '/* 本文件由 .audit/extract-dialog.mjs 生成，不要手改 */',
   'var log = function () { };',
   "var nowText = function () { return '2026-10-15 00:00'; };",
   'var saveVars = function () { };',
-  "var DIALOG_MODE_NAME = '对话讨论';",
+  "var DIALOG_MODE_ID = 'd1a10001-0000-4000-8000-000000000003';",
+  "var PLAY_MODE_ID = 'd1a10001-0000-4000-8000-000000000002';",
   'var dialogSaved = null;',
   'var VIEW = [];',
   'var eachItem = function (fn) { for (var i = 0; i < VIEW.length; i++) { fn(VIEW[i]); } };',
   'var TARGETS = null;',
   'var dialogModeTargets = function () { return TARGETS; };',
-  "var liveData = { ok: true, tree: { modelTab: { cards: [] } } };"
+  'var liveData = { ok: true, tree: { tabs: [] } };',
+
 ].join('\n');
 
 const body = NAMES.map(grab).join('\n\n');
@@ -58,7 +60,6 @@ const tail = [
   'module.exports = {',
   '  setItems: function (a) { VIEW = a; },',
   '  setTargets: function (t) { TARGETS = t; },',
-  "  setModeIds: function (ids) { liveData.tree.modelTab.cards = [{ source: 'mode-layer', items: ids.map(function (x) { return { identifier: x }; }) }]; },",
   '  enter: function () { return enterDialogMode(); },',
   '  leave: function () { return leaveDialogMode(); },',
   '  saved: function () { return dialogSaved; },',

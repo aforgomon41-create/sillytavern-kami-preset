@@ -44,8 +44,8 @@ function freshItems() {
     { identifier: 'a2', name: '🏃🏻‍♂️ 详略得当', enabled: true },
     { identifier: 'a3', name: '👁️ 限知第三人称', enabled: false },
     { identifier: 'a4', name: '🎯 行动选项', enabled: true },
-    { identifier: 'm1', name: '🎲 剧情游玩', enabled: true },
-    { identifier: 'm2', name: '💬 对话讨论', enabled: false },
+    { identifier: 'd1a10001-0000-4000-8000-000000000002', name: '🎲 剧情游玩', enabled: true },
+    { identifier: 'd1a10001-0000-4000-8000-000000000003', name: '💬 对话讨论', enabled: false },
     { identifier: 'keep', name: '🤔 Gemini糖糖', enabled: true }
   ];
 }
@@ -53,7 +53,6 @@ function setup() {
   M.clearSaved();
   M.setItems(freshItems());
   M.setTargets({ groups: [{ layer: '📖 创作要求', card: '🗣️ [语言文字]', identifiers: TARGET_IDS }], identifiers: TARGET_IDS });
-  M.setModeIds(['m1', 'm2']);
 }
 function allOff() { return freshItems().map(function (x) { return { identifier: x.identifier, name: x.name, enabled: false }; }); }
 
@@ -61,8 +60,8 @@ console.log('=== 对话模式 · 纯逻辑单测 ===');
 
 /* ① 模式条目识别：按名字认，不靠顺序 */
 setup();
-eq(M.isDlgEntry('m2'), true, '① 认出「💬 对话讨论」');
-eq(M.isDlgEntry('m1'), false, '① 「🎲 剧情游玩」不算对话模式条目');
+eq(M.isDlgEntry('d1a10001-0000-4000-8000-000000000003'), true, '① 认出「💬 对话讨论」');
+eq(M.isDlgEntry('d1a10001-0000-4000-8000-000000000002'), false, '① 「🎲 剧情游玩」不算对话模式条目');
 eq(M.isDlgEntry('a1'), false, '① 普通条目不算');
 
 /* ② 进入：目标全部关掉；**不碰**推理格式 */
@@ -120,11 +119,24 @@ eq(M.enter(), [], '⑥ 目标为空时进入返回空数组（不抛异常）');
   eq(fmtIds.length > 0, true, '⑦ 找得到「推理格式」组（不然下面的断言是空转）');
   eq(fmtIds.some(function (id) { return r.identifiers.indexOf(id) >= 0; }), false, '⑦ **推理格式的条目一条都不在目标里**');
 
-  /* 模式条目自己也不能被关 */
-  const mt = tree.modelTab.cards.find(function (c) { return c.source === 'mode-layer'; });
-  const modeIds = (mt.items || []).map(function (i) { return i.identifier; });
-  eq(modeIds.length, 2, '⑦ 模式卡里有 2 个模式条目');
-  eq(modeIds.some(function (id) { return r.identifiers.indexOf(id) >= 0; }), false, '⑦ 模式条目自己**不在**目标里（否则会把模式也关掉）');
+  /* 模式条目自己也不能被关（它们在「🎛 运行模式」层级里，是自然层级，不是模型 tab 的特例） */
+  const modeLayer = tree.layers.find(function (l) { return String(l.name || '').indexOf('运行模式') >= 0; });
+  eq(!!modeLayer, true, '⑦ 产物里有「🎛 运行模式」层级');
+  eq(modeLayer.hasTab, true, '⑦ 它是一个自然层级（有自己的 tab）');
+  eq(modeLayer.cards.length, 1, '⑦ 它有一张卡片');
+  eq(modeLayer.cards[0].name, '🎛 [运行模式]', '⑦ 卡片名是「🎛 [运行模式]」');
+  eq(modeLayer.cards[0].mode, '单选', '⑦ 卡片是单选（选中一个顶掉另一个）');
+  const modeIds = (modeLayer.cards[0].items || []).map(function (i2) { return i2.identifier; });
+  eq(modeIds.length, 2, '⑦ 卡片里有 2 个模式条目');
+  eq(modeIds.some(function (id) { return r.identifiers.indexOf(id) >= 0; }), false, '⑦ 模式条目自己**不在**关停目标里（否则会把模式也关掉）');
+
+  /* 它在模型 tab 之外，而且排在推理选项之后（用户 2026-10-15 的要求） */
+  const modelCardNames = tree.modelTab.cards.map(function (c) { return String(c.name); });
+  eq(modelCardNames.some(function (n) { return n.indexOf('模式切换') >= 0; }), false, '⑦ 模型 tab 里**没有**模式卡了');
+  const layerNames = tree.layers.map(function (l) { return String(l.name || ''); });
+  const rmAt = layerNames.findIndex(function (n) { return n.indexOf('运行模式') >= 0; });
+  const rzAt = layerNames.findIndex(function (n) { return n.indexOf('推理选项') >= 0; });
+  eq(rmAt > rzAt && rmAt === layerNames.length - 1, true, '⑦ 运行模式排在推理选项之后、且是整个预设的最后一层');
 
   /* 目标 id 必须都能在顺序表里找到（否则面板写不进去） */
   const orderIds = {};

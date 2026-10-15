@@ -26,10 +26,6 @@ export const VAR_SUFFIX = ' | var';
 export const MODEL_SUFFIX = ' | model';
 export const CARD_ONCE = ' 选一';
 export const CARD_ANY = ' 任选';
-/* 「🎛 运行模式」层级与它的卡片名（2026-10-14 对话模式）。
-   层级名与卡片名分开：层级名带 🔻/🔺 标记，卡片名是面板上显示的那个。 */
-export const MODE_LAYER_HINT = '运行模式';
-export const MODE_CARD_NAME = '🎛 [模式切换]';
 export const FULL_COLON = '：';
 
 /* 用户自定义文风的标记。与上面三个标签**同构**：判据一律 endsWith，标记必须在名字最末尾。
@@ -795,30 +791,6 @@ export function parsePreset(preset) {
     registries: r.registries,
     entries: r.entryList,
   }));
-
-  /* 「🎛 [模式切换]」卡片（2026-10-14 对话模式）：
-     预设里有一个「🎛 运行模式」层级，里面是互斥的运行模式条目（🎲 剧情游玩 / 💬 对话讨论）。
-     它不是模型 —— 用户明确要求「这个卡片不能影响模型选择」，所以单独做成模型 tab 的**第一张卡**
-     （mode 用 'once'，与其它「选一」同一个单选语义）。层级自己不出 tab，条目只在模型 tab 里出现。 */
-  {
-    const modeLayer = layersBuilt.find((l) => String(l.name || '').indexOf(MODE_LAYER_HINT) >= 0);
-    const modeItems = modeLayer ? (modeLayer.entries || []).filter((e) => e.role2 === 'item') : [];
-    if (modeItems.length) {
-      modelTab.cards.unshift({
-        name: MODE_CARD_NAME,
-        emoji: '🎛',
-        label: '运行模式',
-        mode: '单选',
-        items: modeItems.map((e) => ({
-          entry: e, identifier: e.identifier, name: e.name,
-          models: [], originLayer: modeLayer.name, originCard: MODE_CARD_NAME,
-          originCardDemoted: null, originIndex: e.index, isMirror: false, onlyInModelTab: true,
-        })),
-        itemCount: modeItems.length,
-        source: 'mode-layer',
-      });
-    }
-  }
 
   return {
     meta: {

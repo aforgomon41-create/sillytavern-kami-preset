@@ -53,16 +53,28 @@ for (const [label, needle, action] of BRANCHES) {
   ok(hasBranch && hasAction, '② 点击委托分支：' + label, hasBranch ? (hasAction ? '齐全' : '缺动作 ' + action) : '**整行不见了**');
 }
 
-/* ③ 模式卡（🎛 [模式切换]）的渲染与联动链路 */
-ok(code.indexOf('mode-layer') >= 0, '③ 模式卡的来源标记（mode-layer）在');
-ok(code.indexOf('modeEntryIds') >= 0, '③ 认得模式卡里的条目');
-ok(code.indexOf('isDialogModeEntry') >= 0 && code.indexOf('DIALOG_MODE_NAME') >= 0, '③ 分得清「剧情游玩」与「对话讨论」');
+/* ③ 「🎛 运行模式」层级的接线（2026-10-15 重做：它现在是预设最后面一个**自然层级**，
+      解析器照常给它出 tab，面板不需要任何特例。这里查的是「对话模式的特殊逻辑」还在不在）。 */
+ok(code.indexOf('DIALOG_MODE_ID') >= 0 && code.indexOf('PLAY_MODE_ID') >= 0, '③ 两个模式条目按 identifier 认（不按中文名）');
+ok(code.indexOf('d1a10001-0000-4000-8000-000000000003') >= 0, '③ 「对话讨论」的 id 常量在');
+ok(code.indexOf('isModeLayerEntry') >= 0, '③ 只对那一层里的条目触发联动');
+ok(code.indexOf('isDialogModeEntry') >= 0, '③ 分得清「剧情游玩」与「对话讨论」');
 ok(code.indexOf('enterDialogMode') >= 0 && code.indexOf('leaveDialogMode') >= 0, '③ 进入/退出对话模式两个函数都在');
 ok(code.indexOf('dialogSaved') >= 0, '③ 开关快照的存取在（切回时才能恢复）');
 ok(code.indexOf('dialogModeTargets') >= 0, '③ 解析器提供的「要关哪些组」被内联进来了');
+/* ⚠️ 反向检查：模型 tab 不许再挂模式卡（用户 2026-10-15 明确要求「不要做到模型页」） */
+ok(code.indexOf('mode-layer') < 0, '③ 模型 tab 里那个特例已撤掉（不再有 mode-layer 标记）');
 
-/* ④ 模式卡的卡片级接线 */
-ok(code.indexOf('isModeCard') >= 0 || code.indexOf("'单选'") >= 0, '④ 模式卡走单选语义（选中一个顶掉另一个）');
+/* ④ 产物里「运行模式」必须是一个**自然层级**：有自己的层级标记、有自己的卡片头 */
+const pnames = (preset.prompts || []).map((e) => String(e.name || '').trim());
+ok(pnames.indexOf('🎛 运行模式\u{1f53b}') >= 0 || pnames.some((n) => n.indexOf('运行模式') === 2 && n.indexOf('\u{1f53b}') > 0),
+  '④ 产物里有「🎛 运行模式🔻」层级开标记');
+ok(pnames.some((n) => /^🎛\s*\[运行模式\]\s*选一$/.test(n)), '④ 有卡片头「🎛 [运行模式] 选一」（没有它这一层就不出 tab）');
+const di = pnames.indexOf('💬 对话讨论');
+const pi = pnames.indexOf('🎲 剧情游玩');
+ok(di >= 0 && pi >= 0, '④ 两个模式条目都在产物里');
+ok(Math.max(di, pi) > pnames.indexOf('🧠 推理选项\u{1f53a}') || pnames.indexOf('🧠 推理选项\u{1f53a}') < 0,
+  '④ 运行模式层级排在推理选项**之后**（在预设最下面）');
 
 console.log(bad ? ('\n面板交互接线验证失败：' + bad + ' 处') : '\n面板交互接线验证全部通过');
 process.exit(bad ? 1 : 0);

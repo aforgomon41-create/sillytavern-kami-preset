@@ -205,9 +205,12 @@
      用户在对话模式期间的手动改动不该覆盖掉他的原始配置。
      形状 { at: 时间文本, on: { identifier: true|false } }；没进过时为 null。 */
   var dialogSaved = null;
-  /* 「对话讨论」这个模式条目的名字（唯一真相在本文件）。 */
-  var DIALOG_MODE_NAME = '对话讨论';
-  var writeCount = 0, saveCount = 0, lastWrite = '';
+  /* 「💬 对话讨论」那一条的 identifier（预设里固定）。
+     它是这一层里唯一带特殊逻辑的条目：选中它要关掉跑团专属的组，选中另一个要恢复。 */
+  var DIALOG_MODE_ID = 'd1a10001-0000-4000-8000-000000000003';
+  /* 「🎲 剧情游玩」那一条（默认选中）。 */
+  var PLAY_MODE_ID = 'd1a10001-0000-4000-8000-000000000002';
+  var writeCount = 0, saveCount = 0, lastWrite = '';   // prompt_order 写入计数与最近一次的结果文本
   var lastSave = null;      // 最近一次「写预设文件」的结果（预设名 / 取自哪一层 / 通道 / 服务端回执）
   var lastNameInfo = null;  // 最近一次解析到的预设名：{ name, from }
   var varWrites = 0;                    // 变量写回次数（与开关的 writeCount 分开记，读起来才不含糊）
@@ -1189,14 +1192,9 @@
         for (mk = 0; mk < (t.cards || []).length; mk++) {
           var mc = t.cards[mk];
           var mitems = modelItemsOf(mc);
-          /* 模式卡（🎛 [模式切换]）是模型 tab 里的**第一张卡**，但它不是模型：
-             条目要**单选语义**（选中一个模式顶掉另一个），而且不参与 selectModel。
-             ⚠️ 这里必须把 source 一起带过去 —— 只认 key 的话永远认不出它。 */
-          var isMode = (mc.source === 'mode-layer');
           mcards.push({
             key: 'model#' + mk, emoji: mc.emoji, label: mc.label, name: mc.name,
-            mode: isMode ? '单选' : null, items: mitems, isModelCard: true,
-            source: mc.source || null, isModeCard: isMode
+            mode: null, items: mitems, isModelCard: true
           });
         }
         out.push({
@@ -1860,14 +1858,8 @@
      + 卡内 .kami-card-body > .kami-grid 的条目卡。引导面板的模型页调的是同一个函数。
      这里只补面板自己的登记：cardMap 记下这张卡里有哪些条目（单选联动要用）。 */
   function modelCardEl(tab, card) {
-    /* 模式卡（🎛 [模式切换]）走同一颗卡片的渲染，但要**单选语义**：
-       选中一个模式要顶掉同组另一个。模型卡不给 mode（换模型是整卡的事，走 selectModel）。
-       card.key 由渲染循环补（= 'model#下标'），这里兜一层免得调用方漏填。 */
-    var key = card.key || (tab.key + '#' + tab.cards.indexOf(card));
-    var opts = { cardKey: key, lock: isLockedItem };
-    if (card.source === 'mode-layer') { opts.mode = '单选'; }
-    var box = buildModelCard(HDOC, card, currentModel, opts);
-    cardMap[key] = { tabKey: tab.key, items: card.items };
+    var box = buildModelCard(HDOC, card, currentModel, { cardKey: card.key, lock: isLockedItem });
+    cardMap[card.key] = { tabKey: tab.key, items: card.items };
     return box;
   }
 
@@ -3539,27 +3531,6 @@
      选「对话讨论」时让位给元讨论：把跑团专属的那些组整组关掉；
      切回「剧情游玩」时，把**进入之前**的开关原样恢复。
      要关哪些组由解析器的 dialogModeTargets() 算（纯函数，有离线单测）。 */
-  function modeEntryIds() {
-    try {
-      /* ⚠️ 不要去 tabs 里按层级名找 —— 「运行模式」不出 tab，tabs 里根本没有它，
-         按名字找永远返回空（2026-10-14 实测踩到）。正路是从 modelTab 里认 source。 */
-      var mt = (liveData && liveData.ok && liveData.tree) ? liveData.tree.modelTab : null;
-      var cards = (mt && mt.cards) || [], out = [], i, j, k;
-      for (i = 0; i < cards.length; i++) {
-        if (String(cards[i].source || '') !== 'mode-layer') { continue; }
-        var items = cards[i].items || [];
-        for (j = 0; j < items.length; j++) { if (items[j] && items[j].identifier) { out.push(items[j].identifier); } }
-      }
-      if (!out.length) {
-        for (i = 0; i < cards.length; i++) {
-          if (String(cards[i].name || '').indexOf('模式切换') < 0) { continue; }
-          var its = cards[i].items || [];
-          for (k = 0; k < its.length; k++) { if (its[k] && its[k].identifier) { out.push(its[k].identifier); } }
-        }
-      }
-      return out;
-    } catch (e) { return []; }
-  }
   function dialogTargets() {
     try {
       if (typeof dialogModeTargets !== 'function') { return null; }
@@ -3600,12 +3571,17 @@
      ⚠️ 2026-10-14 的关键坑：**不能靠 on（aria-pressed 取反）判断进出**。
         「剧情游玩」是默认选中项、从没被点亮过（aria-pressed 一直是 false），
         所以点它时 on 也是 true —— 只看 on 会把「切回剧情游玩」也当成「进入对话模式」。 */
+  /* 点的是不是「💬 对话讨论」那一条。
+     ⚠️ 按 **identifier** 认，不按名字 —— 「运行模式」这个层级的含义就是它那两个条目，
+        id 是预设里固定的，改中文名（甚至换语言）都不会让它失灵。
+        2026-10-14 最早那版是按中文名认的，太脆，已换掉。 */
+  /* 这一条是不是「🎛 运行模式」层级里的模式条目（那一层就这两条，id 固定）。 */
+  function isModeLayerEntry(id) {
+    var s = String(id);
+    return s === DIALOG_MODE_ID || s === PLAY_MODE_ID;
+  }
   function isDialogModeEntry(id) {
-    var hit = false;
-    eachItem(function (it) {
-      if (!hit && it && it.identifier === id && String(it.name || '').indexOf(DIALOG_MODE_NAME) >= 0) { hit = true; }
-    });
-    return hit;
+    return String(id) === DIALOG_MODE_ID;
   }
   function leaveDialogMode() {
     if (!dialogSaved) { return []; }
@@ -3633,19 +3609,16 @@
         }
       }
     }
-    /* ── 对话模式联动（2026-10-14）──
-       点的是模式卡（🎛 [模式切换]）里的条目时：选「💬 对话讨论」就存快照并关掉跑团专属的那些组；
-       选「🎲 剧情游玩」就按快照恢复。
+    /* ── 对话模式联动（2026-10-15 重做）──
+       只对「🎛 运行模式」层级里那**两个**条目生效（按 identifier 认，不按名字）：
+         选「💬 对话讨论」→ 存快照 + 关掉跑团专属的那些组；
+         选「🎲 剧情游玩」→ 按快照恢复。
        两边的 pairs 合并成**一次** commit，免得出现「模式开了但组没关」的中间态。
-       ⚠️ 这段必须待在 toggleItem 里、commit 之前（2026-10-14 插错过两次：
-          一是被同名注释里的 commit(pairs) 骗去了 selectModel，二是被文本替换吞掉）。 */
+       ⚠️ 这段必须待在 toggleItem 里、commit 之前。 */
     try {
-      var modeIds = modeEntryIds(), isMode = false, mi;
-      for (mi = 0; mi < modeIds.length; mi++) { if (modeIds[mi] === id) { isMode = true; break; } }
-      var _nm = ''; eachItem(function (it) { if (it && it.identifier === id) { _nm = it.name; } });
-      if (isMode) {
+      if (isModeLayerEntry(id)) {
         var extra = isDialogModeEntry(id) ? enterDialogMode() : leaveDialogMode();
-        for (mi = 0; mi < extra.length; mi++) {
+        for (var mi = 0; mi < extra.length; mi++) {
           var dup = false, pi;
           for (pi = 0; pi < pairs.length; pi++) { if (pairs[pi].identifier === extra[mi].identifier) { dup = true; break; } }
           if (!dup) { pairs.push(extra[mi]); }
