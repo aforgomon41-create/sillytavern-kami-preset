@@ -918,36 +918,31 @@ export function resolveCustomGroup(tabs, identifier) {
   return null;
 }
 
-/* ── ③ 可选组清单：写作指导分区下的所有 [组名] 卡片头 ──
-   找分区用的是**层级配对逻辑**（layer tab 名），不是字符串切分。
-   anchorCardNames 是可选的额外锚点：调用方把手头已有的「文风页卡片名」传进来，
-   卡片改名后仍能命中（引导的 PAGE_GROUPS 就是那份名单，不另立一份真相）。 */
-/* ── 对话模式（2026-10-14 用户点名）────────────────────────────────────────
+/* ── 对话模式（2026-10-14 用户点名；2026-10-15 按用户要求扩范围）──────────────
    「对话讨论」是运行模式之一，和「🎲 剧情游玩」互斥（模式卡是单选）。
-   选中对话讨论时，要把「跑团专属」的那些组整组关掉，让位给元讨论：
-     · 创作要求 / 角色塑造 / 写作指导 / 额外任务 —— 这四个层级**整层**的组全关
-     · 推理选项 —— 除了「推理格式」以外的组全关
-       （推理格式保留，因为对话讨论本身就是推理格式的第四选一，
-         选中它会由面板的单选逻辑自动顶掉其它三个）
+   选中对话讨论时，要把「跑团专属」的那些组**整层**关掉，让位给元讨论：
+     · 创作要求 / 角色塑造 / 写作指导 / 额外任务
+     · 推理选项 —— **含「推理格式」**
+   ⚠️ 2026-10-15 用户裁定：推理选项里**所有**条目都要纳入快照与关停。
+      推理格式那三条（DeepSeek强强 / GLM偷偷 / Gemini糖糖）都是给跑团用的思维模板，
+      对话讨论不该沿用它们；关掉并记住原样，切回「剧情游玩」时照旧恢复。
    返回 { groups: [{ layer, card, identifiers[] }], identifiers[] }：
      identifiers 是**去重后**的全部目标条目，调用方直接拿去存快照与关开关。
    纯函数：只读解析结果，不碰 DOM、不碰酒馆 API。 */
 export function dialogModeTargets(tabs) {
-  const LAYERS = ['创作要求', '角色塑造', '写作指导', '额外任务'];
-  const KEEP_CARD = '推理格式';
+  /* 这五个层级整层关。⚠️ 名字是**包含**匹配：层级名带 🔻/🔺 标记，
+     而「🎛 运行模式」不命中任何一个键 —— 模式条目自己永远不会被当成目标。 */
+  const LAYERS = ['创作要求', '角色塑造', '写作指导', '额外任务', '推理选项'];
   const groups = [];
   const seen = {};
   const identifiers = [];
   for (const tab of (tabs || [])) {
     const tabName = String(tab && tab.name ? tab.name : '');
-    let closeWhole = false;
-    let closeExceptFormat = false;
-    for (const key of LAYERS) { if (tabName.indexOf(key) >= 0) { closeWhole = true; break; } }
-    if (!closeWhole && tabName.indexOf('推理选项') >= 0) { closeExceptFormat = true; }
-    if (!closeWhole && !closeExceptFormat) { continue; }
+    let hit = false;
+    for (const key of LAYERS) { if (tabName.indexOf(key) >= 0) { hit = true; break; } }
+    if (!hit) { continue; }
     for (const card of (tab.cards || [])) {
       const cardName = String(card && card.name ? card.name : '');
-      if (closeExceptFormat && cardName.indexOf(KEEP_CARD) >= 0) { continue; }
       const ids = [];
       for (const it of (card.items || [])) {
         if (!it || !it.identifier) { continue; }
@@ -960,6 +955,10 @@ export function dialogModeTargets(tabs) {
   return { groups: groups, identifiers: identifiers };
 }
 
+/* ── ③ 可选组清单：写作指导分区下的所有 [组名] 卡片头 ──
+   找分区用的是**层级配对逻辑**（layer tab 名），不是字符串切分。
+   anchorCardNames 是可选的额外锚点：调用方把手头已有的「文风页卡片名」传进来，
+   卡片改名后仍能命中（引导的 PAGE_GROUPS 就是那份名单，不另立一份真相）。 */
 export function customStyleSections(tabs, anchorCardNames) {
   const list = Array.isArray(tabs) ? tabs : [];
   const anchors = (Array.isArray(anchorCardNames) ? anchorCardNames : []).map(diyText).filter(Boolean);

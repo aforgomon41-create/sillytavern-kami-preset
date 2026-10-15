@@ -100,7 +100,9 @@ setup();
 M.setTargets({ groups: [], identifiers: [] });
 eq(M.enter(), [], '⑥ 目标为空时进入返回空数组（不抛异常）');
 
-/* ⑦ 真实预设：要关哪些组（对话框那 4 个层级全关 + 推理选项除推理格式外全关） */
+/* ⑦ 真实预设：要关哪些组（这 5 个层级全关 —— 含推理选项里的推理格式）。
+   ⚠️ 2026-10-15 用户要求扩范围：推理选项**所有**条目都要纳入，
+   因为推理格式那三条也是给跑团用的思维模板，对话讨论不该沿用。 */
 {
   const tree = parsePreset(preset);
   const r = dialogModeTargets(tree.tabs);
@@ -112,12 +114,18 @@ eq(M.enter(), [], '⑥ 目标为空时进入返回空数组（不抛异常）');
   eq(!!layers['🧪 额外任务'], true, '⑦ 额外任务整层都在目标里');
   eq(!!layers['🧠 推理选项'], true, '⑦ 推理选项也有关掉的组');
 
-  /* 推理格式组的条目**一条都不能**出现在目标里 */
+  /* 推理格式组的条目**现在必须全都在**目标里（2026-10-15 用户要求扩范围；
+     此前这条是反过来的 —— 断言完成使命就翻转，不删除） */
   const keep = tree.tabs.find(function (t) { return String(t.name || '').indexOf('推理选项') >= 0; });
   const fmt = (keep.cards || []).find(function (c) { return String(c.name).indexOf('推理格式') >= 0; });
   const fmtIds = (fmt.items || []).map(function (i) { return i.identifier; });
   eq(fmtIds.length > 0, true, '⑦ 找得到「推理格式」组（不然下面的断言是空转）');
-  eq(fmtIds.some(function (id) { return r.identifiers.indexOf(id) >= 0; }), false, '⑦ **推理格式的条目一条都不在目标里**');
+  eq(fmtIds.every(function (id) { return r.identifiers.indexOf(id) >= 0; }), true, '⑦ 推理格式的条目**全部**在目标里');
+  /* 推理选项整层：每个组的条目都要在目标里 */
+  var allOptIds = [];
+  (keep.cards || []).forEach(function (c) { (c.items || []).forEach(function (it) { allOptIds.push(it.identifier); }); });
+  eq(allOptIds.length > 0, true, '⑦ 推理选项里有条目');
+  eq(allOptIds.every(function (id) { return r.identifiers.indexOf(id) >= 0; }), true, '⑦ 推理选项**每一个**条目都在目标里');
 
   /* 模式条目自己也不能被关（它们在「🎛 运行模式」层级里，是自然层级，不是模型 tab 的特例） */
   const modeLayer = tree.layers.find(function (l) { return String(l.name || '').indexOf('运行模式') >= 0; });
