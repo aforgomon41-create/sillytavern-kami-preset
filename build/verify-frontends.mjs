@@ -81,7 +81,7 @@ const targets = [
      改成「两个空标记夹住正文」交给 45-正文外壳.js 在父文档里套壳 ——
      那条链路的守卫是 build/verify-body-shell.mjs（含「正则 → showdown」的端到端发射检查）。 */
   { name: '前端|显式思维链 v0.1', raw: '<nyaruko_think>' + '测试载荷 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + '<name> 与 ' + String.fromCharCode(36) + String.fromCharCode(36) + ' 和换行' + NL + '第二行' + '</nyaruko_think>' },
-  { name: '前端|行动选项 v0.1', raw: '<options>[{"title":"甲","type":"行动","content":"含 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + ' 与反斜杠"}]</options>' },
+  { name: '前端|行动选项 v0.2', raw: '<options>[{"title":"甲","type":"行动","content":"含 ' + String.fromCharCode(36) + '1 与 ' + String.fromCharCode(36) + ' 与反斜杠"}]</options>' },
 ];
 
 let bad = 0;

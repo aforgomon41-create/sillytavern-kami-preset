@@ -224,6 +224,9 @@
     '.kami-collapse[data-kami-open="1"]>.kami-collapse-body{display:block;}',
     '.kami-drop>.kami-head,.kami-drop>.kami-tabs,.kami-drop>.kami-foot{flex:0 0 auto;}',
     '.kami-drop>.kami-body{flex:1 1 auto;min-height:0;}',
+    /* 行动选项页脚那颗折叠小按钮靠右（2026-10-15 加）：脚注是 flex，auto 外边距把它顶到最右。
+       皮肤的 .kami-foot 若不用 flex，这条自然失效，退化成跟在提示后面 —— 不炸。 */
+    '.kami-fold{margin-left:auto;}',
     '.kami-root[data-kami-view="raw"] [data-kami-view="render"]{display:none;}',
     '.kami-root[data-kami-view="render"] [data-kami-view="raw"]{display:none;}',
     /* 皮肤预览缩略（契约 §4.2 已登记 .kami-pv / .kami-pv-frame；trpg/skin.css 按它们写规则，不许删） */
@@ -1052,6 +1055,9 @@
        右边换成契约已登记的 .kami-seg / .kami-seg-item。 */
     g.appendChild(nameWrapRow());
     g.appendChild(mk('div', 'kami-card-note', NAME_WRAP_NOTE));
+    /* 行动选项的默认折叠态（2026-10-15 加）：显示相关，所以也在这张卡里 */
+    g.appendChild(optFoldRow());
+    g.appendChild(mk('div', 'kami-card-note', OPT_FOLD_NOTE));
     g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
     g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
     g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
@@ -1113,6 +1119,47 @@
     try { if (HOST.KamiNameWrap) { return HOST.KamiNameWrap; } } catch (e) { }
     try { if (window.KamiNameWrap) { return window.KamiNameWrap; } } catch (e) { }
     return null;
+  }
+
+  /* 「行动选项默认展开 / 折叠」（2026-10-15 用户点名）。
+     键与行动选项**前端共用**（localStorage kami.options.folded，同源共享）：
+     这里一改，消息里已经渲染出来的行动选项会靠 storage 事件立刻跟上；
+     反过来在消息里点那颗小箭头，这里的选中态也会跟着变。
+     没有这个键 = 展开（老用户的原样）。
+     零新增类名：沿用 .kami-field 那套与契约已登记的 .kami-seg / .kami-seg-item。 */
+  var OPT_FOLD_KEY = 'kami.options.folded';
+  var OPT_FOLD_NOTE = '行动选项在消息里的默认状态。页脚那颗小箭头随时可以单独折叠或展开，改的是同一个开关。';
+
+  function optFoldRow() {
+    var row = mk('div', 'kami-field');
+    row.appendChild(mk('span', 'kami-field-label', '行动选项默认'));
+    var val = mk('span', 'kami-field-value');
+    var seg = mk('span', 'kami-seg');
+    var btns = {};
+    function readFolded() {
+      try { return localStorage.getItem(OPT_FOLD_KEY) === '1'; } catch (e) { return false; }
+    }
+    function paint() {
+      var folded = readFolded();
+      Object.keys(btns).forEach(function (k) {
+        btns[k].className = 'kami-seg-item' + ((k === '1') === folded ? ' is-on' : '');
+      });
+    }
+    [['0', '展开'], ['1', '折叠']].forEach(function (pair) {
+      var b = mk('button', 'kami-seg-item', pair[1]);
+      b.setAttribute('type', 'button');
+      b.addEventListener('click', function () {
+        try { localStorage.setItem(OPT_FOLD_KEY, pair[0]); } catch (e) { toast('error', '写不进本机存储，设置没生效。'); return; }
+        paint();
+        log('行动选项默认 → ' + pair[1]);
+      });
+      btns[pair[0]] = b;
+      seg.appendChild(b);
+    });
+    paint();
+    val.appendChild(seg);
+    row.appendChild(val);
+    return row;
   }
 
   function nameWrapRow() {

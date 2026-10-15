@@ -483,6 +483,12 @@ html:not([data-kami-skin]) .kami-chev {
   transition: transform var(--kami-dur) var(--kami-ease), color var(--kami-dur) var(--kami-ease);
 }
 html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-head .kami-chev { transform: rotate(90deg); color: var(--kami-accent); }
+/* 行动选项页脚那颗折叠小按钮（2026-10-15 加）。字形复用 .kami-chev，这里只管位置与悬停。
+   旋转那条选择器是 > .kami-head 限定死的，所以按钮里的箭头靠**前端换字**（▾ / ▸），不靠 CSS。 */
+html:not([data-kami-skin]) .kami-fold { margin-left: auto; line-height: 1; }
+@media (hover: hover) {
+  html:not([data-kami-skin]) .kami-fold:hover .kami-chev { color: var(--kami-fg); }
+}
 html:not([data-kami-skin]) .kami-collapse > .kami-body { display: none; }
 html:not([data-kami-skin]) .kami-collapse[data-kami-open="1"] > .kami-body {
   display: block;

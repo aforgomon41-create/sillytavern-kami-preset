@@ -99,7 +99,7 @@
     "promptOnly": false,
     "replaceString": "@@FRONTEND:options@@",
     "runOnEdit": true,
-    "scriptName": "前端|行动选项 v0.1",
+    "scriptName": "前端|行动选项 v0.2",
     "substituteRegex": 0,
     "trimStrings": []
   },
