@@ -1514,6 +1514,11 @@ html[data-kami-skin="isekai"][data-kami-effects~="starlight"] .kami-btn--primary
 }
 
 /* 特效 4：晨曦微光 */
+html[data-kami-skin="isekai"][data-kami-motion="calm"][data-kami-effects~="starlight"] .kami-dot,
+html[data-kami-skin="isekai"][data-kami-motion="calm"][data-kami-effects~="starlight"] .kami-btn--primary::after {
+  animation: none !important;
+}
+
 html[data-kami-skin="isekai"][data-kami-effects~="gradient"] .kami-surface {
   background-image:
     radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),

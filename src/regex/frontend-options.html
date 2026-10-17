@@ -347,6 +347,7 @@ body { font-family: inherit; color: inherit; }
     /* 标题栏 = 折叠头。两个子控件（填入/发送）自己会 stopPropagation，不会误触发这一条。 */
     head.addEventListener('click', function () { setOpen(box.getAttribute('data-kami-open') !== '1'); });
     head.addEventListener('keydown', function (ev) {
+      if (ev.target !== head) { return; }
       if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
         ev.preventDefault();
         setOpen(box.getAttribute('data-kami-open') !== '1');

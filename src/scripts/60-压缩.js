@@ -559,6 +559,29 @@
 
   /* 超限压缩进行中（面板标签与页脚都会显示进度） */
   var pipeline = { running: false, done: 0, total: 0 };
+  var chatEpoch = 0, stateLoadSeq = 0, stateReadPromise = null;
+  function chatStamp() {
+    var ctx = stCtx() || {}, lb = null;
+    try { lb = getChatLorebook() || null; } catch (e) { }
+    return { epoch: chatEpoch, chat: ctx.chat, id: JSON.stringify([ctx.characterId, ctx.groupId, ctx.chatId]), lb: lb };
+  }
+  function sameChat(stamp) {
+    if (disposed || !stamp || stamp.epoch !== chatEpoch) { return false; }
+    var now = chatStamp();
+    return stamp.chat === now.chat && stamp.id === now.id && (!stamp.lb || stamp.lb === now.lb);
+  }
+  function requireChat(stamp) {
+    if (sameChat(stamp)) { return; }
+    var err = new Error('聊天已切换或脚本已关闭，本次操作已取消');
+    err.chatCancelled = true;
+    throw err;
+  }
+  function publishChatState(value, stamp, seq) {
+    requireChat(stamp);
+    if (seq !== stateLoadSeq) { return stateReadPromise; }
+    st = value;
+    return value;
+  }
 
   /* 本聊天的压缩状态（真相在聊天世界书条目里，这里是它的内存映像）。
      v1.3 起「块条目的正文」是唯一真相：
@@ -729,7 +752,30 @@
   function hasNativeLorebook() {
     var ctx = stCtx();
     return !!(ctx && typeof ctx.loadWorldInfo === 'function' && typeof ctx.saveWorldInfo === 'function' &&
-      typeof getChatLorebook === 'function' && typeof getOrCreateChatLorebook === 'function');
+      typeof getChatLorebook === 'function');
+  }
+  async function ensureChatLorebook(stamp) {
+    requireChat(stamp);
+    var lb = getChatLorebook();
+    if (lb) { stamp.lb = lb; return lb; }
+    if (typeof createLorebook !== 'function' || typeof setChatLorebook !== 'function') {
+      throw new Error('缺少安全创建聊天世界书的接口，请更新酒馆助手或先手动绑定聊天世界书');
+    }
+    /* 不能用 getOrCreateChatLorebook：其内部创建后会绑定届时的当前聊天。
+       创建和绑定拆开，异步创建完成后先核验聊天；唯一名字避免覆盖已有世界书。 */
+    var name = 'Chat_Book_Kami_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    if (!await createLorebook(name)) { throw new Error('创建聊天世界书失败'); }
+    requireChat(stamp);
+    lb = getChatLorebook();
+    if (!lb) {
+      /* setChatLorebook 在调用时同步绑定，随后才异步保存元数据。 */
+      await setChatLorebook(name);
+      requireChat(stamp);
+      lb = getChatLorebook();
+      if (lb !== name) { throw new Error('聊天世界书绑定已变化，本次写入已取消'); }
+    }
+    stamp.lb = lb;
+    return lb;
   }
   /* 酒馆原生条目模板（镜像 world-info.js 的 newWorldInfoEntryTemplate，1.18）；
      新建条目必须带全字段，别让酒馆拿到 undefined。 */
@@ -775,7 +821,12 @@
        ③ 账本里有档案、条目却没了 ⇒ 那一段进 pending，下次大总结重做（用户删块 = 要求这段重来）。
      对账本身是纯函数 reconcileBlocks()，这里只负责取数与落地。 */
   async function loadChatState() {
-    st = freshState();
+    var stamp = chatStamp(), seq = ++stateLoadSeq;
+    var loaded = freshState();
+    stateReadPromise = loadChatStateInto(loaded, stamp).then(function () { return publishChatState(loaded, stamp, seq); });
+    return stateReadPromise;
+  }
+  async function loadChatStateInto(st, stamp) {
     if (!hasNativeLorebook()) { st.error = '拿不到酒馆原生的世界书读写接口'; return st; }
     var ctx = stCtx();
     var lb = null;
@@ -785,6 +836,7 @@
     var raw = null, entryMap = {};
     try {
       raw = await ctx.loadWorldInfo(lb);
+      requireChat(stamp);
       entryMap = (raw && raw.entries && typeof raw.entries === 'object') ? raw.entries : {};
     } catch (e) { st.error = '读世界书条目失败：' + msgOf(e); return st; }
 
@@ -832,6 +884,8 @@
     if (len && coveredSoFar >= 0) {
       /* 读的区间必须盖住 hiddenByUs 里的每一楼（否则下面按"没读到=没隐藏"裁剪会误删记录） */
       var scanTop = coveredSoFar;
+      /* 丢账本时，剩余块名不能证明末段从未被压缩；检查整个可压缩区。 */
+      if (!ledger) { scanTop = Math.max(scanTop, len - 1 - cfg.keep); }
       if (Array.isArray(ledger && ledger.hiddenByUs)) {
         for (var hu0 = 0; hu0 < ledger.hiddenByUs.length; hu0++) {
           if (typeof ledger.hiddenByUs[hu0] === 'number' && ledger.hiddenByUs[hu0] > scanTop) { scanTop = ledger.hiddenByUs[hu0]; }
@@ -852,6 +906,7 @@
       ledger: ledger,
       pins: st.pins,
       hiddenFloors: hiddenFloors,
+      orphanScanTop: !ledger && coveredSoFar >= 0 ? Math.max(coveredSoFar, len - 1 - cfg.keep) : coveredSoFar,
       len: len,
       keep: cfg.keep
     });
@@ -913,23 +968,30 @@
      「读-改-写」串成原子的一段。 */
   var wbQueue = Promise.resolve();
   function wbWrite(fn) {
-    var run = wbQueue.then(fn).catch(function (e) { log('世界书写入队列任务失败：' + msgOf(e)); throw e; });
+    var stamp = chatStamp(), snapshot = st;
+    var run = wbQueue.then(function () { requireChat(stamp); return fn(stamp, snapshot); }).catch(function (e) { log('世界书写入队列任务失败：' + msgOf(e)); throw e; });
     /* 队列尾巴单独接一个不会 reject 的句柄，避免一次失败把后面所有写入堵死 */
     wbQueue = run.then(function () { }, function () { });
     return run;
   }
 
   async function saveChatState() { return wbWrite(saveChatStateNow); }
-  async function saveChatStateNow() {
+  async function saveChatStateNow(stamp, st) {
+    requireChat(stamp);
     if (!hasNativeLorebook()) { throw new Error('拿不到酒馆原生的世界书读写接口'); }
     var ctx = stCtx();
     var lb = null;
-    try { lb = await getOrCreateChatLorebook(); } catch (e) { throw new Error('创建/绑定聊天世界书失败：' + msgOf(e)); }
+    try { lb = await ensureChatLorebook(stamp); } catch (e) {
+      if (e && e.chatCancelled) { throw e; }
+      throw new Error('创建/绑定聊天世界书失败：' + msgOf(e));
+    }
+    requireChat(stamp);
     st.lbName = lb;
     st.updatedAt = Date.now();
     var depthAfter = makeDepthCounter();
     var raw = null;
     try { raw = await ctx.loadWorldInfo(lb); } catch (e) { throw new Error('读世界书失败：' + msgOf(e)); }
+    requireChat(stamp);
     if (!raw || typeof raw !== 'object') { throw new Error('读世界书失败：返回为空'); }
     if (!raw.entries || typeof raw.entries !== 'object') { raw.entries = {}; }
     var entryMap = raw.entries;
@@ -999,19 +1061,21 @@
       entryMap[maxUid] = se;
     }
     try { await ctx.saveWorldInfo(lb, raw, true); } catch (e) { throw new Error('写世界书失败：' + msgOf(e)); }
+    requireChat(stamp);
     try { if (typeof ctx.reloadWorldInfoEditor === 'function') { ctx.reloadWorldInfoEditor(false, false); } } catch (e) { }
     log('压缩状态已写入聊天世界书「' + lb + '」（块 ' + st.blocks.length + ' 个：新建 ' + created + '，更新 ' + updated + '；前沿 ' + st.covered + ' 楼）');
   }
 
   /* 深度核对：例外楼层增删、保留楼数改动、手动取消隐藏都会让"块尾之后的
      未隐藏楼层数"变化；有出入就只改受影响的条目（读是内存缓存操作，零成本）。 */
-  async function syncBlockDepths(reason) { return wbWrite(function () { return syncBlockDepthsNow(reason); }); }
-  async function syncBlockDepthsNow(reason) {
+  async function syncBlockDepths(reason) { return wbWrite(function (stamp, state) { return syncBlockDepthsNow(reason, stamp, state); }); }
+  async function syncBlockDepthsNow(reason, stamp, st) {
     if (disposed || !st.blocks.length || !st.lbName) { return; }
     if (!hasNativeLorebook()) { return; }
     var ctx = stCtx();
     try {
       var raw = await ctx.loadWorldInfo(st.lbName);
+      requireChat(stamp);
       var entryMap = (raw && raw.entries) ? raw.entries : {};
       var depthAfter = makeDepthCounter();
       var changed = 0;
@@ -1023,15 +1087,17 @@
       }
       if (changed) {
         await ctx.saveWorldInfo(st.lbName, raw, true);
+        requireChat(stamp);
         log('已同步 ' + changed + ' 个块的注入深度（' + reason + '）');
         if (panelRoot) { renderContent(); }
       }
     } catch (e) { log('同步注入深度失败：' + msgOf(e)); }
   }
 
-  async function clearChatData() { return wbWrite(clearChatDataNow); }
-  async function clearChatDataNow() {
+  async function clearChatData() { if (pipeline.running) { toast('warning', COPY.toasts.running); return; } return wbWrite(clearChatDataNow); }
+  async function clearChatDataNow(stamp) {
     await loadChatState();
+    requireChat(stamp);
     if (!st.lbName) { toast('info', COPY.toasts.noLorebook); return; }
     var ctx = stCtx();
     var uids = [], seen = {}, i;
@@ -1040,12 +1106,14 @@
     for (i = 0; i < st.blocks.length; i++) { take(st.blocks[i].uid); }
     try {
       var raw = await ctx.loadWorldInfo(st.lbName);
+      requireChat(stamp);
       var all = rawEntryList((raw && raw.entries) || {});
       for (i = 0; i < all.length; i++) {
         if (typeof all[i].comment === 'string' && all[i].comment.indexOf(LB_BLOCK_PREFIX) === 0) { take(all[i].uid); }
       }
       for (i = 0; i < uids.length; i++) { delete raw.entries[uids[i]]; }
       await ctx.saveWorldInfo(st.lbName, raw, true);
+      requireChat(stamp);
     } catch (e) { toast('error', COPY.toasts.clearFail.replace('{err}', msgOf(e))); return; }
     st = freshState();
     toast('success', COPY.toasts.clearDone.replace('{n}', uids.length));
@@ -1159,6 +1227,7 @@
   }
   /* 未隐藏楼层的 token 总和（带缓存；键 = 楼号 + 内容长度） */
   async function floorsTokens() {
+    var stamp = chatStamp();
     var len = chatLen();
     if (!len) { return 0; }
     var list = null;
@@ -1168,9 +1237,13 @@
       var m = list[i];
       if (!m || m.is_hidden) { continue; }
       var mes = m.message || '';
-      var key = m.message_id + ':' + mes.length;
-      var v = floorTokCache[key];
-      if (v === undefined) { v = await countText(mes); floorTokCache[key] = v; }
+      var key = String(m.message_id), cached = floorTokCache[key];
+      var v = cached && cached.text === mes ? cached.tokens : undefined;
+      if (v === undefined) {
+        v = await countText(mes);
+        requireChat(stamp);
+        floorTokCache[key] = { text: mes, tokens: v };
+      }
       sum += v;
     }
     return sum;
@@ -1235,6 +1308,7 @@
     measure.installed = false; measure.host = null; measure.native = null;
   }
   async function measureAsync(raw) {
+    var stamp = chatStamp();
     try {
       var body = JSON.parse(raw);
       var msgs = body && body.messages;
@@ -1242,6 +1316,7 @@
       var total = 0;
       for (var i = 0; i < msgs.length; i++) { total += await countText(contentTextOf(msgs[i])); }
       var floorsSum = await floorsTokens();
+      requireChat(stamp);
       measure.last = { total: total, floorsSum: floorsSum, at: Date.now() };
       log('实测：本次发送 ≈ ' + total + ' token（楼层 ' + floorsSum + '）');
       renderStatus();
@@ -1308,7 +1383,8 @@
      两段式：先带 json_schema 试一次，解析不过/请求被拒就退回「只靠提示词约束」再试一次 ——
      有些反代不认 response_format，不留这条路会让压缩对它永久失效。
      注意：解析标准全程不放宽，第二次也一样只认合法 JSON。 */
-  async function summarizeChunk(chunk, pinsInRange) {
+  async function summarizeChunk(chunk, pinsInRange, stamp) {
+    requireChat(stamp);
     var mats = [];
     mats.push('【历史压缩块】');
     /* 只带**在本块之前**的块：补块时 st.blocks 里可能有更晚的块（时间在后面的
@@ -1406,8 +1482,11 @@
       var useSchema = order[attempt];
       var res = null;
       try {
+        requireChat(stamp);
         res = await send(useSchema);
+        requireChat(stamp);
       } catch (err) {
+        if (err && err.chatCancelled) { throw err; }
         lastErr = msgOf(err);
         if (useSchema) { log('带 json_schema 的摘要请求被拒（' + lastErr + '），改用提示词约束重试'); }
         continue;
@@ -1441,15 +1520,19 @@
     } catch (e) { return null; }
   }
 
-  async function setFloorHidden(ids, hidden) {
+  async function setFloorHidden(ids, hidden, stamp) {
+    if (stamp) { requireChat(stamp); }
     if (!ids.length) { return; }
     if (typeof setChatMessages !== 'function') { throw new Error('酒馆助手没有 setChatMessages（版本过旧？）'); }
     var payload = [];
     for (var i = 0; i < ids.length; i++) { payload.push({ message_id: ids[i], is_hidden: !!hidden }); }
     await setChatMessages(payload, { refresh: 'affected' });
+    if (stamp) { requireChat(stamp); }
   }
 
   async function unhideAll() {
+    if (pipeline.running) { toast('warning', COPY.toasts.running); return; }
+    var stamp = chatStamp();
     var len = chatLen();
     if (!len) { toast('info', COPY.toasts.noChat); return; }
     var list = getChatMessages('0-' + (len - 1)) || [];
@@ -1458,7 +1541,7 @@
       if (list[i] && list[i].is_hidden) { ids.push(list[i].message_id); }
     }
     if (!ids.length) { toast('info', COPY.toasts.noHidden); return; }
-    await setFloorHidden(ids, false);
+    await setFloorHidden(ids, false, stamp);
     /* 取消隐藏之后这些楼不再由我们隐藏：hiddenByUs 必须跟着清空，
        否则下次对账会把它们当成「我们隐藏的孤儿楼层」自动重新总结一遍。 */
     st.hiddenByUs = [];
@@ -1469,10 +1552,12 @@
   }
 
   async function runPipeline(trigger) {
+    if (disposed) { lastError = '脚本已注销'; return; }
     if (pipeline.running) { toast('warning', COPY.toasts.running); return; }
     var len = chatLen();
     if (!len) { toast('warning', COPY.toasts.noChat); return; }
     if (trigger === 'auto' && !cfg.grandOn) { return; }
+    var stamp = chatStamp();
 
     pipeline.running = true; pipeline.done = 0; pipeline.total = 0;
     updateDef(); renderStatus();
@@ -1481,6 +1566,10 @@
     var newBlocks = [], failMsg = null, hideIds = [];
     try {
       await loadChatState();
+      requireChat(stamp);
+      if (st.orphan.length) {
+        toast('warning', COPY.blocks.orphanNote.replace('{n}', countFloors(st.orphan)));
+      }
       var keep = Math.max(1, Math.min(500, cfg.keep));
       var chunkSize = Math.max(1, Math.min(200, cfg.chunk));
       var end = len - 1 - keep;
@@ -1514,6 +1603,8 @@
         chunks.push(targets.slice(t, t + chunkSize));
       }
       if (!chunks.length && !repairChunks.length) {
+        /* 未知隐藏区保留提示，不能在没有生成摘要时静默推进覆盖前沿。 */
+        if (st.orphan.length) { return; }
         if (end < start) {
           toast('info', COPY.toasts.nothing.replace('{n}', keep));
         } else {
@@ -1547,7 +1638,8 @@
           if (disposed) { failMsg = '脚本已注销'; break; }
           var piece = rfloors.slice(rq, rq + chunkSize);
           try {
-            var rtext = await summarizeChunk(piece, pinsInRange);
+            var rtext = await summarizeChunk(piece, pinsInRange, stamp);
+            requireChat(stamp);
             var rblk = { from: piece[0], to: piece[piece.length - 1], at: Date.now(), text: rtext };
             st.blocks.push(rblk);
             st.blocks.sort(function (x, y) { return x.from - y.from || x.to - y.to; });
@@ -1576,7 +1668,8 @@
         if (disposed) { failMsg = '脚本已注销'; break; }
         try {
           /* st.blocks 里带着本轮已完成的块（summarizeChunk 只会带上本块之前的） */
-          var text = await summarizeChunk(chunks[c], pinsInRange);
+          var text = await summarizeChunk(chunks[c], pinsInRange, stamp);
+          requireChat(stamp);
           var blk = { from: chunks[c][0], to: chunks[c][chunks[c].length - 1], at: Date.now(), text: text };
           st.blocks.push(blk);
           newBlocks.push(blk);
@@ -1589,7 +1682,7 @@
           break;
         }
       }
-      if (disposed) {
+      if (!sameChat(stamp)) {
         /* 注销后不再写盘、不再隐藏（F1：跑批中途脚本被关，已算出的块留在内存里即可） */
         log('流水线进行中脚本被注销：放弃本次落盘与隐藏');
       } else {
@@ -1615,7 +1708,8 @@
           }
           st.hiddenByUs.sort(function (x, y) { return x - y; });
           await saveChatState();
-          await setFloorHidden(hideIds, true);
+          requireChat(stamp);
+          await setFloorHidden(hideIds, true, stamp);
         } else if (pendingChanged) {
           /* 补块一段都没成（或只是清理了空段）：把剩余待办落盘，别等下次重新推 */
           await saveChatState();
@@ -1626,6 +1720,7 @@
     } finally {
       pipeline.running = false;
     }
+    if (!sameChat(stamp)) { return; }
     if (failMsg) {
       lastError = failMsg;
       toast('error', COPY.toasts.partial.replace('{err}', failMsg) + (newBlocks.length ? COPY.toasts.partialTail.replace('{n}', newBlocks.length) : ''));
@@ -1644,9 +1739,12 @@
     if (disposed || pipeline.running || !cfg.grandOn) { return; }
     var t = String(type || 'normal');
     if (t === 'quiet' || t === 'impersonate') { return; }
+    var stamp = chatStamp();
     try {
       await syncBlockDepths('生成前核对');   // 手动取消隐藏等造成的漂移在这里兜住
+      requireChat(stamp);
       var est = await estimateNext(t);
+      requireChat(stamp);
       log('生成前估算：' + est.est + ' token（楼层 ' + est.floorTok + ' + 头部 ' + est.overhead + ' + 新输入 ' + est.extra + '），上限 ' + cfg.threshold);
       if (est.est >= cfg.threshold) { await runPipeline('auto'); }
     } catch (e) {
@@ -1654,14 +1752,18 @@
     }
   }
   function onChatChanged() {
+    chatEpoch++; stateLoadSeq++;
+    st = freshState();
     measure.last = null;
     floorTokCache = {};
     lastError = null;
-    loadChatState().then(function () {
+    var stamp = chatStamp();
+    return loadChatState().then(function () {
+      requireChat(stamp);
       if (panelRoot) { renderContent(); }
       renderStatus();
       return syncBlockDepths('切换聊天');
-    });
+    }).catch(function (e) { if (!e.chatCancelled) { log('切换聊天后读取失败：' + msgOf(e)); } });
   }
   /* 面板与世界书对齐：重新读一遍世界书（块条目是正文的唯一真相），
      顺带体检（待重做段 / 孤儿隐藏楼层 / 疑似报错内容）。
@@ -1670,7 +1772,9 @@
      · 面板上「刷新」按钮兜底（拿不到那个事件时）。 */
   async function refreshState(reason) {
     if (disposed || pipeline.running) { return; }
+    var stamp = chatStamp();
     await loadChatState();
+    requireChat(stamp);
     if (reason === 'autosync') {
       log('世界书有变动，已重新对账（块 ' + st.blocks.length + '，待重做 ' + st.pending.length + ' 段）');
     } else if (reason === 'manual') {
@@ -1697,7 +1801,10 @@
   /* 把「已被隐藏、却没有压缩块管着」的楼层纳入待重做。
      只由用户点按钮触发：这些楼可能是用户自己 /hide 的，脚本不替他做主。 */
   async function repairOrphans() {
+    if (pipeline.running) { toast('warning', COPY.toasts.running); return; }
+    var stamp = chatStamp();
     await loadChatState();
+    requireChat(stamp);
     if (!st.orphan.length) { toast('info', COPY.toasts.noOrphan); return; }
     var floors = [];
     for (var i = 0; i < st.orphan.length; i++) {
@@ -1705,14 +1812,17 @@
     }
     if (!floors.length) { return; }
     st.pending = mergeRanges(st.pending.concat(st.orphan));
+    for (var o = 0; o < st.orphan.length; o++) { st.covered = Math.max(st.covered, st.orphan[o].to); }
     for (var j = 0; j < floors.length; j++) {
       if (st.hiddenByUs.indexOf(floors[j]) < 0) { st.hiddenByUs.push(floors[j]); }
     }
     st.hiddenByUs.sort(function (x, y) { return x - y; });
     await saveChatState();
+    requireChat(stamp);
     toast('success', COPY.toasts.repairQueued.replace('{n}', floors.length));
     /* 重新对账一遍：notice / orphan / suspect 全部回到真实状态（别手搓面板文案） */
     await loadChatState();
+    requireChat(stamp);
     if (panelRoot) { renderContent(); }
     renderStatus();
   }
@@ -2147,7 +2257,7 @@
       textInput(sec4.body, COPY.model.keyLabel, cur.key, { 'data-kami-mi': 'key', type: 'password' }, COPY.model.keyHint);
       textInput(sec4.body, COPY.model.modelLabel, cur.model, { 'data-kami-mi': 'model', type: 'text' }, COPY.model.modelHint);
       /* 模型列表（点「获取模型列表」后多出一行，选中即回填模型名） */
-      var ml = modelListCache[cur.name];
+      var ml = cachedModelList(cur);
       if (ml && ml.length) {
         var mlOpts = [[cur.model, cur.model ? cur.model : COPY.model.fetchPick]];
         for (var mi = 0; mi < ml.length; mi++) { if (ml[mi] !== cur.model) { mlOpts.push([ml[mi], ml[mi]]); } }
@@ -2361,6 +2471,7 @@
     } else if (field === 'apiurl' || field === 'key' || field === 'model') {
       cur[field] = String(value === undefined || value === null ? '' : value);
     }
+    if (field === 'source' || field === 'apiurl' || field === 'key') { invalidateModelList(cur.name); }
     saveVars();   // 不重画：保住输入焦点
   }
   function saveConfigAs(name) {
@@ -2428,6 +2539,7 @@
     }
     var keys = ['chat_completion_source', 'reverse_proxy', 'custom_url', 'model'];
     var old = {};
+    var applied = {};
     for (var i = 0; i < keys.length; i++) { old[keys[i]] = s[keys[i]]; }
     try {
       if (pf.api) { s.chat_completion_source = pf.api; }
@@ -2436,53 +2548,120 @@
       if (url) {
         if (pf.api === 'custom') { s.custom_url = url; } else { s.reverse_proxy = url; }
       }
+      for (var a = 0; a < keys.length; a++) { applied[keys[a]] = s[keys[a]]; }
       await fn();
     } finally {
-      for (var j = 0; j < keys.length; j++) { s[keys[j]] = old[keys[j]]; }
+      for (var j = 0; j < keys.length; j++) { if (s[keys[j]] === applied[keys[j]]) { s[keys[j]] = old[keys[j]]; } }
       log('已还原酒馆连接设置（' + name + '）');
     }
   }
   /* 从接口拉模型列表：走酒馆服务端的 /status（各源按它的字段要求给地址与密钥）。 */
   var modelListCache = {};   // 配置名 -> [模型名]
   var fetchState = 'idle';   // idle | busy
+  var modelFetchSeq = 0, modelFetchAbort = null;
+  function modelConfigKey(cur) { return JSON.stringify([cur.source, cur.apiurl, cur.key]); }
+  function cachedModelList(cur) {
+    var item = modelListCache[cur.name];
+    return item && item.key === modelConfigKey(cur) ? item.ids : null;
+  }
+  function invalidateModelList(name) {
+    delete modelListCache[name];
+    modelFetchSeq++;
+    if (modelFetchAbort) { modelFetchAbort.abort(); modelFetchAbort = null; }
+    fetchState = 'idle';
+    var button = bodyEl && bodyEl.querySelector('[data-kami-act="fetch-models"]');
+    if (button) { button.disabled = false; button.textContent = COPY.model.fetchModels; }
+  }
+  function modelListRequest(cur) {
+    var defaults = { openai: 'https://api.openai.com/v1', claude: 'https://api.anthropic.com/v1',
+      makersuite: 'https://generativelanguage.googleapis.com', deepseek: 'https://api.deepseek.com',
+      xai: 'https://api.x.ai/v1', openrouter: 'https://openrouter.ai/api/v1' };
+    var source = cur.source || 'custom', base = String(cur.apiurl || defaults[source] || '').trim().replace(/\/+$/, '');
+    if (!base) { throw new Error('请先填写接口根地址，例如 https://服务地址/v1'); }
+    var url;
+    try { url = new URL(base); } catch (e) { throw new Error('接口地址无效，请填写以 http:// 或 https:// 开头的完整地址'); }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') { throw new Error('接口地址必须使用 http:// 或 https://'); }
+    if (url.username || url.password) { throw new Error('请把密钥填在密钥栏，接口地址不能包含用户名或密码'); }
+    /* 模型列表总是取根地址；也兼容误粘贴的聊天请求路径。 */
+    url.pathname = url.pathname.replace(/\/(?:chat\/completions|messages|models)\/?$/, '').replace(/\/+$/, '');
+    url.search = ''; url.hash = '';
+    var headers = { Authorization: 'Bearer ' + String(cur.key || '').trim() };
+    if (source === 'claude') {
+      headers['x-api-key'] = String(cur.key || '').trim();
+      headers['anthropic-version'] = '2023-06-01';
+    } else if (source === 'azure_openai') {
+      /* Azure v1 的模型目录不需要部署名或 api-version，走标准 /models。 */
+      var beforeOpenai = url.pathname.split('/openai')[0];
+      url.pathname = beforeOpenai + '/openai/v1';
+      headers['api-key'] = String(cur.key || '').trim();
+    }
+    base = url.toString().replace(/\/+$/, '');
+    /* Gemini 由酒馆转换 models/foo 名字；其余来源走 custom，以独立密钥为准。 */
+    if (source === 'makersuite') {
+      return { chat_completion_source: 'makersuite', reverse_proxy: base.replace(/\/(?:v1|v1beta)$/, ''), proxy_password: String(cur.key || '').trim() };
+    }
+    /* JSON 是 YAML 的子集，避免特殊字符把自定义头串成额外字段。 */
+    return { chat_completion_source: 'custom', custom_url: base, custom_include_headers: JSON.stringify(headers) };
+  }
+  async function modelListHeaders(requestFetch) {
+    var ctx = stCtx();
+    if (ctx && typeof ctx.getRequestHeaders === 'function') { return ctx.getRequestHeaders(); }
+    if (HOST && typeof HOST.getRequestHeaders === 'function') { return HOST.getRequestHeaders(); }
+    var resp = await requestFetch('/csrf-token', { credentials: 'same-origin', cache: 'no-store' });
+    if (!resp.ok) { throw new Error('读取酒馆校验码失败（HTTP ' + resp.status + '），请刷新页面后重试'); }
+    var data = await resp.json();
+    if (!data || typeof data.token !== 'string') { throw new Error('读取酒馆校验码失败，请刷新页面后重试'); }
+    return { 'Content-Type': 'application/json', 'X-CSRF-Token': data.token };
+  }
   async function fetchModelList() {
-    if (fetchState === 'busy') { return; }
+    if (disposed || fetchState === 'busy') { return; }
     var cur = currentSumConfig();
     if (!cur) { return; }
+    var config = Object.assign({}, cur), seq = ++modelFetchSeq, key = modelConfigKey(config);
+    var requestFetch = HOST && typeof HOST.fetch === 'function' ? HOST.fetch.bind(HOST) : fetch;
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    modelFetchAbort = controller;
     fetchState = 'busy';
     if (panelRoot) { renderContent(); }   // 按钮进「获取中…」并禁用
-    var ids = [];
+    var timeout = null;
     try {
-      var body = { chat_completion_source: cur.source, api_key: cur.key, proxy_password: cur.key };
-      if (cur.source === 'custom') {
-        body.custom_url = cur.apiurl;
-        if (cur.key) { body.custom_include_headers = 'Authorization: Bearer ' + cur.key; }
-      } else {
-        body.reverse_proxy = cur.apiurl || '';
-      }
-      var resp = await fetch('/api/backends/chat-completions/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      var json = null;
-      try { json = await resp.json(); } catch (e) { }
-      if (json && json.data && Array.isArray(json.data)) {
-        for (var i = 0; i < json.data.length; i++) {
-          var id = String((json.data[i] && (json.data[i].id || json.data[i].name)) || '').trim();
-          if (id) { ids.push(id); }
+      var body = modelListRequest(config);
+      var work = (async function () {
+        var headers = await modelListHeaders(requestFetch);
+        if (disposed || seq !== modelFetchSeq) { throw new Error('操作已取消'); }
+        var resp = await requestFetch('/api/backends/chat-completions/status', {
+          method: 'POST', headers: headers, credentials: 'same-origin', cache: 'no-store',
+          signal: controller ? controller.signal : undefined, body: JSON.stringify(body)
+        });
+        var json = null;
+        try { json = await resp.json(); } catch (e) { }
+        if (!resp.ok || (json && json.error)) {
+          var detail = json && ((json.error && json.error.message) || json.message || (typeof json.error === 'string' ? json.error : ''));
+          throw new Error('HTTP ' + resp.status + (detail ? '：' + String(detail).slice(0, 240) : '：接口拒绝了请求，请检查地址和密钥'));
         }
-        ids.sort();
-      }
-      fetchState = 'idle';
-      if (!ids.length) { toast('warning', COPY.model.fetchEmpty); renderContent(); return; }
-      modelListCache[cur.name] = ids;
-      toast('success', ids.length + ' 个模型');
+        if (!json || !Array.isArray(json.data)) { throw new Error('接口返回格式不正确，没有模型列表 data 数组'); }
+        return json;
+      })();
+      var deadline = new Promise(function (_, reject) {
+        timeout = setTimeout(function () { if (controller) { controller.abort(); } reject(new Error('获取超时（30 秒），请检查接口连接后重试')); }, 30000);
+      });
+      var json = await Promise.race([work, deadline]);
+      if (disposed || seq !== modelFetchSeq || modelConfigKey(config) !== key) { return; }
+      var ids = json.data.map(function (m) { return String(typeof m === 'string' ? m : (m && (m.id || m.name)) || '').trim(); }).filter(Boolean);
+      ids = Array.from(new Set(ids)).sort();
+      if (!ids.length) { toast('warning', COPY.model.fetchEmpty); return; }
+      modelListCache[config.name] = { key: key, ids: ids };
+      toast('success', ids.length + ' 个模型' + (json.has_more ? '（接口还有后续分页，可手动填写其他模型名）' : ''));
     } catch (e) {
-      fetchState = 'idle';
-      toast('error', COPY.model.fetchFail.replace('{err}', msgOf(e)));
+      if (!disposed && seq === modelFetchSeq) {
+        var message = msgOf(e);
+        if (config.key) { message = message.split(config.key).join('[密钥已隐藏]'); }
+        toast('error', COPY.model.fetchFail.replace('{err}', message));
+      }
+    } finally {
+      if (timeout !== null) { clearTimeout(timeout); }
+      if (seq === modelFetchSeq) { modelFetchAbort = null; fetchState = 'idle'; if (!disposed) { renderContent(); } }
     }
-    renderContent();
   }
 
   function applyPromptChange(list, pi, pf, value) {
@@ -2627,12 +2806,14 @@
     renderStatus();
   }
   async function addPin(v, remove) {
+    var stamp = chatStamp();
     var len = chatLen();
     /* 空值/非数字先拦掉：Number('') === 0 会混进一条 #0（用户真机点过） */
     if (v === '' || v === null || v === undefined || String(v).trim() === '') { toast('warning', COPY.toasts.numBad); return; }
     var n = Math.floor(Number(v));
     if (!isFinite(n) || n < 0 || (len && n > len - 1)) { toast('warning', COPY.toasts.pinRange.replace('{n}', Math.max(0, len - 1))); return; }
-    await loadChatState();
+    if (!pipeline.running) { await loadChatState(); }
+    requireChat(stamp);
     var at = st.pins.indexOf(n);
     if (remove) {
       if (at < 0) { toast('info', COPY.toasts.pinMissing.replace('{n}', n)); return; }
@@ -2643,6 +2824,7 @@
       st.pins.sort(function (a, b) { return a - b; });
     }
     try { await saveChatState(); } catch (e) { toast('error', COPY.toasts.pinSaveFail.replace('{err}', msgOf(e))); return; }
+    requireChat(stamp);
     await syncBlockDepths('例外楼层变化');
     toast('success', (remove ? COPY.toasts.pinRemoved : COPY.toasts.pinAdded).replace('{n}', n));
     renderContent();
@@ -2943,6 +3125,8 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    modelFetchSeq++;
+    if (modelFetchAbort) { modelFetchAbort.abort(); modelFetchAbort = null; }
     log('正在注销：摘事件 / 停实测钩子 / 拆面板 / 收样式 / 撤登记 / 删全局');
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } } catch (e) { }
@@ -2982,7 +3166,7 @@
   function boot() {
     log('启动 v' + VERSION + '（手势与兜底皮肤已内联）');
     readVars();
-    loadChatState().then(function () { renderStatus(); });
+    loadChatState().then(function () { renderStatus(); }).catch(function (e) { if (!e.chatCancelled) { log(msgOf(e)); } });
     installMeasureHook();
 
     if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {

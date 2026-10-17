@@ -49,6 +49,22 @@
     return window;
   })();
   var HDOC = HOST.document;
+  var disposed = false, mo = null, delays = [];
+  function later(fn, ms) {
+    if (disposed) { return null; }
+    var id = setTimeout(function () {
+      var i = delays.indexOf(id);
+      if (i >= 0) { delays.splice(i, 1); }
+      if (!disposed) { fn(); }
+    }, ms);
+    delays.push(id);
+    return id;
+  }
+  function cancelLater(id) {
+    clearTimeout(id);
+    var i = delays.indexOf(id);
+    if (i >= 0) { delays.splice(i, 1); }
+  }
 
   function log(msg) { try { if (window.console && console.log) { console.log('[正文外壳] ' + msg); } } catch (e) { } }
   function warn(msg) { log('⚠ ' + msg); }
@@ -155,7 +171,7 @@
       var done = function (ok) {
         toast.textContent = ok ? '已复制正文' : '复制失败，请手动选中';
         toast.removeAttribute('hidden');
-        setTimeout(function () { toast.setAttribute('hidden', ''); }, 1400);
+        later(function () { toast.setAttribute('hidden', ''); }, 1400);
       };
       try {
         var nav = HOST.navigator || navigator;
@@ -202,12 +218,15 @@
     end.parentNode.removeChild(end);
     /* 搬完之后正文区可能只剩空白，收一下（否则外壳顶上多出一段空白） */
     if (!String(built.renderBox.textContent || '').trim() && built.renderBox.children.length === 0) {
-      built.renderBox.appendChild(el('p', 'kami-empty', '这一楼没有正文内容'));
+      var empty = el('p', 'kami-empty', '这一楼没有正文内容');
+      empty.setAttribute('data-kami-body-empty', '1');
+      built.renderBox.appendChild(empty);
     }
     return 1;
   }
 
   function scan() {
+    if (disposed || generating) { return 0; }
     var out = 0;
     try {
       var chat = HDOC.getElementById('chat');
@@ -220,6 +239,7 @@
 
   /* 刷新外壳里的「字数」与「原文」（用户编辑过消息、或重新渲染之后要跟上） */
   function refresh() {
+    if (disposed || generating) { return; }
     try {
       var chat = HDOC.getElementById('chat');
       if (!chat) { return; }
@@ -248,11 +268,13 @@
   var GEN_WATCHDOG_MS = 180000;
 
   function setGenerating(on) {
+    if (disposed) { return; }
     generating = !!on;
-    try { if (genWatchdog) { clearTimeout(genWatchdog); genWatchdog = null; } } catch (e) { }
+    if (generating && timer) { cancelLater(timer); timer = null; }
+    try { if (genWatchdog) { cancelLater(genWatchdog); genWatchdog = null; } } catch (e) { }
     if (!generating) { return; }
     try {
-      genWatchdog = setTimeout(function () {
+      genWatchdog = later(function () {
         genWatchdog = null;
         if (!generating) { return; }
         warn('生成状态超过 ' + Math.round(GEN_WATCHDOG_MS / 1000) + ' 秒没收到结束信号，按已结束处理');
@@ -266,19 +288,20 @@
   var timer = null;
   function soon(ms) {
     /* 生成中不排队：这一趟的重画本来就会被下一趟覆盖，套了也是白套（还闪） */
-    if (generating) { return; }
+    if (disposed || generating) { return; }
     if (timer) { return; }
-    timer = setTimeout(function () { timer = null; scan(); }, ms || 120);
+    timer = later(function () { timer = null; if (!generating) { scan(); } }, ms || 120);
   }
 
   /* 生成结束：把这一楼补上壳。给酒馆留一点收尾时间（它可能还在写最后一段 DOM）。 */
   function finishGeneration() {
     setGenerating(false);
     soon(120);
-    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 400);
+    later(function () { if (!generating) { scan(); refresh(); } }, 400);
   }
 
   function boot() {
+    if (disposed) { return; }
     log('启动 v' + VERSION + '（正文留在父文档，只套外壳，不进 iframe）');
     var n = scan();
     log('首次扫描：套壳 ' + n + ' 楼');
@@ -290,7 +313,7 @@
             var ev = tavern_events[pair[0]];
             if (!ev) { return; }
             try {
-              unsubs.push(eventOn(ev, function () {
+              keepSubscription(eventOn(ev, function () {
                 if (pair[1]) { setGenerating(true); log('开始生成：暂停套壳与刷新'); }
                 else { finishGeneration(); }
               }));
@@ -304,11 +327,12 @@
         evs.forEach(function (ev) {
           if (!ev) { return; }
           try {
-            unsubs.push(eventOn(ev, function () {
+            keepSubscription(eventOn(ev, function () {
+              if (ev === tavern_events.CHAT_CHANGED) { setGenerating(false); }
               soon(60);
               /* 流式/编辑之后原文会变，字数要跟上 —— 但生成中不跟（那正是「闪」的来源），
                  生成结束那一趟会把字数一并补齐。 */
-              if (!generating) { setTimeout(function () { if (!generating) { refresh(); } }, 400); }
+              if (!generating) { later(function () { if (!generating) { refresh(); } }, 400); }
             }));
           } catch (e) { }
         });
@@ -323,19 +347,53 @@
       var MO = HOST.MutationObserver || window.MutationObserver;
       if (MO && HDOC.getElementById('chat')) {
         var queued = false;
-        var mo = new MO(function () {
-          if (queued) { return; }
+        mo = new MO(function (records) {
+          if (queued || disposed || generating) { return; }
+          /* 只在标记落地时补壳，插件按钮/字数/已包裹正文的变化不触发全量重扫。 */
+          var pending = false;
+          for (var i = 0; i < records.length && !pending; i++) {
+            var added = records[i].addedNodes || [];
+            for (var j = 0; j < added.length; j++) {
+              var n = added[j];
+              if (n.nodeType === 1 && ((n.hasAttribute && n.hasAttribute(MARK_START)) ||
+                (n.querySelector && n.querySelector('[' + MARK_START + ']')))) { pending = true; break; }
+            }
+          }
+          if (!pending) { return; }
           queued = true;
-          setTimeout(function () { queued = false; soon(150); }, 250);
+          later(function () { queued = false; soon(150); }, 250);
         });
         mo.observe(HDOC.getElementById('chat'), { childList: true, subtree: true });
       }
     } catch (e) { }
 
     /* 气泡：正文渲染可能比脚本启动晚（生成中就跳过，结束那趟会补） */
-    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 600);
-    setTimeout(function () { if (!generating) { scan(); refresh(); } }, 2000);
+    later(function () { if (!generating) { scan(); refresh(); } }, 600);
+    later(function () { if (!generating) { scan(); refresh(); } }, 2000);
   }
+
+  function keepSubscription(stop) {
+    if (typeof stop === 'function') { unsubs.push({ stop: stop }); }
+    else if (stop && typeof stop.stop === 'function') { unsubs.push(stop); }
+  }
+  function restoreBodies() {
+    var roots = HDOC.querySelectorAll('[' + HOST_ATTR + ']');
+    for (var i = 0; i < roots.length; i++) {
+      var root = roots[i], box = root.querySelector('.kami-body-render'), parent = root.parentNode;
+      if (!box || !parent) { continue; }
+      var start = el('div'), end = el('div');
+      start.setAttribute(MARK_START, ''); end.setAttribute(MARK_END, '');
+      parent.insertBefore(start, root);
+      while (box.firstChild) {
+        var node = box.firstChild;
+        if (node.nodeType === 1 && node.hasAttribute('data-kami-body-empty')) { box.removeChild(node); }
+        else { parent.insertBefore(node, root); }
+      }
+      parent.insertBefore(end, root);
+      parent.removeChild(root);
+    }
+  }
+  function onHide(ev) { if (!ev || !ev.persisted) { api.shutdown(); } }
 
   var api = {
     version: VERSION,
@@ -351,16 +409,28 @@
       };
     },
     shutdown: function () {
+      if (disposed) { return; }
+      disposed = true;
       unsubs.forEach(function (u) { try { u.stop(); } catch (e) { } });
       unsubs = [];
       try { if (timer) { clearTimeout(timer); timer = null; } } catch (e) { }
       try { if (genWatchdog) { clearTimeout(genWatchdog); genWatchdog = null; } } catch (e) { }
       generating = false;
+      if (mo) { mo.disconnect(); mo = null; }
+      delays.forEach(function (id) { clearTimeout(id); }); delays = [];
+      try { HDOC.removeEventListener('DOMContentLoaded', boot); } catch (e) { }
+      try { window.removeEventListener('pagehide', onHide); } catch (e) { }
+      try { if (HOST !== window) { HOST.removeEventListener('pagehide', onHide); } } catch (e) { }
+      try { restoreBodies(); } catch (e) { warn('收回外壳失败：' + e.message); }
+      try { if (HOST.KamiBodyShell === api) { delete HOST.KamiBodyShell; } } catch (e) { }
+      try { if (window.KamiBodyShell === api) { delete window.KamiBodyShell; } } catch (e) { }
       log('已注销');
     }
   };
   try { HOST.KamiBodyShell = api; } catch (e) { }
   try { window.KamiBodyShell = api; } catch (e) { }
+  try { window.addEventListener('pagehide', onHide); } catch (e) { }
+  try { if (HOST !== window) { HOST.addEventListener('pagehide', onHide); } } catch (e) { }
 
   if (HDOC.readyState === 'loading') { HDOC.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 })();

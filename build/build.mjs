@@ -106,6 +106,14 @@ function collectSkins() {
 const SKINS = collectSkins();
 const skinsJson = JSON.stringify(SKINS);
 
+/* 离线执行异步时序与状态回归；不访问服务、不写聊天或预设。 */
+try {
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/audit-regressions.mjs')], { stdio: 'inherit' });
+} catch (e) {
+  console.error('  [中止] 脚本回归检查失败，先修复再构建。');
+  process.exit(1);
+}
+
 /* ---------- 文案校验（design/copy/copy-table.json 与四套 skin.json 必须一致） ---------- */
 try {
   execFileSync(process.execPath, [path.join(__dirname, 'lint-copy.mjs')], { stdio: 'inherit' });

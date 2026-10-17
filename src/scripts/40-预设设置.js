@@ -555,7 +555,7 @@
     return out;
   }
 
-  function watchSave(name, from, plan, onFail) {
+  function watchSave(name, from, plan, onFail, onDone) {
     var target = HOST || window;
     var orig = null, done = false, patched = null;
     var r = {
@@ -565,13 +565,16 @@
     try { orig = target.fetch; } catch (e) { orig = null; }
     if (typeof orig !== 'function') {
       r.error = '宿主 fetch 不可用，没法回读写盘结果（改动仍已发出）';
-      lastSave = r; log('写盘自证不可用：' + r.error); return r;
+      lastSave = r; log('写盘自证不可用：' + r.error);
+      r.ok = false;
+      if (typeof onDone === 'function') { onDone(); }
+      return r;
     }
     /* 补丁与兜底定时器都登记在 savePatches 里，注销时由 cancelSavePatches() 逐项收回
        （原来只靠 finish() 自还原：写盘途中注销 → 最多 6 秒内 HOST.fetch 还是被替换过的版本）。 */
     var slot = { target: target, orig: orig, patched: null, timer: null, done: false };
     function finish() {
-      if (done) { return; }
+      if (done || slot.done || disposed) { return; }
       done = true;
       slot.done = true;
       try { if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; } } catch (e) { }
@@ -588,26 +591,39 @@
       } else {
         log('写盘自证 ✗ HTTP ' + r.status + ' · ' + (r.error || '服务端没成功'));
       }
-      renderStatus();
+      try { renderStatus(); } catch (e) { }
       /* 真写失败：活设置里的改动要退回去，否则内存与磁盘就分家了（界面也弹回旧值） */
       if (r.ok === false && plan && plan.length) {
         try {
-          for (var i = 0; i < plan.length; i++) { plan[i].prompt.content = plan[i].before; }
-          revertVarInputs(plan);
-          toast('error', '预设没写进去（HTTP ' + r.status + '），改动已退回');
+          var reverted = [];
+          for (var i = 0; i < plan.length; i++) {
+            var p = plan[i];
+            /* 后一次编辑仍在队列时，失败只能撤销自己拥有的内容。 */
+            for (var q = 0; q < saveJobs.length; q++) {
+              var next = saveJobs[q].plan || [];
+              for (var n = 0; n < next.length; n++) {
+                if (next[n].prompt === p.prompt && next[n].before === p.after) { next[n].before = p.before; }
+              }
+            }
+            if (p.prompt.content === p.after) { p.prompt.content = p.before; reverted.push(p); }
+          }
+          if (reverted.length) { revertVarInputs(reverted); }
+          toast('error', '预设没写进去（HTTP ' + r.status + '）' + (reverted.length ? '，本次改动已退回' : '；后续编辑已保留'));
         } catch (e) { log('退回活设置失败：' + ((e && e.message) || e)); }
       } else if (r.ok === false && typeof onFail === 'function') {
         /* 不是「改一个数字」那种 plan（例如整份继承写回）：退回动作由调用方给，
            它自己知道刚才覆盖了哪些字段、原值是什么。 */
         try { onFail(r); } catch (e) { log('退回活设置失败：' + ((e && e.message) || e)); }
       }
+      if (typeof onDone === 'function') { onDone(); }
     }
+    r.cancel = function () { r.ok = false; finish(); };
     patched = function (input, init) {
       var url = '';
       try { url = (typeof input === 'string') ? input : ((input && input.url) || ''); } catch (e) { }
       var p = orig.apply(this, arguments);
       try {
-        if (url.indexOf('/api/presets/save') >= 0) {
+        if (url.indexOf('/api/presets/save') >= 0 && !r.dispatched && !slot.done && !disposed) {
           r.dispatched = true;
           var rawBody = (init && init.body) ? init.body : null;
           try {
@@ -637,8 +653,9 @@
     };
     try { target.fetch = patched; } catch (e) {
       r.error = '拦不住宿主 fetch：' + ((e && e.message) || e);
-      lastSave = r; log(r.error); return r;
+      r.ok = false; finish(); return r;
     }
+    if (target.fetch !== patched) { r.ok = false; r.error = '宿主 fetch 无法替换'; finish(); return r; }
     slot.patched = patched;
     savePatches.push(slot);
     slot.timer = setTimeout(function () { if (!r.dispatched) { r.ok = false; r.error = '6 秒内没看到保存请求'; finish(); } }, 6000);
@@ -648,7 +665,42 @@
   /* watchSave 压上的 fetch 补丁栈（后进先出收回）。
      注销时逐个还原：先还原最晚压上的那层（它的 orig 可能是上一层补丁），最后回到真 fetch。 */
   var savePatches = [];
+  var saveJobs = [], saveJobActive = null, saveSerial = 0;
+  var SAVE_BUSY = '上一项还在保存，请保存完成后再修改';
+  function savingBusy() { return !!saveJobActive || saveJobs.length > 0; }
+  function queuePresetSave(name, from, plan, onFail, button) {
+    saveJobs.push({ name: name, from: from, plan: plan, onFail: onFail, button: button, serial: ++saveSerial });
+    return pumpPresetSaves();
+  }
+  function pumpPresetSaves() {
+    if (disposed || saveJobActive || !saveJobs.length) { return; }
+    var job = saveJobActive = saveJobs.shift();
+    var complete = function () {
+      if (saveJobActive !== job) { return; }
+      saveJobActive = null;
+      /* 避免在 fetch.then 的当前栈里再次点原生按钮。 */
+      Promise.resolve().then(function () { pumpPresetSaves(); });
+    };
+    var r = watchSave(job.name, job.from, job.plan, function (result) {
+      if (job.serial === saveSerial && typeof job.onFail === 'function') { job.onFail(result); }
+    }, complete);
+    if (r.ok === false) { return r; }
+    try {
+      var sent = job.button.click();
+      if (sent && typeof sent.catch === 'function') {
+        sent.catch(function (e) { r.error = '保存失败：' + ((e && e.message) || e); if (r.cancel) { r.cancel(); } });
+      }
+    }
+    catch (e) {
+      r.ok = false; r.error = '点不动酒馆保存按钮：' + ((e && e.message) || e);
+      if (r.cancel) { r.cancel(); }
+      complete();
+      toast('error', r.error);
+    }
+    return r;
+  }
   function cancelSavePatches() {
+    saveJobs = []; saveJobActive = null;
     while (savePatches.length) {
       var p = savePatches.pop();
       p.done = true;
@@ -715,12 +767,8 @@
       }
       if (!liveName) { return { ok: false, msg: '拿不到当前预设名，改动没有写盘' }; }
       if (liveName !== info.name) { log('注意：兜底链解析到「' + info.name + '」，活设置 preset_settings_openai 是「' + liveName + '」，按后者写盘'); }
-      watchSave(liveName, info.from, plan, onFail);
-      try {
-        btn.click();                       // 就是酒馆自己那颗保存按钮
-      } catch (e) {
-        return { ok: false, msg: '点不动酒馆的「更新当前预设」按钮：' + ((e && e.message) || e) };
-      }
+      var request = queuePresetSave(liveName, info.from, plan, onFail, btn);
+      if (request && request.ok === false) { return { ok: false, msg: request.error || '保存失败' }; }
       saveCount++;
       log('已走酒馆自己的保存通道写盘：点「更新当前预设」按钮 → savePreset(' + liveName + ')（共 ' + saveCount + ' 次，第二个参数不传）');
       return { ok: true, msg: '', name: liveName, from: info.from, layer: info.layer, channel: 'native-button' };
@@ -737,7 +785,10 @@
       return { ok: false, msg: '这台酒馆上没有「更新当前预设」按钮，而 getPresetManager("openai").savePreset 在 openai 上会写出空预设（preset-manager.js 没有 openai 分支），已拒绝写盘：改动没有保存' };
     }
     try {
-      pm.savePreset(info.name);          // ⚠️ 第二个参数不传（传了走白名单重建，会把预设写坏）
+      var request = queuePresetSave(info.name, info.from, plan, onFail, { click: function () {
+        return pm.savePreset(info.name); // 第二个参数不传，避免白名单重建
+      } });
+      if (request && request.ok === false) { return { ok: false, msg: request.error || '保存失败' }; }
       saveCount++;
       lastSave = { at: nowText(), name: info.name, from: info.from, channel: 'getPresetManager.savePreset', status: null, ok: null };
       log('已走 getPresetManager("openai").savePreset(' + info.name + ') 写盘（共 ' + saveCount + ' 次）');
@@ -761,6 +812,7 @@
   }
 
   function commitVars(pairs) {
+    if (disposed || savingBusy()) { return { ok: false, changed: 0, msg: disposed ? '脚本已关闭' : SAVE_BUSY }; }
     var raw = readRaw();
     if (!raw.ok) { return { ok: false, changed: 0, msg: raw.error }; }
     var prompts = raw.settings.prompts || [];
@@ -864,6 +916,7 @@
 
   /* 写侧。req = { anchorCards, adds:[{display,groupHeadId,content}], updates:[{identifier,display,groupHeadId,content}], removes:[identifier] } */
   function applyCustomStyles(req) {
+    if (disposed || savingBusy()) { return { ok: false, code: 'SAVE_BUSY', detail: disposed ? '脚本已关闭' : SAVE_BUSY }; }
     req = req || {};
     var live = readTree();
     if (!live.ok) { return { ok: false, code: 'NO_TREE', detail: live.error || '' }; }
@@ -900,14 +953,17 @@
     /* ⑤ 快照：任何异常都退回这一份，内存与磁盘绝不分家 */
     var snapPrompts = JSON.stringify(settings.prompts || []);
     var snapOrder = JSON.stringify(orderEntry.order || []);
-    function diyRollback() {
+    function diyRollback(force) {
+      if (!force && (JSON.stringify(settings.prompts) !== JSON.stringify(plan.nextPrompts) || JSON.stringify(orderEntry.order) !== JSON.stringify(plan.nextOrder))) {
+        log('自定义文风保存失败，但后续设置已经变化，保留后续编辑'); return;
+      }
       try { settings.prompts = JSON.parse(snapPrompts); } catch (e3) { }
       try { orderEntry.order = JSON.parse(snapOrder); } catch (e4) { }
       log('自定义文风：已回滚内存改动（预设文件没有被改动）');
     }
 
     function diyFail(code, detail) {
-      diyRollback();
+      diyRollback(true);
       try { refresh(true); } catch (e5) { }
       return { ok: false, code: code, detail: detail || '' };
     }
@@ -2372,6 +2428,22 @@
   var tagFixEls = null;
   var godcmdEls = null;                     // 「常驻附加指令」那张卡的元素（每次渲染重建）
   var tagFixCurFloor = -1;                     // 「当前楼层」= 用户最后点过的那一楼（没有就退回最新一楼）
+  var tagFixSelection = null, tagFixWatchNode = null, tagFixFloorHandler = null;
+  function tagFixChatStamp() {
+    var c = stCtx() || {};
+    return { chat: c.chat, id: JSON.stringify([c.characterId, c.groupId, c.chatId]) };
+  }
+  function tagFixSameChat(a, b) { return !!a && !!b && a.chat === b.chat && a.id === b.id; }
+  function unbindChatFloorWatch() {
+    if (tagFixWatchNode && tagFixFloorHandler) {
+      try { tagFixWatchNode.removeEventListener('click', tagFixFloorHandler, true); } catch (e) { }
+      if (tagFixWatchNode.__kamiTagfixWatch === tagFixFloorHandler) {
+        delete tagFixWatchNode.__kamiTagfixWatch;
+        tagFixWatchNode.removeAttribute('data-kami-tagfix-floor');
+      }
+    }
+    tagFixWatchNode = null; tagFixFloorHandler = null;
+  }
 
   function tagFixModeSpec(id) {
     for (var i = 0; i < TAGFIX_MODES.length; i++) { if (TAGFIX_MODES[i].id === id) { return TAGFIX_MODES[i]; } }
@@ -2401,6 +2473,7 @@
   }
   /* 「当前楼层」：优先用户最后点过的那一楼，否则最新的一楼（AI 楼层才算数） */
   function currentFloorId() {
+    if (!tagFixSameChat(tagFixSelection, tagFixChatStamp())) { tagFixCurFloor = -1; tagFixSelection = null; }
     var n = chatLen();
     if (!n) { return -1; }
     var seq = [], i, m;
@@ -2417,21 +2490,27 @@
   function bindChatFloorWatch() {
     try {
       var chat = HDOC.getElementById('chat');
-      if (!chat || chat.getAttribute('data-kami-tagfix-floor')) { return; }
+      if (!chat || (chat === tagFixWatchNode && tagFixFloorHandler)) { return; }
+      unbindChatFloorWatch();
+      if (chat.__kamiTagfixWatch) { chat.removeEventListener('click', chat.__kamiTagfixWatch, true); }
+      tagFixWatchNode = chat;
       chat.setAttribute('data-kami-tagfix-floor', '1');
-      chat.addEventListener('click', function (ev) {
+      tagFixFloorHandler = function (ev) {
+        if (disposed) { return; }
         try {
           var node = ev.target;
           while (node && node !== chat) {
             if (node.getAttribute && node.getAttribute('mesid') !== null) {
               var id = parseInt(node.getAttribute('mesid'), 10);
-              if (isFinite(id) && id >= 0) { tagFixCurFloor = id; }
+              if (isFinite(id) && id >= 0) { tagFixCurFloor = id; tagFixSelection = tagFixChatStamp(); }
               return;
             }
             node = node.parentNode;
           }
         } catch (e) { }
-      }, true);
+      };
+      chat.__kamiTagfixWatch = tagFixFloorHandler;
+      chat.addEventListener('click', tagFixFloorHandler, true);
     } catch (e) { }
   }
 
@@ -2511,6 +2590,8 @@
      用户 2026-09-30 点名：「确认窗是改成先扫描一遍，确认好这一次实际上会改哪些标签跟用户说一声，
      而不是告诉用户会扫哪些标签」。所以窗里拼的是 res.changes（真实改动），不是登记表。 */
   async function tagFixCurrentFloor() {
+    if (disposed) { return; }
+    var stamp = tagFixChatStamp();
     if (tagFixMode === 'off') { return; }
     if (!tagFixApiReady()) { toast('warning', TAGFIX_COPY.needApi); return; }
     var idx = currentFloorId();
@@ -2538,6 +2619,7 @@
     ask += '<div style="margin-top:8px;opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
     ask += '</div>';
     var yes = await tagFixAsk(ask);
+    if (disposed || !tagFixSameChat(stamp, tagFixChatStamp())) { return; }
     if (!yes) {
       /* 没确认就不动手。区分「用户点了取消」与「根本弹不出窗」：后者要告诉用户为什么没反应 */
       if (tagFixAsk.lastReason === 'noPopup' || tagFixAsk.lastReason === 'popupError') {
@@ -2548,6 +2630,8 @@
       return;
     }
     try {
+      var latest = chatMsgAt(idx);
+      if (!latest || latest.message !== m.message) { toast('warning', '这条消息已变化，请重新处理'); return; }
       await setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
       tagFixStat.fixed++;
       tagFixStat.lastFloor = idx;
@@ -3333,6 +3417,7 @@
      再让他切来切去等于没省事。写盘前 70 号已经先把当前预设备份过了。
      覆盖前把要动的键各存一份，写盘失败就退回去 —— 不然内存与磁盘就分家了。 */
   function applyInheritedToLive(merged, targetName) {
+    if (disposed || savingBusy()) { return { ok: false, msg: disposed ? '脚本已关闭' : SAVE_BUSY }; }
     if (!merged || typeof merged !== 'object') { return { ok: false, msg: '合并结果不是一份预设' }; }
     var ctx = stCtx();
     if (!ctx) { return { ok: false, msg: '拿不到酒馆上下文，改动没有写盘' }; }
@@ -3360,7 +3445,7 @@
     }
     var r = savePresetFile(ctx, s, null, function () {
       /* 写盘失败（服务端没成功）：把刚覆盖的字段一个个放回去，内存与磁盘不能分家 */
-      for (var j = 0; j < keys.length; j++) { try { s[keys[j]] = before[keys[j]]; } catch (e) { } }
+      for (var j = 0; j < keys.length; j++) { try { if (s[keys[j]] === merged[keys[j]]) { s[keys[j]] = before[keys[j]]; } } catch (e) { } }
       toast('error', '继承结果没写进预设，已退回，你的设置没有变');
     }, targetName);
     if (!r.ok) {
@@ -4011,6 +4096,8 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    unbindChatFloorWatch();
+    tagFixCurFloor = -1; tagFixSelection = null;
     log('正在注销：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局');
     /* 裁决没完成就注销（脚本被关 / 重挂）：同样通知 70 号放弃，别让它干等回 */
     if (mergeCtx) { var mc = mergeCtx; mergeCtx = null; try { if (typeof mc.onApply === 'function') { mc.onApply(null); } } catch (e) { } }
@@ -4059,6 +4146,13 @@
      拿不到 eventOn/tavern_events 时不报错、只记一行 —— 面板上的手动按钮仍然可用。 */
   function bindTagFixEvents() {
     bindChatFloorWatch();                       /* 「当前楼层」= 用户最后点过的那一楼 */
+    if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined' && tavern_events.CHAT_CHANGED) {
+      var changed = eventOn(tavern_events.CHAT_CHANGED, function () {
+        tagFixCurFloor = -1; tagFixSelection = null; bindChatFloorWatch();
+      });
+      if (typeof changed === 'function') { unsubs.push({ stop: changed }); }
+      else if (changed && typeof changed.stop === 'function') { unsubs.push(changed); }
+    }
     try {
       if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined' ||
         !tavern_events.MESSAGE_RECEIVED) {

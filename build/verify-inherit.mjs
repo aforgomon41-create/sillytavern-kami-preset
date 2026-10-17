@@ -113,7 +113,8 @@ ok(panel.indexOf('function restorePresetSelection') >= 0 && /restorePresetSelect
   '⑤ 写完之后把酒馆的预设选择拨回当前这一份（保存通道自己会挪它）');
 ok(/pm\.findPreset\(wantName\)/.test(panelCode) && /pm\.selectPreset\(val\)/.test(panelCode),
   '⑤ 拨回用的是酒馆自己的 findPreset / selectPreset（不是自己改下拉框）');
-ok(/savePresetFile\(ctx, s, null, function \(\) \{[\s\S]{0,200}\}, targetName\)/.test(panelCode),
+const inheritedWrite = panelCode.slice(panelCode.indexOf('function applyInheritedToLive('), panelCode.indexOf('\n  function ', panelCode.indexOf('function applyInheritedToLive(') + 10));
+ok(/savePresetFile\(ctx, s, null, function \(\) \{[\s\S]*?\}, targetName\)/.test(inheritedWrite),
   '⑤ 写盘用的是**抓好的那个名字**，不是动完之后现解析的');
 
 /* ⑥ 用户问过「怎么没问我要不要保留条目修改」：没问必须说明白 */

@@ -165,6 +165,8 @@
     bodyFront: '1',
     effects: {},                 // { effectId: true }
     params: {},                  // { paramId: number }
+    skinSettings: {},            // skinId -> { effects, params }；局部 id 不能跨皮肤复用
+    fontScale: 1,
     panel: { x: null, y: null, w: null, h: null, open: false }
   };
   var state = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -175,6 +177,25 @@
     return null;
   }
   function curSkin() { return findSkin(state.skinId) || SKINS[0]; }
+  function rememberSkinSettings() {
+    var params = {};
+    Object.keys(state.params || {}).forEach(function (k) { if (k !== '__fs') { params[k] = state.params[k]; } });
+    state.skinSettings[state.skinId] = { effects: Object.assign({}, state.effects), params: params };
+  }
+  function useSkinSettings(id) {
+    var sk = findSkin(id), saved = state.skinSettings[id] || {}, params = {}, effects = {};
+    (sk.params || []).forEach(function (p) {
+      var value = saved.params && saved.params[p.id];
+      if (typeof value !== 'number' || !isFinite(value)) { value = p.value; }
+      params[p.id] = Math.min(Math.max(value, p.min), p.max);
+    });
+    (sk.effects || []).forEach(function (fx) {
+      if (saved.effects && typeof saved.effects[fx.id] === 'boolean') { effects[fx.id] = saved.effects[fx.id]; }
+    });
+    state.skinId = id; state.effects = effects; state.params = params;
+    state.params.__fs = state.fontScale;
+    rememberSkinSettings();
+  }
 
   function readState() {
     var saved = null;
@@ -197,6 +218,14 @@
       state[k] = saved[k];
     }
     if (!findSkin(state.skinId)) { state.skinId = SKINS[0].id; }
+    if (!state.skinSettings || typeof state.skinSettings !== 'object' || Array.isArray(state.skinSettings)) { state.skinSettings = {}; }
+    var scale = (typeof saved.fontScale === 'number') ? saved.fontScale : (saved.params && saved.params.__fs);
+    state.fontScale = (typeof scale === 'number' && isFinite(scale)) ? Math.min(1.5, Math.max(0.8, scale)) : 1;
+    /* 旧存档只属于当时选中的皮肤；其余皮肤从各自默认值开始。 */
+    if (!state.skinSettings[state.skinId]) {
+      state.skinSettings[state.skinId] = { effects: saved.effects || {}, params: saved.params || {} };
+    }
+    useSkinSettings(state.skinId);
   }
 
   var saveTimer = null;
@@ -285,10 +314,14 @@
   ].join('');
 
 
+  var cachedSkin = null, cachedSkinCss = '';
   function skinCssText(skin) {
-    return '/* ==== struct ==== */\n' + STRUCT_CSS +
+    if (cachedSkin === skin) { return cachedSkinCss; }
+    cachedSkin = skin;
+    cachedSkinCss = '/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
       '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '');
+    return cachedSkinCss;
   }
 
   /* 用户参数 / 档位 → 一段后置 CSS（作用域与皮肤相同，靠顺序取胜） */
@@ -395,11 +428,13 @@
     try {
       var el = doc.documentElement;
       if (!el) { return; }
-      el.setAttribute(TAG, skin.id);
-      el.setAttribute('data-kami-scheme', state.scheme || skin.scheme || 'dark');
-      el.setAttribute('data-kami-motion', state.motion);
-      el.setAttribute('data-kami-density', state.density);
-      el.setAttribute('data-kami-effects', effectList().join(' '));
+      var attrs = {};
+      attrs[TAG] = skin.id;
+      attrs['data-kami-scheme'] = state.scheme || skin.scheme || 'dark';
+      attrs['data-kami-motion'] = state.motion;
+      attrs['data-kami-density'] = state.density;
+      attrs['data-kami-effects'] = effectList().join(' ');
+      Object.keys(attrs).forEach(function (key) { if (el.getAttribute(key) !== attrs[key]) { el.setAttribute(key, attrs[key]); } });
     } catch (e) { }
   }
   function clearAttrs(doc) {
@@ -434,18 +469,58 @@
     } catch (e) { }
   }
 
+  var skinRevision = 0, appliedDocs = new WeakMap();
   function applyTo(doc) {
     if (disposed || !doc) { return; }
     var skin = curSkin();
     setAttrs(doc, skin);
+    if (appliedDocs.get(doc) === skinRevision && doc.getElementById(STYLE_ID) && doc.getElementById(USER_STYLE_ID)) { return; }
     putStyle(doc, STYLE_ID, skinCssText(skin));
     putStyle(doc, USER_STYLE_ID, userCssText(skin));
     /* 装饰模块：皮肤声明了才注入；皮肤一换就销毁（契约 §8） */
     syncDecor(doc);
+    appliedDocs.set(doc, skinRevision);
   }
 
   function iframeDoc(frame) {
     try { return frame && frame.contentDocument ? frame.contentDocument : null; } catch (e) { return null; }
+  }
+  var watchedFrames = new Set(), pendingFrames = new Set(), frameTimer = null;
+  function onFrameLoad(ev) {
+    if (disposed || !ev.target || ev.target.isConnected === false) { return; }
+    var doc = iframeDoc(ev.target);
+    if (doc) { applyTo(doc); }
+  }
+  function bindFrameLoad(frame) {
+    if (!watchedFrames.has(frame)) {
+      frame.addEventListener('load', onFrameLoad);
+      watchedFrames.add(frame);
+    }
+  }
+  function unbindDetachedFrames(node) {
+    if (!node || node.nodeType !== 1) { return; }
+    function unbind(frame) {
+      if (frame.isConnected !== false) { return; }
+      frame.removeEventListener('load', onFrameLoad);
+      watchedFrames.delete(frame); pendingFrames.delete(frame);
+    }
+    if (node.matches && node.matches(IFRAME_SEL)) { unbind(node); }
+    var frames = node.querySelectorAll ? node.querySelectorAll(IFRAME_SEL) : [];
+    for (var i = 0; i < frames.length; i++) { unbind(frames[i]); }
+  }
+  function queueAddedFrames(node) {
+    if (!node || node.nodeType !== 1) { return; }
+    if (node.matches && node.matches(IFRAME_SEL)) { bindFrameLoad(node); pendingFrames.add(node); }
+    var frames = node.querySelectorAll ? node.querySelectorAll(IFRAME_SEL) : [];
+    for (var i = 0; i < frames.length; i++) { bindFrameLoad(frames[i]); pendingFrames.add(frames[i]); }
+    if (pendingFrames.size && frameTimer === null) {
+      frameTimer = setTimeout(function () {
+        frameTimer = null;
+        if (disposed) { pendingFrames.clear(); return; }
+        pendingFrames.forEach(function (frame) { if (frame.isConnected !== false) { var doc = iframeDoc(frame); if (doc) { applyTo(doc); } } });
+        pendingFrames.clear();
+      }, 60);
+    }
   }
 
   function syncIframe(id) {
@@ -456,24 +531,25 @@
     } catch (e) { }
   }
 
-  /* 只要有一条 iframe 变了，就顺手把「旧功能残渣」清一次（幂等、一条都不剩时立刻返回），
-     再给新楼层的第三方宿主打标记（幂等：已打标的原样留着）。 */
+  /* 新 iframe 增量下发；低频全量核对兜底，不重复构造未变化的样式。 */
   function syncAllIframes() {
+    if (disposed) { return; }
     try {
+      watchedFrames.forEach(function (frame) { if (frame.isConnected === false) { unbindDetachedFrames(frame); } });
       var frames = HDOC.querySelectorAll(IFRAME_SEL), i;
       for (i = 0; i < frames.length; i++) {
+        bindFrameLoad(frames[i]);
         var doc = iframeDoc(frames[i]);
         if (doc && doc.documentElement) { applyTo(doc); }
       }
     } catch (e) { }
-    purgeBodyWraps();
   }
 
   function syncAll() {
     if (disposed) { return; }
+    skinRevision++;
     applyTo(HDOC);
     syncAllIframes();
-    purgeBodyWraps();
   }
 
   /* ───────── 旧「正文美化包裹层」残渣清理（退役，契约 §9.7）─────────
@@ -500,7 +576,7 @@
       var parent = root.parentNode;
       if (!parent) { continue; }
       var body = null;
-      try { body = root.querySelector(MES_CHILD_SEL); } catch (e2) { body = root.firstElementChild; }
+      try { body = root.querySelector(MES_CHILD_SEL); } catch (e2) { continue; }
       if (!body) { continue; }
       try {
         while (body.firstChild) { parent.insertBefore(body.firstChild, root); }
@@ -1326,29 +1402,26 @@
 
   /* ---- 状态写入 ---- */
   function setSkin(id) {
+    if (disposed) { return; }
     var s = findSkin(id);
     if (!s) { return; }
-    state.skinId = id;
-    /* 参数按新皮肤的取值域裁剪 */
-    var np = {};
-    (s.params || []).forEach(function (p) {
-      var v = state.params[p.id];
-      if (typeof v !== 'number' || !isFinite(v)) { v = p.value; }
-      np[p.id] = Math.min(Math.max(v, p.min), p.max);
-    });
-    if (typeof state.params['__fs'] === 'number') { np['__fs'] = state.params['__fs']; }
-    state.params = np;
+    rememberSkinSettings();
+    useSkinSettings(id);
     saveState();
     syncAll();
     renderPane();
     log('切换皮肤 → ' + s.name);
   }
   function setParam(id, v, srcNode) {
+    if (disposed || typeof v !== 'number' || !isFinite(v)) { return; }
     var skin = curSkin();
     var def = null;
     (skin.params || []).concat([{ id: '__fs', min: 0.8, max: 1.5 }]).forEach(function (p) { if (p.id === id) { def = p; } });
-    if (def) { v = Math.min(Math.max(v, def.min), def.max); }
+    if (!def) { return; }
+    v = Math.min(Math.max(v, def.min), def.max);
     state.params[id] = v;
+    if (id === '__fs') { state.fontScale = v; }
+    rememberSkinSettings();
     /* 同步 --kami-value（滑杆元素上） */
     try {
       var skin2 = curSkin();
@@ -1373,6 +1446,7 @@
       } catch (e) { }
     }
     saveState();
+    skinRevision++;
     applyTo(HDOC);
     syncAllIframes();
     renderPaneStatusOnly();
@@ -1382,11 +1456,13 @@
     if (st) { st.textContent = curSkin().name + ' · 动效 ' + state.motion + ' · 密度 ' + state.density + ' · 特效 ' + (effectList().length || '无'); }
   }
   function toggleEffect(id) {
+    if (disposed) { return; }
     var fx = curSkin().effects || [], def = false, i;
     for (i = 0; i < fx.length; i++) { if (fx[i].id === id) { def = !!fx[i].default; } }
     var cur = state.effects[id];
     if (cur === undefined) { cur = def; }
     state.effects[id] = !cur;
+    rememberSkinSettings();
     saveState();
     syncAll();
     renderFxPane();
@@ -1395,6 +1471,7 @@
   /* 档位开关。返回值只对 bodyFront 有意义（见 setBodyFront 的契约）：
      面板路径不看它；导出给引导页的那条会拿它等写入落定。 */
   function setFlag(kv) {
+    if (disposed) { return false; }
     var i = kv.indexOf('=');
     var k = kv.slice(0, i), v = kv.slice(i + 1);
     var prev = state[k];
@@ -1662,6 +1739,10 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    if (frameTimer !== null) { clearTimeout(frameTimer); frameTimer = null; }
+    pendingFrames.clear();
+    watchedFrames.forEach(function (frame) { try { frame.removeEventListener('load', onFrameLoad); } catch (e) { } });
+    watchedFrames.clear();
     log('正在注销：摘监听 / 拆面板 / 收样式 / 删全局');
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = null; } } catch (e) { }
@@ -1686,6 +1767,7 @@
     try {
       var frames = HDOC.querySelectorAll(IFRAME_SEL), k;
       for (k = 0; k < frames.length; k++) {
+        frames[k].removeEventListener('load', onFrameLoad);
         var doc = iframeDoc(frames[k]);
         if (!doc) { continue; }
         dropStyle(doc, STYLE_ID); dropStyle(doc, USER_STYLE_ID); clearAttrs(doc);
@@ -1717,8 +1799,10 @@
   function boot() {
     log('启动 v' + VERSION + '，皮肤包 ' + SKINS.length + ' 套：' + SKINS.map(function (s) { return s.id; }).join(', '));
     readState();
+    useSkinSettings(state.skinId);
     expose();
     syncAll();
+    purgeBodyWraps();
     /* 开关位置与酒馆正则的真实启用位对账（只读；写会重载聊天，所以这里绝不写）。
        启动瞬间可能读不到正则表（酒馆助手还没就绪 / 预设还没加载完），1.2 秒后补一次。 */
     syncBodyFrontFromTavern();
@@ -1742,11 +1826,14 @@
     try {
       var MO = HOST.MutationObserver || window.MutationObserver;
       if (MO) {
-        var queued = false;
-        mo = new MO(function () {
-          if (queued || disposed) { return; }
-          queued = true;
-          setTimeout(function () { queued = false; syncAllIframes(); }, 300);
+        mo = new MO(function (records) {
+          if (disposed) { return; }
+          for (var i = 0; i < records.length; i++) {
+            var removed = records[i].removedNodes || [];
+            for (var k = 0; k < removed.length; k++) { unbindDetachedFrames(removed[k]); }
+            var nodes = records[i].addedNodes || [];
+            for (var j = 0; j < nodes.length; j++) { queueAddedFrames(nodes[j]); }
+          }
         });
         var chat = HDOC.getElementById('chat') || HDOC.body;
         mo.observe(chat, { childList: true, subtree: true });
@@ -1761,8 +1848,8 @@
     };
     try { HOST.addEventListener('resize', resizeHandler); } catch (e) { }
 
-    /* 8 秒兜底核对：句柄必须留着，否则注销后它会永久存活（交接.md 记过的同类真 bug）。 */
-    try { sweepTimer = setInterval(function () { syncAllIframes(); }, 8000); } catch (e) { }
+    /* 低频兜底：属性按差异写，已同步文档走 WeakMap 缓存。 */
+    try { sweepTimer = setInterval(function () { syncAllIframes(); }, 30000); } catch (e) { }
 
     registerButton();
     pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);

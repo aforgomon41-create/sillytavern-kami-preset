@@ -174,11 +174,19 @@
      句柄带上「是哪个窗口的」，注销时按原窗口清理。 */
   function hsetTimeout(fn, ms) {
     var w = (HOST && HOST.setTimeout) ? HOST : window;
-    try { return { w: w, id: w.setTimeout(fn, ms) }; } catch (e) { }
-    return { w: window, id: setTimeout(fn, ms) };
+    var t = { w: w, id: null };
+    var fire = function () {
+      var i = timers.indexOf(t); if (i >= 0) { timers.splice(i, 1); }
+      if (!disposed) { fn(); }
+    };
+    try { t.id = w.setTimeout(fire, ms); }
+    catch (e) { t.w = window; t.id = setTimeout(fire, ms); }
+    timers.push(t);
+    return t;
   }
   function hclear(t) {
     try { if (t && t.id !== undefined && t.id !== null) { t.w.clearTimeout(t.id); } } catch (e) { }
+    var i = timers.indexOf(t); if (i >= 0) { timers.splice(i, 1); }
   }
 
   /* ───────── 状态 ───────── */
@@ -186,6 +194,10 @@
   var disposed = false;
   var busy = false;               // 一次检查流程正在进行中（防止手动 check 撞车）
   var timers = [];                // 待清理的定时器句柄
+  var activeRequests = new Set(), stopResolve = null, calmResolve = null;
+  var stopped = new Promise(function (resolve) { stopResolve = resolve; });
+  function ensureActive() { if (disposed) { var e = new Error('脚本已注销，更新已停止'); e.cancelled = true; throw e; } }
+  function requestDone(ctrl, timer) { if (ctrl) { activeRequests.delete(ctrl); } if (timer) { hclear(timer); } }
   var calmTimer = null;           // 等待「界面空闲」的重试句柄
   var checks = 0;                 // 发起过的检查次数
   var last = {                    // 最近一次检查的结果（status() 用）
@@ -438,20 +450,22 @@
   }
 
   function fetchText(url, headers, ms) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销')); }
     var ctrl = null, timer = null;
     try { if (typeof AbortController === 'function') { ctrl = new AbortController(); } } catch (e) { }
     if (ctrl) {
+      activeRequests.add(ctrl);
       timer = hsetTimeout(function () { try { ctrl.abort(); } catch (e) { } }, ms || FETCH_MS);
     }
     var opt = ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' };
     if (headers) { try { opt.headers = headers; } catch (e) { } }
     var p = fetch(url, opt)
       .then(function (res) {
+        ensureActive();
         if (!res.ok) { var er = new Error('HTTP ' + res.status); er.status = res.status; throw er; }
         return res.text();
       });
-    if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
-    return p;
+    return p.finally(function () { requestDone(ctrl, timer); });
   }
 
   /* 流式下载：边读边报字节数，供进度弹窗用（用户 2026-10-05 要"下载了多少"）。
@@ -465,15 +479,18 @@
      所以总量优先由调用方从 manifest 的 bytes 传进来；只有在**没开压缩**时，
      content-length 才等于真实长度，才可以拿来兜底。 */
   function fetchTextStream(url, headers, ms, hooks) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销')); }
     var ctrl = null, timer = null;
     try { if (typeof AbortController === 'function') { ctrl = new AbortController(); } } catch (e) { }
     if (ctrl) {
+      activeRequests.add(ctrl);
       timer = hsetTimeout(function () { try { ctrl.abort(); } catch (e) { } }, ms || FETCH_MS);
     }
     var opt = ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' };
     if (headers) { try { opt.headers = headers; } catch (e) { } }
     var got = 0;
     var p = fetch(url, opt).then(function (res) {
+      ensureActive();
       if (!res.ok) { var er = new Error('HTTP ' + res.status); er.status = res.status; throw er; }
       var enc = (res.headers && res.headers.get) ? res.headers.get('content-encoding') : null;
       var cl = (res.headers && res.headers.get) ? res.headers.get('content-length') : null;
@@ -489,6 +506,7 @@
       var out = '';
       function pump() {
         return reader.read().then(function (s) {
+          ensureActive();
           if (s.done) { if (dec) { out += dec.decode(); } return out; }
           got += (s.value && s.value.byteLength) ? s.value.byteLength : 0;
           if (hooks && hooks.onBytes) { try { hooks.onBytes(got); } catch (e1) { } }
@@ -498,19 +516,19 @@
       }
       return pump();
     });
-    if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
-    return p;
+    return p.finally(function () { requestDone(ctrl, timer); });
   }
 
   /* 一条通道小重试：网络抖动通常缓一下就过，同一条通道先试第二次，而不是立刻换道。
      延迟 ≤0 = 不等待（自测环境没有真实的时钟，靠这个能原地重试）。 */
   function delayChainRetry(ms) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销')); }
     var w = (ms === 0) ? 0 : (ms || RETRY_DELAY_MS);
     if (!(w > 0)) { return Promise.resolve(); }
-    return new Promise(function (res) {
+    return Promise.race([new Promise(function (res) {
       var t = hsetTimeout(res, w);
       if (timers.indexOf(t) < 0) { timers.push(t); }
-    });
+    }), stopped.then(function () { ensureActive(); })]);
   }
 
   /* hooks（可选）：onOpen(兜底总量) / onBytes(累计字节) / onRestart(换通道了，字节从 0 重算)。
@@ -519,6 +537,7 @@
     var chain = buildChain(remote, cfg);
     var tried = [];
     function tryOnce(ch, left) {
+      if (disposed) { return Promise.reject(new Error('脚本已注销')); }
       if (!left || left < 1) { return Promise.reject(new Error('通道尝试次数异常')); }
       var t = MIRROR_ATTEMPTS - left + 1;
       log('下载尝试：通道「' + ch.label + '」第 ' + t + '/' + MIRROR_ATTEMPTS + ' 次 ' + ch.url);
@@ -526,6 +545,7 @@
         log('通道「' + ch.label + '」成功（第 ' + (MIRROR_ATTEMPTS - left + 1) + ' 次尝试）');
         return { text: text, via: ch.label };
       })['catch'](function (e) {
+        ensureActive();
         var why = fetchErrText(e);
         log('通道「' + ch.label + '」第 ' + t + ' 次尝试没成功：' + why);
         if (left > 1) {
@@ -537,6 +557,7 @@
     }
 
     function go(i) {
+      if (disposed) { return Promise.reject(new Error('脚本已注销')); }
       if (i >= chain.channels.length) {
         var errs = [];
         for (var k = 0; k < tried.length; k++) { errs.push('「' + tried[k].label + '」' + tried[k].err); }
@@ -576,13 +597,16 @@
 
   /* 读 GitHub API：把状态码与响应头也带出来（403 要能区分「限流」和「没权限」） */
   function fetchApi(url, ms) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销')); }
     var ctrl = null, timer = null;
     try { if (typeof AbortController === 'function') { ctrl = new AbortController(); } } catch (e) { }
     if (ctrl) {
+      activeRequests.add(ctrl);
       timer = hsetTimeout(function () { try { ctrl.abort(); } catch (e) { } }, ms || FETCH_MS);
     }
     var p = fetch(url, ctrl ? { signal: ctrl.signal, cache: 'no-store' } : { cache: 'no-store' })
       .then(function (res) {
+        ensureActive();
         /* 防御性读 body：异常响应（如 404）可能连 text() 都没有 */
         var body = (res.text && typeof res.text === 'function') ? res.text() : Promise.resolve('');
         return body.then(function (text) {
@@ -593,8 +617,7 @@
           };
         });
       });
-    if (timer) { p = p['finally'] ? p['finally'](function () { hclear(timer); }) : p; }
-    return p;
+    return p.finally(function () { requestDone(ctrl, timer); });
   }
 
   /* ───────── 完整性校验（尽力而为） ───────── */
@@ -721,6 +744,7 @@
      文件原样写进 OpenAI Settings，并顺手刷新预设下拉列表）。
      退回路径：直接打酒馆自己的 /api/presets/save（需要刷新页面才在下拉里出现）。 */
   function writePreset(name, json, text) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销，已停止写入')); }
     if (typeof importRawPreset === 'function') {
       return Promise.resolve(importRawPreset(name, text)).then(function (ok) {
         if (!ok) { throw new Error('importRawPreset 返回失败'); }
@@ -762,10 +786,11 @@
   }
 
   function waitCalm(times, fn) {
-    if (disposed) { return; }
+    if (disposed) { if (calmResolve) { calmResolve(last); calmResolve = null; } return; }
     if (!busyOnScreen()) { fn(); return; }
     if (times <= 0) {
       log('界面上一直有弹窗/向导开着，本次更新提示先跳过（下次启动会再问）');
+      if (calmResolve) { calmResolve(last); calmResolve = null; }
       return;
     }
     calmTimer = hsetTimeout(function () { waitCalm(times - 1, fn); }, CALM_WAIT);
@@ -869,7 +894,8 @@
     log('第 ' + checks + ' 次检查：读 Releases ' + releasesApiUrl(cfg));
     /* 版本发现两条路：先 Releases 接口，读失败再试 jsDelivr 清单（@main/mirror/manifest.json）。
        日志写明这一版是从哪边发现的 —— 排障时看得懂。 */
-    return fetchLatestRelease(cfg)['catch'](function (eRel) {
+    var work = fetchLatestRelease(cfg)['catch'](function (eRel) {
+      ensureActive();
       log('读 Releases 没成功：' + ((eRel && eRel.message) || eRel));
       return fetchManifestRemote(cfg).then(function (remote) {
         log('这一版是从 jsDelivr 清单发现的（GitHub Releases 接口没读成，多半是网络问题）');
@@ -880,6 +906,7 @@
           '（jsDelivr 清单兜底也没成：' + ((eMan && eMan.message) || eMan) + '）');
       });
     }).then(function (remote) {
+      ensureActive();
       last.ok = true;
       last.error = null;
       last.remote = remote;
@@ -930,9 +957,11 @@
       }
 
       return new Promise(function (resolve) {
+        calmResolve = resolve;
         waitCalm(CALM_TIMES, function () {
           if (disposed) { resolve(last); return; }
           askUpdate(remote, local.name || '').then(function (yes) {
+            if (disposed) { resolve(last); return; }
             if (yes) { resolve(doUpdate(remote)); }
             else {
               saveVars({ skipped: remote.version });
@@ -941,6 +970,7 @@
               resolve(last);
             }
           })['catch'](function (e) {
+            if (disposed) { resolve(last); return; }
             warn('弹窗失败：' + ((e && e.message) || e));
             toast('warning', '发现新版本 ' + remote.version + '，但弹窗没弹出来（详见日志）', 8000);
             resolve(last);
@@ -948,17 +978,20 @@
         });
       });
     })['catch'](function (e) {
+      if (disposed) { return last; }
       last.ok = false;
       last.error = (e && e.message) || String(e);
       log('检查失败：' + last.error + '（仓库还没建好或网络不通，下次启动会再试）');
       return last;
     })['then'](function (r) {
       busy = false;
+      if (disposed) { return r; }
       last.at = Date.now();
       /* 记本次连网时间（取整到小时，同一小时内重复启动不重复写文件） */
       saveVars({ lastCheckAt: Math.floor(Date.now() / 3600000) * 3600000 });
       return r;
     });
+    return Promise.race([work, stopped.then(function () { busy = false; return last; })]);
   }
 
   /* ───────── v1.4 起的三方合并写入（先备份，再导入合并结果，绝不覆盖原文件） ───────── */
@@ -1111,6 +1144,7 @@
   /* 写盘（硬规格 D）：① 先把用户当前那份（theirs）用 importRawPreset 另存一份备份；
      ② 再把合并结果导入成新预设。备份写不进去就报错停下 —— 备份不许跳过。 */
   function writeMergedFiles(remote, theirs, merged) {
+    if (disposed) { return Promise.reject(new Error('脚本已注销，已停止写入')); }
     var backupText = JSON.stringify(theirs);
     var mergedText = JSON.stringify(merged);
     var localName = cleanStr(resolvePresetName().name);
@@ -1120,6 +1154,7 @@
     var backupName = safePresetName(localName + ' · 合并前备份');
     log('第 1 步 · 先备份：把当前预设另存为「' + backupName + '」');
     return writePreset(backupName, JSON.parse(backupText), backupText).then(function () {
+      if (disposed) { throw new Error('脚本已注销，已停止写入'); }
       log('第 2 步 · 导入合并结果：' + remote.name);
       /* ⚠️ 这一句是 2026-10-10 那个"脚本被关掉"事故的关键修复。
          下面这个 writePreset 会调 importRawPreset → preset_manager.savePreset，
@@ -1145,6 +1180,7 @@
 
   /* 下载到 next 之后 → 合并 → 先备份 → 导入合并结果 → toast。 */
   function mergeAndWrite(remote, nextJson, nextText) {
+    ensureActive();
     var theirs = currentPresetSnapshot();
     if (!theirs) {
       log('读不到当前预设的完整内容（theirs），做不了三方合并与备份 → 按老办法整份导入（不备份）');
@@ -1156,11 +1192,17 @@
     }
     var cfg = repoConfig();
     return fetchBaseSnapshot(last.localVersion, cfg, last.localName).then(function (base) {
+      ensureActive();
+      /* 下载 base 期间可能继续编辑，合并计算以最新活设置为准。 */
+      theirs = currentPresetSnapshot() || theirs;
       var plan = computeMergePlan(base, theirs, nextJson);
       log('合并计划就绪：待裁决 ' + plan.conflicts.length + ' 处 / 新版新增 ' + plan.stats.added +
         ' 条 / 应用新版 ' + plan.stats.applied + ' 处' + (plan.degraded ? '（退化模式：base 取不到）' : ''));
       return decidePlan(plan).then(function (chosen) {
+        ensureActive();
         if (!chosen) { last.action = 'merge-cancelled'; return last; }
+        var latest = currentPresetSnapshot();
+        if (latest && JSON.stringify(latest) !== JSON.stringify(theirs)) { throw new Error('合并期间预设又有改动，请重新检查更新；本次未写入'); }
         var applied = applyMergePlan(base, theirs, nextJson, chosen.plan);
         return writeMergedFiles(remote, theirs, applied.merged).then(function (w) {
           finishImported(remote, applied.report, w && w.via);
@@ -1168,6 +1210,7 @@
         });
       });
     })['catch'](function (e) {
+      if (disposed) { return last; }
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
       toast('error', '更新失败：' + last.error + '（可以手动去仓库下载导入）', 12000);
@@ -1176,6 +1219,7 @@
   }
 
   function finishImported(remote, rep, via) {
+    if (disposed) { return; }
     saveVars({ imported: remote.version, skipped: '' });
     last.action = 'imported';
     var repLine = rep ? mergeReportText(rep) : null;
@@ -1196,6 +1240,7 @@
      我们代码里没有任何关闭动作。想"不关"就只能自己开一个面板 —— 就是下面这个。
      样式全用内联（与 buildPopupHtml 同一路子），不依赖皮肤，也不给 .kami-root 以外的东西写样式。 */
   var progEls = null, progState = newProgress(0), progTimer = null, progSpin = 0, progLastPaint = 0;
+  var progressArmTimer = null, progressCloseTimer = null, hideHandler = null;
   var documentTapCloser = null;   /* document 级「点哪都关」的监听器；关窗口时要摘掉，别越挂越多 */
   var progRetry = null;   /* 面板上点「重试」时重跑的那个 remote */
 
@@ -1257,6 +1302,7 @@
   }
 
   function progressRootInner() {
+    if (disposed) { return null; }
     if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
     var doc = HDOC || document;
     injectProgressCss(doc);
@@ -1321,7 +1367,7 @@
        这样不再要求他精确命中那个按钮，也不再依赖某个具体事件类型能冒泡到按钮上。 */
     var doc = (HDOC || document);
     var armed = false;
-    hsetTimeout(function () { armed = true; }, 400);   /* 免得"打开窗口的那一下点击"顺手把它关掉 */
+    progressArmTimer = hsetTimeout(function () { progressArmTimer = null; if (!disposed) { armed = true; } }, 400);
     documentTapCloser = function (ev) {
       if (!armed) { return; }
       if (!progEls || !progEls.root) { return; }
@@ -1370,7 +1416,9 @@
      有百分比时它也留着，用来处理"字节到了但 UI 还没重画"的空档，开销可以忽略。 */
   function startProgressTimer() {
     stopProgressTimer();
+    if (disposed) { return; }
     progTimer = hsetTimeout(function tick() {
+      if (disposed) { progTimer = null; return; }
       progSpin = (progSpin + 6) % 34;
       paintProgress();
       progTimer = hsetTimeout(tick, 120);
@@ -1395,6 +1443,8 @@
      所以这个窗口必须在"要弹别人家框"之前就消失。 */
   function closeProgress() {
     stopProgressTimer();
+    hclear(progressArmTimer); progressArmTimer = null;
+    hclear(progressCloseTimer); progressCloseTimer = null;
     if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
     if (documentTapCloser) {
       var cd = (HDOC || document);
@@ -1419,6 +1469,7 @@
   /* isRetry：用户点了面板上的「重试」进来。只有重试才累加重试次数 ——
      否则用户连做几次互不相干的更新，第二次就会被标成"第 1 次重试"（E2E 里看到过）。 */
   function doUpdate(remote, isRetry) {
+    if (disposed) { return Promise.resolve(last); }
     var cfg = repoConfig();
     if (!isRetry) { progState.attempts = 0; }
     log('开始下载预设：' + remote.url);
@@ -1454,6 +1505,7 @@
     enterStage(progState, 'download', Date.now());
     paintProgress();
     return downloadViaChain(remote, cfg, hooks).then(function (got) {
+      if (disposed) { throw new Error('脚本已注销，更新已停止'); }
       var text = got.text;
       var json = null;
       try { json = JSON.parse(text); } catch (e) { throw new Error('下载到的不是合法 JSON'); }
@@ -1467,18 +1519,21 @@
       paintProgress();
       /* 尽力而为的完整性校验：清单里有 sha256 就对一遍，不一致 → 报错、不写盘。 */
       return verifySha(text, remote.sha256).then(function () {
+        if (disposed) { throw new Error('脚本已注销，更新已停止'); }
         enterStage(progState, 'merge', Date.now());
         paintProgress();
         /* 合并 + 写入是大块同步计算。这里让出**一个微任务**再干：既能让刚画上去的
            "合并"这一格真正落屏，又不用定时器 —— 定时器在自测环境里要靠 pump 才会走，
            用它会让 await check() 直接挂住（2026-10-05 实测踩到）。 */
         return Promise.resolve().then(function () {
+          if (disposed) { throw new Error('脚本已注销，更新已停止'); }
           enterStage(progState, 'write', Date.now());
           paintProgress();
           return mergeAndWrite(remote, json, text);
         });
       });
     }).then(function (r) {
+      if (disposed) { return last; }
       stopProgressTimer();
       doneProgress(progState, remote.version || remote.name, Date.now());
       paintProgress();
@@ -1490,7 +1545,8 @@
          与其继续猜"为什么点不动"，不如**让它不需要点**：
          完成后 2.5 秒自己收掉，窗口上那句话也改成会走的说法。
          失败时**不自动关** —— 那种情况用户要看原因、还要点重试，留着才对。 */
-      hsetTimeout(function () {
+      progressCloseTimer = hsetTimeout(function () {
+        progressCloseTimer = null;
         if (!progEls || !progEls.root) { return; }
         if (progState && progState.status === 'done') {
           log('更新已完成，自动收起进度窗口');
@@ -1499,6 +1555,7 @@
       }, 2500);
       return r;
     })['catch'](function (e) {
+      if (disposed) { return last; }
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
       var tip = (e && e.networkAll)
@@ -1741,9 +1798,20 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    if (stopResolve) { stopResolve(); stopResolve = null; }
+    if (calmResolve) { calmResolve(last); calmResolve = null; }
+    activeRequests.forEach(function (ctrl) { try { ctrl.abort(); } catch (e) { } }); activeRequests.clear();
+    try { closeProgress(); } catch (e) { }
+    try {
+      var css = (HDOC || document).getElementById(PROG_CSS_ID);
+      if (css && css.parentNode) { css.parentNode.removeChild(css); }
+    } catch (e) { }
+    try { window.removeEventListener('pagehide', hideHandler); } catch (e) { }
+    try { if (HOST !== window) { HOST.removeEventListener('pagehide', hideHandler); } } catch (e) { }
+    hideHandler = null;
     log('正在注销：停定时器 / 删全局 API');
     var i;
-    for (i = 0; i < timers.length; i++) { hclear(timers[i]); }
+    while (timers.length) { hclear(timers[timers.length - 1]); }
     timers = [];
     hclear(calmTimer);
     calmTimer = null;
@@ -1752,7 +1820,7 @@
     try { if (window[API_NAME] && window[API_NAME].__instance === INSTANCE_ID) { delete window[API_NAME]; } } catch (e) { }
     /* 启动声明同样只清自己的：不清的话，30 秒内重挂的新实例会被旧声明挡在门外直接退出。 */
     try { var c = HOST.__kamiUpdateClaim; if (c && c.id === INSTANCE_ID) { delete HOST.__kamiUpdateClaim; } } catch (e) { }
-    log('注销完成（本脚本没有按钮、没有注入样式与 DOM，没有什么需要收回的）');
+    log('注销完成：进度窗口、样式、监听与定时器已收回');
   }
 
   /* 启动时的自动检查：受 6 小时间隔保护（未认证 API 按 IP 限流，用户常聚同一出口 IP）。
@@ -1792,14 +1860,14 @@
       log('尚未配置 GitHub 仓库：等仓库建好后填上 REPO_OWNER / REPO_NAME 再重新构建即可');
     }
     /* 稍等几秒再做第一次检查：让向导、皮肤、面板先就绪，弹窗不跟它们抢 */
-    timers.push(hsetTimeout(function () { autoCheck(); }, BOOT_DELAY));
+    hsetTimeout(function () { autoCheck(); }, BOOT_DELAY);
     /* 页面只是**进 BFCache**（手机上切后台 / 返回上一页，persisted=true）时不注销：
        这种情况下脚本 iframe 活得好好的，回来还要用；注销了就没有任何东西能唤醒。
        只有真卸载（persisted=false / undefined）才走注销。 */
-    function onHide(ev) { try { if (ev && ev.persisted) { return; } teardown(); } catch (e) { } }
+    hideHandler = function (ev) { try { if (ev && ev.persisted) { return; } teardown(); } catch (e) { } };
     try {
-      window.addEventListener('pagehide', onHide);
-      if (HOST !== window) { HOST.addEventListener('pagehide', onHide); }
+      window.addEventListener('pagehide', hideHandler);
+      if (HOST !== window) { HOST.addEventListener('pagehide', hideHandler); }
     } catch (e) { }
   }
 

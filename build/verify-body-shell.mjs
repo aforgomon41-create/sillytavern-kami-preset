@@ -135,7 +135,7 @@ const shellSrc = String((scripts.find(s => /正文外壳/.test(String(s.name))) 
 const stripC = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 const shellCode = stripC(shellSrc);
 ok(shellSrc.indexOf('function setGenerating') >= 0, '⑥ 有「正在生成」这个标志位');
-ok(/if \(generating\) \{ return; \}/.test(shellCode), '⑥ 生成期间 soon() 直接返回（重画不排队）');
+ok(/if \((?:disposed \|\| )?generating\) \{ return; \}/.test(shellCode), '⑥ 生成期间 soon() 直接返回（重画不排队）');
 ok(/tavern_events\[pair\[0\]\]/.test(shellCode) && /'GENERATION_STARTED'/.test(shellCode) &&
   /'GENERATION_ENDED'/.test(shellCode),
   '⑥ 订阅了生成开始与生成结束（用的就是酒馆那两个事件）');
@@ -143,7 +143,7 @@ ok(shellSrc.indexOf('function finishGeneration') >= 0 && /setGenerating\(false\)
   '⑥ 生成结束会把标志位放下来并补一次');
 ok(shellSrc.indexOf('GEN_WATCHDOG_MS') >= 0 && shellCode.indexOf('genWatchdog') >= 0,
   '⑥ 有看门狗：结束信号没来也不会把刷新永久关死');
-ok(/shutdown: function \(\)[\s\S]{0,400}generating = false;/.test(shellCode), '⑥ 注销时把标志位与定时器都收干净');
+ok(/shutdown: function \(\)[\s\S]{0,800}generating = false;/.test(shellCode), '⑥ 注销时把标志位与定时器都收干净');
 ok(shellSrc.indexOf('generating: generating') >= 0, '⑥ 状态读数里带上了它（排查时看得见）');
 ok(!/setTimeout\(refresh, 400\)/.test(shellCode), '⑥ 事件回调里没有那种「生成中也硬刷」的写法');
 

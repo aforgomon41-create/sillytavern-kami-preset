@@ -19,7 +19,7 @@
  * 假环境提供：getChatMessages（同步）/ setChatMessages / getVariables / replaceVariables /
  *   generateRaw（可编程返回值）/ eventOn + tavern_events（可手动 emit）/
  *   SillyTavern.getContext 的 loadWorldInfo + saveWorldInfo + reloadWorldInfoEditor +
- *   getTokenCountAsync / getChatLorebook + getOrCreateChatLorebook / toastr /
+ *   getTokenCountAsync / getChatLorebook + createLorebook + setChatLorebook / toastr /
  *   window + document（够 buildPanel/renderContent 跑起来的 DOM 替身）/ 可控定时器。
  *
  * 退出码：全绿 0 / 有失败 1 / 找不到产物（或产物里没有压缩脚本、占位符没展开）2。
@@ -434,6 +434,14 @@ function makeEnv(opts) {
       MESSAGE_DELETED: 'message_deleted', WORLDINFO_UPDATED: 'worldinfo_updated',
     },
     getChatLorebook: () => boundLb,
+    createLorebook: async (name) => {
+      calls.orCreate.push(name);
+      return opts.createLorebook ? opts.createLorebook(name) : true;
+    },
+    setChatLorebook: async (name) => {
+      (calls.bindLorebook || (calls.bindLorebook = [])).push(name);
+      boundLb = name;
+    },
     getOrCreateChatLorebook: async () => {
       calls.orCreate.push(1);
       if (!boundLb) { boundLb = '新建的聊天世界书'; }
@@ -1045,9 +1053,9 @@ console.log('\n--- 用例 12（加测）：未绑世界书自动创建 / 生成�
   ok(api.status().lorebook === null || api.status().lorebook === undefined, '未绑世界书时 status().lorebook 是空');
   await api.runOnce();
   await settle();
-  ok(env.calls.orCreate.length === 1, '写盘时调了一次 getOrCreateChatLorebook');
-  ok(env.calls.saveWorld[0] === '新建的聊天世界书', '压缩数据写进了新建的世界书', env.calls.saveWorld[0]);
-  ok(api.status().lorebook === '新建的聊天世界书', 'status().lorebook 更新成新世界书名');
+  ok(env.calls.orCreate.length === 1, '写盘时安全创建了一次聊天世界书');
+  ok(env.calls.saveWorld[0] === env.calls.orCreate[0], '压缩数据写进了新建的世界书', env.calls.saveWorld[0]);
+  ok(api.status().lorebook === env.calls.orCreate[0], 'status().lorebook 更新成新世界书名');
   eq(env.blockRanges(), ['0-9', '10-14'], '块照常落盘');
   api.shutdown();
 }

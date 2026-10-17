@@ -424,9 +424,10 @@ export function reconcileBlocks(input) {
         · 来路不明的 → 只报给面板 + 由用户点按钮决定，绝不自动碰
           （用户手动 /hide 过的楼层承诺过不参与总结）。 */
   for (i = 0; i < hiddenFloors.length; i++) { out.hiddenNow[hiddenFloors[i]] = 1; }
-  if (out.covered >= 0 && len > 0) {
+  if ((out.covered >= 0 || typeof inp.orphanScanTop === 'number') && len > 0) {
     var end = len - 1 - keep;
-    var top = Math.min(out.covered, end, len - 1);
+    var scanTop = typeof inp.orphanScanTop === 'number' ? Math.max(out.covered, inp.orphanScanTop) : out.covered;
+    var top = Math.min(scanTop, end, len - 1);
     var preRanges = out.blocks.concat(mergeRanges(out.pending));
     var ours = [], unknownList = [];
     for (var f = 0; f <= top; f++) {

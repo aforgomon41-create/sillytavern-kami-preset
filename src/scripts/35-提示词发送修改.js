@@ -147,6 +147,7 @@
   /* ───────── 提示词已就绪：在这里把标记换成当前档位 ─────────
      dryRun（酒馆自己数 token 的那一趟）也照改，改的是当趟的临时数组，无副作用。 */
   function onPromptReady(data) {
+    if (disposed) { return; }
     try {
       var chat = data && data.chat;
       if (!chat || !chat.length) { return; }
@@ -199,6 +200,8 @@
   }
 
   var unsubs = [];
+  var disposed = false, retryTimer = null;
+  var hideHandler = function (ev) { if (!ev || !ev.persisted) { api.shutdown(); } };
   function subscribe() {
     try {
       if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined' && tavern_events.CHAT_COMPLETION_PROMPT_READY) {
@@ -216,10 +219,11 @@
   }
 
   function boot(attempt) {
+    if (disposed) { return; }
     attempt = attempt || 0;
     /* 脚本可能比酒馆上下文先就绪，给它几次机会（最多 5 秒） */
     if (!stCtx()) {
-      if (attempt < 10) { setTimeout(function () { boot(attempt + 1); }, 500); }
+      if (attempt < 10) { retryTimer = setTimeout(function () { retryTimer = null; boot(attempt + 1); }, 500); }
       else { warn('拿不到酒馆上下文：档位变量读不到，包裹切换不会生效'); }
       return;
     }
@@ -234,6 +238,7 @@
     get: function () { return currentMode().id; },
     /* 切换档位；成功返回 true */
     set: function (id) {
+      if (disposed) { return false; }
       var mode = modeOf(id);
       if (!mode) { return false; }
       if (!writeGlobal(VAR_MODE, mode.id)) { return false; }
@@ -252,7 +257,7 @@
       var sample = '<n>奈亚子</n>在此！';
       return MODES.map(function (m) { return { id: m.id, label: m.label, text: applyMode(sample, m, null) }; });
     },
-    refresh: function () { syncVars(false); },
+    refresh: function () { if (!disposed) { syncVars(false); } },
     status: function () {
       return {
         version: VERSION,
@@ -263,13 +268,22 @@
       };
     },
     shutdown: function () {
+      if (disposed) { return; }
+      disposed = true;
+      if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null; }
       unsubs.forEach(function (u) { try { u.stop(); } catch (e) { } });
       unsubs = [];
+      try { window.removeEventListener('pagehide', hideHandler); } catch (e) { }
+      try { if (HOST !== window) { HOST.removeEventListener('pagehide', hideHandler); } } catch (e) { }
+      try { if (HOST.KamiNameWrap === api) { delete HOST.KamiNameWrap; } } catch (e) { }
+      try { if (window.KamiNameWrap === api) { delete window.KamiNameWrap; } } catch (e) { }
       log('已注销');
     }
   };
   try { HOST.KamiNameWrap = api; } catch (e) { }
   try { window.KamiNameWrap = api; } catch (e) { }
+  try { window.addEventListener('pagehide', hideHandler); } catch (e) { }
+  try { if (HOST !== window) { HOST.addEventListener('pagehide', hideHandler); } } catch (e) { }
 
   boot();
 })();

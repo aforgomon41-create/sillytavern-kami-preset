@@ -225,7 +225,7 @@ const ok = (c, label) => eq(!!c, true, label);
   ok(/documentTapCloser = function/.test(src), '⑪ 关闭监听挂在 document 上（不要求点中按钮）');
   ok(/t\.closest && t\.closest\('\.kami-upd-btn'\)/.test(src),
     '⑪ 点按钮也走同一条路（点在窗口里面时只有按钮才算）');
-  ok(/hsetTimeout\(function \(\) \{ armed = true; \}, 400\)/.test(src),
+  ok(/progressArmTimer = hsetTimeout\(function \(\) \{ progressArmTimer = null; if \(!disposed\) \{ armed = true; \} \}, 400\)/.test(src),
     '⑪ 挂监听前先等 400ms（免得打开窗口那一下顺手关掉自己）');
   ok(/for \(var evn of \['pointerdown', 'mousedown', 'click', 'touchend'\]\)/.test(src),
     '⑪ 关窗口时把四个监听都摘掉（否则越挂越多）');

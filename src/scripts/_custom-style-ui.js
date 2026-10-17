@@ -141,6 +141,7 @@ export function customStyleBlock(ctx) {
     return n;
   }
   function errText(code) {
+    if (code === 'SAVE_BUSY') { return '上一项还在保存，请保存完成后再修改'; }
     if (code === 'NO_TREE') { return CP.errNoTree; }
     if (code === 'NO_SECTION') { return CP.errNoSection; }
     if (code === 'NO_SECTION_END') { return CP.errNoSectionEnd; }

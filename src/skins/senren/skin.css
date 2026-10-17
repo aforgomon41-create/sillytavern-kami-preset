@@ -363,15 +363,17 @@ html[data-kami-skin="senren"] .kami-root .kami-guide-pv-frame {
 /* 循环动画在 calm / off 与 prefers-reduced-motion 下直接停用 */
 html[data-kami-skin="senren"][data-kami-motion="calm"] .kami-root .kami-dot[data-kami-on="1"],
 html[data-kami-skin="senren"][data-kami-motion="off"] .kami-root .kami-dot[data-kami-on="1"],
-html[data-kami-skin="senren"][data-kami-motion="off"] .kami-root [data-kami-effects~="sakura"] .kami-shell::before,
-html[data-kami-skin="senren"][data-kami-motion="off"] .kami-root [data-kami-effects~="sakura"] .kami-drop::before {
+html[data-kami-skin="senren"][data-kami-motion="calm"][data-kami-effects~="sakura"] .kami-shell::before,
+html[data-kami-skin="senren"][data-kami-motion="calm"][data-kami-effects~="sakura"] .kami-drop::before,
+html[data-kami-skin="senren"][data-kami-motion="off"][data-kami-effects~="sakura"] .kami-shell::before,
+html[data-kami-skin="senren"][data-kami-motion="off"][data-kami-effects~="sakura"] .kami-drop::before {
   animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html[data-kami-skin="senren"] .kami-root .kami-dot[data-kami-on="1"],
-  html[data-kami-skin="senren"] .kami-root [data-kami-effects~="sakura"] .kami-shell::before,
-  html[data-kami-skin="senren"] .kami-root [data-kami-effects~="sakura"] .kami-drop::before {
+  html[data-kami-skin="senren"][data-kami-effects~="sakura"] .kami-shell::before,
+  html[data-kami-skin="senren"][data-kami-effects~="sakura"] .kami-drop::before {
     animation: none !important;
   }
 }
