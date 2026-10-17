@@ -1080,6 +1080,19 @@ html[data-kami-skin="deepseek"][data-kami-motion="off"] .kami-root { --kami-dur-
 html[data-kami-skin="deepseek"][data-kami-motion="off"] .kami-root *,html[data-kami-skin="deepseek"][data-kami-motion="off"] .kami-root *::before,html[data-kami-skin="deepseek"][data-kami-motion="off"] .kami-root *::after { animation:none!important;transition:none!important; }
 @media(prefers-reduced-motion:reduce) { html[data-kami-skin="deepseek"] .kami-root *,html[data-kami-skin="deepseek"] .kami-root *::before,html[data-kami-skin="deepseek"] .kami-root *::after { animation:none!important;transition:none!important; } }
 
+/* Native popup rows have their own host styles; pair foreground and opaque fill. */
+html[data-kami-skin="deepseek"] .kami-root select option,
+html[data-kami-skin="deepseek"] .kami-root select optgroup {
+  color:var(--kami-fg)!important;
+  background-color:var(--kami-card-2)!important;
+  color-scheme:inherit!important;
+}
+html[data-kami-skin="deepseek"] .kami-root select option:checked {
+  color:var(--kami-accent-fg)!important;
+  background-color:var(--kami-accent)!important;
+}
+html[data-kami-skin="deepseek"] .kami-root select option:disabled:not(:checked) { color:var(--kami-fg-mute)!important; }
+
 /* All artwork is local. Groups use the existing persisted effects state. */
 html[data-kami-skin="deepseek"] .kami-root { --kami-deepseek-ocean-alpha:.12;--kami-deepseek-mascot-size:34px; }
 html[data-kami-skin="deepseek"] .kami-root .kami-shell,html[data-kami-skin="deepseek"] .kami-root .kami-drop { isolation:isolate;border-radius:var(--kami-r-lg); }
@@ -1087,7 +1100,15 @@ html[data-kami-skin="deepseek"] .kami-root .kami-title { font-weight:650; }
 html[data-kami-skin="deepseek"] .kami-root .kami-btn { border-radius:20px; }
 html[data-kami-skin="deepseek"] .kami-root .kami-card-head.kami-btn { border-radius:var(--kami-r-md) var(--kami-r-md) 0 0; }
 html[data-kami-skin="deepseek"] .kami-root .kami-item.is-on { border-color:var(--kami-accent);background-color:var(--kami-accent-soft); }
-html[data-kami-skin="deepseek"][data-kami-effects~="ocean"] .kami-root .kami-shell::before,html[data-kami-skin="deepseek"][data-kami-effects~="ocean"] .kami-root .kami-drop::before { content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:var(--kami-asset-ocean) right bottom/min(100%,640px) auto no-repeat;opacity:var(--kami-deepseek-ocean-alpha); }
+/* Nine-slice frame: corners keep their shape; only edge strips stretch with the story. */
+html[data-kami-skin="deepseek"][data-kami-effects~="ocean"] .kami-root .kami-shell::before,
+html[data-kami-skin="deepseek"][data-kami-effects~="ocean"] .kami-root .kami-drop::before {
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:none;border:1px solid transparent;
+  border-image-source:var(--kami-asset-ocean);border-image-slice:42%;
+  border-image-width:clamp(38px,18vw,144px);border-image-repeat:stretch;
+  opacity:var(--kami-deepseek-ocean-alpha);
+}
 html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root .kami-title { position:relative;padding-left:calc(var(--kami-deepseek-mascot-size) + 6px);min-height:var(--kami-deepseek-mascot-size);display:flex;align-items:center; }
 html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root .kami-title::before { content:"";position:absolute;left:0;top:0;width:var(--kami-deepseek-mascot-size);height:var(--kami-deepseek-mascot-size);background:var(--kami-asset-thinking) center/contain no-repeat;pointer-events:none; }
 html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root[data-kami-comp="panel"] .kami-title::before { background-image:var(--kami-asset-mascot); }

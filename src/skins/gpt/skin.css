@@ -1080,6 +1080,19 @@ html[data-kami-skin="gpt"][data-kami-motion="off"] .kami-root { --kami-dur-fast:
 html[data-kami-skin="gpt"][data-kami-motion="off"] .kami-root *,html[data-kami-skin="gpt"][data-kami-motion="off"] .kami-root *::before,html[data-kami-skin="gpt"][data-kami-motion="off"] .kami-root *::after { animation:none!important;transition:none!important; }
 @media(prefers-reduced-motion:reduce) { html[data-kami-skin="gpt"] .kami-root *,html[data-kami-skin="gpt"] .kami-root *::before,html[data-kami-skin="gpt"] .kami-root *::after { animation:none!important;transition:none!important; } }
 
+/* Native popup rows have their own host styles; pair foreground and opaque fill. */
+html[data-kami-skin="gpt"] .kami-root select option,
+html[data-kami-skin="gpt"] .kami-root select optgroup {
+  color:var(--kami-fg)!important;
+  background-color:var(--kami-card-2)!important;
+  color-scheme:inherit!important;
+}
+html[data-kami-skin="gpt"] .kami-root select option:checked {
+  color:var(--kami-accent-fg)!important;
+  background-color:var(--kami-accent)!important;
+}
+html[data-kami-skin="gpt"] .kami-root select option:disabled:not(:checked) { color:var(--kami-fg-mute)!important; }
+
 /* OpenAI: neutral surfaces, outline controls, quiet typography. No brand artwork. */
 html[data-kami-skin="gpt"] .kami-root .kami-head { border-bottom:1px solid var(--kami-line); }
 html[data-kami-skin="gpt"] .kami-root .kami-title { font-weight:550;letter-spacing:-.02em; }
