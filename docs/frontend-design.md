@@ -74,4 +74,4 @@ Claude 的 [官方品牌示例](https://github.com/anthropics/skills/blob/main/s
 
 本机酒馆 `public/style.css` 3055–3069 行证实 `select option` 与 `option:not(:checked)` 单独定义底色和字色；原检查只覆盖了闭合 select。新增回归在修改前重现失败，修复后 **151 项**通过：覆盖三套皮肤明暗及 320/1440px，模拟宿主对 option 的 `!important` 深色样式；选中、普通、禁用和分组文字最低对比度为 GPT 5.26、Claude 4.61、大肥鱼 4.77。已查看浏览器原生列表模式截图；背景在 300×180、300×1800、1100×260、1100×1800px 下都随边框铺开，保留关闭与透明度参数，不增加图片、节点观察或动画。
 
-修复产物：`dist/kami-v0.92-33-20261017.json`，4412380 字节，SHA-256 `732ed660f85a0cb478b56faaaefa0ea118f0b40e54dd1d494ef552566372a75c`。资源 26 项、异步回归 85 项、21 套皮肤 lint 与完整构建守卫通过；没有修改用户实际聊天或发布新 Release。
+修复产物：`dist/kami-v0.92-33-20261017.json`，4412380 字节，SHA-256 `732ed660f85a0cb478b56faaaefa0ea118f0b40e54dd1d494ef552566372a75c`。资源 26 项、异步回归 85 项、21 套皮肤 lint 与完整构建守卫通过，没有修改用户实际聊天。用户随后明确授权发版，已发布 [v0.92-33](https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/tag/v0.92-33)，并验证真实接口更新识别与线上附件 SHA-256；镜像提交 `801c995`，CDN 清单缓存暂仍为 -31，发布页可直接下载。
