@@ -33,7 +33,7 @@
 
 **皮肤**
 
-- 内置 15 套皮肤（grokbot / crt80s / civdawn / empire / isekai / manga / memo / mileng / nixie / rain / senren / terminal / trpg / wod / xianyun），移动端与 PC 端均已适配。
+- 内置 21 套皮肤，新增 GPT、Claude 与大肥鱼，支持明暗、密度和动效调整。大肥鱼提供鲸鱼娘挂件、虎鲸特色控件和海洋背景，可分别关闭；静态图片由消息框共享。
 
 ## 使用条件与许可
 

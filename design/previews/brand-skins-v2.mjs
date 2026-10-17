@@ -1,0 +1,27 @@
+import {createSkinAssetPool} from '/src/scripts/_skin-assets.js';
+const pool=createSkinAssetPool(window);
+const files={mascot:'whale-rice-v1.webp',thinking:'whale-thinking-v1.webp',peek:'whale-peek-v1.webp',ocean:'orca-ocean-v2.webp',orca:'orca-icon-v1.webp'};
+const assets={};
+await Promise.all(Object.entries(files).map(async([key,file])=>{
+ const r=await fetch('/design/assets/deepseek/'+file);if(!r.ok)throw Error('素材加载失败：'+file);
+ const blob=new Blob([await r.arrayBuffer()],{type:'image/webp'});assets[key]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});
+}));
+const style=document.createElement('style');style.textContent=pool.css({id:'deepseek',assets}).replaceAll('html[data-kami-skin="deepseek"] .kami-root','.skin.deepseek').replaceAll('html[data-kami-skin="deepseek"]','.skin.deepseek');document.head.append(style);
+window.addEventListener('pagehide',e=>{if(!e.persisted)pool.dispose();});
+document.querySelectorAll('img[src$="whale-rice-v1.png"]').forEach(i=>i.src='/design/assets/deepseek/whale-rice-v1.webp');
+document.querySelectorAll('img[src$="whale-thinking-v1.png"]').forEach(i=>i.src='/design/assets/deepseek/whale-thinking-v1.webp');
+const base=document.querySelector('.columns .deepseek');
+for(const h of base.querySelectorAll('.section-head h3'))if(!h.querySelector('img'))h.insertAdjacentHTML('afterbegin','<span class="theme-icon" aria-hidden="true"></span>');
+const lab=document.createElement('section');lab.className='skin deepseek deepseek-lab';lab.dataset.mascots='on';lab.dataset.ocean='on';lab.dataset.controls='on';
+lab.innerHTML=`<header class="lab-head"><div><h2>大肥鱼 · 装饰与特色控件</h2><p>标题挂件、分区图标、选项边饰、虎鲸开关与滑杆、海洋背景，放在同一块面板里查看。</p></div><div class="decor-settings"><label><input type="checkbox" data-decoration="mascots" checked>角色挂件</label><label><input type="checkbox" data-decoration="ocean" checked>海洋背景</label><label><input type="checkbox" data-decoration="controls" checked>特色控件</label></div></header>
+<div class="lab-grid"><article class="lab-card"><div class="section-head"><h3><img class="section-avatar" src="/design/assets/deepseek/whale-thinking-v1.webp" alt="" width="34" height="34"> 先想清楚，再出发</h3><span class="tiny">思维链</span></div><p class="readable">雨停了，旧书店的灯还亮着。她把那封没有署名的信，推到了你的面前。</p><p class="readable">先确认信的来历，再决定是否赴约。重要信息仍在清楚的阅读区，装饰停留在边缘。</p><button class="choice selected" type="button"><span>01</span><span><strong>询问信是谁送来的</strong><small>信息 · 先厘清眼前的线索</small></span></button><button class="choice" type="button"><span>02</span><span><strong>拆开信封，查看内容</strong><small>行动 · 让故事继续往前</small></span></button><div class="footer-scene"><p>“先吃一口饭，再把问题想明白。”<br>页脚的鲸鱼娘只作装饰，不遮挡按钮。</p><img class="footer-mascot" src="/design/assets/deepseek/whale-peek-v1.webp" alt="探头的鲸鱼娘装饰"></div></article>
+<article class="lab-card"><div class="section-head"><h3><span class="theme-icon" aria-hidden="true"></span> 外观与压缩设置</h3><span class="tiny">控件示例</span></div><div class="row"><span>超限压缩<small>保留原生开关的键盘操作</small></span><label class="orca-toggle"><input type="checkbox" checked aria-label="超限压缩示例"><span></span></label></div><label class="row"><span>保留最近楼数<small>字段边饰</small></span><input class="ornament-field" type="number" value="10" min="1" max="500" aria-label="保留最近楼数示例"></label><div class="row"><span>装饰强度<small>虎鲸滑块 · 拖动查看</small></span><output id="decoration-value">60%</output></div><input class="lab-range" type="range" min="0" max="100" value="60" aria-label="装饰强度示例"><div class="actions"><button class="btn primary" type="button">应用设置</button><button class="btn" type="button">恢复默认</button></div><div class="status">示例操作只改变预览，不修改你的预设</div></article></div>`;
+for(const input of lab.querySelectorAll('[data-decoration]'))input.addEventListener('change',()=>{lab.dataset[input.dataset.decoration]=input.checked?'on':'off';});
+lab.querySelector('.lab-range').addEventListener('input',e=>{lab.querySelector('output').value=e.target.value+'%';});
+lab.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{lab.querySelectorAll('.choice').forEach(x=>x.classList.toggle('selected',x===b));}));
+document.querySelector('.dice-section').before(lab);
+const sources=document.createElement('details');sources.className='reference-notes';sources.open=true;
+sources.innerHTML=`<summary>官方视觉资料与本轮调整依据</summary><div class="reference-grid"><article class="reference-note"><h3>GPT / OpenAI</h3><a class="source-link" href="https://openai.com/brand/" target="_blank" rel="noreferrer">OpenAI · Design Guidelines</a><a class="source-link" href="https://developers.openai.com/plugins/concepts/ui-guidelines" target="_blank" rel="noreferrer">OpenAI · ChatGPT UI guidelines</a><p>品牌文档讲标志与 OpenAI Sans；界面文档更适合皮肤，强调系统字体、单色线框图标、克制配色与清楚的内容层次。完整品牌站需登录，本轮没有假称读到其中内容。</p></article><article class="reference-note"><h3>Claude / Anthropic</h3><a class="source-link" href="https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md" target="_blank" rel="noreferrer">Anthropic · 官方品牌示例文档</a><a class="source-link" href="https://claude.com/" target="_blank" rel="noreferrer">Claude · 现行产品官网</a><p>官方示例给出暖灰与陶土色板；官网目前使用专用的无衬线、衬线字体体系。预览据此加强阅读排版、连续纸面与灰阶主按钮，陶土色作点缀。使用本地字体回退，未打包品牌字体或复制标志路径。</p></article></div>`;
+document.querySelector('.review-foot').before(sources);
+document.querySelector('.review-head p').textContent='第二版布局审阅 · 已补官方视觉依据，增加大肥鱼装饰与特色控件。示例不会发送消息或保存设置。';
+document.body.dataset.previewReady='true';

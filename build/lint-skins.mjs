@@ -6,11 +6,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { packSkinAssets } from './skin-assets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const SKIN_DIR = path.join(ROOT, 'src', 'skins');
 const only = process.argv.slice(2);
+const assetBudget = {bytes: 0};
 
 const base = fs.readFileSync(path.join(ROOT, 'src', 'skin', 'base.css'), 'utf8');
 const ALL_TOKENS = [...new Set([...base.matchAll(/(--kami-[a-z0-9-]+)\s*:/g)].map(m => m[1]))];
@@ -77,6 +79,11 @@ function checkSkin(id) {
   for (const k of ['id', 'name', 'button']) { if (!meta[k]) { errs.push('skin.json 缺少字段 ' + k); } }
   if (meta.id !== id) { errs.push('skin.json 的 id (' + meta.id + ') 与目录名 (' + id + ') 不一致'); }
   if (meta.css) { warns.push('skin.json 里不该有 css 字段（皮肤 CSS 请写在 skin.css）'); }
+  try { packSkinAssets(ROOT, id, meta, assetBudget); } catch (e) { errs.push(e.message); }
+  const declaredAssets = meta.assets && typeof meta.assets === 'object' ? Object.keys(meta.assets) : [];
+  for (const m of code.matchAll(/var\(\s*--kami-asset-([a-z0-9-]+)/g)) {
+    if (!declaredAssets.includes(m[1])) { errs.push('未声明的装饰资源 ' + m[1]); }
+  }
 
   if (/@import/i.test(code)) { errs.push('出现 @import'); }
   if (/@font-face/i.test(code)) { errs.push('出现 @font-face（不允许外部字体）'); }

@@ -22,7 +22,7 @@
   'use strict';
   if (typeof window === 'undefined' || !window.document) { return; }
 
-  var VERSION = '1.0';
+  var VERSION = '1.1';
   var SEL = '.kami-deco[data-kami-deco="d10"]';
   var STYLE_ID = 'kami-d10-css';
   var FALLBACK_BOX = 32;   /* 槽位还没量到尺寸（display:none）时的临时尺寸，ResizeObserver 会纠正 */
@@ -315,7 +315,9 @@
   function paint(rec) {
     if (rec.dead || !rec.body) { return; }
     try {
-      rec.body.style.transform = 'rotateZ(' + fmt(rec.az) + 'deg) rotateX(' + fmt(rec.ax) +
+      /* 固定镜头倾角：初始与每次停骰都展开邻面；结果面仍朝向镜头前方。
+         放在掷骰旋转之前，相当于预览中已审阅的外层镜头，不增加节点或动画。 */
+      rec.body.style.transform = 'rotateX(var(--kami-d10-view-x,-18deg)) rotateY(var(--kami-d10-view-y,24deg)) rotateZ(' + fmt(rec.az) + 'deg) rotateX(' + fmt(rec.ax) +
         'deg) rotateY(' + fmt(rec.ay) + 'deg)';
     } catch (e) { }
   }

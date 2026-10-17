@@ -31,6 +31,11 @@
   #tabbar .t:disabled{opacity:.34;cursor:not-allowed;}
   #tabnote{margin-left:auto;font-size:11px;color:#8f8fa0;white-space:nowrap;}
   #slot .pane[hidden]{display:none;}
+  html[data-kami-harness-clean="1"] .bar,
+  html[data-kami-harness-clean="1"] #qr-bar,
+  html[data-kami-harness-clean="1"] body>pre,
+  html[data-kami-harness-clean="1"] #send_textarea { display:none; }
+  html[data-kami-harness-clean="1"] #chat { margin-top:16px; }
 </style>
 </head>
 <body>
@@ -674,7 +679,6 @@ async function makeFrame(kind) {
   /* 每个前端放进自己的 pane：tab 切换只切 pane 的显隐，iframe 始终留在 DOM 里（不重建，
      否则前端会重新 boot、localStorage 状态与滚动位置都会丢）。 */
   var pane = document.querySelector('#slot .pane[data-pane="' + kind + '"]');
-  (pane || document.getElementById('slot')).appendChild(d);
   f.onload = async function () {
     if (f.getAttribute('data-written') === '1') { return; }   /* 写文档会再次触发 load，必须防重入 */
     f.setAttribute('data-written', '1');
@@ -700,6 +704,8 @@ async function makeFrame(kind) {
        真机里酒馆助手只有 ResizeObserver(body) -> frameElement.style.height = body.scrollHeight，
        预览台多一分额外贴心，就会把「前端自己不重测高度」这类 bug 掩盖掉（已经被坑过一次）。 */
   };
+  /* about:blank 的 load 可在插入时同步到达，必须先绑定再挂到文档。 */
+  (pane || document.getElementById('slot')).appendChild(d);
   return f;
 }
 
@@ -857,6 +863,7 @@ function installSpresetHost(ST) {
   }));
   console.log('库|showdown=' + !!(window.showdown && window.showdown.Converter) + ' DOMPurify=' + !!window.DOMPurify);
   var params = new URLSearchParams(location.search);
+  if (params.get('clean') === '1') { document.documentElement.setAttribute('data-kami-harness-clean', '1'); }
   /* 预设置面板要读酒馆设置，所以先把 SillyTavern 全局准备好（真预设数据）。
      ?nocontext=1：**故意不给** SillyTavern —— 验收「拿不到设置时面板照常打开并说明原因」。 */
   var ST = (params.get('nocontext') === '1') ? { saves: 0 } : await setupSillyTavern();

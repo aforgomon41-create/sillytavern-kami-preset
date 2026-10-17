@@ -47,6 +47,7 @@ const sha = buf => crypto.createHash('sha256').update(buf).digest('hex').slice(0
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8'));
 import { expandRegexList, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from './kami-doc.mjs';
 import { execFileSync } from 'node:child_process';
+import { packSkinAssets } from './skin-assets.mjs';
 
 /* ---------- 读取源 ---------- */
 const preset = readJson(path.join(SRC, 'preset.base.json'));
@@ -60,6 +61,7 @@ if (!preset.extensions.tavern_helper) preset.extensions.tavern_helper = {};
 function collectSkins() {
   const dir = path.join(SRC, 'skins');
   const out = [];
+  const assetBudget = {bytes: 0};
   if (fs.existsSync(dir)) {
     for (const name of fs.readdirSync(dir).sort()) {
       const d = path.join(dir, name);
@@ -68,7 +70,7 @@ function collectSkins() {
       const cssPath = path.join(d, 'skin.css');
       if (!fs.existsSync(metaPath) || !fs.existsSync(cssPath)) { continue; }
       const m = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      out.push({ ...m, css: fs.readFileSync(cssPath, 'utf8') });
+      out.push({ ...packSkinAssets(ROOT, name, m, assetBudget), css: fs.readFileSync(cssPath, 'utf8') });
     }
   }
   if (!out.length) {
@@ -108,6 +110,7 @@ const skinsJson = JSON.stringify(SKINS);
 
 /* 离线执行异步时序与状态回归；不访问服务、不写聊天或预设。 */
 try {
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/skin-assets.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/audit-regressions.mjs')], { stdio: 'inherit' });
 } catch (e) {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');

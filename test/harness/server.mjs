@@ -3,12 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { packSkinAssets } from '../../build/skin-assets.mjs';
 import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandTagsPure, expandGodCmdPure } from '../../build/kami-doc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
 const PORT = (function () { const i = process.argv.indexOf('--port'); return i >= 0 ? Number(process.argv[i + 1]) : 8765; })();
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp' };
 
 /* ── /vendor/<库>.js：把**本机酒馆自带的**第三方库按「酒馆页面」的身份发给预览台 ──
    为什么需要：消息 iframe 里的前端**不内联** markdown 库，而是沿父窗口链去拿酒馆页面上的
@@ -97,6 +98,7 @@ function newestPreset() {
 function collectSkins() {
   const dir = path.join(ROOT, 'src', 'skins');
   const out = [];
+  const assetBudget = {bytes: 0};
   if (fs.existsSync(dir)) {
     for (const name of fs.readdirSync(dir).sort()) {
       const d = path.join(dir, name);
@@ -104,7 +106,7 @@ function collectSkins() {
       const mp = path.join(d, 'skin.json'), cp = path.join(d, 'skin.css');
       if (!fs.existsSync(mp) || !fs.existsSync(cp)) { continue; }
       const m = JSON.parse(fs.readFileSync(mp, 'utf8'));
-      out.push({ ...m, css: fs.readFileSync(cp, 'utf8') });
+      out.push({ ...packSkinAssets(ROOT, name, m, assetBudget), css: fs.readFileSync(cp, 'utf8') });
     }
   }
   return out;

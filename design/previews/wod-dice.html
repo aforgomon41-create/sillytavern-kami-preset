@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN" data-kami-skin="wod" data-kami-motion="full" data-kami-scheme="dark" data-kami-density="cozy" data-kami-effects="">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>黑暗世界骰子对比</title>
+<link rel="stylesheet" href="/src/skins/wod/skin.css">
+<style>
+html,body{margin:0;background:#141019;color:#ece4d8}body{padding:16px;font:14px/1.5 system-ui,sans-serif}.sample{display:flex;align-items:center;justify-content:center;gap:12px;min-height:48px}.sample-label{font:13px Georgia,SimSun,serif}.zoom{height:145px;display:flex;align-items:center;justify-content:center;margin-top:14px}.zoom>.kami-deco{transform:scale(3.2);transform-origin:center}.kami-d10-body{transition-duration:1s!important}.zoom-label{text-align:center;font-size:10px;color:#beaaa8;margin-top:2px}
+</style>
+<body><div class="kami-root"><div class="sample"><span class="kami-deco" data-kami-deco="d10"></span><span class="sample-label">黑暗世界 · 行动选项</span></div><div class="zoom"><span class="kami-deco" data-kami-deco="d10"></span></div><div class="zoom-label">放大查看 / 点击试掷</div></div>
+<script src="/src/decor/d10.js"></script>
+<script>
+KamiD10.mount(document);
+if(new URLSearchParams(location.search).get('pose')==='before'){
+ // 保留旧版正视镜头作对照；候选侧直接运行正式模块。
+ document.documentElement.style.setProperty('--kami-d10-view-x','0deg');
+ document.documentElement.style.setProperty('--kami-d10-view-y','0deg');
+}
+</script></body></html>

@@ -118,6 +118,10 @@
   var HDOC = null;
   try { HDOC = HOST.document; } catch (e) { HDOC = document; }
 
+  /* 静态图片一次打包，多个消息文档共享资源；位置与控件外观由皮肤 CSS 定义。 */
+  /* @@KAMI_SKIN_ASSETS@@ */
+  var ASSET_POOL = typeof createSkinAssetPool === 'function' ? createSkinAssetPool(HOST) : null;
+
   function log(msg) {
     try { if (window.console && console.log) { console.log('[皮肤] ' + msg); } } catch (e) { }
   }
@@ -320,7 +324,8 @@
     cachedSkin = skin;
     cachedSkinCss = '/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
-      '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '');
+      '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '') +
+      '\n/* ==== shared image assets ==== */\n' + (ASSET_POOL ? ASSET_POOL.css(skin) : '');
     return cachedSkinCss;
   }
 
@@ -1085,7 +1090,7 @@
       (fx.length ? ' data-kami-effects="' + fx.join(' ') + '"' : '') +
       '><head><meta charset="utf-8">' +
       '<style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>' +
-      '<style>' + String(sk.css || '') + '</style></head><body>' + PREVIEW_MINI + '</body></html>';
+      '<style>' + String(sk.css || '') + (ASSET_POOL ? ASSET_POOL.css(sk) : '') + '</style></head><body>' + PREVIEW_MINI + '</body></html>';
   }
 
   function previewSkeleton(sk) {
@@ -1727,6 +1732,7 @@
           version: VERSION, skin: curSkin().id, motion: state.motion, density: state.density,
           scheme: state.scheme || curSkin().scheme || 'dark', effects: effectList(),
           decor: (curSkin().decor || []).join(' '),
+          assets: ASSET_POOL ? ASSET_POOL.stats() : {images: 0},
           panelOpen: !!(panelDrop && panelDrop.getAttribute('data-kami-open') === '1'),
           iframes: (function () { try { return HDOC.querySelectorAll(IFRAME_SEL).length; } catch (e) { return -1; } })()
         };
@@ -1775,6 +1781,8 @@
         try { restoreDecor(doc); } catch (e) { }
       }
     } catch (e) { }
+    if (ASSET_POOL) { ASSET_POOL.dispose(); }
+    cachedSkin = null; cachedSkinCss = '';
     /* 面板 DOM */
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;

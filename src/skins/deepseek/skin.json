@@ -1,0 +1,58 @@
+{
+  "id": "deepseek",
+  "name": "大肥鱼",
+  "button": "大肥鱼",
+  "scheme": "light",
+  "tagline": "DeepSeek 蓝白与虎鲸边饰，鲸鱼娘陪你把问题想清楚。",
+  "effects": [
+    {
+      "id": "mascots",
+      "label": "鲸鱼娘挂件",
+      "desc": "标题头像、空态角色与页脚探头挂件。",
+      "default": true
+    },
+    {
+      "id": "ocean",
+      "label": "海洋背景",
+      "desc": "边缘的虎鲸、泡泡与海洋图案，正文保持清楚。",
+      "default": true
+    },
+    {
+      "id": "controls",
+      "label": "特色控件",
+      "desc": "虎鲸开关、滑杆、按钮及字段的小图形。",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "ocean",
+      "label": "背景浓度",
+      "group": "装饰",
+      "token": "--kami-deepseek-ocean-alpha",
+      "unit": "",
+      "min": 0,
+      "max": 0.24,
+      "step": 0.01,
+      "value": 0.12
+    },
+    {
+      "id": "mascot",
+      "label": "标题挂件大小",
+      "group": "装饰",
+      "token": "--kami-deepseek-mascot-size",
+      "unit": "px",
+      "min": 24,
+      "max": 42,
+      "step": 2,
+      "value": 34
+    }
+  ],
+  "assets": {
+    "mascot": "assets/whale-rice-v1.webp",
+    "thinking": "assets/whale-thinking-v1.webp",
+    "peek": "assets/whale-peek-v1.webp",
+    "ocean": "assets/orca-ocean-v2.webp",
+    "orca": "assets/orca-icon-v1.webp"
+  }
+}

@@ -338,6 +338,12 @@ export function expandCustomStyleUi(root, code) {
  *  （_preset-cards.js / _preset-merge.js / _custom-style-ui.js）都挂在这里一起展开；
  *  各个占位符彼此独立、互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
 export function expandPanelGestures(root, code) {
+  const assetsMark = '/* @@KAMI_SKIN_ASSETS@@ */';
+  if (code.includes(assetsMark)) {
+    const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_skin-assets.js'), 'utf8'), '_skin-assets.js');
+    if (source.includes(assetsMark)) { throw new Error('_skin-assets.js 不能包含自己的构建标记'); }
+    code = code.replace(assetsMark, () => source);
+  }
   code = expandPresetCards(root, code);
   code = expandCustomStyleUi(root, code);
   code = expandPresetMerge(root, code);

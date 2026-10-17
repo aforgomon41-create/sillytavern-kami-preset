@@ -6,6 +6,7 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 import * as expand from '../../build/kami-doc.mjs';
+import {packSkinAssets} from '../../build/skin-assets.mjs';
 const ROOT=path.resolve(import.meta.dirname,'../..');
 const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -16,10 +17,11 @@ const chrome=spawn(chromePath,['--headless=new','--single-process','--in-process
  '--disable-background-networking','about:blank'],{stdio:'ignore',windowsHide:true});
 let ws,count=0;
 function check(ok,message){assert.ok(ok,message);count++;}
-function script(file){
+function script(file,assetFixture=false){
  let code=read('src/scripts/'+file);
  if(code.includes('/* @@KAMI_SKINS@@ */')){
-  const skins=fs.readdirSync(path.join(ROOT,'src/skins')).map(id=>({...JSON.parse(read('src/skins/'+id+'/skin.json')),css:read('src/skins/'+id+'/skin.css')}));
+  const skins=fs.readdirSync(path.join(ROOT,'src/skins')).map(id=>({...packSkinAssets(ROOT,id,JSON.parse(read('src/skins/'+id+'/skin.json'))),css:read('src/skins/'+id+'/skin.css')}));
+  if(assetFixture)for(const sk of skins)sk.assets={fixture:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1kAAAAASUVORK5CYII='};
   code=code.replace('/* @@KAMI_SKINS@@ */',()=> 'var SKINS='+JSON.stringify(skins)+';');
  }
  for(const name of ['expandDecor','expandBaseCssJs','expandPresetParse','expandPanelGestures','expandGuideCopy'])code=expand[name](ROOT,code);
@@ -87,10 +89,11 @@ try{
 
  // Full manager, new iframes, navigation and mutation traffic.
  await page();
- await child(script('30-皮肤管理.js'),`w.getVariables=()=>({});w.replaceVariables=()=>{};w.eventOn=()=>({stop(){}});w.iframe_events={};`);
+ await child(script('30-皮肤管理.js',true),`w.getVariables=()=>({});w.replaceVariables=()=>{};w.eventOn=()=>({stop(){}});w.iframe_events={};`);
  check(await ev(`!!window.KamiSkin`),'Skin manager boots from expanded current source');
  await ev(`(()=>{const f=document.createElement('iframe');f.id='TH-message--audit';f.srcdoc='<div class="kami-root"><div class="kami-shell">新楼层</div></div>';document.getElementById('chat').appendChild(f);})()`);await sleep(250);
  check(await ev(`document.getElementById('TH-message--audit').contentDocument.documentElement.getAttribute('data-kami-skin')===KamiSkin.skin`),'New iframe gets skin without full-chat polling');
+ check(await ev(`(()=>{const f=document.getElementById('TH-message--audit');return KamiSkin.status().assets.images===1&&getComputedStyle(document.documentElement).getPropertyValue('--kami-asset-fixture')===f.contentWindow.getComputedStyle(f.contentDocument.documentElement).getPropertyValue('--kami-asset-fixture');})()`),'Full skin manager shares asset variables between host and message iframe');
  await ev(`window.attrWrites=0;window.attributeWatch=new MutationObserver(r=>attrWrites+=r.length);attributeWatch.observe(document.getElementById('TH-message--audit').contentDocument.documentElement,{attributes:true});for(let i=0;i<30;i++){const p=document.createElement('span');p.textContent='token'+i;document.getElementById('chat').appendChild(p);}`);await sleep(180);
  check(await ev('attrWrites===0'),'Streaming DOM traffic does not rewrite historical iframe attributes');
  await ev(`window.detached=document.createElement('iframe');detached.id='TH-message--detached';window.detachedLoadHandlers=0;const add=detached.addEventListener.bind(detached),remove=detached.removeEventListener.bind(detached);detached.addEventListener=(type,...args)=>{if(type==='load')detachedLoadHandlers++;return add(type,...args)};detached.removeEventListener=(type,...args)=>{if(type==='load')detachedLoadHandlers--;return remove(type,...args)};document.getElementById('chat').appendChild(detached)`);await sleep(100);
@@ -100,8 +103,19 @@ try{
  check(await ev('KamiSkin.state.params.halo===55'),'Full manager isolates per-skin units');
  await ev(`document.getElementById('TH-message--audit').srcdoc='<div class="kami-root">重新渲染</div>'`);await sleep(200);
  check(await ev(`document.getElementById('TH-message--audit').contentDocument.documentElement.getAttribute('data-kami-skin')==='nixie'`),'Same iframe with a new document is not skipped by cache');
- await ev('attributeWatch.disconnect();KamiSkin.shutdown()');
+ await ev('window.oldSkinManager=KamiSkin;attributeWatch.disconnect();KamiSkin.shutdown()');
  check(await ev(`!document.getElementById('kami-skin')&&!document.getElementById('TH-message--audit').contentDocument.documentElement.hasAttribute('data-kami-skin')`),'Manager shutdown restores iframe fallback');
+ check(await ev('oldSkinManager.status().assets.images===0&&oldSkinManager.status().assets.disposed'),'Full manager shutdown releases the shared asset pool');
+
+ // One image pool serves multiple message documents and new content without observers.
+ await page();
+ await ev(read('src/scripts/_skin-assets.js').replace(/^export /gm,''));
+ await ev(`window.assetPool=createSkinAssetPool(window);window.assetSkin={id:'demo',assets:{pixel:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1kAAAAASUVORK5CYII='}};window.assetCss=assetPool.css(assetSkin);for(let i=0;i<2;i++){const f=document.createElement('iframe');f.className='asset-frame';document.body.append(f);f.contentDocument.documentElement.setAttribute('data-kami-skin','demo');f.contentDocument.head.innerHTML='<style>'+assetCss+'.sample{background-image:var(--kami-asset-pixel)}</style>';f.contentDocument.body.innerHTML='<div class="sample">图片</div>';}`);
+ check(await ev(`(()=>{const frames=[...document.querySelectorAll('.asset-frame')];window.assetURL=frames[0].contentWindow.getComputedStyle(frames[0].contentDocument.querySelector('.sample')).backgroundImage.slice(5,-2);return frames.every(f=>f.contentWindow.getComputedStyle(f.contentDocument.querySelector('.sample')).backgroundImage.includes(assetURL))&&assetPool.stats().images===1;})()`),'Two real iframe documents share one image URL');
+ check(await ev(`new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.naturalWidth===1);img.onerror=()=>resolve(false);img.src=assetURL;})`),'Shared Blob image actually decodes');
+ check(await ev(`(()=>{const f=document.querySelector('.asset-frame'),n=f.contentDocument.createElement('div');n.className='sample';f.contentDocument.body.append(n);return f.contentWindow.getComputedStyle(n).backgroundImage.includes(assetURL);})()`),'New content receives decoration through CSS without DOM scanning');
+ await ev('assetPool.dispose()');
+ check(await ev(`assetPool.stats().images===0&&assetPool.css(assetSkin)===''`),'Asset pool releases resources and rejects late work');
 
  // Retry in an iframe cannot re-subscribe after explicit shutdown.
  await page();
