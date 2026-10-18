@@ -1,0 +1,23 @@
+[
+  {
+    "id": "9ea85db2-c646-4573-85df-229bf4332e47",
+    "name": "基础与外观",
+    "icon": "fa-solid fa-gears",
+    "enabled": true,
+    "files": ["10-脚本按钮.js", "20-反截断.js", "30-皮肤管理.js", "35-提示词发送修改.js", "45-正文外壳.js"]
+  },
+  {
+    "id": "b5c61ca8-14f7-4312-936d-08b79f0c9521",
+    "name": "功能与设置",
+    "icon": "fa-solid fa-toolbox",
+    "enabled": true,
+    "files": ["40-预设设置.js", "50-引导.js", "60-工具箱.js", "70-远程更新.js"]
+  },
+  {
+    "id": "c3249339-0482-4bed-9c52-b5b239cc5a1d",
+    "name": "开发中",
+    "icon": "fa-solid fa-flask",
+    "enabled": true,
+    "files": ["00-mvu初始化测试.js", "01-mvu-zod.js", "80-状态栏.js"]
+  }
+]

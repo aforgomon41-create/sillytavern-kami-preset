@@ -1548,7 +1548,7 @@
        这里的规矩：**名字两种都认**（兼容旧版本/原生对象），
        **启用位只动对象上本来就有的那个键**（有 enabled 就写 enabled，有 disabled 才写 disabled），
        绝不凭空造字段。replaceTavernRegexes 的第二个参数是**必填**的（不带会落到全局正则表），
-       统一照 60-压缩.js 的写法：{ type: 'preset', name: 'in_use' }。
+       统一照 60-工具箱.js 的写法：{ type: 'preset', name: 'in_use' }。
 
      ⚠️ 两个已知代价，做成了面板上的提示（用户点名要求）：
        ① replaceTavernRegexes 为了重新应用正则会**重新载入整个聊天消息**，已加载出来的楼层要等重载完

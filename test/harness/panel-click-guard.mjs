@@ -9,6 +9,7 @@
  * 为什么要这条用例：2026-10-14 那行被误删后，构建与全部单测都没报错，
  * 一路发到了线上，直到用户说「所有开关都失效了」。守卫自己也要有守卫。
  */
+import { flattenScriptTrees } from '../../build/kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -63,7 +64,7 @@ ok(good.out.indexOf('条目卡（所有开关）') >= 0, '好产物：守卫确�
 
 /* ③ 把条目卡分支删掉，守卫必须拦住 */
 const j = JSON.parse(fs.readFileSync(artifact, 'utf8'));
-const scripts = (((j.extensions || {}).tavern_helper || {}).scripts) || [];
+const scripts = flattenScriptTrees((((j.extensions || {}).tavern_helper || {}).scripts) || []);
 const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0);
 if (!panel) { console.error('产物里没找到面板脚本'); process.exit(2); }
 const NEEDLE = "t.getAttribute('data-kami-item') && t.tagName === 'BUTTON'";

@@ -12,6 +12,7 @@
  * 用法：node build/verify-status-ball.mjs <产物路径>
  *      （不传路径时自动挑 dist/ 里最新的 kami-*.json，与 verify-frontends.mjs 同规矩）
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -36,7 +37,7 @@ if (!p) {
 if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2); }
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
+const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
 const entry = scripts.find(s => String(s.name).indexOf('状态栏') >= 0);
 const code = String((entry && entry.content) || '');
 

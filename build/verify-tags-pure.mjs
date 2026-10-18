@@ -16,6 +16,7 @@
  * 用法：node build/verify-tags-pure.mjs <产物路径>
  *      （不传路径时自动挑 dist/ 里最新的 kami-*.json，与 verify-frontends.mjs 同规矩）
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +40,7 @@ if (!p) {
 if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2); }
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
+const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
 const entry = scripts.find(s => String(s.name).indexOf('预设设置') >= 0);
 const code = String((entry && entry.content) || '');
 
@@ -64,7 +65,7 @@ ok(!/^\s*export\s/m.test(code), '④ 产物里没有行首 export（内联规则
 /* ⑤ 标签登记表：官方名单（预设条目「🧩 标签格式」）一个都不能少 */
 const TAGS = ['out_body', 'introduction', 'content', 'appendix', 'think', 'nyaruko_think',
   'medium', 'medium_content', 'summary', 'char_setting', 'options', 'image', 'image_Tag',
-  'MakeImage', 'god'];
+  'MakeImage', 'god', 'search_results'];
 const lostTags = TAGS.filter(t => code.indexOf("tag: '" + t + "'") < 0);
 ok(lostTags.length === 0, '⑤ 标签登记表与预设「🧩 标签格式」对齐（' + TAGS.length + ' 个）', lostTags.join('、') || '全在');
 
@@ -72,18 +73,9 @@ ok(lostTags.length === 0, '⑤ 标签登记表与预设「🧩 标签格式」�
 ok(code.indexOf("['medium', 'medium_content', 'details']") >= 0,
   '⑥ HTML 卡片区进了排除名单（medium / medium_content / details）');
 
-/* ⑦ 面板页：新页排在「关于」前面，且三档与手动按钮都接上了 */
-const iBox = code.indexOf("key: 'BOX'");
-const iAbout = code.indexOf("key: 'ABOUT'");
-ok(iBox >= 0 && iAbout >= 0, '⑦ 「🧰 其他功能」页与「关于」页都定义了');
-if (iBox >= 0 && iAbout >= 0) {
-  const iPushBox = code.indexOf('out.push(toolboxTab())');
-  const iPushAbout = code.indexOf('out.push(aboutTab())');
-  ok(iPushBox >= 0 && iPushAbout >= 0 && iPushBox < iPushAbout,
-    '⑦ 其他功能排在关于**前面**（用户点名要的位置）');
-}
-ok(code.indexOf("special: 'toolbox'") >= 0 && code.indexOf("if (tab.special === 'toolbox')") >= 0,
-  '⑦ 渲染分派接上了（special=toolbox → renderToolboxTab）');
+/* ⑦ 工具迁入工具箱；40 仍提供同一套渲染与事件。 */
+ok(code.includes('mountOtherTools: mountOtherTools') && code.includes('renderToolboxTab(container)'), '⑦ 其他功能通过共享挂载接口提供');
+ok(!code.includes('out.push(toolboxTab())'), '⑦ 预设设置不再重复显示其他功能页');
 ok(code.indexOf("data-kami-tagfix") >= 0 && code.indexOf('setTagFixMode(') >= 0,
   '⑦ 三档开关接上了（data-kami-tagfix → setTagFixMode）');
 ok(code.indexOf("'tagfix-floor'") >= 0 && code.indexOf('tagFixCurrentFloor') >= 0,
@@ -109,8 +101,8 @@ ok(code.indexOf('root.style.zIndex = \'1\'') >= 0,
   '⑦ 弹确认窗时把面板临时压到下面（否则同层级 + DOM 顺序在后 = 被盖住，用户实测点名）');
 ok(code.indexOf("tagFixAsk.lastReason = 'noPopup'") >= 0 && code.indexOf('TAGFIX_COPY.noPopup') >= 0,
   '⑦ 拿不到弹窗时**什么都不改**并把原因说出来（不许没问过用户就动聊天记录）');
-ok(/view = \[[\s\S]{0,220}toolboxTab\(\)[\s\S]{0,100}aboutTab\(\)/.test(code),
-  '⑦ 读不到预设时「🧰 其他功能」照旧在（它不依赖预设结构）');
+ok(code.includes('if (disposed || !container)') && code.includes('renderToolboxTab(container)'),
+  '⑦ 其他功能挂载不依赖预设条目解析');
 ok(code.indexOf('strayNote.replace') >= 0, '⑦ 有落单的结尾标签时在窗里说明没动它们');
 
 /* ⑧ 自动那一条路：事件、Promise、写回、重画 */
@@ -133,8 +125,12 @@ ok(fs.existsSync(path.join(ROOT, 'test', 'harness', 'tags-pure.mjs')),
       任何一样漏掉，构建都一样全绿：这功能是「静默失效」型的 —— 开关点得动、正文全不动。 */
 ok(code.indexOf('HTML_TAGS') >= 0 && code.indexOf('isHtmlTag(') >= 0 && code.indexOf('coverSpec(') >= 0,
   '⑩ 覆盖模式的纯逻辑出口进了产物（HTML_TAGS / isHtmlTag / coverSpec）');
-ok(code.indexOf('repairTags(text, m, tagFixSpecs(), tagFixAll)') >= 0,
+ok(code.indexOf("repairTags(safe.text, safe.stats.incomplete ? 'off' : m, tagFixSpecs(), tagFixAll)") >= 0,
   '⑩ 覆盖开关真的传进了纯逻辑（repairTags 的第 4 个参数）');
+ok(code.includes("register('tag-references', 20") && code.includes('createTagReferenceResponse(createKamiResponseTransport(), createReasoningReferenceStream'),
+  '⑩ 引用保护在响应交给酒馆前接入共享管线');
+ok(code.includes('tagReferenceRelease(); tagReferenceRelease = null') && code.includes('protectReasoningReferences(text)'),
+  '⑩ 关闭/注销移除自有处理器，后置手动处理复用同一保护器');
 ok(code.indexOf('data-kami-tagfix-all') >= 0 && code.indexOf('setTagFixAll(') >= 0,
   '⑩ 覆盖开关接上了（data-kami-tagfix-all → setTagFixAll）');
 ok(code.indexOf('saved[TAGFIX_ALL_VAR]') >= 0 && code.indexOf('tagFixAll: tagFixAll') >= 0,

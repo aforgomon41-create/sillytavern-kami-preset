@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+export { flattenScriptTrees, groupScriptTrees } from '../src/scripts/_script-tree.js';
 
 const PLACEHOLDER = '/* @@KAMI_BASE_CSS@@ */';
 const PAYLOAD = '@@PAYLOAD@@';
@@ -52,8 +53,9 @@ export function countMacros(doc) {
 
 function assertClean(doc, name) {
   const marks = countPlaceholders(doc);
-  if (marks !== 1) {
-    throw new Error('前端 ' + name + ' 展开后含 ' + marks + ' 个 $n/$<name> 占位，应当只有载荷标记 $1 一个。' +
+  const expected = name === 'search' ? 0 : 1;
+  if (marks !== expected) {
+    throw new Error('前端 ' + name + ' 展开后含 ' + marks + ' 个 $n/$<name> 占位，应为 ' + expected + ' 个。' +
       '酒馆不会把 $$ 还原成 $，请在前端源码里避免出现 $ 后跟数字的写法。');
   }
   const macros = countMacros(doc);
@@ -160,6 +162,7 @@ export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
   doc = expandCopyClean(root, doc);
+  doc = expandSearchPure(root, doc);
   doc = doc.split(PAYLOAD).join(DOLLAR + '1');
   assertClean(doc, name);
   return NL + FENCE + NL + doc + NL + FENCE;
@@ -170,6 +173,7 @@ export function expandForPreview(root, name, payload) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
   doc = expandCopyClean(root, doc);
+  doc = expandSearchPure(root, doc);
   doc = doc.split(PAYLOAD).join(payload == null ? '' : String(payload));
   return doc;
 }
@@ -338,6 +342,30 @@ export function expandCustomStyleUi(root, code) {
  *  （_preset-cards.js / _preset-merge.js / _custom-style-ui.js）都挂在这里一起展开；
  *  各个占位符彼此独立、互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
 export function expandPanelGestures(root, code) {
+  code = expandSearchPure(root, code);
+  for (const [marker, file] of [
+    ['/* @@KAMI_COMPRESS_UI@@ */', '_compress-ui.js'],
+    ['/* @@KAMI_OTHER_TOOLS_UI@@ */', '_toolbox-other-ui.js'],
+    ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
+    ['/* @@KAMI_SEARCH_SERVICE@@ */', '_search-service.js'],
+    ['/* @@KAMI_SEARCH_TASK@@ */', '_search-task.js'],
+    ['/* @@KAMI_LLM_UI@@ */', '_llm-ui.js'],
+    ['/* @@KAMI_LLM_SETTINGS@@ */', '_llm-settings.js'],
+    ['/* @@KAMI_SEARCH_MANUAL_UI@@ */', '_search-manual-ui.js'],
+    ['/* @@KAMI_SEARCH_PROVIDERS@@ */', '_search-providers.js'],
+  ]) {
+    if (!code.includes(marker)) { continue; }
+    const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts', file), 'utf8'), file);
+    if (source.includes(marker)) { throw new Error(file + ' 不能包含自己的构建标记'); }
+    code = code.replace(marker, () => source);
+  }
+  const searchTaskMark = '/* @@KAMI_SEARCH_TASK_DEF@@ */';
+  if (code.includes(searchTaskMark)) {
+    const preset = JSON.parse(fs.readFileSync(path.join(root, 'src/preset.base.json'), 'utf8'));
+    const task = preset.prompts.find(row => row.identifier === 'kami_web_search_task');
+    if (!task || !task.content) { throw new Error('缺少网络搜索头部任务定义'); }
+    code = code.replace(searchTaskMark, () => 'var WEB_SEARCH_TASK_DEF = ' + JSON.stringify(task) + ';');
+  }
   const assetsMark = '/* @@KAMI_SKIN_ASSETS@@ */';
   if (code.includes(assetsMark)) {
     const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_skin-assets.js'), 'utf8'), '_skin-assets.js');
@@ -349,6 +377,12 @@ export function expandPanelGestures(root, code) {
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
   code = expandTagsPure(root, code);
+  for (const [mark, file] of [['RESPONSE_PIPELINE','_response-pipeline.js'],['RESPONSE_TRANSPORT','_response-transport.js'],['REASONING_REFERENCES','_reasoning-references.js'],['TAG_RESPONSE','_tag-response.js']]) {
+    const token = '/* @@KAMI_' + mark + '@@ */';
+    if (code.includes(token)) {
+      code = code.replaceAll(token, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts',file),'utf8'),file));
+    }
+  }
   code = expandGodCmdPure(root, code);
   code = expandCopyClean(root, code);
   code = expandExportClean(root, code);
@@ -539,7 +573,23 @@ export const PRESET_MERGE_MARK = '/* @@KAMI_PRESET_MERGE@@ */';
 
 export function presetMergeSource(root) {
   const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_preset-merge.js'), 'utf8');
-  return inlineModuleSource(raw, '_preset-merge.js');
+  return inlineModuleSource(expandScriptTrees(root, raw), '_preset-merge.js');
+}
+
+export function expandScriptTrees(root, code) {
+  const marker = '/* @@KAMI_SCRIPT_TREE@@ */';
+  if (!code.includes(marker)) { return code; }
+  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_script-tree.js'), 'utf8'), '_script-tree.js');
+  if (source.includes(marker)) { throw new Error('_script-tree.js 不能包含自己的构建标记'); }
+  return code.replace(marker, () => source);
+}
+
+export function expandSearchPure(root, code) {
+  const marker = '/* @@KAMI_SEARCH_PURE@@ */';
+  if (!code.includes(marker)) { return code; }
+  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_search-pure.js'), 'utf8'), '_search-pure.js');
+  if (source.includes(marker)) { throw new Error('_search-pure.js 不能包含自己的构建标记'); }
+  return code.replace(marker, () => source);
 }
 
 /** 把脚本源码里的合并引擎占位换成 _preset-merge.js 的源码（已去掉行首 export）。

@@ -15,6 +15,7 @@
  *
  * 用法：node build/verify-name-wrap.mjs <产物路径>
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -89,7 +90,7 @@ ok(rc.indexOf('格式：<n>角色名</n>') >= 0, '③ 第 4 条的「格式」�
 ok(rc.indexOf('所有出现的角色名必须使用反引号包裹') < 0, '③ 第 4 条里没有写死「必须使用反引号包裹」');
 
 /* ④ 代码：35 号 */
-const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
+const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
 const wrap = scripts.find(s => String(s.name).indexOf('提示词发送修改') >= 0);
 const wc = wrap ? String(wrap.content || '') : '';
 ok(!!wrap, '④ 产物里有「✍️ 提示词发送修改」脚本', wrap ? wrap.name : '找不到');

@@ -1,6 +1,6 @@
 {
   "hubTip": "压缩：滚动压缩 / 超限压缩（点击展开）",
-  "hubAbsent": "压缩脚本未就绪",
+  "hubAbsent": "工具箱脚本未就绪",
   "mode": {
     "section": "模式",
     "rollTitle": "滚动压缩",

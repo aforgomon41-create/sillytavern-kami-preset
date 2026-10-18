@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-18",
+  "host": "http://localhost:11451",
+  "preset": "kami-v0.92-46-20261018",
+  "character": "网络搜索验收·诸界档案员1018",
+  "chat": "网络搜索验收·诸界档案员1018 - 2026-10-18@13h52m21s974ms",
+  "floors": 8,
+  "checks": [
+    {
+      "name": "真实宿主有手动设置及共用模型卡",
+      "pass": true
+    },
+    {
+      "name": "实机消息栏快捷按钮已注册",
+      "pass": true
+    },
+    {
+      "name": "实机中断关闭弹窗且不新增楼层",
+      "pass": true
+    },
+    {
+      "name": "真实详细搜索只增加一个资料楼层",
+      "pass": true
+    },
+    {
+      "name": "真实结果超过原先八条且精简保存",
+      "pass": true
+    },
+    {
+      "name": "真实资料卡显示全部新增事实",
+      "pass": true
+    },
+    {
+      "name": "Tavily四次真实请求均成功",
+      "pass": true
+    },
+    {
+      "name": "压缩配置完全保留",
+      "pass": true
+    },
+    {
+      "name": "其他十一份脚本源码数据开关保持",
+      "pass": true
+    },
+    {
+      "name": "原剧情模型设置已恢复",
+      "pass": true
+    },
+    {
+      "name": "刷新后源码前端与47包完全一致、手动设置保留",
+      "pass": true
+    }
+  ],
+  "result": {
+    "facts": 9,
+    "sources": 5,
+    "chars": 1298,
+    "floor": 7,
+    "milliseconds": 80433,
+    "requestMilliseconds": 21370
+  },
+  "calls": [
+    {
+      "kind": "llm",
+      "at": 1792326525286,
+      "model": "agy-gemini-2.5-flash"
+    },
+    {
+      "kind": "llm",
+      "at": 1792326526640,
+      "model": "agy-gemini-2.5-flash",
+      "http": 200,
+      "ms": 3449
+    },
+    {
+      "kind": "tavily",
+      "at": 1792326530097,
+      "http": 200,
+      "ms": 3739
+    },
+    {
+      "kind": "tavily",
+      "at": 1792326533843,
+      "http": 200,
+      "ms": 2859
+    },
+    {
+      "kind": "tavily",
+      "at": 1792326536709,
+      "http": 200,
+      "ms": 3510
+    },
+    {
+      "kind": "tavily",
+      "at": 1792326540226,
+      "http": 200,
+      "ms": 3243
+    },
+    {
+      "kind": "llm",
+      "at": 1792326543533,
+      "model": "agy-gemini-2.5-flash",
+      "http": 200,
+      "ms": 4352
+    }
+  ],
+  "restoredModel": {
+    "custom_model": "agy-gemini-3.8-flash-high",
+    "openai_max_tokens": 65535,
+    "reasoning_effort": "max"
+  },
+  "restoredShortcut": false,
+  "limit": "真实供应商只测Tavily；其余浏览器流程使用隔离模拟接口。",
+  "reloadCheck": {
+    "scriptExact": true,
+    "regexExact": true,
+    "manualSettingsPersisted": true,
+    "shortcut": false,
+    "model": {
+      "custom_model": "agy-gemini-3.8-flash-high",
+      "openai_max_tokens": 65535,
+      "reasoning_effort": "max"
+    },
+    "floors": 8,
+    "facts": 9,
+    "manualButton": true,
+    "searchMode": "service"
+  },
+  "artifact": {
+    "path": "dist/kami-v0.92-47-20261018.json",
+    "bytes": 4675066,
+    "sha256": "2988fc39ebdbce77c54374a510dcaee6155cf679628d5d783da223af99eee7c7",
+    "released": false
+  },
+  "browser": {
+    "desktop": {
+      "passed": 42,
+      "total": 42,
+      "allPassed": true,
+      "cleanupPassed": 2
+    },
+    "mobile": {
+      "passed": 42,
+      "total": 42,
+      "allPassed": true,
+      "cleanupPassed": 2
+    }
+  }
+}

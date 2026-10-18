@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>搜索资料</title>
+<style>
+/* @@KAMI_BASE_CSS@@ */
+html,body{margin:0;padding:0;background:transparent;border:0}
+.kami-root[data-kami-search]{position:relative}
+.kami-root[data-kami-search] .kami-md p{overflow-wrap:anywhere}
+.kami-root[data-kami-search] .kami-md a{overflow-wrap:anywhere}
+.kami-root[data-kami-search] .kami-card-note{white-space:normal;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<!-- 不把捕获到的 JSON 拼进 HTML；从本 iframe 对应的楼层读取原始数据。 -->
+<div class="kami-root" data-kami-comp="think" data-kami-view="render" data-kami-search="1">
+  <div class="kami-shell kami-surface kami-collapse" data-kami-open="0">
+    <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="false" aria-controls="search-body">
+      <span class="kami-dot" aria-hidden="true"></span>
+      <span class="kami-deco" data-kami-deco="d20" aria-hidden="true"></span>
+      <span class="kami-title">搜索资料</span>
+      <span class="kami-actions"><span class="kami-sub" data-search-count>读取中</span><span class="kami-chev" aria-hidden="true">▸</span></span>
+    </div>
+    <div id="search-body" class="kami-body kami-collapse-body"><div class="kami-md" data-search-content></div></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  /* @@KAMI_SEARCH_PURE@@ */
+  var root=document.querySelector('[data-kami-search]'),body=root.querySelector('[data-search-content]');
+  var shell=root.querySelector('.kami-collapse'),head=root.querySelector('.kami-collapse-head'),count=root.querySelector('[data-search-count]');
+  var disposed=false,retry=null;
+  function make(tag,className,text){var element=document.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
+  function find(name){var target=window;for(var i=0;i<8;i++){try{if(typeof target[name]==='function')return target[name].bind(target);if(target.TavernHelper&&typeof target.TavernHelper[name]==='function')return target.TavernHelper[name].bind(target.TavernHelper);if(!target.parent||target.parent===target)break;target=target.parent;}catch(e){break;}}return null;}
+  function toggle(){var open=shell.getAttribute('data-kami-open')!=='1';shell.setAttribute('data-kami-open',open?'1':'0');head.setAttribute('aria-expanded',open?'true':'false');}
+  head.addEventListener('click',toggle);
+  head.addEventListener('keydown',function(event){if(event.key==='Enter'||event.key===' '||event.key==='Spacebar'){event.preventDefault();toggle();}});
+  function show(records){
+    body.textContent='';var total=0;
+    records.forEach(function(record){
+      if(record.origin==='native')body.appendChild(make('p','kami-card-note','模型原生搜索 · 来源由模型提供'));
+      if(record.world||record.scope)body.appendChild(make('p','kami-card-note',[record.world,record.scope].filter(Boolean).join(' · ')));
+      var sourceMap=Object.create(null);
+      (Array.isArray(record.sources)?record.sources:[]).forEach(function(value){var source=webSearchSource(value);if(source&&source.id)sourceMap[source.id]=source;});
+      record.facts.forEach(function(fact){
+        if(!fact||typeof fact.text!=='string')return;total++;
+        var row=make('p','',fact.text+' ');
+        (Array.isArray(fact.source_ids)?fact.source_ids:[]).forEach(function(id){var source=sourceMap[id];if(!source)return;var link=make('a','', '['+source.title+']');link.href=source.url;link.target='_blank';link.rel='noopener noreferrer';row.appendChild(link);row.appendChild(document.createTextNode(' '));});
+        body.appendChild(row);
+        if(typeof fact.note==='string'&&fact.note)body.appendChild(make('p','kami-card-note',fact.note));
+      });
+      if(!record.facts.length)body.appendChild(make('p','kami-card-note',record.status==='not_found'?'本次没有找到可用资料。':record.status==='budget_exceeded'?'资料超过本轮长度预算，未加入新事实。':'本次没有需要补充的新事实。'));
+    });
+    count.textContent=total+' 条';root.setAttribute('data-search-ready','1');
+  }
+  async function boot(attempt){
+    if(disposed)return;
+    var current=find('getCurrentMessageId'),messages=find('getChatMessages');
+    if(!current||!messages){if(attempt<8){retry=setTimeout(function(){boot(attempt+1);},50);return;}count.textContent='未能读取';body.textContent='无法读取本楼的搜索资料。';return;}
+    try{var id=await current();if(!Number.isInteger(Number(id))||Number(id)<0)throw Error('Invalid message');var rows=await messages(String(id));if(disposed)return;var row=rows&&rows[0];var records=readWebSearchRecords(row&&(row.message!==undefined?row.message:row.mes));if(!records.length)throw Error('Invalid record');show(records);}
+    catch(e){if(!disposed){count.textContent='格式不完整';body.textContent='本楼的搜索资料尚不完整，可在消息编辑中核对。';}}
+  }
+  window.addEventListener('pagehide',function(){disposed=true;if(retry!==null)clearTimeout(retry);});
+  boot(0);
+})();
+</script>
+</body>
+</html>

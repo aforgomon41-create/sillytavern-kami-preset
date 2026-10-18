@@ -981,6 +981,12 @@ html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card .ka
   background-image: none;
   border-color: var(--kami-clay-line-strong);
 }
+/* 折叠设置是容器，沿用深浅档的正文底；不能套用按钮卡的黏土凹槽。 */
+html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-card details.kami-card:not(.is-on):not([aria-pressed="true"]) {
+  background-color: var(--kami-card-2);
+  color: var(--kami-fg);
+  border-color: var(--kami-line-strong);
+}
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item.is-on,
 html[data-kami-skin="grokbot"] .kami-root[data-kami-comp="panel"] .kami-item[aria-pressed="true"] {
   border-color: var(--kami-clay-ink);
@@ -2076,6 +2082,19 @@ html[data-kami-skin="grokbot"] .kami-root .kami-item-note > .kami-card {
  *   见 src/skin/tavern.css 第 ⑤ 段与契约 §9.8），包裹层不再产生，故本节删除。
  *   消息楼层的容器（.mes）与正文排版都由全局层负责，皮肤包这边零维护。
  * ============================================================ */
+
+/* Native search/model menu rows: keep an opaque surface and a paired foreground. */
+html[data-kami-skin="grokbot"] .kami-root select option,
+html[data-kami-skin="grokbot"] .kami-root select optgroup {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card-2) !important;
+  color-scheme: inherit !important;
+}
+html[data-kami-skin="grokbot"] .kami-root select option:checked {
+  color: var(--kami-accent-fg) !important;
+  background-color: var(--kami-accent) !important;
+}
+html[data-kami-skin="grokbot"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="grokbot"] {

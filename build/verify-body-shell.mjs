@@ -16,6 +16,7 @@
  *
  * 用法：node build/verify-body-shell.mjs <产物路径>
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,7 +65,7 @@ ok(rg.filter(r => /前端\|正文/.test(String(r.scriptName || '')) && String(r.
   '② 没有哪条「正文」正则还挂着大载荷');
 
 /* ③ 外壳脚本 */
-const scripts = preset.extensions?.tavern_helper?.scripts || [];
+const scripts = flattenScriptTrees(preset.extensions?.tavern_helper?.scripts || []);
 const shell = scripts.find(s => String(s.name || '').indexOf('正文外壳') >= 0);
 ok(!!shell, '③ 产物里有「正文外壳」脚本', shell && shell.name);
 if (shell) {

@@ -62,6 +62,8 @@
 
 /* ───────────── 导出函数（行首 export 由构建期内联时剥掉） ───────────── */
 
+/* @@KAMI_SCRIPT_TREE@@ */
+
 export function computeMergePlan(base, theirs, next) {
   var a = analyze(base, theirs, next, null);
   return a.plan;
@@ -420,37 +422,11 @@ function analyze(base, theirs, next, decisions) {
   var mExt = cloneObj(tExt) || {};
 
   function mergeScripts(tArr, nArr) {
-    var out = [], nMap = {}, tIds = {}, i;
-    for (i = 0; i < nArr.length; i++) {
-      var nid = cleanStr(nArr[i] && nArr[i].id);
-      if (nid) { nMap[nid] = nArr[i]; }
-    }
-    for (i = 0; i < tArr.length; i++) {
-      var tid = cleanStr(tArr[i] && tArr[i].id);
-      if (tid) { tIds[tid] = 1; }
-    }
-    for (i = 0; i < tArr.length; i++) {
-      var st = tArr[i];
-      var sid = cleanStr(st && st.id);
-      if (sid && nMap[sid] !== undefined) {
-        var m = cloneObj(nMap[sid]) || {};
-        m.enabled = defined(st.enabled) ? !!st.enabled : (defined(m.enabled) ? !!m.enabled : true);
-        if (defined(st.data)) { m.data = cloneObj(st.data); }   /* 脚本内设置全留用户（含运行时状态） */
-        out.push(m);
-        report.applied++;
-      } else {
-        out.push(cloneObj(st));
-        report.kept++;
-      }
-    }
-    for (i = 0; i < nArr.length; i++) {
-      var nid2 = cleanArrId(nArr[i]);
-      if (nid2 && tIds[nid2] === undefined) {
-        out.push(cloneObj(nArr[i]));
-        report.added++; report.applied++;
-      }
-    }
-    return { list: out };
+    var result = mergeScriptTrees(tArr, nArr);
+    report.applied += result.applied;
+    report.kept += result.kept;
+    report.added += result.added;
+    return result;
   }
 
   var scriptReport = mergeScripts(

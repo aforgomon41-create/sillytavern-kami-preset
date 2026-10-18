@@ -51,7 +51,7 @@
   <button class="t" data-tab="skin" type="button">🎨 皮肤管理</button>
   <button class="t" data-tab="preset" type="button">🌟 预设设置</button>
   <button class="t" data-tab="guide" type="button">🧭 引导</button>
-  <button class="t" data-tab="compress" type="button">📜 压缩</button>
+  <button class="t" data-tab="compress" type="button">🧰 工具箱</button>
   <button class="t" data-tab="status" type="button">▢ 状态栏（预留）</button>
   <span id="tabnote"></span>
 </div>
@@ -361,6 +361,7 @@ async function setupSillyTavern() {
            restorePresetSelection 也靠它判断选择有没有被挪走。真酒馆里这三个读的是
            #settings_preset_openai 上的选中项（preset-manager.js:379/361/387）。 */
         getSelectedPresetName: () => st.selectedPresetName || settings.name || '',
+        getSelectedPreset: () => (st.presetNames || {})[st.selectedPresetName || settings.name] ?? 0,
         findPreset: (name) => {
           const m = st.presetNames || {};
           return Object.prototype.hasOwnProperty.call(m, name) ? m[name] : undefined;
@@ -425,6 +426,7 @@ async function setupSillyTavern() {
    网络替身：jsDelivr 一律拒绝 ⇒ base 取不到 ⇒ 退化模式（这条路的真实处境，用户本来就连不上）；
    退化模式下条目逐字相同 ⇒ 零冲突，直接合并。 */
 async function setupInheritProbe(ST) {
+  const { flattenScriptTrees } = await import('/src/scripts/_script-tree.js');
   const cur = ST.ctx.chatCompletionSettings;
   const curName = cur.name || '预览台预设';
   const fx = { imports: [], fetches: [], picks: [] };
@@ -464,7 +466,8 @@ async function setupInheritProbe(ST) {
   }
   if (old.extensions && old.extensions.tavern_helper && old.extensions.tavern_helper.scripts &&
     old.extensions.tavern_helper.scripts.length) {
-    old.extensions.tavern_helper.scripts[0].data = Object.assign({}, old.extensions.tavern_helper.scripts[0].data, { inheritProbe: '来自旧预设' });
+    const firstScript = flattenScriptTrees(old.extensions.tavern_helper.scripts)[0];
+    firstScript.data = Object.assign({}, firstScript.data, { inheritProbe: '来自旧预设' });
     fx.scriptDataMark = '来自旧预设';                 // 脚本设置（规则 A.3）
   }
 
@@ -641,7 +644,7 @@ const TAB_DEFS = [
   { key: 'skin', label: '🎨 皮肤管理', kind: 'panel', api: 'KamiSkin' },
   { key: 'preset', label: '🌟 预设设置', kind: 'panel', api: 'KamiPreset' },
   { key: 'guide', label: '🧭 引导', kind: 'panel', api: 'KamiGuide' },
-  { key: 'compress', label: '📜 压缩', kind: 'panel', api: 'KamiSummarize' },
+  { key: 'compress', label: '🧰 工具箱', kind: 'panel', api: 'KamiSummarize' },
   { key: 'status', label: '▢ 状态栏（预留）', kind: 'none' }
 ];
 function setTab(key, silent) {
@@ -979,6 +982,12 @@ function installSpresetHost(ST) {
   await new Promise(r => setTimeout(r, 1800));
   step('建消息楼层');
   await makeFrame('think'); await makeFrame('options');
+  if (params.get('searchPreview') === '1') {
+    TAB_DEFS.push({key:'search',label:'搜索资料',kind:'frame'});
+    const pane=document.createElement('div');pane.className='pane';pane.dataset.pane='search';pane.hidden=true;document.getElementById('slot').appendChild(pane);
+    const button=document.createElement('button');button.className='t';button.dataset.tab='search';button.textContent='搜索资料';button.onclick=()=>setTab('search');document.getElementById('tabbar').appendChild(button);
+    await makeFrame('search');
+  }
   await new Promise(r => setTimeout(r, 1200));
   /* ?updater=1：把「🔄 远程更新」也装进来。它是纯后台脚本，唯一产物是宿主窗口上的
      全局 KamiUpdate，「ℹ️ 关于」页的检查更新按钮靠它。默认不装：大多数皮肤/面板验证
@@ -1115,7 +1124,7 @@ function installSpresetHost(ST) {
   }
   if (noload.indexOf('compress') < 0) {
     step('装压缩面板');
-    try { await loadScript('/dev/60-压缩.js', 'compress'); }
+    try { await loadScript('/dev/60-工具箱.js', 'compress'); }
     catch (e) { console.log('面板装载失败|60-压缩|' + ((e && e.message) || e)); }
   }
   /* 状态栏（实验）：meta.json 里默认关闭，但那说的是**预设里的开关**；

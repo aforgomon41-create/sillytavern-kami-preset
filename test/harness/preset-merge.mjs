@@ -6,13 +6,14 @@
  * 风格与 update-flow.mjs 一致：纯 node、假数据、PASS/FAIL 计数、失败即非零退出码。
  * 逐条对照三方合并的硬口径（口径全文见 _preset-merge.js 文件头）。
  */
+import { expandScriptTrees } from '../../build/kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 /* 与 build/kami-doc.mjs 的 inlineModuleSource 同一条规则：剥掉行首 export 前缀 */
-const RAW = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '_preset-merge.js'), 'utf8');
+const RAW = expandScriptTrees(ROOT, fs.readFileSync(path.join(ROOT, 'src', 'scripts', '_preset-merge.js'), 'utf8'));
 const CODE = RAW.split('\n').map(l => (l.slice(0, 7) === 'export ' ? l.slice(7) : l)).join('\n');
 if (CODE === RAW) { throw new Error('剥离 export 失败：_preset-merge.js 里没有 export 声明？'); }
 const eng = new Function(CODE + '\n;return { computeMergePlan: computeMergePlan, applyMergePlan: applyMergePlan };')();

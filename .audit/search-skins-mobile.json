@@ -1,0 +1,893 @@
+{
+  "checks": [
+    {
+      "name": "civdawn light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "civdawn light settings fit",
+      "pass": true
+    },
+    {
+      "name": "civdawn light motion off",
+      "pass": true
+    },
+    {
+      "name": "civdawn dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "civdawn dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "civdawn dark motion off",
+      "pass": true
+    },
+    {
+      "name": "claude light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "claude light settings fit",
+      "pass": true
+    },
+    {
+      "name": "claude light motion off",
+      "pass": true
+    },
+    {
+      "name": "claude dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "claude dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "claude dark motion off",
+      "pass": true
+    },
+    {
+      "name": "crt80s light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "crt80s light settings fit",
+      "pass": true
+    },
+    {
+      "name": "crt80s light motion off",
+      "pass": true
+    },
+    {
+      "name": "crt80s dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "crt80s dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "crt80s dark motion off",
+      "pass": true
+    },
+    {
+      "name": "deepseek light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "deepseek light settings fit",
+      "pass": true
+    },
+    {
+      "name": "deepseek light motion off",
+      "pass": true
+    },
+    {
+      "name": "deepseek dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "deepseek dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "deepseek dark motion off",
+      "pass": true
+    },
+    {
+      "name": "empire light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "empire light settings fit",
+      "pass": true
+    },
+    {
+      "name": "empire light motion off",
+      "pass": true
+    },
+    {
+      "name": "empire dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "empire dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "empire dark motion off",
+      "pass": true
+    },
+    {
+      "name": "gemini light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "gemini light settings fit",
+      "pass": true
+    },
+    {
+      "name": "gemini light motion off",
+      "pass": true
+    },
+    {
+      "name": "gemini dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "gemini dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "gemini dark motion off",
+      "pass": true
+    },
+    {
+      "name": "glm light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "glm light settings fit",
+      "pass": true
+    },
+    {
+      "name": "glm light motion off",
+      "pass": true
+    },
+    {
+      "name": "glm dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "glm dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "glm dark motion off",
+      "pass": true
+    },
+    {
+      "name": "gpt light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "gpt light settings fit",
+      "pass": true
+    },
+    {
+      "name": "gpt light motion off",
+      "pass": true
+    },
+    {
+      "name": "gpt dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "gpt dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "gpt dark motion off",
+      "pass": true
+    },
+    {
+      "name": "grokbot light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "grokbot light settings fit",
+      "pass": true
+    },
+    {
+      "name": "grokbot light motion off",
+      "pass": true
+    },
+    {
+      "name": "grokbot dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "grokbot dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "grokbot dark motion off",
+      "pass": true
+    },
+    {
+      "name": "isekai light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "isekai light settings fit",
+      "pass": true
+    },
+    {
+      "name": "isekai light motion off",
+      "pass": true
+    },
+    {
+      "name": "isekai dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "isekai dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "isekai dark motion off",
+      "pass": true
+    },
+    {
+      "name": "manga light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "manga light settings fit",
+      "pass": true
+    },
+    {
+      "name": "manga light motion off",
+      "pass": true
+    },
+    {
+      "name": "manga dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "manga dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "manga dark motion off",
+      "pass": true
+    },
+    {
+      "name": "memo light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "memo light settings fit",
+      "pass": true
+    },
+    {
+      "name": "memo light motion off",
+      "pass": true
+    },
+    {
+      "name": "memo dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "memo dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "memo dark motion off",
+      "pass": true
+    },
+    {
+      "name": "mileng light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "mileng light settings fit",
+      "pass": true
+    },
+    {
+      "name": "mileng light motion off",
+      "pass": true
+    },
+    {
+      "name": "mileng dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "mileng dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "mileng dark motion off",
+      "pass": true
+    },
+    {
+      "name": "moonside light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "moonside light settings fit",
+      "pass": true
+    },
+    {
+      "name": "moonside light motion off",
+      "pass": true
+    },
+    {
+      "name": "moonside dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "moonside dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "moonside dark motion off",
+      "pass": true
+    },
+    {
+      "name": "nixie light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "nixie light settings fit",
+      "pass": true
+    },
+    {
+      "name": "nixie light motion off",
+      "pass": true
+    },
+    {
+      "name": "nixie dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "nixie dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "nixie dark motion off",
+      "pass": true
+    },
+    {
+      "name": "rain light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "rain light settings fit",
+      "pass": true
+    },
+    {
+      "name": "rain light motion off",
+      "pass": true
+    },
+    {
+      "name": "rain dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "rain dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "rain dark motion off",
+      "pass": true
+    },
+    {
+      "name": "senren light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "senren light settings fit",
+      "pass": true
+    },
+    {
+      "name": "senren light motion off",
+      "pass": true
+    },
+    {
+      "name": "senren dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "senren dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "senren dark motion off",
+      "pass": true
+    },
+    {
+      "name": "terminal light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "terminal light settings fit",
+      "pass": true
+    },
+    {
+      "name": "terminal light motion off",
+      "pass": true
+    },
+    {
+      "name": "terminal dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "terminal dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "terminal dark motion off",
+      "pass": true
+    },
+    {
+      "name": "trpg light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "trpg light settings fit",
+      "pass": true
+    },
+    {
+      "name": "trpg light motion off",
+      "pass": true
+    },
+    {
+      "name": "trpg dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "trpg dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "trpg dark motion off",
+      "pass": true
+    },
+    {
+      "name": "wod light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "wod light settings fit",
+      "pass": true
+    },
+    {
+      "name": "wod light motion off",
+      "pass": true
+    },
+    {
+      "name": "wod dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "wod dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "wod dark motion off",
+      "pass": true
+    },
+    {
+      "name": "xianyun light dialog fits",
+      "pass": true
+    },
+    {
+      "name": "xianyun light settings fit",
+      "pass": true
+    },
+    {
+      "name": "xianyun light motion off",
+      "pass": true
+    },
+    {
+      "name": "xianyun dark dialog fits",
+      "pass": true
+    },
+    {
+      "name": "xianyun dark settings fit",
+      "pass": true
+    },
+    {
+      "name": "xianyun dark motion off",
+      "pass": true
+    },
+    {
+      "name": "no-runtime-errors",
+      "pass": true
+    }
+  ],
+  "matrix": [
+    {
+      "skin": "civdawn",
+      "scheme": "light",
+      "fields": 30,
+      "text": 88,
+      "minText": 6.08,
+      "minMenu": 4.93,
+      "fail": []
+    },
+    {
+      "skin": "civdawn",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.22,
+      "minMenu": 5.15,
+      "fail": []
+    },
+    {
+      "skin": "claude",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.46,
+      "minMenu": 4.61,
+      "fail": []
+    },
+    {
+      "skin": "claude",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 11.8,
+      "minMenu": 8.29,
+      "fail": []
+    },
+    {
+      "skin": "crt80s",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.12,
+      "minMenu": 6.05,
+      "fail": []
+    },
+    {
+      "skin": "crt80s",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.42,
+      "minMenu": 9.42,
+      "fail": []
+    },
+    {
+      "skin": "deepseek",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 6.46,
+      "minMenu": 4.77,
+      "fail": []
+    },
+    {
+      "skin": "deepseek",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 11.06,
+      "minMenu": 7.5,
+      "fail": []
+    },
+    {
+      "skin": "empire",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.59,
+      "minMenu": 5.89,
+      "fail": []
+    },
+    {
+      "skin": "empire",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.38,
+      "minMenu": 9.14,
+      "fail": []
+    },
+    {
+      "skin": "gemini",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.13,
+      "minMenu": 5.2,
+      "fail": []
+    },
+    {
+      "skin": "gemini",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.49,
+      "minMenu": 6.46,
+      "fail": []
+    },
+    {
+      "skin": "glm",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.5,
+      "minMenu": 7.5,
+      "fail": []
+    },
+    {
+      "skin": "glm",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.65,
+      "minMenu": 8.65,
+      "fail": []
+    },
+    {
+      "skin": "gpt",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.76,
+      "minMenu": 5.26,
+      "fail": []
+    },
+    {
+      "skin": "gpt",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 11.62,
+      "minMenu": 8.74,
+      "fail": []
+    },
+    {
+      "skin": "grokbot",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.3,
+      "minMenu": 7.33,
+      "fail": []
+    },
+    {
+      "skin": "grokbot",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 10.35,
+      "minMenu": 10.35,
+      "fail": []
+    },
+    {
+      "skin": "isekai",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.79,
+      "minMenu": 5.17,
+      "fail": []
+    },
+    {
+      "skin": "isekai",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.87,
+      "minMenu": 5.88,
+      "fail": []
+    },
+    {
+      "skin": "manga",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.99,
+      "minMenu": 4.92,
+      "fail": []
+    },
+    {
+      "skin": "manga",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.56,
+      "minMenu": 5.71,
+      "fail": []
+    },
+    {
+      "skin": "memo",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.73,
+      "minMenu": 5.11,
+      "fail": []
+    },
+    {
+      "skin": "memo",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 5.83,
+      "minMenu": 5.83,
+      "fail": []
+    },
+    {
+      "skin": "mileng",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 5.57,
+      "minMenu": 5.57,
+      "fail": []
+    },
+    {
+      "skin": "mileng",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.35,
+      "minMenu": 8.35,
+      "fail": []
+    },
+    {
+      "skin": "moonside",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.96,
+      "minMenu": 7.96,
+      "fail": []
+    },
+    {
+      "skin": "moonside",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.26,
+      "minMenu": 8.26,
+      "fail": []
+    },
+    {
+      "skin": "nixie",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 5.81,
+      "minMenu": 5.81,
+      "fail": []
+    },
+    {
+      "skin": "nixie",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 6.97,
+      "minMenu": 6.97,
+      "fail": []
+    },
+    {
+      "skin": "rain",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 6.38,
+      "minMenu": 5.61,
+      "fail": []
+    },
+    {
+      "skin": "rain",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.57,
+      "minMenu": 6.81,
+      "fail": []
+    },
+    {
+      "skin": "senren",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.26,
+      "minMenu": 7.26,
+      "fail": []
+    },
+    {
+      "skin": "senren",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.44,
+      "minMenu": 9.44,
+      "fail": []
+    },
+    {
+      "skin": "terminal",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.18,
+      "minMenu": 5.41,
+      "fail": []
+    },
+    {
+      "skin": "terminal",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.78,
+      "minMenu": 8.78,
+      "fail": []
+    },
+    {
+      "skin": "trpg",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.03,
+      "minMenu": 7.03,
+      "fail": []
+    },
+    {
+      "skin": "trpg",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.48,
+      "minMenu": 7.48,
+      "fail": []
+    },
+    {
+      "skin": "wod",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 7.72,
+      "minMenu": 7.72,
+      "fail": []
+    },
+    {
+      "skin": "wod",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 9.34,
+      "minMenu": 6.26,
+      "fail": []
+    },
+    {
+      "skin": "xianyun",
+      "scheme": "light",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.27,
+      "minMenu": 8.27,
+      "fail": []
+    },
+    {
+      "skin": "xianyun",
+      "scheme": "dark",
+      "fields": 30,
+      "text": 11,
+      "minText": 8.25,
+      "minMenu": 8.25,
+      "fail": []
+    }
+  ],
+  "failures": []
+}

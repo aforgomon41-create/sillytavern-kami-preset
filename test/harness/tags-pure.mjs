@@ -12,7 +12,7 @@
  * ⑰ 那一段是**中文标签名**（用户 2026-10-01 真机反馈「不会识别中文标签」）：
  *   标签名放开汉字（基本区 + 扩展 A）；没开覆盖又没填自定义时，中文尖括号照旧不算标签。
  */
-import { TAG_SPECS, HTML_TAGS, isHtmlTag, coverSpec, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges } from '../../src/scripts/_tags-pure.js';
+import { TAG_SPECS, HTML_TAGS, isHtmlTag, coverSpec, repairTags, scanTags, closeAt, tokenize, describeFix, tagListText, parseCustomTags, specsWithCustom, describeChanges, mergeContinuedOutBody } from '../../src/scripts/_tags-pure.js';
 
 let pass = 0, fail = 0;
 const bad = [];
@@ -22,6 +22,24 @@ function eq(actual, expect, label) {
   bad.push(label + '\n    期望：' + JSON.stringify(expect) + '\n    实际：' + JSON.stringify(actual));
 }
 function ok(cond, label) { eq(!!cond, true, label); }
+
+{
+  const before = '<out_body><introduction><search_results>{"facts":[]}</search_results></introduction><content>原文</content></out_body>';
+  const next = '<out_body><content>续写<medium><out_body>卡片文字</out_body></medium></content></out_body>';
+  const combined = before + ' \n' + next;
+  const merged = mergeContinuedOutBody(combined, before);
+  eq(merged, before.replace(/<\/out_body>$/, '') + ' \n' + next.replace(/^<out_body>/, ''), '续写只移除中间外壳，保留正文和资料');
+  eq(mergeContinuedOutBody(merged, before), merged, '已合并时不重复改写');
+  eq(mergeContinuedOutBody(before, before), before, '没有续写不改');
+  eq(mergeContinuedOutBody(combined.replace('<introduction>', '<introduction>\n\n'), before), merged.replace('<introduction>', '<introduction>\n\n'), '兼容其他消息处理器重排搜索块空白');
+  for (const suffix of ['<out_body><content>截断', '<out_body><out_body>嵌套</out_body></out_body>', '普通续写', '<out_body>完整</out_body>尾部文字']) {
+    eq(mergeContinuedOutBody(before + suffix, before), before + suffix, '不猜测不完整、嵌套或无外壳的续写');
+  }
+  const code = '<out_body><content>\n```\n<out_body>代码</out_body>\n```\n<!-- <out_body>注释</out_body> --></content></out_body>';
+  eq(mergeContinuedOutBody(before + code, before), before.replace(/<\/out_body>$/, '') + code.replace(/^<out_body>/, ''), '跳过代码、注释中的示例标签');
+  const third = '<out_body><content>第三段</content></out_body>';
+  eq((mergeContinuedOutBody(combined + third, before).match(/<out_body>/g) || []).length, 2, '多个续写外壳合并，卡片示例保留');
+}
 
 /* ── ① 被截断的回复：内容写到最后，闭合标签没来得及写 ── */
 {

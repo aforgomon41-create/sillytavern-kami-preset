@@ -12,6 +12,7 @@
  *
  * 用法：node build/verify-version-identity.mjs <产物路径>
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +34,7 @@ const ok = (cond, label, extra) => {
 
 console.log('=== 版本身份验证（' + path.basename(p) + '） ===');
 
-const scripts = preset.extensions?.tavern_helper?.scripts || [];
+const scripts = flattenScriptTrees(preset.extensions?.tavern_helper?.scripts || []);
 const byName = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0) || {}).content || '');
 const updater = byName('远程更新');
 const panel = byName('预设设置');

@@ -2,6 +2,7 @@
 // Execute current source; no network, generated fixtures, or production writes.
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { reconcileBlocks } from '../../src/scripts/_summarize-pure.js';
@@ -25,6 +26,8 @@ const ticks = async () => { for (let i = 0; i < 12; i++) await Promise.resolve()
 
 // Reuse the existing integration environment in memory, without its test runner.
 let fixture = read('test/harness/summarize-flow.mjs');
+fixture = fixture.replace(/(from\s+['"])(\.[^'"]+)(['"])/g, (_all, prefix, spec, suffix) =>
+  prefix + pathToFileURL(path.resolve(ROOT, 'test/harness', spec)).href + suffix);
 fixture = fixture.slice(0, fixture.indexOf('/* ───────────────────────── 用例 0'));
 fixture = fixture.replace(/const ROOT = path.resolve\([^\n]+\);/, 'const ROOT = ' + JSON.stringify(ROOT) + ';');
 fixture = fixture.replace('const ARGV = process.argv.slice(2);', "const ARGV = ['--src'];");
@@ -170,7 +173,7 @@ for (const emitChange of [false, true]) {
 }
 
 // Real model-list adapters, request headers, parsing, errors and stale responses.
-const modelFns = ['modelConfigKey','cachedModelList','invalidateModelList','modelListRequest','modelListHeaders','fetchModelList'];
+const modelFns = ['modelConfigKey','cachedModelList','invalidateModelList','modelListRequest','modelListHeaders','fetchLlmModelCatalog','fetchModelList'];
 function modelEnv(fetcher, source = 'custom') {
   const config = { name: 'test', source, apiurl: source === 'custom' ? 'https://example.invalid/v1' : '', key: 'FAKE-KEY' };
   const notices = [], requests = [], timers = new Map(); let timer = 0;
@@ -180,7 +183,7 @@ function modelEnv(fetcher, source = 'custom') {
     toast: (kind, text) => notices.push({kind,text}), stCtx: () => ({getRequestHeaders: () => ({'Content-Type':'application/json','X-CSRF-Token':'CSRF'})}),
     HOST: { fetch: async (url, init) => { requests.push({url,init}); return fetcher(url,init); } },
     setTimeout(fn) { const id=++timer;timers.set(id,fn);return id; }, clearTimeout(id) { timers.delete(id); } });
-  vm.runInContext(functions('src/scripts/60-压缩.js', modelFns), c);
+  vm.runInContext(functions('src/scripts/60-工具箱.js', modelFns), c);
   return {c,config,notices,requests,timers,run:()=>vm.runInContext('fetchModelList()',c)};
 }
 for (const source of ['custom','openai','claude','makersuite','deepseek','xai','openrouter','azure_openai']) {

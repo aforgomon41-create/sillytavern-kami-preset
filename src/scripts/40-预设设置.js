@@ -139,6 +139,10 @@
      认标签、决定补在哪儿、删哪一段全在那份模块里，这里是它的唯一消费者；
      标签名单（哪些标签算数、谁在消费它们）也写在那个文件的表里，改表就两边一起变。 */
   /* @@KAMI_TAGS_PURE@@ */
+  /* @@KAMI_RESPONSE_PIPELINE@@ */
+  /* @@KAMI_RESPONSE_TRANSPORT@@ */
+  /* @@KAMI_REASONING_REFERENCES@@ */
+  /* @@KAMI_TAG_RESPONSE@@ */
 
   /* 「只复制干净的正文」的取文本规则（src/scripts/_copy-clean.js）。
      🧰 其他功能页的「导出纯净正文」与两个前端的复制按钮用的是**同一套换行规则**，
@@ -1290,7 +1294,6 @@
        内容也与解析结果无关（版本信息 + 检查更新）。 */
     /* 「🧰 其他功能」（2026-09-30 用户点名）：放那些不知道该塞到哪一页的功能入口。
        位置固定 —— 排在「关于」**前面**、预设结构那几页后面，所以它要在这里、在 aboutTab 之前 push。 */
-    out.push(toolboxTab());
     out.push(aboutTab());
     /* v0.6：「更新合并」裁决页（远程更新开着时才出现）。要**排在最前**——
        用户正等着完成一次更新，别让它在 tab 行最后一格里被淹没。 */
@@ -1308,13 +1311,6 @@
   /* 「关于」页的定义：固定页，任何预设、任何解析结果下都在（连读不到预设时也建得出来）。 */
   function aboutTab() {
     return { key: 'ABOUT', title: 'ℹ️ 关于', special: 'about', cards: [], own: [] };
-  }
-
-  /* 「🧰 其他功能」页的定义（2026-09-30）：固定页，跟预设结构无关 ——
-     放那些「不知道该塞到哪一页」的功能入口。第一件是「自动标签处理」。
-     位置在「关于」前面，理由：它是功能页，要跟功能页挨着；「关于」是信息页，永远收尾。 */
-  function toolboxTab() {
-    return { key: 'BOX', title: '🧰 其他功能', special: 'toolbox', cards: [], own: [] };
   }
 
   function counts(tab) {
@@ -1508,10 +1504,10 @@
        · 正文滚动区 → 横向滑动切 tab / 抽屉下拉关闭       （见 bindSwipeEvents）
      拖动统一走 pointer 事件；正文滚动区另用 touch 事件，因为那里必须保留
      「纵向 = 正常滚动」的默认行为（pointer + preventDefault 会把它一起掐掉）。 */
-  function bindPanelEvents() {
-    panelDrop.addEventListener('click', function (ev) {
+  function bindPresetControlEvents(controlRoot) {
+    var click = function (ev) {
       var t = ev.target;
-      while (t && t !== panelDrop) {
+      while (t && t !== controlRoot) {
         if (t.getAttribute) {
           /* 注释标记：只弹/收注释。⚠️ 条目卡整张就是开关，这里必须先掐断事件，
              否则同一次点击会接着翻掉开关（用户点名的坑）。 */
@@ -1542,19 +1538,19 @@
         }
         t = t.parentNode;
       }
-    });
+    };
 
     /* 变量数字框：原生 change（失焦 / 回车都会来）就写回预设；回车另外掐一下，
        免得在数字框里按回车被酒馆的全局快捷键接走。
        自定义标签输入框也走同一个 change：失焦或回车就解析存盘。 */
-    panelDrop.addEventListener('change', function (ev) {
+    var change = function (ev) {
       var t = ev.target;
       if (!t || !t.getAttribute) { return; }
       if (t.getAttribute('data-kami-var')) { applyVar(t); return; }
       if (t.getAttribute('data-kami-tagfix-custom')) { setTagFixCustom(t.value); }
       if (t.getAttribute('data-kami-tagfix-all')) { setTagFixAll(!!t.checked); return; }
-    });
-    panelDrop.addEventListener('keydown', function (ev) {
+    };
+    var keydown = function (ev) {
       /* 契约 §4.4 硬规则 1：注释标记与预设面板逐属性同构 → 键盘也必须同构。
          50-引导.js:731-733 认 Enter 与 Space，这里原来只认 Enter，按 Space 什么都不发生
          （还会顺带滚一下页面）。两个 keyCode 是给老引擎的兜底。 */
@@ -1567,7 +1563,19 @@
       if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar' && ev.keyCode !== 13 && ev.keyCode !== 32) { return; }
       if (t && t.getAttribute && t.getAttribute('data-kami-var')) { ev.preventDefault(); applyVar(t); }
       else if (t && t.getAttribute && t.getAttribute('data-kami-note-mark')) { ev.preventDefault(); toggleNote(t); }
-    });
+    };
+    controlRoot.addEventListener('click', click);
+    controlRoot.addEventListener('change', change);
+    controlRoot.addEventListener('keydown', keydown);
+    return function () {
+      controlRoot.removeEventListener('click', click);
+      controlRoot.removeEventListener('change', change);
+      controlRoot.removeEventListener('keydown', keydown);
+    };
+  }
+
+  function bindPanelEvents() {
+    bindPresetControlEvents(panelDrop);
 
     var drag = null;
     panelDrop.addEventListener('pointerdown', function (ev) {
@@ -1726,7 +1734,6 @@
       var msg = (liveData && liveData.error) ? liveData.error : '读不到当前预设';
       view = [
         { key: 'ERR', title: '读不到预设', special: 'err', error: msg, cards: [], own: [] },
-        toolboxTab(),
         aboutTab()
       ];
       /* 「更新合并」页不依赖解析结果：正在裁决时也要在（裁决的是预设文件之间的合并，
@@ -1808,7 +1815,6 @@
     if (tab.special === 'model') { renderModelTab(pane, tab); return; }
     if (tab.special === 'var') { renderVarTab(pane, tab); return; }
     if (tab.special === 'about') { renderAboutTab(pane, tab); return; }
-    if (tab.special === 'toolbox') { renderToolboxTab(pane, tab); return; }
     if (tab.special === 'merge') { renderMergeTab(pane, tab); return; }
     if (tab.special === 'err') {
       pane.appendChild(mk('div', 'kami-empty', (tab.error || '读不到当前预设') +
@@ -2373,8 +2379,8 @@
     title: '自动标签处理',
     note: 'AI 忘写结尾标签会导致正文或选项不显示，也会让摘要压缩失效。' +
       '你可以在下面填入需要自动收拾的标签名，打开覆盖模式管得更宽，所有标签都管，HTML 标签除外。' +
-      '补全模式会在消息末尾帮你补上结尾，遇到其他完整的标签会补在它们前面，免得把它们吞进正文。' +
-      '删除模式会直接扔掉没配对的标签，关闭则保持原样。',
+      '开启补全或删除时，会先把思维链里的标签引用改成全角尖括号，防止它们触发预设或角色卡正则。' +
+      '补全把结尾紧贴缺失的开始标签补上；删除会扔掉没配对的标签。关闭则保持原样。',
     modeLabel: '处理方式',
     modeHint: '关闭不干预，补全自动加结尾，删除清掉多余的标签',
     allLabel: '覆盖模式',
@@ -2392,6 +2398,7 @@
     scanLead: '刚刚扫出的结果，请确认：',
     closeLead: '要补上的结尾：',
     removeLead: '要删掉的标签：',
+    referenceLead: '要保护的思维链引用：',
     strayNote: '另有 %n% 处落单的结尾标签没动。',
     confirmNote: '这会直接修改当前楼层的文字，操作没法撤销。',
     confirmOk: '确认执行',
@@ -2422,6 +2429,21 @@
   };
 
   var tagFixMode = 'off';
+  var tagReferenceRelease = null, tagReferenceLast = null;
+  function syncTagReferenceResponse() {
+    if (tagReferenceRelease) { tagReferenceRelease(); tagReferenceRelease = null; }
+    if (disposed || tagFixMode === 'off') { return; }
+    var rewrite = createTagReferenceResponse(createKamiResponseTransport(), createReasoningReferenceStream, function (stats) {
+      if (disposed) { return; }
+      tagReferenceLast = stats;
+      if (stats.references || stats.recovered) { log('正则前保护 ' + stats.references + ' 处思维链引用' + (stats.recovered ? '，恢复正文边界 ' + stats.recovered + ' 处' : '')); }
+      if (stats.incomplete) { toast('warning', '思维链结束边界缺失，请检查当前楼层'); }
+    });
+    tagReferenceRelease = kamiResponsePipeline(HOST).register('tag-references', 20, async function (next, ctx, args) {
+      var response = await next(args);
+      return disposed || tagFixMode === 'off' ? response : rewrite(response);
+    });
+  }
   var tagFixCustom = [];                       // 用户自定义标签（面板上那个输入框）
   var tagFixAll = false;                       // 覆盖模式：登记表之外的标签也按当前档位处理
   var tagFixStat = { fixed: 0, lastFloor: -1, lastText: '' };
@@ -2429,6 +2451,7 @@
   var godcmdEls = null;                     // 「常驻附加指令」那张卡的元素（每次渲染重建）
   var tagFixCurFloor = -1;                     // 「当前楼层」= 用户最后点过的那一楼（没有就退回最新一楼）
   var tagFixSelection = null, tagFixWatchNode = null, tagFixFloorHandler = null;
+  var continuationEnvelope = null;
   function tagFixChatStamp() {
     var c = stCtx() || {};
     return { chat: c.chat, id: JSON.stringify([c.characterId, c.groupId, c.chatId]) };
@@ -2520,7 +2543,17 @@
     var m = mode || tagFixMode;
     if (m === 'off') { return null; }
     var res = null;
-    try { res = repairTags(text, m, tagFixSpecs(), tagFixAll); } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
+    try {
+      var safe = protectReasoningReferences(text);
+      if (safe.stats.incomplete) { log('思维链结束边界缺失：保留原文，请检查当前楼层'); return null; }
+      /* 边界仍缺失时不让旧补全把真正思维链起始标签变成空壳。 */
+      res = repairTags(safe.text, safe.stats.incomplete ? 'off' : m, tagFixSpecs(), tagFixAll);
+      if (safe.stats.references || safe.stats.recovered) {
+        res.references = safe.stats.references; res.recovered = safe.stats.recovered;
+        res.changed = true;
+        res.changes.unshift({ kind: 'reference', tag: '思维链引用', label: '全角尖括号', from: '思维链中的标签 → 普通文字', n: safe.stats.references + safe.stats.recovered });
+      }
+    } catch (e) { log('标签处理出错：' + ((e && e.message) || e)); return null; }
     return (res && res.changed) ? res : null;
   }
 
@@ -2543,6 +2576,29 @@
     try {
       return setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
     } catch (e) { log('写回第 ' + idx + ' 楼失败：' + ((e && e.message) || e)); }
+  }
+
+  function continuationOnReady(data) {
+    if (disposed || !data || !Array.isArray(data.messages)) { return; }
+    if (data.messages.some(function (row) { return row.role === 'system' && typeof row.content === 'string' && row.content.indexOf('__kami_search_private_') >= 0; })) { return; }
+    if (['normal', 'regenerate', 'swipe', 'continue'].indexOf(data.type) < 0) { return; }
+    continuationEnvelope = null;
+    if (data.type !== 'continue') { return; }
+    var c = stCtx() || {}, last = (c.chat || []).slice(-1)[0];
+    if (last && !last.is_user && typeof last.mes === 'string') { continuationEnvelope = { stamp: tagFixChatStamp(), index: c.chat.length - 1, before: last.mes }; }
+  }
+  async function continuationOnReceived(id) {
+    var item = continuationEnvelope;
+    if (!item || disposed || !tagFixApiReady() || !tagFixSameChat(item.stamp, tagFixChatStamp())) { return; }
+    var idx = typeof id === 'number' ? id : chatLen() - 1;
+    if (idx !== item.index) { return; }
+    var row = chatMsgAt(idx);
+    if (!row || row.is_user) { return; }
+    var next = mergeContinuedOutBody(row.message, item.before);
+    if (next === row.message) { return; }
+    continuationEnvelope = null;
+    await setChatMessages([{ message_id: idx, message: next }], { refresh: 'affected' });
+    log('第 ' + idx + ' 楼：已合并续写的重复外层标签');
   }
 
   /* 弹窗里的文本要转义：确认窗走酒馆原生弹窗，内容是 HTML。
@@ -2605,14 +2661,15 @@
       toast('success', TAGFIX_COPY.nothing);
       return;
     }
-    var rows = describeChanges(res, 8), closes = [], removes = [], i;
+    var rows = describeChanges(res, 8), closes = [], removes = [], references = [], i;
     for (i = 0; i < rows.length; i++) {
-      if (rows[i].kind === 'close') { closes.push(rows[i]); } else { removes.push(rows[i]); }
+      if (rows[i].kind === 'close') { closes.push(rows[i]); } else if (rows[i].kind === 'reference') { references.push(rows[i]); } else { removes.push(rows[i]); }
     }
     var ask = '<div style="text-align:left;line-height:1.65;">';
     ask += '<div>' + tagFixEsc(TAGFIX_COPY.scanLead) + '</div>';
     if (closes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.closeLead, closes); }
     if (removes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.removeLead, removes); }
+    if (references.length) { ask += tagFixGroupHtml(TAGFIX_COPY.referenceLead, references); }
     if (res.strayLeft && res.strayLeft.length) {
       ask += '<div style="opacity:.8;">' + tagFixEsc(TAGFIX_COPY.strayNote.replace('%n%', String(res.strayLeft.length))) + '</div>';
     }
@@ -2662,6 +2719,7 @@
   function setTagFixMode(id) {
     var spec = tagFixModeSpec(id);
     tagFixMode = spec.id;
+    syncTagReferenceResponse();
     saveVars();
     log('自动标签处理 → ' + spec.label);
     paintTagFixStat();
@@ -2786,166 +2844,26 @@
     paintGodCmdCard();
   }
 
-  function renderToolboxTab(pane) {
-    tagFixEls = null;
+  /* @@KAMI_OTHER_TOOLS_UI@@ */
 
-    /* ① 自动标签处理。屏幕上只留短标签；说明全部折叠进 ⓘ（用户 2026-09-30 裁定）。 */
-    var box = mk('div', 'kami-card kami-collapse');
-    box.setAttribute('data-kami-open', '0');   /* 默认折叠（契约 §4.3；首版不持久化，每次进页都是收起的） */
-    var head = mk('div', 'kami-card-head kami-head kami-collapse-head');
-    head.setAttribute('data-kami-collapse-head', '1');
-    head.appendChild(mk('span', 'kami-chev', '▸'));
-    head.appendChild(mk('span', 'kami-card-title', TAGFIX_COPY.title));
-    head.appendChild(noteMark(TAGFIX_COPY.note));          /* ⓘ 与预设条目的注释同一套结构 */
-    var chip = mk('span', 'kami-chip', tagFixChipText());
-    head.appendChild(chip);
-    box.appendChild(head);
-
-    var noteBox = noteText(TAGFIX_COPY.note);
-    noteBox.hidden = true;
-    box.appendChild(noteBox);
-
-    var body = mk('div', 'kami-card-body kami-collapse-body');
-
-    /* 三档：关闭 / 补全 / 删除 */
-    var rowMode = mk('div', 'kami-field');
-    rowMode.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.modeLabel));
-    var valMode = mk('span', 'kami-field-value');
-    var seg = mk('div', 'kami-seg');
-    seg.setAttribute('role', 'group');
-    seg.setAttribute('aria-label', TAGFIX_COPY.title);
-    for (var i = 0; i < TAGFIX_MODES.length; i++) {
-      var on = TAGFIX_MODES[i].id === tagFixMode;
-      var b = mk('button', 'kami-seg-item' + (on ? ' is-on' : ''), TAGFIX_MODES[i].label);
-      b.type = 'button';
-      b.setAttribute('data-kami-tagfix', TAGFIX_MODES[i].id);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      seg.appendChild(b);
-    }
-    valMode.appendChild(seg);
-    rowMode.appendChild(valMode);
-    body.appendChild(rowMode);
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.modeHint));
-
-    /* 覆盖模式：登记表之外的标签也按当前档位处理（HTML 自带标签除外）。
-       控件照抄「常驻附加指令」那张卡的 .kami-switch 写法（契约 §4.2，不新增类名与令牌）。 */
-    var rowAll = mk('div', 'kami-field');
-    rowAll.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.allLabel));
-    var valAll = mk('span', 'kami-field-value');
-    var swAll = mk('label', 'kami-switch');
-    var allOn = mk('input', 'kami-switch-input');
-    allOn.type = 'checkbox';
-    allOn.setAttribute('data-kami-tagfix-all', '1');
-    allOn.setAttribute('aria-label', TAGFIX_COPY.allLabel);
-    allOn.checked = !!tagFixAll;
-    var allTrack = mk('span', 'kami-switch-track');
-    allTrack.appendChild(mk('span', 'kami-switch-knob'));
-    swAll.appendChild(allOn); swAll.appendChild(allTrack);
-    valAll.appendChild(swAll);
-    rowAll.appendChild(valAll);
-    body.appendChild(rowAll);
-    body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.allHint));
-
-    /* 自定义标签：用户自己往里填，逗号 / 空格 / 换行都算分隔 */
-    var rowCus = mk('div', 'kami-field');
-    rowCus.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.customLabel));
-    var valCus = mk('span', 'kami-field-value');
-    var inp = mk('input', 'kami-text');
-    inp.type = 'text';
-    inp.setAttribute('data-kami-tagfix-custom', '1');
-    inp.setAttribute('placeholder', TAGFIX_COPY.customHint);
-    inp.setAttribute('aria-label', TAGFIX_COPY.customLabel);
-    inp.value = tagFixCustom.join(' ');
-    valCus.appendChild(inp);
-    rowCus.appendChild(valCus);
-    body.appendChild(rowCus);
-
-    /* 状态 + 手动处理当前楼层 */
-    var statNote = mk('div', 'kami-card-note', TAGFIX_COPY.statLabel + '：' + TAGFIX_COPY.statNone);
-    body.appendChild(statNote);
-
-    var btn = mk('button', 'kami-btn', TAGFIX_COPY.manualBtn);
-    btn.type = 'button';
-    btn.title = TAGFIX_COPY.manualHint;
-    btn.setAttribute('data-kami-act', 'tagfix-floor');
-    var rowBtn = mk('div', 'kami-field');
-    rowBtn.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.manualLabel));
-    var valBtn = mk('span', 'kami-field-value');
-    valBtn.appendChild(btn);
-    rowBtn.appendChild(valBtn);
-    body.appendChild(rowBtn);
-
-    if (!tagFixApiReady()) { body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.needApi)); }
-    box.appendChild(body);
-    pane.appendChild(box);
-
-    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp, all: allOn };
-    paintTagFixStat();
-
-    /* ② 常驻附加指令（用户 2026-09-30 裁定：固定放这一页的第二张卡）。
-       默认折叠，写法与第一张卡逐字同构（契约 §4.3）：折叠体始终在 DOM，只切 data-kami-open。 */
-    godcmdEls = null;
-    var gBox = mk('div', 'kami-card kami-collapse');
-    gBox.setAttribute('data-kami-open', '0');
-    var gHead = mk('div', 'kami-card-head kami-head kami-collapse-head');
-    gHead.setAttribute('data-kami-collapse-head', '1');
-    gHead.appendChild(mk('span', 'kami-chev', '▸'));
-    gHead.appendChild(mk('span', 'kami-card-title', GODCMD_COPY.title));
-    gHead.appendChild(noteMark(GODCMD_COPY.note));
-    var gChip = mk('span', 'kami-chip');
-    gHead.appendChild(gChip);
-    gBox.appendChild(gHead);
-
-    var gNoteBox = noteText(GODCMD_COPY.note);
-    gNoteBox.hidden = true;
-    gBox.appendChild(gNoteBox);
-
-    var gBody = mk('div', 'kami-card-body kami-collapse-body');
-    /* 设置项一行（契约 §4.2：开关用现成的 .kami-switch 系列）。 */
-    var gRowSw = mk('div', 'kami-field');
-    gRowSw.appendChild(mk('span', 'kami-field-label', GODCMD_COPY.switchLabel));
-    var gValSw = mk('span', 'kami-field-value');
-    var gSw = mk('label', 'kami-switch');
-    var gOn = mk('input', 'kami-switch-input');
-    gOn.type = 'checkbox';
-    gOn.setAttribute('data-kami-godcmd-on', '1');
-    gOn.setAttribute('aria-label', GODCMD_COPY.switchLabel);
-    var gTrack = mk('span', 'kami-switch-track');
-    gTrack.appendChild(mk('span', 'kami-switch-knob'));
-    gSw.appendChild(gOn); gSw.appendChild(gTrack);
-    gValSw.appendChild(gSw);
-    gRowSw.appendChild(gValSw);
-    gBody.appendChild(gRowSw);
-
-    /* 指令正文。空内容时也让它可写（否则「先填内容再打开」这条路走不通）；
-       开着的时候才置只读，改内容要先关掉开关 —— 用户点名要「内容留空就等于没开」。 */
-    var gRowTxt = mk('div', 'kami-field');
-    gRowTxt.appendChild(mk('span', 'kami-field-label', GODCMD_COPY.textLabel));
-    var gValTxt = mk('span', 'kami-field-value');
-    var gTxt = mk('textarea', 'kami-textarea');
-    gTxt.setAttribute('data-kami-godcmd-text', '1');
-    gTxt.setAttribute('placeholder', GODCMD_COPY.textHint);
-    gTxt.setAttribute('aria-label', GODCMD_COPY.textLabel);
-    gValTxt.appendChild(gTxt);
-    gRowTxt.appendChild(gValTxt);
-    gBody.appendChild(gRowTxt);
-
-    /* ⚠️ 事件必须在这里绑上。卡片渲染出来不等于功能在：2026-10-01 用户真机报
-       「开关点不动、内容关掉面板就丢」，根因就是这两个函数写好了却没有任何地方调用
-       （守卫原来只查 data-kami-godcmd-* 钩子存在，查不出「没人听」）。 */
-    gOn.addEventListener('change', function () { toggleGodCmd(); });
-    gTxt.addEventListener('input', function () { setGodCmdText(gTxt.value); });
-    /* blur 再补一次：有些输入法与粘贴只触发 change，不触发 input */
-    gTxt.addEventListener('change', function () { setGodCmdText(gTxt.value); });
-
-    gBox.appendChild(gBody);
-    pane.appendChild(gBox);
-
-    godcmdEls = { box: gBox, head: gHead, chip: gChip, on: gOn, txt: gTxt };
-    paintGodCmdCard();
-
-    /* ② 「导出纯净正文」（用户 2026-10-05 点名放这一页） */
-    renderExportCard(pane);
+  var otherToolsRoot = null, otherToolsUnbind = null;
+  function mountOtherTools(container) {
+    if (disposed || !container) { return null; }
+    if (otherToolsRoot === container) { return null; }
+    if (otherToolsUnbind) { otherToolsUnbind(); }
+    otherToolsRoot = container;
+    injectCss();
+    container.textContent = '';
+    renderToolboxTab(container);
+    otherToolsUnbind = bindPresetControlEvents(container);
+    return function () {
+      if (otherToolsRoot !== container) { return; }
+      if (otherToolsUnbind) { otherToolsUnbind(); otherToolsUnbind = null; }
+      container.textContent = '';
+      otherToolsRoot = null;
+      tagFixEls = null;
+      godcmdEls = null;
+    };
   }
 
   /* ───────── 🧰 「导出纯净正文」 ─────────
@@ -3008,141 +2926,6 @@
     setTimeout(function () { try { HOST.URL.revokeObjectURL(url); } catch (e) { } }, 4000);
   }
 
-  function renderExportCard(pane) {
-    var ctx0 = stCtx();
-    var canFmt = !!(ctx0 && typeof ctx0.messageFormatting === 'function');
-
-    var box = mk('div', 'kami-card kami-collapse');
-    box.setAttribute('data-kami-open', '0');
-    var head = mk('div', 'kami-card-head kami-head kami-collapse-head');
-    head.setAttribute('data-kami-collapse-head', '1');
-    head.appendChild(mk('span', 'kami-chev', '▸'));
-    head.appendChild(mk('span', 'kami-card-title', EXPORT_NOTICE.title));
-    head.appendChild(noteMark(EXPORT_NOTICE.note));
-    head.appendChild(mk('span', 'kami-chip', canFmt ? '与所见一致' : '清洗文本'));
-    box.appendChild(head);
-
-    var noteBox = noteText(EXPORT_NOTICE.note);
-    noteBox.hidden = true;
-    box.appendChild(noteBox);
-
-    var body = mk('div', 'kami-card-body kami-collapse-body');
-
-    /* 楼层范围：两个输入框，留空 = 不限制 */
-    var rowRange = mk('div', 'kami-field');
-    rowRange.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.rangeLabel));
-    var valRange = mk('span', 'kami-field-value');
-    var inFrom = mk('input', 'kami-number');
-    inFrom.type = 'text';
-    inFrom.setAttribute('data-kami-export', 'from');
-    inFrom.setAttribute('placeholder', EXPORT_NOTICE.rangeFromHint);
-    inFrom.setAttribute('aria-label', EXPORT_NOTICE.rangeLabel + '（起始）');
-    var inTo = mk('input', 'kami-number');
-    inTo.type = 'text';
-    inTo.setAttribute('data-kami-export', 'to');
-    inTo.setAttribute('placeholder', EXPORT_NOTICE.rangeToHint);
-    inTo.setAttribute('aria-label', EXPORT_NOTICE.rangeLabel + '（结束）');
-    valRange.appendChild(inFrom);
-    valRange.appendChild(mk('span', 'kami-field-note', '～'));
-    valRange.appendChild(inTo);
-    rowRange.appendChild(valRange);
-    body.appendChild(rowRange);
-    body.appendChild(mk('div', 'kami-card-note', EXPORT_NOTICE.note));
-
-    /* 导出范围：全部 / 仅 AI */
-    var scope = 'all';
-    var rowAi = mk('div', 'kami-field');
-    rowAi.appendChild(mk('span', 'kami-field-label', EXPORT_NOTICE.scopeLabel));
-    var valAi = mk('span', 'kami-field-value');
-    /* ⚠️ 2026-10-05 用户报「没法选择只导 AI 还是全部导出，只有'只导 AI 消息'在显示」——
-       原来是一个含义模糊的开关。改成**两个明确选项**的分段按钮，选中态一眼可见。 */
-    var segScope = mk('div', 'kami-seg');
-    segScope.setAttribute('role', 'group');
-    segScope.setAttribute('aria-label', EXPORT_NOTICE.scopeLabel);
-    var scopeBtns = {};
-    var scopeHint = mk('div', 'kami-card-note', '');
-    function setScope(v) {
-      scope = (v === 'ai') ? 'ai' : 'all';
-      scopeBtns.all.className = 'kami-seg-item' + (scope === 'all' ? ' is-on' : '');
-      scopeBtns.ai.className = 'kami-seg-item' + (scope === 'ai' ? ' is-on' : '');
-      scopeBtns.all.setAttribute('aria-pressed', String(scope === 'all'));
-      scopeBtns.ai.setAttribute('aria-pressed', String(scope === 'ai'));
-      scopeHint.textContent = (scope === 'ai') ? EXPORT_NOTICE.scopeAiHint : EXPORT_NOTICE.scopeAllHint;
-    }
-    [['all', EXPORT_NOTICE.scopeAll], ['ai', EXPORT_NOTICE.scopeAi]].forEach(function (pair) {
-      var b = mk('button', 'kami-seg-item', pair[1]);
-      b.type = 'button';
-      b.setAttribute('data-kami-export', 'scope');
-      b.setAttribute('data-kami-scope', pair[0]);
-      b.addEventListener('click', function () { setScope(pair[0]); });
-      scopeBtns[pair[0]] = b;
-      segScope.appendChild(b);
-    });
-    valAi.appendChild(segScope);
-    rowAi.appendChild(valAi);
-    body.appendChild(rowAi);
-    body.appendChild(scopeHint);
-    setScope('all');
-
-    /* 结果/进度一行 */
-    var msgEl = mk('div', 'kami-card-note', '');
-    msgEl.setAttribute('data-kami-export', 'msg');
-    body.appendChild(msgEl);
-
-    function say(kind, text) {
-      msgEl.textContent = text;
-      msgEl.setAttribute('data-kami-kind', kind || '');
-    }
-
-    var btn = mk('button', 'kami-btn kami-btn--primary', EXPORT_NOTICE.btn);
-    btn.type = 'button';
-    btn.setAttribute('data-kami-export', 'go');
-    btn.addEventListener('click', function () {
-      if (btn.disabled) { return; }
-      var ctx = stCtx();
-      if (!ctx) { say('error', exportErrorText('NO_CTX')); return; }
-      var chat = ctx.chat || [];
-      /* 边界校验全在纯逻辑里：范围填反 / 超界 / 零楼层，都要明确提示，不许静默导出空文件 */
-      var plan = planExport(chat, inFrom.value, inTo.value, scope === 'ai');
-      if (!plan.ok) { say('error', exportErrorText(plan.code, plan)); return; }
-
-      var picks = plan.picks, i = 0;
-      btn.disabled = true;
-      function step() {
-        var t0 = Date.now();
-        /* 每片最多干 60 ms —— 3000 层约 2 秒，分片后界面仍能响应、进度看得见 */
-        while (i < picks.length && (Date.now() - t0) < 60) {
-          picks[i].text = exportCleanOne(ctx, chat[picks[i].index], picks[i]);
-          i++;
-        }
-        say('work', EXPORT_NOTICE.working + ' ' + i + '/' + picks.length);
-        if (i < picks.length) { setTimeout(step, 0); return; }
-        var text = buildExportText(picks, scope === 'all');
-        if (!text) { btn.disabled = false; say('error', exportErrorText('EMPTY_RESULT')); return; }
-        var name = exportFileName(plan.from, plan.to);
-        var skipped = plan.skippedSystem ? ('，跳过 ' + plan.skippedSystem + ' 条隐藏消息') : '';
-        /* 没有 content 块的条目要明说 —— 不许让人以为每条都规规矩矩有标记 */
-        if (plan.noContent) { skipped += '，其中 ' + plan.noContent + ' 条没有 content 块（按整条清洗）'; }
-        try { downloadTextFile(name, text); } catch (e) { btn.disabled = false; say('error', '下载失败：' + ((e && e.message) || e)); return; }
-        btn.disabled = false;
-        /* 小文件别显示成「0 KB」—— 不到 1 KB 就报字数 */
-        var sizeText = text.length >= 1024 ? (Math.round(text.length / 1024) + ' KB') : (text.length + ' 字');
-        say('done', '已导出 ' + name + '（' + picks.length + ' 条' + skipped + '，' + sizeText + '）');
-        log('导出纯净正文：' + name + ' 楼层 ' + plan.from + '-' + plan.to + '/' + plan.total +
-          ' 条数 ' + picks.length + ' 字符 ' + text.length + ' 路径 ' + (canFmt ? 'messageFormatting' : '去标签兜底'));
-      }
-      step();
-    });
-    body.appendChild(btn);
-
-    /* 诚实说明走的是哪条路：能拿到酒馆处理链就说与所见一致，拿不到就明确说不是所见即所得 */
-    var pathNote = mk('div', 'kami-card-note', canFmt ? EXPORT_NOTICE.goodPath : EXPORT_NOTICE.badPath);
-    pathNote.setAttribute('data-kami-export', 'path');
-    body.appendChild(pathNote);
-
-    box.appendChild(body);
-    pane.appendChild(box);
-  }
 
   /* 卡片上的开关态与两个控件同步。读的是**全局变量**（唯一真值），不是内存里的影子状态。 */
   function paintGodCmdCard() {
@@ -3975,6 +3758,7 @@
       presetNameFrom: lastNameInfo ? lastNameInfo.from : null,
       lastSave: lastSave,
       varWrites: varWrites,
+      tagReferences: tagReferenceLast,
       presetChangedEmits: emitCount, presetChangedSkipped: emitSkipped
     };
   }
@@ -4008,6 +3792,7 @@
 
   function expose() {
     var api = {
+      mountOtherTools: mountOtherTools,
       version: VERSION,
       open: openPanel, close: closePanel, toggle: togglePanel,
       refresh: function () { refresh(true); },
@@ -4089,13 +3874,16 @@
     };
     try { HOST[API_NAME] = api; } catch (e) { }
     try { window[API_NAME] = api; } catch (e) { }
+    try { var toolsReady = HDOC.createEvent('Event'); toolsReady.initEvent('kami-tools-ready', false, false); HOST.dispatchEvent(toolsReady); } catch (e) { }
   }
 
   /* ───────── 注销（零残留：逐项对照登记与自建的东西） ───────── */
 
   function teardown() {
     if (disposed) { return; }
+    continuationEnvelope = null;
     disposed = true;
+    if (tagReferenceRelease) { tagReferenceRelease(); tagReferenceRelease = null; }
     unbindChatFloorWatch();
     tagFixCurFloor = -1; tagFixSelection = null;
     log('正在注销：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局');
@@ -4132,6 +3920,9 @@
     /* 全局 API（只删自己这一份） */
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
+    if (otherToolsUnbind) { otherToolsUnbind(); otherToolsUnbind = null; }
+    if (otherToolsRoot) { otherToolsRoot.textContent = ''; otherToolsRoot = null; }
+    try { var toolsGone = HDOC.createEvent('Event'); toolsGone.initEvent('kami-tools-ready', false, false); HOST.dispatchEvent(toolsGone); } catch (e) { }
     log('注销完成：面板、样式、登记、全局 API 都已收回；预设文件与酒馆设置没有被改动');
   }
 
@@ -4148,7 +3939,7 @@
     bindChatFloorWatch();                       /* 「当前楼层」= 用户最后点过的那一楼 */
     if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined' && tavern_events.CHAT_CHANGED) {
       var changed = eventOn(tavern_events.CHAT_CHANGED, function () {
-        tagFixCurFloor = -1; tagFixSelection = null; bindChatFloorWatch();
+        continuationEnvelope = null; tagFixCurFloor = -1; tagFixSelection = null; bindChatFloorWatch();
       });
       if (typeof changed === 'function') { unsubs.push({ stop: changed }); }
       else if (changed && typeof changed.stop === 'function') { unsubs.push(changed); }
@@ -4163,12 +3954,17 @@
       /* 监听器返回 Promise：酒馆的 emit 会 await 它，于是「改完消息」跑在渲染之前，
          用户不会先看到一版坏的、再跳成好的。 */
       var stop = eventOn(tavern_events.MESSAGE_RECEIVED, function (id) {
-        return tagFixOnReceived(id);
+        return continuationOnReceived(id).then(function () { return tagFixOnReceived(id); });
       });
       /* 统一塞进 unsubs（teardown 按 .stop() 收）：新老版本 eventOn 的返回值不一样，
          两种形状都包一层，注销时零残留。 */
       if (typeof stop === 'function') { unsubs.push({ stop: stop }); }
       else if (stop && typeof stop.stop === 'function') { unsubs.push(stop); }
+      if (tavern_events.CHAT_COMPLETION_SETTINGS_READY) { var ready = eventOn(tavern_events.CHAT_COMPLETION_SETTINGS_READY, continuationOnReady); unsubs.push(typeof ready === 'function' ? { stop: ready } : ready); }
+      if (tavern_events.GENERATION_ENDED) {
+        var ended = eventOn(tavern_events.GENERATION_ENDED, function () { var item = continuationEnvelope; return continuationOnReceived().finally(function () { if (continuationEnvelope === item) { continuationEnvelope = null; } }); });
+        unsubs.push(typeof ended === 'function' ? { stop: ended } : ended);
+      }
       log('自动标签处理：已订阅 MESSAGE_RECEIVED（当前档位 ' + tagFixModeSpec(tagFixMode).label + '）');
     } catch (e) { log('订阅 MESSAGE_RECEIVED 失败：' + ((e && e.message) || e)); }
   }
@@ -4176,6 +3972,7 @@
   function boot() {
     log('启动 v' + VERSION + '（解析器、兜底皮肤、标签处理逻辑已内联）');
     readVars();
+    syncTagReferenceResponse();
     refresh(true);
     log('读活设置：' + (liveData.ok
       ? ('预设「' + liveData.preset.name + '」· prompt_order ' + liveData.order.order.length + ' 条 · tab ' + view.length)

@@ -13,6 +13,7 @@
  *
  * 用法：node build/verify-panel-click.mjs <产物路径>
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -21,7 +22,7 @@ if (!p) { console.error('用法：node build/verify-panel-click.mjs <产物路�
 if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2); }
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-const scripts = (((preset.extensions || {}).tavern_helper || {}).scripts) || [];
+const scripts = flattenScriptTrees((((preset.extensions || {}).tavern_helper || {}).scripts) || []);
 const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0);
 
 let bad = 0;

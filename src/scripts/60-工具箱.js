@@ -1,5 +1,6 @@
 /* ============================================================
- * 📜 压缩   v1.3
+ * 🧰 工具箱 v1.0（压缩 / 网络搜索 / 其他功能）
+ * 原压缩脚本 ID 与 KamiSummarize 接口保持兼容；下方 v1.x 为压缩功能历史。
  * 酒馆助手（TavernHelper / JS-Slash-Runner 4.9.5+）脚本
  * ------------------------------------------------------------
  * ⚠️ v1.3 起摘要请求会带 json_schema —— 这个参数要**酒馆助手 4.11** 才认
@@ -101,8 +102,8 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.3';
-  var HUB_NAME = '📜 压缩';
+  var VERSION = '1.0';
+  var HUB_NAME = '🧰 工具箱';
   /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
   var HUB_ORDER = 40;
   var PANEL_ID = 'kami-compress-panel';
@@ -183,8 +184,8 @@
   /* ── 面板文案（唯一出处；改文案只动这张表） ──
      {x} {n} {a} {b} {c} {err} {lb} 是占位符，润色时必须原样保留。 */
   var COPY = {
-    "hubTip": "剧情压缩管理（点击展开面板）",
-    "hubAbsent": "压缩脚本未就绪",
+    "hubTip": "压缩、网络搜索与其他功能（点击展开工具箱）",
+    "hubAbsent": "工具箱脚本未就绪",
     "mode": {
       "section": "压缩模式",
       "rollTitle": "滚动压缩",
@@ -395,6 +396,15 @@
 
   /* 面板手势共享模块（构建期内联，两块面板共用同一份） */
   /* @@KAMI_PANEL_GESTURES@@ */
+  /* @@KAMI_TOOLBOX_TABS@@ */
+  /* @@KAMI_SEARCH_PROVIDERS@@ */
+  /* @@KAMI_SEARCH_PURE@@ */
+  /* @@KAMI_SEARCH_TASK_DEF@@ */
+  /* @@KAMI_SEARCH_TASK@@ */
+  /* @@KAMI_SEARCH_SERVICE@@ */
+  /* @@KAMI_LLM_UI@@ */
+  /* @@KAMI_LLM_SETTINGS@@ */
+  /* @@KAMI_SEARCH_MANUAL_UI@@ */
 
   /* 压缩纯逻辑（摘要响应解析器 + 世界书对账器；构建期内联，离线单测直接读那份源码） */
   /* @@KAMI_SUMMARIZE_PURE@@ */
@@ -433,10 +443,10 @@
   function log(msg) {
     try { if (window.console && console.log) { console.log('[压缩] ' + msg); } } catch (e) { }
   }
-  function toast(kind, msg) {
+  function toast(kind, msg, title) {
     try {
       var box = (HOST && HOST.toastr) || (typeof toastr !== 'undefined' ? toastr : null);
-      if (box && typeof box[kind] === 'function') { box[kind](msg, '📜 压缩'); }
+      if (box && typeof box[kind] === 'function') { box[kind](msg, title || '📜 压缩'); }
     } catch (e) { }
     log('TOAST(' + kind + ') ' + msg);
   }
@@ -515,41 +525,13 @@
     promptTpls: [],   // [{name, head, taskRole, task, tail}]
     promptTplCurrent: ''
   };
-  function clonePromptList(list) {
-    var out = [];
-    for (var i = 0; i < (list || []).length; i++) { out.push({ role: list[i].role, content: list[i].content }); }
-    return out;
-  }
-  /* 把「当前正在编辑的 prompts」拍一份快照（结构固定，写盘 / 比对都用它） */
-  function snapPrompts() {
-    return {
-      head: clonePromptList(cfg.prompts.head),
-      taskRole: cfg.prompts.taskRole,
-      task: cfg.prompts.task,
-      tail: clonePromptList(cfg.prompts.tail)
-    };
-  }
-  function findTpl(name) {
-    for (var i = 0; i < cfg.promptTpls.length; i++) {
-      if (cfg.promptTpls[i].name === name) { return cfg.promptTpls[i]; }
-    }
-    return null;
-  }
-  function currentTpl() { return findTpl(cfg.promptTplCurrent); }
-  /* 编辑即写回当前模板：不这样做的话，切到别的模板再切回来，刚才的编辑就没了
-     （用户报「改动即时生效，无需保存」的那条约定要保住）。 */
-  function syncCurrentTpl() {
-    var t = currentTpl();
-    if (!t) { return; }
-    var snap = snapPrompts();
-    t.head = snap.head; t.taskRole = snap.taskRole; t.task = snap.task; t.tail = snap.tail;
-  }
-  function currentSumConfig() {
-    for (var i = 0; i < cfg.sumConfigs.length; i++) {
-      if (cfg.sumConfigs[i].name === cfg.sumModel.current) { return cfg.sumConfigs[i]; }
-    }
-    return null;
-  }
+  var compressLlmEditor = createKamiLlmSettingsController({state:cfg,copy:COPY,defaultTask:DEFAULT_TASK,save:saveVars,render:renderContent,toast:toast,invalidate:invalidateModelList});
+  function clonePromptList(list){ return compressLlmEditor.cloneList(list); }
+  function snapPrompts(){ return compressLlmEditor.snapshot(); }
+  function findTpl(name) { return cfg.promptTpls.find(function(row){return row.name===name;}) || null; }
+  function currentTpl(){ return compressLlmEditor.currentTemplate(); }
+  function syncCurrentTpl(){ return compressLlmEditor.syncCurrent(); }
+  function currentSumConfig(){ return compressLlmEditor.currentConfig(); }
   var pingTimer = null, saveTimer = null, resizeHandler = null, hideHandler = null;
   var armTimer = null;        // 两段式确认的 4 秒定时器（注销时清）
   var panelDrag = null;       // 面板拖动/缩放进行中的状态（注销时释放指针捕获用）
@@ -711,6 +693,7 @@
       }
       if (!currentTpl()) { cfg.promptTplCurrent = cfg.promptTpls[0].name; }
     }
+    if (saved && ['compress', 'search', 'other'].indexOf(saved.toolboxTab) >= 0) { toolboxTab = saved.toolboxTab; }
   }
   function saveVars() {
     if (saveTimer) { try { clearTimeout(saveTimer); } catch (e) { } }
@@ -721,6 +704,7 @@
         if (typeof replaceVariables !== 'function') { return; }
         var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};
         all[VARS_KEY] = {
+          toolboxTab: toolboxTab,
           panel: { x: geom.x, y: geom.y, w: geom.w, h: geom.h },
           cfg: {
             grandOn: cfg.grandOn, threshold: cfg.threshold, keep: cfg.keep, chunk: cfg.chunk,
@@ -1467,13 +1451,13 @@
       };
       if (useSchema) { req.json_schema = summaryJsonSchema(); }
       if (customApi) { req.custom_api = customApi; }
-      if (customApi) { return generateRaw(req); }
+      if (customApi) { return withTavernProfile('', function () { return generateRaw(req); }); }
       if (cfg.sumModel.tavernPick) {
         var got = null;
         await withTavernProfile(cfg.sumModel.tavernPick, async function () { got = await generateRaw(req); });
         return got;
       }
-      return generateRaw(req);
+      return withTavernProfile('', function () { return generateRaw(req); });
     };
     /* 上次哪一种模式通过，下次就先试它（省一次往返）；失败会自己换边再试。 */
     var order = (schemaMode === 'off') ? [false, true] : [true, false];
@@ -1532,6 +1516,7 @@
 
   async function unhideAll() {
     if (pipeline.running) { toast('warning', COPY.toasts.running); return; }
+    if (SEARCH && SEARCH.status().running) { toast('warning', '请先等待搜索完成，或取消搜索'); return; }
     var stamp = chatStamp();
     var len = chatLen();
     if (!len) { toast('info', COPY.toasts.noChat); return; }
@@ -1554,6 +1539,7 @@
   async function runPipeline(trigger) {
     if (disposed) { lastError = '脚本已注销'; return; }
     if (pipeline.running) { toast('warning', COPY.toasts.running); return; }
+    if (SEARCH && SEARCH.status().running) { toast('warning', '请先等待搜索完成，或取消搜索'); return; }
     var len = chatLen();
     if (!len) { toast('warning', COPY.toasts.noChat); return; }
     if (trigger === 'auto' && !cfg.grandOn) { return; }
@@ -1885,13 +1871,63 @@
     '#' + PANEL_ID + ' [data-kami-role="block-text"]{white-space:pre-wrap;}'
   ].join('\n');
 
+
+  var TOOLBOX_LAYOUT_CSS = [
+    '#'+PANEL_ID+' .kami-toolbox-pane{flex:1 1 auto;min-height:0;overflow:auto;}',
+    '#'+PANEL_ID+' [data-toolbox-pane=compress]{display:flex;flex-direction:column;overflow:hidden;}',
+    '#'+PANEL_ID+' .kami-toolbox-pane[hidden]{display:none!important;}',
+    '#'+PANEL_ID+' .kami-toolbox-pane>.kami-body{flex:1 1 auto;min-height:0;overflow:auto;}',
+    '#'+PANEL_ID+' .kami-tabs{display:flex;flex:0 0 auto;gap:0;}',
+    '#'+PANEL_ID+' .kami-tab{flex:1 1 0;min-width:0;white-space:nowrap;}',
+    '#'+PANEL_ID+' .kami-toolbox-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:var(--kami-gap);padding:var(--kami-pad-y) var(--kami-pad-lg-x);}',
+    '#'+PANEL_ID+' .kami-toolbox-actions>.kami-btn{flex:1 1 auto;min-width:0;white-space:nowrap;font-size:var(--kami-fs-xs);}',
+    '#'+PANEL_ID+' [data-toolbox-pane=other] .kami-card{margin-bottom:var(--kami-gap);}',
+    '#'+PANEL_ID+' details>summary{cursor:pointer;list-style:none;}',
+    '#'+PANEL_ID+' details>summary::-webkit-details-marker{display:none;}',
+    '#'+PANEL_ID+' details>summary::after{content:"⌄";margin-left:auto;}',
+    '#'+PANEL_ID+' details[open]>summary::after{content:"⌃";}',
+    '#'+PANEL_ID+' [data-search-manual-settings] .kami-card{margin-top:var(--kami-gap);}',
+    '#'+PANEL_ID+' [data-search-limits] input[type=number]{width:130px;min-width:0;max-width:100%;flex:0 1 130px;}',
+    '.kami-manual-dialog{border:0;padding:0;background:transparent;color:inherit;width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;overflow:visible;}',
+    '.kami-manual-dialog::backdrop{background:rgba(0,0,0,.58);}',
+    '.kami-manual-dialog .kami-root[data-kami-comp="panel"]{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;display:block!important;pointer-events:auto!important;z-index:auto!important;}',
+    '.kami-manual-dialog .kami-shell{position:relative!important;inset:auto!important;transform:none!important;width:100%!important;max-height:90dvh;display:flex;flex-direction:column;margin:0!important;}',
+    '.kami-manual-dialog .kami-body{overflow:auto;min-height:0;background:var(--kami-card-2);color:var(--kami-fg);}',
+    '.kami-manual-dialog .kami-root[data-kami-comp="panel"] .kami-card-note{color:var(--kami-fg-dim);opacity:1;}',
+    '.kami-manual-dialog textarea.kami-textarea{width:100%;box-sizing:border-box;min-height:150px!important;resize:vertical;}',
+    '.kami-manual-dialog .kami-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--kami-gap);}',
+    '.kami-manual-dialog li{padding:var(--kami-gap) 0;}',
+    '.kami-manual-dialog .kami-search-status{display:flex;align-items:center;gap:16px;padding:20px;background:var(--kami-card-2);color:var(--kami-fg);border:1px solid var(--kami-accent-line);border-radius:var(--kami-r-md);}',
+    '.kami-manual-dialog .kami-search-status>div{min-width:0;}',
+    '.kami-manual-dialog .kami-search-status p{margin:0;overflow-wrap:anywhere;}',
+    '.kami-manual-dialog .kami-search-status-eyebrow,.kami-manual-dialog .kami-search-status-count{font-size:var(--kami-fs-sm);color:var(--kami-fg-dim);}',
+    '.kami-manual-dialog .kami-search-status-title{font-size:calc(var(--kami-fs) * 1.25);font-weight:750;line-height:1.4;padding:5px 0;}',
+    '.kami-manual-dialog .kami-search-status-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;font-size:24px;font-weight:700;color:var(--kami-fg);}',
+    '.kami-manual-dialog .kami-search-status-icon.is-running{box-sizing:border-box;border:3px solid var(--kami-line-strong);border-top-color:var(--kami-accent);border-radius:50%;animation:kami-search-spin 1s linear infinite;}',
+    '.kami-manual-dialog .kami-search-stages{list-style:none;padding:0;margin:18px 0;}',
+    '.kami-manual-dialog .kami-search-stages li{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid transparent;border-radius:var(--kami-r-sm);color:var(--kami-fg-dim);}',
+    '.kami-manual-dialog .kami-search-stages li.is-current{background:var(--kami-card-2);border-color:var(--kami-accent-line);color:var(--kami-fg);}',
+    '.kami-manual-dialog .kami-search-stages li.is-done{color:var(--kami-fg);}',
+    '.kami-manual-dialog .kami-search-stages li.is-error{color:var(--kami-warn);}',
+    '.kami-manual-dialog .kami-search-stages small{display:block;font-size:var(--kami-fs-xs);color:var(--kami-fg-dim);margin-top:2px;}',
+    '.kami-manual-dialog .kami-search-stage-mark{display:grid;place-items:center;box-sizing:border-box;width:28px;height:28px;flex:0 0 28px;border:1px solid var(--kami-line-strong);border-radius:50%;font-weight:650;}',
+    '.kami-manual-dialog .is-current .kami-search-stage-mark,.kami-manual-dialog .is-done .kami-search-stage-mark{border-color:var(--kami-accent);color:var(--kami-fg);}',
+    '.kami-manual-dialog .is-current .kami-search-stage-mark{outline:2px solid var(--kami-accent-soft);outline-offset:2px;}',
+    '.kami-manual-dialog .is-search-stop{font-weight:700;border-width:2px;}',
+    '@keyframes kami-search-spin{to{transform:rotate(360deg);}}',
+    '@media(prefers-reduced-motion:reduce){.kami-manual-dialog .kami-search-status-icon.is-running{animation:none;}}',
+    'html[data-kami-motion="off"] .kami-manual-dialog .kami-search-status-icon.is-running{animation:none;}',
+    '@media(max-width:600px){.kami-manual-dialog .kami-search-status{padding:15px;gap:12px;}.kami-manual-dialog .kami-search-stages li{padding:10px;}}',
+    '.kami-manual-dialog [hidden]{display:none!important;}'
+  ].join('\n');
+
   function injectCss() {
     try {
       if (HDOC.getElementById(CSS_ID)) { return; }
       var stl = HDOC.createElement('style');
       stl.id = CSS_ID;
       /* 兜底皮肤（皮肤管理没跑时才生效）+ 本面板布局，装在同一个 style 里 */
-      stl.textContent = ((typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '') + '\n' + LAYOUT_CSS;
+      stl.textContent = ((typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '') + '\n' + LAYOUT_CSS + '\n' + TOOLBOX_LAYOUT_CSS;
       (HDOC.head || HDOC.documentElement).appendChild(stl);
       log('已注入兜底皮肤 ' + stl.textContent.length + 'B（皮肤管理在跑时自动失效）');
     } catch (e) { log('注入兜底皮肤失败：' + msgOf(e)); }
@@ -1993,7 +2029,7 @@
     decoSlot.setAttribute('data-kami-deco', 'd20');
     decoSlot.setAttribute('aria-hidden', 'true');
     head.appendChild(decoSlot);
-    head.appendChild(mk('span', 'kami-title', '📜 压缩'));
+    head.appendChild(mk('span', 'kami-title', '🧰 工具箱'));
     var acts = mk('span', 'kami-actions');
     var btnClose = mk('button', 'kami-icon-btn', '✕');
     btnClose.type = 'button';
@@ -2016,13 +2052,19 @@
     hb3.type = 'button';
     hb3.setAttribute('data-kami-act', 'clear-data');
     headRow2.appendChild(hb3);
-    head.appendChild(headRow2);
     panelDrop.appendChild(head);
+    panelDrop.appendChild(buildToolboxTabs());
+    var compressPane = createToolboxPane('compress', false);
+    headRow2.className = 'kami-toolbox-actions';
+    compressPane.appendChild(headRow2);
 
     bodyEl = mk('div', 'kami-body kami-scroll');
     bodyEl.setAttribute('data-kami-pane', 'main');
     bodyEl.style.touchAction = 'pan-y';
-    panelDrop.appendChild(bodyEl);
+    compressPane.appendChild(bodyEl);
+    panelDrop.appendChild(compressPane);
+    panelDrop.appendChild(createToolboxPane('search', true));
+    panelDrop.appendChild(createToolboxPane('other', true));
 
     var foot = mk('div', 'kami-foot');
     var stl = mk('span', 'kami-sub');
@@ -2042,466 +2084,18 @@
     restoreGeometry();
     bindPanelEvents();
     renderContent();
+    setToolboxTab(toolboxTab, false);
     log('面板已创建（' + (sheetMode() ? '窄屏抽屉' : '桌面悬浮窗') + '）');
   }
 
   /* ── 面板内容（数据变了就整片重画正文；几何与手势不动） ── */
 
-  function sectionCard(title) {
-    var card = mk('div', 'kami-card');
-    card.appendChild(mk('div', 'kami-card-title', title));
-    var body = mk('div', 'kami-card-body');
-    card.appendChild(body);
-    return { card: card, body: body };
-  }
-  function noteLine(parent, text) {
-    var n = mk('div', 'kami-card-note', text);
-    parent.appendChild(n);
-    return n;
-  }
-  /* 字段行：契约 §4.2 的 .kami-field 三件套（40-预设设置.js 第 1538-1545 行、
-      30-皮肤管理.js 第 804-806 行同款）。行距、分隔线、点线引导符全靠皮肤，前端零内联。 */
-  function fieldRow(parent, label, control) {
-    var row = mk('div', 'kami-field');
-    if (label !== null && label !== undefined && label !== '') { row.appendChild(mk('span', 'kami-field-label', label)); }
-    if (control) { row.appendChild(control); }
-    parent.appendChild(row);
-    return row;
-  }
-  /* 数字框：input 裹在 .kami-field-value 里（40 号 varInput 同款），宽度用皮肤登记的 62px */
-  function numInput(parent, label, value, key, hint) {
-    var input = HDOC.createElement('input');
-    input.className = 'kami-number';
-    input.type = 'number';
-    input.setAttribute('data-kami-var', key);
-    input.value = String(value);
-    var val = mk('span', 'kami-field-value');
-    val.appendChild(input);
-    fieldRow(parent, label, val);
-    if (hint) { noteLine(parent, hint); }
-    return input;
-  }
-  /* 文本/密码框：作为 .kami-field 的直接子元素，撑开由 LAYOUT_CSS 负责。
-     类名 = 契约 §4.2 的 `.kami-text`（2026-09-21 起不再借用数字框的 `.kami-number`：
-     那条规则带 `text-align:right`，会把文本框一起变成右对齐）。 */
-  function textInput(parent, label, value, attrs, hint) {
-    var input = HDOC.createElement('input');
-    input.className = 'kami-text';
-    if (attrs) { for (var k in attrs) { input.setAttribute(k, attrs[k]); } }
-    input.value = String(value === undefined || value === null ? '' : value);
-    fieldRow(parent, label, input);
-    if (hint) { noteLine(parent, hint); }
-    return input;
-  }
-  /* 下拉框：options = [[value, text], …]；同样作为 .kami-field 直接子元素。
-     类名 = 契约 §4.2 的 `.kami-select`（六份样式表里原本一条下拉框规则都没有，
-     真机上就是浏览器默认样式；`.kami-number` 是数字框，不许再借用）。 */
-  function selectRow(parent, label, options, current, attrs) {
-    var sel = HDOC.createElement('select');
-    sel.className = 'kami-select';
-    if (attrs) { for (var k2 in attrs) { sel.setAttribute(k2, attrs[k2]); } }
-    for (var i = 0; i < options.length; i++) {
-      var op = HDOC.createElement('option');
-      op.value = options[i][0];
-      op.textContent = options[i][1];
-      if (options[i][0] === current) { op.selected = true; }
-      sel.appendChild(op);
-    }
-    fieldRow(parent, label, sel);
-    return sel;
-  }
-  /* 提示词条目里的角色下拉（带头/尾条目序号，改哪条就是哪条） */
-  function roleSelect(value, list, idx) {
-    var sel = HDOC.createElement('select');
-    sel.className = 'kami-select';
-    sel.setAttribute('data-kami-prompt', list);
-    sel.setAttribute('data-kami-pi', String(idx));
-    sel.setAttribute('data-kami-pf', 'role');
-    sel.setAttribute('aria-label', COPY.prompts.roleLabel);
-    var opts = [['system', COPY.prompts.roleSystem], ['user', COPY.prompts.roleUser], ['assistant', COPY.prompts.roleChar]];
-    for (var i = 0; i < opts.length; i++) {
-      var op = HDOC.createElement('option');
-      op.value = opts[i][0];
-      op.textContent = opts[i][1];
-      if (opts[i][0] === value) { op.selected = true; }
-      sel.appendChild(op);
-    }
-    return sel;
-  }
-  /* 多行文本框：类名 = 契约 §4.2 的 `.kami-textarea`（尺寸由 LAYOUT_CSS 管） */
-  function promptTextarea(list, idx) {
-    var ta = HDOC.createElement('textarea');
-    ta.className = 'kami-textarea';
-    ta.setAttribute('data-kami-prompt', list);
-    ta.setAttribute('data-kami-pi', String(idx));
-    ta.setAttribute('data-kami-pf', 'content');
-    ta.value = (list === 'task') ? cfg.prompts.task : (cfg.prompts[list][idx] ? cfg.prompts[list][idx].content : '');
-    return ta;
-  }
-  /* 头/尾的一个条目：角色行（.kami-field）+ 内容域 */
-  function promptEntry(parent, list, idx) {
-    var row = fieldRow(parent, COPY.prompts.roleLabel, null);
-    row.appendChild(roleSelect(cfg.prompts[list][idx].role, list, idx));
-    var bDel = mk('button', 'kami-btn kami-btn--ghost', COPY.prompts.removeEntry);
-    bDel.type = 'button';
-    bDel.setAttribute('data-kami-act', 'prompt-del');
-    bDel.setAttribute('data-kami-prompt', list);
-    bDel.setAttribute('data-kami-pi', String(idx));
-    row.appendChild(bDel);
-    parent.appendChild(promptTextarea(list, idx));
-  }
-  function promptEditor(parent, list, title) {
-    parent.appendChild(mk('div', 'kami-card-title', title));
-    for (var i = 0; i < cfg.prompts[list].length; i++) { promptEntry(parent, list, i); }
-    var bAdd = mk('button', 'kami-btn kami-btn--ghost', COPY.prompts.addEntry);
-    bAdd.type = 'button';
-    bAdd.setAttribute('data-kami-act', 'prompt-add');
-    bAdd.setAttribute('data-kami-prompt', list);
-    parent.appendChild(bAdd);
-  }
-  /* 开关卡：button.kami-item.kami-card + .is-on + aria-pressed（40 号第 1546-1576 行同款），
-     行内结构用 span.kami-card-head > span.kami-item-main（button 的内容模型只允许 phrasing content） */
-  function toggleCard(parent, key, title, on, extraLine) {
-    var btn = mk('button', 'kami-item kami-card' + (on ? ' is-on' : ''));
-    btn.type = 'button';
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('data-kami-cmode', key);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.setAttribute('aria-label', title);
-    var head = mk('span', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-item-main', title));
-    btn.appendChild(head);
-    if (extraLine) { btn.appendChild(mk('span', 'kami-card-note', extraLine)); }
-    parent.appendChild(btn);
-    return btn;
-  }
+  /* @@KAMI_COMPRESS_UI@@ */
 
-  function renderContent() {
-    if (!bodyEl || disposed) { return; }
-    var keepScroll = bodyEl.scrollTop;
-    bodyEl.textContent = '';
-
-    /* ① 模式 */
-    var roll = rollInfo();
-    var sec1 = sectionCard(COPY.mode.section);
-    toggleCard(sec1.body, 'roll', COPY.mode.rollTitle, roll.ok && roll.enabled,
-      COPY.mode.rollDepthLine.replace('{n}', roll.ok ? roll.minDepth : '—'));
-    noteLine(sec1.body, COPY.mode.rollNote);
-    toggleCard(sec1.body, 'grand', COPY.mode.grandTitle, cfg.grandOn, null);
-    noteLine(sec1.body, COPY.mode.grandNote);
-    bodyEl.appendChild(sec1.card);
-
-    /* ② 滚动压缩参数 */
-    var sec2 = sectionCard(COPY.roll.section);
-    if (roll.ok) {
-      numInput(sec2.body, COPY.roll.depthLabel, roll.minDepth, 'depth', COPY.roll.depthHint);
-    } else {
-      noteLine(sec2.body, roll.error);
-    }
-    bodyEl.appendChild(sec2.card);
-
-    /* ③ 超限压缩参数 */
-    var sec3 = sectionCard(COPY.grand.section);
-    numInput(sec3.body, COPY.grand.thresholdLabel, cfg.threshold, 'threshold', COPY.grand.thresholdHint);
-    numInput(sec3.body, COPY.grand.keepLabel, cfg.keep, 'keep', COPY.grand.keepHint);
-    numInput(sec3.body, COPY.grand.chunkLabel, cfg.chunk, 'chunk', COPY.grand.chunkHint);
-    bodyEl.appendChild(sec3.card);
-
-    /* ④ 大总结模型 */
-    var sec4 = sectionCard(COPY.model.section);
-    var mRow = mk('div', 'kami-items');
-    var bTavern = mk('button', 'kami-item kami-card' + (cfg.sumModel.mode !== 'custom' ? ' is-on' : ''));
-    bTavern.type = 'button';
-    bTavern.setAttribute('role', 'button');
-    bTavern.setAttribute('data-kami-model-mode', 'tavern');
-    bTavern.setAttribute('aria-pressed', cfg.sumModel.mode !== 'custom' ? 'true' : 'false');
-    bTavern.setAttribute('aria-label', COPY.model.tavern);
-    bTavern.appendChild(mk('span', 'kami-item-main', COPY.model.tavern));
-    mRow.appendChild(bTavern);
-    var bCustom = mk('button', 'kami-item kami-card' + (cfg.sumModel.mode === 'custom' ? ' is-on' : ''));
-    bCustom.type = 'button';
-    bCustom.setAttribute('role', 'button');
-    bCustom.setAttribute('data-kami-model-mode', 'custom');
-    bCustom.setAttribute('aria-pressed', cfg.sumModel.mode === 'custom' ? 'true' : 'false');
-    bCustom.setAttribute('aria-label', COPY.model.custom);
-    bCustom.appendChild(mk('span', 'kami-item-main', COPY.model.custom));
-    mRow.appendChild(bCustom);
-    sec4.body.appendChild(mRow);
-    if (cfg.sumModel.mode !== 'custom') {
-      /* 跟随酒馆：默认用当前连接，也可以直接点选酒馆里已存的连接配置——
-         不复制、不落地，请求时按那套配置临时转一下即可。 */
-      var profiles = tavernCCProfiles();
-      var opts = [['', COPY.model.pickCurrent]];
-      for (var pi = 0; pi < profiles.length; pi++) {
-        opts.push([profiles[pi].name, profiles[pi].name + (profiles[pi].model ? ('（' + profiles[pi].model + '）') : '')]);
-      }
-      selectRow(sec4.body, COPY.model.pickLabel, opts, cfg.sumModel.tavernPick, { 'data-kami-mi': '__pick' });
-      if (!profiles.length) { noteLine(sec4.body, COPY.model.pickNone); }
-      noteLine(sec4.body, COPY.model.pickHint);
-      noteLine(sec4.body, COPY.model.pickProxyNote);
-    } else {
-      if (!cfg.sumConfigs.length) {
-        cfg.sumConfigs.push({ name: '默认', source: 'custom', apiurl: '', key: '', model: '' });
-        cfg.sumModel.current = '默认';
-      }
-      if (!currentSumConfig()) { cfg.sumModel.current = cfg.sumConfigs[0].name; }
-      var cur = currentSumConfig();
-      var cfgOpts = [];
-      for (var ci = 0; ci < cfg.sumConfigs.length; ci++) { cfgOpts.push([cfg.sumConfigs[ci].name, cfg.sumConfigs[ci].name]); }
-      selectRow(sec4.body, COPY.model.cfgLabel, cfgOpts, cfg.sumModel.current, { 'data-kami-mi': '__config' });
-      var srcOpts = [];
-      for (var si = 0; si < COPY.model.sources.length; si++) { srcOpts.push([COPY.model.sources[si].v, COPY.model.sources[si].n]); }
-      selectRow(sec4.body, COPY.model.sourceLabel, srcOpts, cur.source, { 'data-kami-mi': 'source' });
-      noteLine(sec4.body, COPY.model.sourceHint);
-      textInput(sec4.body, COPY.model.apiUrlLabel, cur.apiurl, { 'data-kami-mi': 'apiurl', type: 'text', placeholder: 'https://…/v1' }, COPY.model.apiUrlHint);
-      textInput(sec4.body, COPY.model.keyLabel, cur.key, { 'data-kami-mi': 'key', type: 'password' }, COPY.model.keyHint);
-      textInput(sec4.body, COPY.model.modelLabel, cur.model, { 'data-kami-mi': 'model', type: 'text' }, COPY.model.modelHint);
-      /* 模型列表（点「获取模型列表」后多出一行，选中即回填模型名） */
-      var ml = cachedModelList(cur);
-      if (ml && ml.length) {
-        var mlOpts = [[cur.model, cur.model ? cur.model : COPY.model.fetchPick]];
-        for (var mi = 0; mi < ml.length; mi++) { if (ml[mi] !== cur.model) { mlOpts.push([ml[mi], ml[mi]]); } }
-        selectRow(sec4.body, COPY.model.pickModelLabel, mlOpts, cur.model, { 'data-kami-mi': 'model' });
-      }
-      var bFetch = mk('button', 'kami-btn kami-btn--ghost', fetchState === 'busy' ? COPY.model.fetching : COPY.model.fetchModels);
-      bFetch.type = 'button';
-      bFetch.setAttribute('data-kami-act', 'fetch-models');
-      if (fetchState === 'busy') { bFetch.setAttribute('disabled', '1'); }
-      sec4.body.appendChild(bFetch);
-      /* 存为新配置：名称行（名称框 + 两个按钮） */
-      var nameRow = fieldRow(sec4.body, COPY.model.namePh, null);
-      nameRow.setAttribute('data-kami-role', 'name-row');
-      var nameInput = HDOC.createElement('input');
-      nameInput.className = 'kami-text';
-      nameInput.type = 'text';
-      nameInput.setAttribute('data-kami-mi', '__name');
-      nameInput.placeholder = COPY.model.namePh;
-      nameRow.appendChild(nameInput);
-      var bSaveAs = mk('button', 'kami-btn kami-btn--ghost', COPY.model.saveAs);
-      bSaveAs.type = 'button';
-      bSaveAs.setAttribute('data-kami-act', 'config-save-as');
-      nameRow.appendChild(bSaveAs);
-      var bDelCfg = mk('button', 'kami-btn kami-btn--ghost', COPY.model.delBtn);
-      bDelCfg.type = 'button';
-      bDelCfg.setAttribute('data-kami-act', 'config-del');
-      nameRow.appendChild(bDelCfg);
-    }
-    noteLine(sec4.body, COPY.model.note);
-    noteLine(sec4.body, COPY.model.customHint);
-    bodyEl.appendChild(sec4.card);
-
-    /* ⑤ 例外楼层 */
-    var sec5 = sectionCard(COPY.pins.section);
-    if (st.pins.length) {
-      var chips = mk('div');
-      chips.setAttribute('data-kami-role', 'pin-chips');
-      for (var i = 0; i < st.pins.length; i++) {
-        var chip = mk('span', 'kami-chip', '#' + st.pins[i]);
-        chip.setAttribute('data-kami-pin', String(st.pins[i]));
-        chip.setAttribute('role', 'button');
-        chip.setAttribute('tabindex', '0');
-        chip.setAttribute('aria-label', COPY.pins.chipTitle + ' #' + st.pins[i]);
-        chip.title = COPY.pins.chipTitle;
-        chips.appendChild(chip);
-      }
-      sec5.body.appendChild(chips);
-    } else {
-      noteLine(sec5.body, COPY.pins.empty);
-    }
-    var pinRow = fieldRow(sec5.body, COPY.pins.ph, null);
-    var pinInput = HDOC.createElement('input');
-    pinInput.className = 'kami-number';
-    pinInput.type = 'number';
-    pinInput.setAttribute('data-kami-var', 'pin');
-    pinInput.placeholder = COPY.pins.ph;
-    pinRow.appendChild(pinInput);
-    var bAdd = mk('button', 'kami-btn kami-btn--ghost', COPY.pins.add);
-    bAdd.type = 'button';
-    bAdd.setAttribute('data-kami-act', 'pin-add');
-    pinRow.appendChild(bAdd);
-    var bDel = mk('button', 'kami-btn kami-btn--ghost', COPY.pins.remove);
-    bDel.type = 'button';
-    bDel.setAttribute('data-kami-act', 'pin-del');
-    pinRow.appendChild(bDel);
-    noteLine(sec5.body, COPY.pins.note);
-    bodyEl.appendChild(sec5.card);
-
-    /* ⑥ 压缩块 */
-    var secTitle = COPY.blocks.section + '（' + st.blocks.length + '）';
-    if (st.pending.length) { secTitle += ' ｜ ' + COPY.blocks.pendingTag + ' ' + countFloors(st.pending); }
-    var sec6 = sectionCard(secTitle);
-    if (st.error) {
-      noteLine(sec6.body, COPY.blocks.errHint.replace('{err}', st.error));
-      noteLine(sec6.body, COPY.blocks.errFix);
-    }
-    /* 刷新：重新读一遍世界书（你在世界书里手改的正文立刻反映到面板上）。
-       正常情况下 WORLDINFO_UPDATED 会自动刷，这颗按钮是拿不到那个事件时的兜底。 */
-    var refreshRow = fieldRow(sec6.body, '', null);
-    refreshRow.setAttribute('data-kami-role', 'block-refresh');
-    var bRefresh = mk('button', 'kami-btn kami-btn--ghost', COPY.blocks.refresh);
-    bRefresh.type = 'button';
-    bRefresh.title = COPY.blocks.refreshTip;
-    bRefresh.setAttribute('data-kami-act', 'blocks-refresh');
-    refreshRow.appendChild(bRefresh);
-    /* 对账结果的一句话汇总（待重做 / 孤儿隐藏楼层 / 重复条目 / 疑似报错内容） */
-    for (var nt = 0; nt < st.notice.length; nt++) { noteLine(sec6.body, st.notice[nt]); }
-    if (st.orphan.length) {
-      var bRepair = mk('button', 'kami-btn kami-btn--ghost', COPY.blocks.orphanBtn);
-      bRepair.type = 'button';
-      bRepair.setAttribute('data-kami-act', 'repair-orphans');
-      sec6.body.appendChild(bRepair);
-    }
-    if (st.blocks.length) {
-      for (var b = 0; b < st.blocks.length; b++) {
-        var blk = mk('div');
-        var susp = st.suspect.indexOf(b) >= 0;
-        var bt = mk('div', 'kami-card-title', COPY.blocks.blockTag + ' ' + (b + 1) + ' ｜ 楼层 ' + st.blocks[b].from + '-' + st.blocks[b].to +
-          (st.blocks[b].depth !== null && st.blocks[b].depth !== undefined ? (' ｜ ' + COPY.blocks.depthTag + ' ' + st.blocks[b].depth) : '') +
-          (susp ? (' ｜ ⚠ ' + COPY.blocks.suspectTag) : ''));
-        var bb = mk('div', 'kami-card-body', st.blocks[b].text);
-        bb.setAttribute('data-kami-role', 'block-text');
-        blk.appendChild(bt);
-        blk.appendChild(bb);
-        sec6.body.appendChild(blk);
-      }
-      noteLine(sec6.body, COPY.blocks.note.replace('{lb}', st.lbName || COPY.blocks.lbNone));
-    } else if (st.pending.length) {
-      /* 一块都没有但有待重做段：别显示「暂无压缩块」，那会让人以为数据没了 */
-      for (var pd = 0; pd < st.pending.length; pd++) {
-        var pblk = mk('div');
-        pblk.appendChild(mk('div', 'kami-card-title', COPY.blocks.pendingTag + ' ｜ 楼层 ' + st.pending[pd].from + '-' + st.pending[pd].to));
-        sec6.body.appendChild(pblk);
-      }
-      noteLine(sec6.body, COPY.blocks.note.replace('{lb}', st.lbName || COPY.blocks.lbNone));
-    } else if (!st.error) {
-      sec6.body.appendChild(mk('div', 'kami-empty', COPY.blocks.empty));
-    }
-    bodyEl.appendChild(sec6.card);
-
-    /* ⑦ 摘要提示词（模板 + 头/任务/尾） */
-    var sec7 = sectionCard(COPY.prompts.section);
-    noteLine(sec7.body, COPY.prompts.hint);
-    /* 模板行：下拉切换 + 名称 + 存为新模板 + 删除当前模板（与 sec4「大总结模型」同构）。
-       兜底同 sec4：列表为空时先塞一条，指针失效时指回第一条。 */
-    if (!cfg.promptTpls.length) {
-      var seed = snapPrompts();
-      seed.name = COPY.prompts.tplDefaultName;
-      cfg.promptTpls.push(seed);
-    }
-    if (!currentTpl()) { cfg.promptTplCurrent = cfg.promptTpls[0].name; }
-    var tplOpts = [];
-    for (var ti = 0; ti < cfg.promptTpls.length; ti++) { tplOpts.push([cfg.promptTpls[ti].name, cfg.promptTpls[ti].name]); }
-    selectRow(sec7.body, COPY.prompts.tplLabel, tplOpts, cfg.promptTplCurrent, { 'data-kami-pt': '__tpl' });
-    var tplRow = fieldRow(sec7.body, COPY.prompts.tplNamePh, null);
-    tplRow.setAttribute('data-kami-role', 'name-row');
-    var tplInput = HDOC.createElement('input');
-    tplInput.className = 'kami-text';
-    tplInput.type = 'text';
-    tplInput.setAttribute('data-kami-pt', '__name');
-    tplInput.placeholder = COPY.prompts.tplNamePh;
-    tplRow.appendChild(tplInput);
-    var bTplSave = mk('button', 'kami-btn kami-btn--ghost', COPY.prompts.tplSaveAs);
-    bTplSave.type = 'button';
-    bTplSave.setAttribute('data-kami-act', 'tpl-save-as');
-    tplRow.appendChild(bTplSave);
-    var bTplDel = mk('button', 'kami-btn kami-btn--ghost', COPY.prompts.tplDel);
-    bTplDel.type = 'button';
-    bTplDel.setAttribute('data-kami-act', 'tpl-del');
-    tplRow.appendChild(bTplDel);
-    noteLine(sec7.body, COPY.prompts.tplHint);
-    promptEditor(sec7.body, 'head', COPY.prompts.head);
-    sec7.body.appendChild(mk('div', 'kami-card-title', COPY.prompts.task));
-    var taskRow = fieldRow(sec7.body, COPY.prompts.roleLabel, null);
-    taskRow.appendChild(roleSelect(cfg.prompts.taskRole, 'task', 0));
-    var bReset = mk('button', 'kami-btn kami-btn--ghost', COPY.prompts.reset);
-    bReset.type = 'button';
-    bReset.setAttribute('data-kami-act', 'task-reset');
-    taskRow.appendChild(bReset);
-    sec7.body.appendChild(promptTextarea('task', 0));
-    promptEditor(sec7.body, 'tail', COPY.prompts.tail);
-    bodyEl.appendChild(sec7.card);
-
-    /* ⑧ 摘要条目状态 */
-    var sec8 = sectionCard(COPY.entry.section);
-    var info = summaryInfo();
-    if (info.ok) {
-      var bToggle = mk('button', 'kami-btn kami-btn--ghost', info.enabled ? COPY.entry.turnOff : COPY.entry.turnOn);
-      bToggle.type = 'button';
-      bToggle.setAttribute('data-kami-act', 'toggle-entry');
-      fieldRow(sec8.body, info.name, bToggle);
-    } else {
-      noteLine(sec8.body, info.error);
-    }
-    noteLine(sec8.body, COPY.entry.note);
-    bodyEl.appendChild(sec8.card);
-
-    bodyEl.scrollTop = keepScroll;
-    renderStatus();
-  }
-
-  /* ── 摘要模型 / 摘要提示词的写回 ──
-     文本域与下拉的改动只落 cfg + saveVars，**不重画面板**（保住输入焦点）；
-     增删条目、恢复默认这类结构变化才重画。 */
-  function toggleModelMode(mode) {
-    if (cfg.sumModel.mode === mode) { return; }
-    cfg.sumModel.mode = (mode === 'custom') ? 'custom' : 'tavern';
-    saveVars();
-    renderContent();
-  }
-  function applyModelInput(field, value) {
-    if (field === '__config') {   // 切换已存配置
-      if (!currentSumConfig() || currentSumConfig().name !== value) {
-        cfg.sumModel.current = value;
-        saveVars();
-        renderContent();
-      }
-      return;
-    }
-    if (field === '__pick') {   // 跟随酒馆：选「当前连接」或某套连接配置
-      cfg.sumModel.tavernPick = String(value === undefined || value === null ? '' : value);
-      saveVars();
-      renderContent();
-      return;
-    }
-    if (field === '__name') { return; }   // 名称框只给「存为新配置」用，不落值
-    var cur = currentSumConfig();
-    if (!cur) { return; }
-    if (field === 'source') {
-      cur.source = ['custom', 'openai', 'claude', 'makersuite', 'deepseek', 'xai', 'openrouter', 'azure_openai'].indexOf(value) >= 0 ? value : 'custom';
-    } else if (field === 'apiurl' || field === 'key' || field === 'model') {
-      cur[field] = String(value === undefined || value === null ? '' : value);
-    }
-    if (field === 'source' || field === 'apiurl' || field === 'key') { invalidateModelList(cur.name); }
-    saveVars();   // 不重画：保住输入焦点
-  }
-  function saveConfigAs(name) {
-    name = String(name || '').trim();
-    if (!name) { toast('warning', COPY.model.nameMissing); return; }
-    var cur = currentSumConfig();
-    var src = cur || { source: 'custom', apiurl: '', key: '', model: '' };
-    var exist = null;
-    for (var i = 0; i < cfg.sumConfigs.length; i++) { if (cfg.sumConfigs[i].name === name) { exist = cfg.sumConfigs[i]; break; } }
-    if (exist) {
-      exist.source = src.source; exist.apiurl = src.apiurl; exist.key = src.key; exist.model = src.model;
-    } else {
-      cfg.sumConfigs.push({ name: name, source: src.source, apiurl: src.apiurl, key: src.key, model: src.model });
-    }
-    cfg.sumModel.current = name;
-    saveVars();
-    toast('success', COPY.model.saveDone.replace('{name}', name));
-    renderContent();
-  }
-  function deleteCurrentConfig() {
-    if (cfg.sumConfigs.length <= 1) { toast('warning', COPY.model.delLast); return; }
-    var cur = currentSumConfig();
-    if (!cur) { return; }
-    cfg.sumConfigs = cfg.sumConfigs.filter(function (c) { return c.name !== cur.name; });
-    if (cfg.sumModel.current === cur.name) { cfg.sumModel.current = cfg.sumConfigs[0].name; }
-    delete modelListCache[cur.name];
-    saveVars();
-    toast('success', COPY.model.delDone.replace('{name}', cur.name));
-    renderContent();
-  }
+  function toggleModelMode(mode){ return compressLlmEditor.mode(mode); }
+  function applyModelInput(field, value){ return compressLlmEditor.modelInput(field, value); }
+  function saveConfigAs(name){ return compressLlmEditor.saveConfig(name); }
+  function deleteCurrentConfig(){ return compressLlmEditor.deleteConfig(); }
   /* 酒馆「连接配置」直接拿来用（不复制、不落地）。
      名单从酒馆的 extension_settings.connectionManager.profiles 只读；真正请求时，
      把选中那套的「源格式 / 地址 / 模型」临时套到活的 oai_settings 上，跑完立刻还原。
@@ -2528,30 +2122,40 @@
   /* 借用：把选中配置的源格式/地址/模型临时写进活的 oai_settings——只动内存，
      不保存、不碰预设文件，跑完 fn 立刻还原。主生成此刻正等着我们
      （GENERATION_STARTED 是 await 的），不会有并发生成读到临时值。 */
-  async function withTavernProfile(name, fn) {
+  var profileQueue = Promise.resolve();
+  function withTavernProfile(name, fn) {
+    var task = profileQueue.then(function () { return applyTavernProfile(name, fn); });
+    profileQueue = task.catch(function () {});
+    return task;
+  }
+  async function applyTavernProfile(name, fn) {
     var ctx = stCtx();
     var s = settingsOf(ctx);
     var pf = findTavernProfile(name);
     if (!ctx || !s || !pf) {
       if (name) { toast('warning', COPY.model.pickMissing.replace('{name}', name)); }
-      await fn();
-      return;
+      return await fn();
     }
+    /* 酒馆按来源读取 custom_model / deepseek_model 等字段，model 只是兼容字段。 */
+    var source = pf.api || s.chat_completion_source;
+    var modelField = source && /^[a-z_]+$/.test(source) ? (source === 'makersuite' ? 'google' : source) + '_model' : null;
     var keys = ['chat_completion_source', 'reverse_proxy', 'custom_url', 'model'];
+    if (modelField) { keys.push(modelField); }
     var old = {};
+    var owned = {};
     var applied = {};
-    for (var i = 0; i < keys.length; i++) { old[keys[i]] = s[keys[i]]; }
+    for (var i = 0; i < keys.length; i++) { old[keys[i]] = s[keys[i]]; owned[keys[i]] = Object.prototype.hasOwnProperty.call(s, keys[i]); }
     try {
       if (pf.api) { s.chat_completion_source = pf.api; }
-      if (pf.model) { s.model = pf.model; }
+      if (pf.model) { s.model = pf.model; if (modelField) { s[modelField] = pf.model; } }
       var url = (typeof pf['api-url'] === 'string') ? pf['api-url'] : '';
       if (url) {
         if (pf.api === 'custom') { s.custom_url = url; } else { s.reverse_proxy = url; }
       }
       for (var a = 0; a < keys.length; a++) { applied[keys[a]] = s[keys[a]]; }
-      await fn();
+      return await fn();
     } finally {
-      for (var j = 0; j < keys.length; j++) { if (s[keys[j]] === applied[keys[j]]) { s[keys[j]] = old[keys[j]]; } }
+      for (var j = 0; j < keys.length; j++) { if (s[keys[j]] === applied[keys[j]]) { if (owned[keys[j]]) { s[keys[j]] = old[keys[j]]; } else { delete s[keys[j]]; } } }
       log('已还原酒馆连接设置（' + name + '）');
     }
   }
@@ -2613,6 +2217,23 @@
     if (!data || typeof data.token !== 'string') { throw new Error('读取酒馆校验码失败，请刷新页面后重试'); }
     return { 'Content-Type': 'application/json', 'X-CSRF-Token': data.token };
   }
+  async function fetchLlmModelCatalog(config, signal) {
+    var requestFetch = HOST && typeof HOST.fetch === 'function' ? HOST.fetch.bind(HOST) : fetch;
+        var headers = await modelListHeaders(requestFetch);
+        var resp = await requestFetch('/api/backends/chat-completions/status', {
+          method: 'POST', headers: headers, credentials: 'same-origin', cache: 'no-store',
+          signal: signal, body: JSON.stringify(modelListRequest(config))
+        });
+        var json = null;
+        try { json = await resp.json(); } catch (e) { }
+        if (!resp.ok || (json && json.error)) {
+          var detail = json && ((json.error && json.error.message) || json.message || (typeof json.error === 'string' ? json.error : ''));
+          throw new Error('HTTP ' + resp.status + (detail ? '：' + String(detail).slice(0, 240) : '：接口拒绝了请求，请检查地址和密钥'));
+        }
+        if (!json || !Array.isArray(json.data)) { throw new Error('接口返回格式不正确，没有模型列表 data 数组'); }
+        return json;
+
+  }
   async function fetchModelList() {
     if (disposed || fetchState === 'busy') { return; }
     var cur = currentSumConfig();
@@ -2626,22 +2247,7 @@
     var timeout = null;
     try {
       var body = modelListRequest(config);
-      var work = (async function () {
-        var headers = await modelListHeaders(requestFetch);
-        if (disposed || seq !== modelFetchSeq) { throw new Error('操作已取消'); }
-        var resp = await requestFetch('/api/backends/chat-completions/status', {
-          method: 'POST', headers: headers, credentials: 'same-origin', cache: 'no-store',
-          signal: controller ? controller.signal : undefined, body: JSON.stringify(body)
-        });
-        var json = null;
-        try { json = await resp.json(); } catch (e) { }
-        if (!resp.ok || (json && json.error)) {
-          var detail = json && ((json.error && json.error.message) || json.message || (typeof json.error === 'string' ? json.error : ''));
-          throw new Error('HTTP ' + resp.status + (detail ? '：' + String(detail).slice(0, 240) : '：接口拒绝了请求，请检查地址和密钥'));
-        }
-        if (!json || !Array.isArray(json.data)) { throw new Error('接口返回格式不正确，没有模型列表 data 数组'); }
-        return json;
-      })();
+      var work = fetchLlmModelCatalog(config, controller ? controller.signal : undefined);
       var deadline = new Promise(function (_, reject) {
         timeout = setTimeout(function () { if (controller) { controller.abort(); } reject(new Error('获取超时（30 秒），请检查接口连接后重试')); }, 30000);
       });
@@ -2664,92 +2270,13 @@
     }
   }
 
-  function applyPromptChange(list, pi, pf, value) {
-    if (list === 'task') {
-      if (pf === 'content') { cfg.prompts.task = String(value === undefined || value === null ? '' : value); }
-      else if (pf === 'role' && ['system', 'user', 'assistant'].indexOf(value) >= 0) { cfg.prompts.taskRole = value; }
-    } else if (list === 'head' || list === 'tail') {
-      var it = cfg.prompts[list][pi];
-      if (!it) { return; }
-      if (pf === 'content') { it.content = String(value === undefined || value === null ? '' : value); }
-      else if (pf === 'role' && ['system', 'user', 'assistant'].indexOf(value) >= 0) { it.role = value; }
-    }
-    syncCurrentTpl();
-    saveVars();
-  }
-  function addPromptEntry(list) {
-    if (list !== 'head' && list !== 'tail') { return; }
-    if (cfg.prompts[list].length >= MAX_PROMPT_ENTRIES) { toast('warning', COPY.toasts.tooMany.replace('{n}', MAX_PROMPT_ENTRIES)); return; }
-    cfg.prompts[list].push({ role: 'system', content: '' });
-    syncCurrentTpl();
-    saveVars();
-    renderContent();
-  }
-  function removePromptEntry(list, idx) {
-    if ((list !== 'head' && list !== 'tail') || !cfg.prompts[list][idx]) { return; }
-    cfg.prompts[list].splice(idx, 1);
-    syncCurrentTpl();
-    saveVars();
-    renderContent();
-  }
-  function resetTask() {
-    cfg.prompts.task = DEFAULT_TASK;
-    cfg.prompts.taskRole = 'system';
-    syncCurrentTpl();
-    saveVars();
-    renderContent();
-  }
-
-  /* ── 摘要提示词模板（v1.1）──
-     与「大总结模型」的多配置同构：下拉切换 + 名称框 + 存为新模板 + 删除当前模板。
-     切换 = 把模板的四个字段拷回 cfg.prompts 再重画面板（结构变了必须重画）；
-     切换前先把当前这套同步回它自己的快照，免得正在编辑的内容被切掉。 */
-  function switchPromptTpl(name) {
-    if (name === cfg.promptTplCurrent) { return; }
-    var t = findTpl(name);
-    if (!t) { return; }
-    syncCurrentTpl();
-    cfg.promptTplCurrent = name;
-    cfg.prompts.head = clonePromptList(t.head);
-    cfg.prompts.taskRole = t.taskRole;
-    cfg.prompts.task = t.task;
-    cfg.prompts.tail = clonePromptList(t.tail);
-    saveVars();
-    renderContent();
-  }
-  function savePromptTplAs(name) {
-    name = String(name || '').trim();
-    if (!name) { toast('warning', COPY.prompts.tplNameMissing); return; }
-    syncCurrentTpl();
-    var snap = snapPrompts();
-    var exist = findTpl(name);
-    if (exist) {
-      exist.head = snap.head; exist.taskRole = snap.taskRole; exist.task = snap.task; exist.tail = snap.tail;
-    } else {
-      snap.name = name;
-      cfg.promptTpls.push(snap);
-    }
-    cfg.promptTplCurrent = name;
-    saveVars();
-    toast('success', COPY.prompts.tplSaved.replace('{name}', name));
-    renderContent();
-  }
-  function deletePromptTpl() {
-    if (cfg.promptTpls.length <= 1) { toast('warning', COPY.prompts.tplDelLast); return; }
-    var cur = currentTpl();
-    if (!cur) { return; }
-    cfg.promptTpls = cfg.promptTpls.filter(function (t) { return t.name !== cur.name; });
-    cfg.promptTplCurrent = cfg.promptTpls[0].name;
-    var t2 = currentTpl();
-    cfg.prompts.head = clonePromptList(t2.head);
-    cfg.prompts.taskRole = t2.taskRole;
-    cfg.prompts.task = t2.task;
-    cfg.prompts.tail = clonePromptList(t2.tail);
-    saveVars();
-    toast('success', COPY.prompts.tplDeleted.replace('{name}', cur.name));
-    renderContent();
-  }
-
+  function applyPromptChange(list, pi, pf, value){ return compressLlmEditor.promptChange(list, pi, pf, value); }
+  function addPromptEntry(list){ return compressLlmEditor.addPrompt(list); }
+  function removePromptEntry(list, idx){ return compressLlmEditor.removePrompt(list, idx); }
+  function resetTask(){ return compressLlmEditor.resetTask(); }
+  function switchPromptTpl(name){ return compressLlmEditor.switchTemplate(name); }
+  function savePromptTplAs(name){ return compressLlmEditor.saveTemplate(name); }
+  function deletePromptTpl(){ return compressLlmEditor.deleteTemplate(); }
   /* 数字输入统一写回：depth 写正则，其余写 cfg。
      **不整片重画面板**（交接铁律）：写完后只把夹取后的值回填进输入框、刷状态栏，
      焦点与光标都不丢。el 是触发变化的那个 input。 */
@@ -2977,7 +2504,9 @@
     GESTURES = bindPanelGestures({
       root: panelDrop,
       handle: function () { return panelHead; },
-      pane: function () { return bodyEl; },
+      pane: activeToolboxPane,
+      tabs: function () { return toolboxTabsBar; },
+      onStep: stepToolboxTab,
       isSheet: sheetMode,
       onClose: function () { setOpen(false); }
     });
@@ -3001,6 +2530,7 @@
     if (lastError) { parts.push('⚠'); }
     /* 这一行必须短：.kami-sub 是 nowrap，长文字会被面板裁掉。完整数字看 KamiSummarize.status()。 */
     stl.textContent = parts.join(' ｜ ');
+    renderToolboxStatus(stl);
   }
   function fmtK(n) {
     if (n >= 10000) { return Math.round(n / 1000) + 'k'; }
@@ -3018,18 +2548,19 @@
       restoreGeometry();
       bringViewportHome();
       /* 每次打开都重新对账：你在世界书里手改过正文的话，面板进来就是最新的 */
-      refreshState('open').catch(function (e) { log('打开面板时读状态失败：' + msgOf(e)); });
+      (toolboxTab === 'compress' ? refreshState('open') : Promise.resolve()).catch(function (e) { log('打开面板时读状态失败：' + msgOf(e)); });
       renderStatus();
     }
   }
-  function openPanel() { setOpen(true); }
+  function openPanel() { openToolbox('compress'); }
   function closePanel() { setOpen(false); }
   function isOpen() { return !!(panelDrop && panelDrop.getAttribute('data-kami-open') === '1'); }
-  function togglePanel() { setOpen(!isOpen()); }
+  function togglePanel() { if (isOpen() && toolboxTab === 'compress') { closePanel(); } else { openPanel(); } }
 
   /* ───────── 登记按钮 ───────── */
 
   function updateDef() {
+    if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.ping(); }
     if (!ownDef) { return; }
     try { if (HOST.__hub && typeof HOST.__hub.paint === 'function') { HOST.__hub.paint(); } } catch (e) { }
   }
@@ -3051,7 +2582,7 @@
         },
         ready: function () { return true; },
         absent: COPY.hubAbsent,
-        click: function () { togglePanel(); }
+        click: function () { toggleToolbox(); }
       };
       defs.push(ownDef);
       try {
@@ -3118,6 +2649,7 @@
     };
     try { HOST[API_NAME] = api; } catch (e) { }
     try { window[API_NAME] = api; } catch (e) { }
+    exposeToolbox();
   }
 
   /* ───────── 注销（零残留；压缩成果照章留在聊天里） ───────── */
@@ -3125,6 +2657,7 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    disposeToolboxServices();
     modelFetchSeq++;
     if (modelFetchAbort) { modelFetchAbort.abort(); modelFetchAbort = null; }
     log('正在注销：摘事件 / 停实测钩子 / 拆面板 / 收样式 / 撤登记 / 删全局');
@@ -3183,8 +2716,9 @@
     }
 
     expose();
+    initToolboxServices();
     registerButton();
-    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);
+    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); if (SEARCH) { SEARCH.syncTask(); } if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.ping(); } } }, 2500);
     resizeHandler = function () {
       if (!panelDrop) { return; }
       restoreGeometry();

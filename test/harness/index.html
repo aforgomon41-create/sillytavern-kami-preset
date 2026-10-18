@@ -161,7 +161,7 @@ function report() {
     return rawAddEvent(type, fn, opt);
   };
 
-  await loadScript('/src/scripts/20-反截断.js', 'anti');
+  await loadScript('/dev/20-反截断.js', 'anti');
   await sleep(2600);
   check('中转站正常接管时，反截断不自己装 DOM 兜底（捕获 click 监听 = 0）',
     CLICK_CAP.length === 0, 'CLICK_CAP=' + CLICK_CAP.length);
@@ -334,7 +334,7 @@ function report() {
   await sleep(800);
   check('中转站关掉后 __hub 消失（准备测独立模式）', !HOST.__hub);
   const capBefore = CLICK_CAP.length;
-  await loadScript('/src/scripts/20-反截断.js', 'anti2');
+  await loadScript('/dev/20-反截断.js', 'anti2');
   await sleep(1600);
   check('独立模式：反截断这才装上自己的 DOM 兜底（捕获 click 监听 +1）',
     CLICK_CAP.length === capBefore + 1, capBefore + ' -> ' + CLICK_CAP.length);

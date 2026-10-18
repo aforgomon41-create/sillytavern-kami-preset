@@ -17,6 +17,7 @@
  *       这里与发版工具、镜像清单都从它派生；「两位小版本」= 小数部分写两位。
  *       N 会从历史产物里的最大构建号继续递增（新旧命名都认），编号不断档。
  */
+import { groupScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -112,6 +113,14 @@ const skinsJson = JSON.stringify(SKINS);
 try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/skin-assets.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/audit-regressions.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/reasoning-references.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/script-tree.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-task.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/llm-settings.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-service.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-providers.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-results.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/toolbox-ui.mjs')], { stdio: 'inherit' });
 } catch (e) {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');
   process.exit(1);
@@ -213,7 +222,15 @@ const scripts = meta.map(m => {
     export_with: m.export_with ?? { data: true, button: true },
   };
 });
-preset.extensions.tavern_helper.scripts = scripts;
+const folderDefinitions = JSON.parse(fs.readFileSync(path.join(SRC, 'scripts', 'folders.json'), 'utf8')).map(folder => ({
+  ...folder,
+  script_ids: folder.files.map(file => {
+    const entry = meta.find(item => item.file === file);
+    if (!entry) { throw new Error('文件夹引用未知脚本：' + file); }
+    return entry.id;
+  }),
+}));
+preset.extensions.tavern_helper.scripts = groupScriptTrees(scripts, folderDefinitions);
 if (!preset.extensions.tavern_helper.variables) preset.extensions.tavern_helper.variables = {};
 
 /* ---------- 组装正则（regex_scripts 为准，SPreset 镜像同步） ----------

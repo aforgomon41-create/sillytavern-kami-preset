@@ -76,6 +76,7 @@ if (!presetPath) { console.log('dist 里没有产物'); process.exit(1); }
 const preset = JSON.parse(fs.readFileSync(presetPath, 'utf8'));
 const rx = preset.extensions.regex_scripts;
 const targets = [
+  { name: '前端|网络搜索资料', constant: true, raw: '<search_results>{"facts":[{"text":"SEARCH_PAYLOAD_unsafe</script><script>throw Error(123)</script>"}]}</search_results>' },
   /* ⚠️ 名字带版本号（2026-09-26 起三个前端各带自己的 vX.Y）——这里必须与 src/regex/list.json 逐字一致。
      ⚠️ 2026-09-26 起「前端|正文 v0.1」**不在这里**：它不再发 iframe 载荷，
      改成「两个空标记夹住正文」交给 45-正文外壳.js 在父文档里套壳 ——
@@ -93,7 +94,7 @@ for (const t of targets) {
 
   /* 1) 模板里 $n / $<name> 必须只有载荷标记一个 */
   const marks = String(r.replaceString).match(/\$(\d+)|\$<([^>]+)>/g) || [];
-  if (marks.length !== 1 || marks[0] !== String.fromCharCode(36) + '1') {
+  if (t.constant ? marks.length !== 0 : (marks.length !== 1 || marks[0] !== String.fromCharCode(36) + '1')) {
     problems.push('模板里的 $n/$<name> 占位应为且仅为 1 个 $1，实际 ' + marks.length + ' 个：' + marks.slice(0, 6).join(','));
   }
   /* 2) 模板里不能有 $$（酒馆不还原它） */
@@ -121,6 +122,7 @@ for (const t of targets) {
     catch (e) { problems.push('内联脚本 #' + scripts + ' 编译失败：' + e.message); }
   }
   if (!scripts) { problems.push('没找到内联脚本'); }
+  if (t.constant && inner.includes('SEARCH_PAYLOAD_unsafe')) { problems.push('搜索资料原文被拼进文档，可破坏脚本边界'); }
 
   /* 6) 载荷必须恰好注入一次（注释里重复注入是历史 bug） */
   const payloadHits = inner.split('测试载荷').length - 1;

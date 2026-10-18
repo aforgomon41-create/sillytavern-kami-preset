@@ -2,7 +2,7 @@
 /**
  * 「压缩纯逻辑已内联」守卫（只读产物，不写任何东西）
  * ------------------------------------------------------------
- * 为什么需要：`60-压缩.js` 里的解析器与对账器来自构建期内联的
+ * 为什么需要：`60-工具箱.js` 里的解析器与对账器来自构建期内联的
  * `src/scripts/_summarize-pure.js`（走 build/kami-doc.mjs 的 expandSummarizePure）。
  * 内联一旦漏了（占位符拼错、模块改名、只改了 build 一侧），**构建照样全绿**：
  *   · 脚本编译护栏只做 `new Function(code)`，不执行；
@@ -14,6 +14,7 @@
  * 用法：node build/verify-summarize-pure.mjs <产物路径>
  *      （不传路径时自动挑 dist/ 里最新的 kami-*.json，与 verify-frontends.mjs 同规矩）
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,8 +40,8 @@ if (!p) {
 if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2); }
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
-const zip = scripts.find(s => String(s.name).indexOf('压缩') >= 0);
+const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
+const zip = scripts.find(s => s.id === '3f8a1c72-9d4e-4b6a-8c15-2e7d9b04f6a3');
 const code = String((zip && zip.content) || '');
 
 let bad = 0;

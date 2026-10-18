@@ -1,0 +1,23 @@
+[
+  {
+    "label": "20k思维/20引用",
+    "characters": 20293,
+    "ms": 7.6,
+    "references": 20,
+    "incomplete": false
+  },
+  {
+    "label": "100k思维/1000引用",
+    "characters": 108073,
+    "ms": 22.31,
+    "references": 1000,
+    "incomplete": false
+  },
+  {
+    "label": "100k普通正文",
+    "characters": 100019,
+    "ms": 16,
+    "references": 0,
+    "incomplete": false
+  }
+]

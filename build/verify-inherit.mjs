@@ -16,6 +16,7 @@
  *
  * 用法：node build/verify-inherit.mjs <产物路径>
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -24,7 +25,7 @@ if (!p) { console.error('用法：node build/verify-inherit.mjs <产物路径>')
 if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2); }
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
 
-const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
+const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
 const textOf = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0) || {}).content || '');
 const up = textOf('远程更新');
 const panel = textOf('预设设置');

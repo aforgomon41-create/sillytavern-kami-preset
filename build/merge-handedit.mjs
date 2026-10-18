@@ -52,6 +52,7 @@
  *
  * 退出码：0 正常（含「没有差异」）；1 出错。
  */
+import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -248,7 +249,7 @@ function diffPresets(base, his) {
   /* 脚本：按 id 对齐 meta.json（构建期整体重建，所以名字/正文/info 一律忽略） */
   const meta = readJson(META);
   const metaById = new Map(meta.map(m => [m.id, m]));
-  const hisScripts = ((his.extensions || {}).tavern_helper || {}).scripts || [];
+  const hisScripts = flattenScriptTrees(((his.extensions || {}).tavern_helper || {}).scripts || []);
   for (const s of hisScripts) {
     const m = metaById.get(s.id);
     if (!m) { out.scripts.push({ name: s.name, unknown: true }); continue; }

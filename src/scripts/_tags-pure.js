@@ -44,13 +44,10 @@
  *   范围是汉字基本区与扩展 A（\u4e00-\u9fff / \u3400-\u4dbf）；日文假名、韩文不在内。
  *   注意：没开覆盖模式、又没把它填进自定义标签时，正文里的中文尖括号照旧不算标签。
  *
- * 「补在哪儿」的规则（用户 2026-09-30 裁定：补到紧挨着标签的前面或后面）：
- *   ① 默认补在**消息末尾**（被截断的回复就是这种情况：内容一直写到最后，闭合标签没来得及写）；
- *   ② 如果这个没闭合的块后面紧跟着一个**写完整的兄弟块**（标签格式里与它平级的那几块：
- *      前处理 / 正文 / 后处理 / 思维链 / 摘要 / 设定 / 行动选项 / 图片），闭合标签就补在
- *      那个块的**前面** —— 补到末尾会把整个兄弟块吞进去，那更糟；
- *   ③ 两个例外**永远补在末尾**：`<out_body>`（它是包住一切的总标签，兄弟块本来就在它里面）、
- *      `<medium>` / `<medium_content>`（按设计就嵌在正文里）。
+ * 补位沿用2026-10-11用户裁定：缺少的结束标签紧贴开始标签自身插入。
+ * 这不能隔离思维链中的引用：空标签同样会触发角色卡正则。因此40号在调用本模块之前，
+ * 先复用 _reasoning-references.js 将完整思维块中的引用全角化；响应通道也在酒馆正则前做同样处理。
+ * 思维链边界缺失时40号不会调用本模块，避免把真实外层补成空壳。
  *
  * ⚠️ 不改的东西：正文一个字都不动，只增删标签本身。
  *   三段区间里的尖括号一律不当标签看：``` / ~~~ 围起来的代码块、`<medium>` / `<medium_content>`
@@ -62,6 +59,7 @@
 export var TAG_SPECS = [
   { tag: 'out_body', label: '总标签', sibling: false },
   { tag: 'introduction', label: '前处理', sibling: true },
+  { tag: 'search_results', label: '搜索资料', sibling: false },
   { tag: 'content', label: '正文块', sibling: true },
   { tag: 'appendix', label: '后处理', sibling: true },
   { tag: 'think', label: '原生思维链', sibling: true },
@@ -221,6 +219,29 @@ export function tokenize(text, specs, coverage) {
   return out;
 }
 
+/* 续写完整回复时，模型可能又输出一套完整 out_body。
+   仅在原回复完整、且追加后仍是多段完整外壳时，移除中间的外壳边界。
+   不动正文、内部区块或搜索记录；复用标签分词以避开代码与 HTML 卡片。 */
+export function mergeContinuedOutBody(text, before) {
+  if (typeof text !== 'string' || typeof before !== 'string' || !before || text.length <= before.length) { return text; }
+  function outer(value) {
+    var comments = [], re = /<!--[\s\S]*?(?:-->|$)/g, match;
+    while ((match = re.exec(value))) { comments.push([match.index, re.lastIndex]); }
+    return tokenize(value, [{ tag: 'out_body' }], false).filter(function (token) { return !inRanges(comments, token.start); });
+  }
+  /* 其他收到消息的处理器可能已重排搜索标签的空白，不能要求原文逐字前缀相同。 */
+  var tokens = outer(text), prior = outer(before);
+  if (prior.length !== 2 || prior[0].close || !prior[1].close || before.slice(0, prior[0].start).trim() || before.slice(prior[1].end).trim()) { return text; }
+  if (tokens.length < 4 || tokens.length % 2 || text.slice(tokens[tokens.length - 1].end).trim()) { return text; }
+  for (var i = 0; i < tokens.length; i++) {
+    if (tokens[i].close !== (i % 2 === 1)) { return text; }
+    if (i > 1 && i % 2 === 0 && text.slice(tokens[i - 1].end, tokens[i].start).trim()) { return text; }
+  }
+  var result = text;
+  for (var j = tokens.length - 2; j >= 1; j--) { result = result.slice(0, tokens[j].start) + result.slice(tokens[j].end); }
+  return result;
+}
+
 /* 扫一遍：谁没闭合、谁是孤立的闭合标签。
    交错写法（`<甲><乙></甲></乙>`）里被夹住的那个，补位点记在**救它的那个闭合标签前面**
    （`item.at`）—— 那正是用户说的「补到紧挨着标签的前面」。 */
@@ -303,8 +324,8 @@ export function repairTags(text, mode, specs, coverage) {
        原来的规则（补在兄弟块前面）有个要命的问题：闭合标签插在**别处**，
        于是闭合与开始之间的跨度被撑大，前端那条 /<content>([\s\S]*?)<\/content>/ 抓到的
        就不再是正文本身 —— 正文被吞、被截断，或者整条不匹配（前端不出现）。
-       紧贴自身补出来的是一对**空标签**，它不可能改变任何真标签之间的从属关系，
-       于是"AI 用 <某实体> 指代"这种写法最多留下一对空标签，伤不到成对关系。
+       紧贴自身补出来的是一对**空标签**。它仍可能被正则命中，不能用来保护标签引用；
+       思维链引用已经由40号的前置保护阶段隔离，此处仅处理剩余真实结构。
 
        ⚠️ 由此带来的语义变化（用户已知悉并要求这么改）：
        标签**不再"包住"它的内容**了 —— 内容是留在标签对**外面**的。
@@ -383,6 +404,8 @@ export function describeChanges(res, limit) {
 export function describeFix(res) {
   if (!res || !res.changed) { return '没发现要处理的标签'; }
   var parts = [];
+  if (res.references) { parts.push('保护 ' + res.references + ' 处思维链标签引用'); }
+  if (res.recovered) { parts.push('恢复 ' + res.recovered + ' 处正文边界'); }
   if (res.closed.length) { parts.push('补全 ' + res.closed.length + ' 处（' + uniq(res.closed).join('、') + '）'); }
   if (res.removed.length) { parts.push('删掉 ' + res.removed.length + ' 处孤立标签（' + uniq(res.removed).join('、') + '）'); }
   if (res.strayLeft && res.strayLeft.length) { parts.push('另有 ' + res.strayLeft.length + ' 处孤立闭合标签没管（切到「删除」才清）'); }

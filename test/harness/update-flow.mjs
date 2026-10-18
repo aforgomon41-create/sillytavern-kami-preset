@@ -21,29 +21,18 @@
  *   · 新旧命名互认：本机 0.9-97 与仓库 v<版本>-97 是同一版本，不弹
  * 不依赖浏览器。改 70-远程更新.js 后跑一遍，能挡住大部分回归。
  */
+import { expandPanelGestures } from '../../build/kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-/* v1.4 起脚本内联了三方合并引擎（占位符 @@KAMI_PRESET_MERGE@@ 由 build/kami-doc.mjs 的
-   expandPresetMerge 展开）——这个 harness 不走构建，所以这里照同一条内联规则
-   手动展开一次（漏了它，引擎就是 undefined，合并全部静默退回老流程的「假象」）。 */
-const MERGE_RAW = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '_preset-merge.js'), 'utf8');
-const MERGE_CODE = MERGE_RAW.split('\n').map(l => (l.slice(0, 7) === 'export ' ? l.slice(7) : l)).join('\n');
-if (MERGE_CODE === MERGE_RAW) { throw new Error('剥离 export 失败：_preset-merge.js 里没有 export 声明？'); }
-const MERGE_MARK = '/* @@KAMI_PRESET_MERGE@@ */';
-/* 2026-10-05 起 70 号还内联了「更新进度弹窗」的纯逻辑（_update-progress.js）。
-   同一个坑再踩一次：这条路径是**手抄展开**的，新加一个共享模块就得记得补一步。
-   漏了的症状是 ReferenceError: newProgress is not defined —— 脚本根本起不来。 */
-const PROG_RAW = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '_update-progress.js'), 'utf8');
-const PROG_CODE = PROG_RAW.split('\n').map(l => (l.slice(0, 7) === 'export ' ? l.slice(7) : l)).join('\n');
-if (PROG_CODE === PROG_RAW) { throw new Error('剥离 export 失败：_update-progress.js 里没有 export 声明？'); }
-const PROG_MARK = '/* @@KAMI_UPDATE_PROGRESS@@ */';
+/* 与正式构建复用同一展开器，避免新增共享模块后漏掉依赖。 */
 const baseCode70 = fs.readFileSync(path.join(ROOT, 'src', 'scripts', '70-远程更新.js'), 'utf8');
-if (baseCode70.indexOf(MERGE_MARK) < 0) { throw new Error('70-远程更新.js 里没有合并引擎占位符 ' + MERGE_MARK); }
-const CODE = baseCode70.replace(MERGE_MARK, () => MERGE_CODE).replace(PROG_MARK, () => PROG_CODE);
-if (CODE.indexOf(PROG_MARK) >= 0) { throw new Error('进度模块占位符没被展开：70 号里的标记变了？'); }
+const CODE = expandPanelGestures(ROOT, baseCode70);
+if ((CODE.match(/@@KAMI_[A-Z_]+@@/g) || []).some(marker => marker !== '@@KAMI_PRESET_NAME@@' && marker !== '@@KAMI_BUILD@@')) {
+  throw new Error('70 号仍有未展开模块');
+}
 /* 脚本现在自带仓库配置；清空常量后再加载一份，专测「未配置」分支 */
 const CODE_UNCONFIGURED = CODE
   .replace("var REPO_OWNER = 'aforgomon41-create';", "var REPO_OWNER = '';")

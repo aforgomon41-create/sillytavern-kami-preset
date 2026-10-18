@@ -14,6 +14,7 @@
  * 用法：node build/verify-custom-style.mjs            ← 只查源码（随时可跑）
  *      node build/verify-custom-style.mjs <产物路径>   ← 再查内联产物（build 之后跑）
  */
+import { flattenScriptTrees, expandPanelGestures } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,7 +129,7 @@ ok(guideSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 50 号注入了模块样式'
 /* 构建侧：占位符得有人展开，否则内联根本不会发生 */
 ok(docSrc.indexOf('CUSTOM_STYLE_UI_MARK') >= 0, '④c build/kami-doc.mjs 里有模块占位符常量');
 ok(docSrc.indexOf('expandCustomStyleUi') >= 0, '④c build/kami-doc.mjs 里有展开函数');
-ok(/expandPanelGestures[\s\S]{0,600}expandCustomStyleUi\(root, code\)/.test(docSrc),
+ok(expandPanelGestures(ROOT, '/* @@KAMI_CUSTOM_STYLE_UI@@ */').includes('function customStyleBlock('),
   '④c 展开函数挂在 expandPanelGestures 里（build.mjs 与 server.mjs 都只调它）');
 /* 模块自身的内联前提：与 preset-parse.mjs 同一条规则 */
 ok(uiSrc.indexOf('import ') < 0, '④c 模块零 import（内联前提）');
@@ -325,7 +326,7 @@ if (!p) {
   console.log('');
   console.log('=== 产物接线 ===');
   const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-  const scripts = (preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || [];
+  const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
   const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0) || {}).content || '');
   const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0) || {}).content || '');
   ok(!!panel, '⑦ 产物里有「预设设置」脚本');

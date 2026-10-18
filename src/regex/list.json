@@ -88,6 +88,23 @@
   },
   {
     "disabled": false,
+    "findRegex": "/<search_results>[\\s\\S]*?<\\/search_results>(?:\\s*<search_results>[\\s\\S]*?<\\/search_results>)*/g",
+    "id": "6b17c86c-31f2-4bbc-b18e-4b4b5850401a",
+    "markdownOnly": true,
+    "maxDepth": null,
+    "minDepth": null,
+    "placement": [
+      2
+    ],
+    "promptOnly": false,
+    "replaceString": "@@FRONTEND:search@@",
+    "runOnEdit": true,
+    "scriptName": "前端|网络搜索资料",
+    "substituteRegex": 0,
+    "trimStrings": []
+  },
+  {
+    "disabled": false,
     "findRegex": "/<options>([\\s\\S]*?)<\\/options>/gs",
     "id": "84759b61-525f-4d91-b841-bcf9434e1a65",
     "markdownOnly": true,
@@ -174,7 +191,7 @@
   },
   {
     "disabled": false,
-    "findRegex": "/^[\\s\\S]*?((?:<(?:summary|char_setting)>[\\s\\S]*?<\\/(?:summary|char_setting)>\\s*)+)[\\s\\S]*$/gs",
+    "findRegex": "/(<(summary|char_setting|search_results)>[\\s\\S]*?<\\/\\2>)|(?:(?!<(?:summary|char_setting|search_results)>)[\\s\\S])+|[\\s\\S]/g",
     "id": "0c74198f-1acc-43e3-8d88-d776d7242b89",
     "markdownOnly": false,
     "maxDepth": null,

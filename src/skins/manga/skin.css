@@ -1801,6 +1801,19 @@ html[data-kami-skin="manga"] .kami-shell {
  *   消息楼层的容器（.mes）与正文排版都由全局层负责，皮肤包这边零维护。
  * ============================================================ */
 
+/* Native search/model menu rows: keep an opaque surface and a paired foreground. */
+html[data-kami-skin="manga"] .kami-root select option,
+html[data-kami-skin="manga"] .kami-root select optgroup {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card-2) !important;
+  color-scheme: inherit !important;
+}
+html[data-kami-skin="manga"] .kami-root select option:checked {
+  color: var(--kami-accent-fg) !important;
+  background-color: var(--kami-accent) !important;
+}
+html[data-kami-skin="manga"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
+
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="manga"] {
   --kami-label-think-title: 原稿分镜;

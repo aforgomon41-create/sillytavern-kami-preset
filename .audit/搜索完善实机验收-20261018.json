@@ -1,0 +1,311 @@
+{
+  "date": "2026-10-18",
+  "preset": "kami-v0.92-47-20261018",
+  "host": "http://localhost:11451/",
+  "character": "网络搜索验收·诸界档案员1018",
+  "chat": "网络搜索验收·诸界档案员1018 - 2026-10-18@13h52m21s974ms",
+  "checks": [
+    {
+      "name": "updated-two-scripts",
+      "pass": true
+    },
+    {
+      "name": "other-ten-scripts-preserved",
+      "pass": true
+    },
+    {
+      "name": "placeholder-removed",
+      "pass": true
+    },
+    {
+      "name": "task-style-and-types",
+      "pass": true
+    },
+    {
+      "name": "live-shortcut-on",
+      "pass": true
+    },
+    {
+      "name": "live-shortcut-off-removes-visible-button",
+      "pass": true
+    },
+    {
+      "name": "old-definition-inactive",
+      "pass": true
+    },
+    {
+      "name": "live-shortcut-reenable",
+      "pass": true
+    },
+    {
+      "name": "live-two-budget-sets",
+      "pass": true
+    },
+    {
+      "name": "compression-preserved",
+      "pass": true
+    },
+    {
+      "name": "live-single-result-floor",
+      "pass": true
+    },
+    {
+      "name": "live-manual-limits-enforced",
+      "pass": true
+    },
+    {
+      "name": "live-detail-classification",
+      "pass": true
+    },
+    {
+      "name": "live-detail-fields-only",
+      "pass": true
+    },
+    {
+      "name": "live-one-query-only",
+      "pass": true
+    },
+    {
+      "name": "live-all-requests-succeeded",
+      "pass": true
+    },
+    {
+      "name": "original-model-restored",
+      "pass": true
+    },
+    {
+      "name": "other-ten-scripts-still-preserved",
+      "pass": true
+    },
+    {
+      "name": "live-compression-still-preserved",
+      "pass": true
+    }
+  ],
+  "result": {
+    "floor": 9,
+    "facts": 3,
+    "sources": 2,
+    "tokens": 263,
+    "fields": [
+      "甘道夫·头发和胡须",
+      "甘道夫·衣着与帽子",
+      "甘道夫·随身物品"
+    ],
+    "chars": 431
+  },
+  "requests": [
+    {
+      "kind": "llm",
+      "at": 1792329217191,
+      "model": "agy-gemini-2.5-flash",
+      "http": 200,
+      "ms": 2640,
+      "task_type": "细节补充",
+      "focus": [
+        "外貌细节",
+        "头发与胡须",
+        "衣着",
+        "帽子",
+        "随身物品"
+      ]
+    },
+    {
+      "kind": "tavily",
+      "at": 1792329219839,
+      "http": 200,
+      "ms": 2984
+    },
+    {
+      "kind": "llm",
+      "at": 1792329222889,
+      "model": "agy-gemini-2.5-flash",
+      "http": 200,
+      "ms": 2605
+    }
+  ],
+  "shortcutOffMs": 20,
+  "beforeFloors": 9,
+  "afterFloors": 10,
+  "modelRestored": {
+    "custom_model": "agy-gemini-3.8-flash-high",
+    "openai_max_tokens": 65535,
+    "reasoning_effort": "max"
+  },
+  "originalLimits": {
+    "auto": {
+      "maxQueries": 2,
+      "maxSources": 3,
+      "maxFacts": 8,
+      "maxTokens": 1200
+    },
+    "manual": {
+      "maxQueries": 4,
+      "maxSources": 8,
+      "maxFacts": 20,
+      "maxTokens": 4000
+    }
+  },
+  "originalShortcut": false,
+  "temporaryLimits": {
+    "maxQueries": 3,
+    "maxSources": 5,
+    "maxFacts": 12,
+    "maxTokens": 2300
+  },
+  "temporaryManualLimits": {
+    "maxQueries": 1,
+    "maxSources": 2,
+    "maxFacts": 3,
+    "maxTokens": 600
+  },
+  "tokenCounter": "现复用压缩countText；实网结果另用宿主tokenizer核对",
+  "limit": "只有Tavily完成有效Key实网验收。其他供应商未实网测试。",
+  "reloadCheck": {
+    "checks": [
+      {
+        "name": "reload-source-5495716e-39bd-4637-8034-49e77cefafec",
+        "pass": true
+      },
+      {
+        "name": "reload-source-3f8a1c72-9d4e-4b6a-8c15-2e7d9b04f6a3",
+        "pass": true
+      },
+      {
+        "name": "reload-search-frontend",
+        "pass": true
+      },
+      {
+        "name": "reload-nondefault-auto-limits",
+        "pass": true
+      },
+      {
+        "name": "reload-nondefault-manual-limits",
+        "pass": true
+      },
+      {
+        "name": "reload-task-comment-and-tags",
+        "pass": true
+      },
+      {
+        "name": "reload-placeholder-removed",
+        "pass": true
+      },
+      {
+        "name": "original-limits-restored",
+        "pass": true
+      },
+      {
+        "name": "original-shortcut-restored",
+        "pass": true
+      },
+      {
+        "name": "original-model-preserved",
+        "pass": true
+      }
+    ],
+    "floors": 10,
+    "preset": "kami-v0.92-47-20261018",
+    "finalLimits": {
+      "auto": {
+        "maxQueries": 2,
+        "maxSources": 3,
+        "maxFacts": 8,
+        "maxTokens": 1200
+      },
+      "manual": {
+        "maxQueries": 4,
+        "maxSources": 8,
+        "maxFacts": 20,
+        "maxTokens": 4000
+      }
+    },
+    "shortcut": false
+  },
+  "browsers": {
+    "desktop": {
+      "skinSchemes": 42,
+      "textItems": 539,
+      "menuItems": 1260,
+      "minContrast": 4.61,
+      "failures": 0,
+      "geometryAndMotionChecks": 127,
+      "geometryAndMotionPassed": true,
+      "interactionChecks": 62,
+      "interactionPassed": true
+    },
+    "mobile": {
+      "skinSchemes": 42,
+      "textItems": 539,
+      "menuItems": 1260,
+      "minContrast": 4.61,
+      "failures": 0,
+      "geometryAndMotionChecks": 127,
+      "geometryAndMotionPassed": true,
+      "interactionChecks": 62,
+      "interactionPassed": true
+    }
+  },
+  "artifact": {
+    "path": "dist/kami-v0.92-52-20261018.json",
+    "bytes": 4714484,
+    "sha256": "ee90bbd5dcff6990f8b8de61b1654633cbffd0b3acb578dc4262fc3f0da696f3",
+    "released": false
+  },
+  "regressions": {
+    "search": 776,
+    "task": 21,
+    "sharedLlm": 15,
+    "searchResults": 20,
+    "compressionArtifact": 201
+  },
+  "finalInstall": {
+    "toolboxExact": true,
+    "otherElevenScriptsPreserved": true,
+    "preset": "kami-v0.92-47-20261018",
+    "floors": 10
+  },
+  "finalReload": {
+    "checks": [
+      {
+        "name": "source-5495716e-39bd-4637-8034-49e77cefafec",
+        "pass": true
+      },
+      {
+        "name": "source-3f8a1c72-9d4e-4b6a-8c15-2e7d9b04f6a3",
+        "pass": true
+      },
+      {
+        "name": "search-frontend",
+        "pass": true
+      },
+      {
+        "name": "original-limits-persisted",
+        "pass": true
+      },
+      {
+        "name": "original-model-persisted",
+        "pass": true
+      },
+      {
+        "name": "original-shortcut-persisted",
+        "pass": true
+      },
+      {
+        "name": "task-taxonomy-persisted",
+        "pass": true
+      },
+      {
+        "name": "placeholder-absent",
+        "pass": true
+      },
+      {
+        "name": "scripts-still-twelve",
+        "pass": true
+      }
+    ],
+    "preset": "kami-v0.92-47-20261018",
+    "floors": 10,
+    "model": "agy-gemini-3.8-flash-high"
+  }
+}

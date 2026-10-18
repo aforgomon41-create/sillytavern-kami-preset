@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * 📜 压缩 · 离线集成自测：node test/harness/summarize-flow.mjs
+ * 🧰 工具箱 · 离线集成自测：node test/harness/summarize-flow.mjs
  * ------------------------------------------------------------
  * 与 test/harness/summarize-pure.mjs 的分工：
  *   · summarize-pure.mjs 测 src/scripts/_summarize-pure.js 的**纯函数**（解析器 / 对账器）；
- *   · 本文件是它的上一层 —— 把**产物里那份内联好的「📜 压缩」脚本**整段加载进一套
+ *   · 本文件是它的上一层 —— 把**产物里那份内联好的「🧰 工具箱」脚本**整段加载进一套
  *     假酒馆环境，跑真实流程（runOnce / refresh / addPin / repairOrphans / shutdown /
  *     生成事件自动触发），验证 v1.3 三个 bug 的修复路径在真流程里确实成立，
  *     而不是「纯函数对了、脚本接线接错了」。
  *
- * 加载源：**默认**取 dist/ 里最新的 kami-*.json 里那条「📜 压缩」脚本的 content
+ * 加载源：**默认**取 dist/ 里最新的 kami-*.json 里那条「🧰 工具箱」脚本的 content
  *        （与 build/verify-summarize-pure.mjs 同规矩：产物里三方模块已经内联好）。
  *        也可指定产物：node test/harness/summarize-flow.mjs dist/xxx.json
  *        改完 src 还没 build 时，用 --src 先跑一遍工作区源码（照 update-flow.mjs 的先例，
@@ -25,6 +25,7 @@
  * 退出码：全绿 0 / 有失败 1 / 找不到产物（或产物里没有压缩脚本、占位符没展开）2。
  * 不联网、不起服务器、不开浏览器、不写 dist。
  */
+import { flattenScriptTrees, expandPanelGestures, expandBaseCssJs } from '../../build/kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,29 +52,8 @@ const EXPLICIT = ARGV.find(a => a.indexOf('--') !== 0);
    规则与 build/kami-doc.mjs 一致：只去掉**行首**的 export 前缀 / 兜底皮肤整段进字符串。
    占位符找不到就报错退出（构建规则改了要回来同步，不许静默跳过）。 */
 function codeFromSource() {
-  const NL = '\n';
-  function stripExports(raw, label) {
-    let stripped = 0;
-    const lines = raw.split(NL).map(l => {
-      if (l.slice(0, 7) === 'export ') { stripped++; return l.slice(7); }
-      return l;
-    });
-    if (!stripped) { throw new Error(label + ' 里没有找到 export 声明（内联规则要与 build/kami-doc.mjs 同步）'); }
-    if (lines.filter(l => l.slice(0, 7) === 'export ').length) { throw new Error(label + ' 里还有行首 export 没被去掉'); }
-    return lines.join(NL);
-  }
-  const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
-  let code = read('src', 'scripts', '60-压缩.js');
-  const marks = [
-    ['/* @@KAMI_SUMMARIZE_PURE@@ */', stripExports(read('src', 'scripts', '_summarize-pure.js'), '_summarize-pure.js')],
-    ['/* @@KAMI_PANEL_GESTURES@@ */', stripExports(read('src', 'scripts', '_panel-gestures.js'), '_panel-gestures.js')],
-    ['/* @@KAMI_BASE_CSS_JS@@ */', 'var KAMI_BASE_CSS = ' + JSON.stringify(read('src', 'skin', 'base.css')) + ';'],
-  ];
-  for (const [mark, text] of marks) {
-    if (code.indexOf(mark) < 0) { throw new Error('src/scripts/60-压缩.js 里没有占位符 ' + mark + '（构建内联规则变了？）'); }
-    code = code.replace(mark, () => text);
-  }
-  return code;
+  const code = fs.readFileSync(path.join(ROOT, 'src/scripts/60-工具箱.js'), 'utf8');
+  return expandPanelGestures(ROOT, expandBaseCssJs(ROOT, code));
 }
 
 let artifact = null, CODE = '', ZIP = null;
@@ -84,7 +64,7 @@ if (FROM_SRC) {
     console.error('从 src 内联加载失败：' + e.message);
     process.exit(2);
   }
-  ZIP = { name: '（工作区源码 src/scripts/60-压缩.js + 三个内联模块）' };
+  ZIP = { name: '（工作区源码 src/scripts/60-工具箱.js + 三个内联模块）' };
 } else {
   artifact = EXPLICIT ? path.resolve(EXPLICIT) : newestProduct();
   if (!artifact) {
@@ -103,8 +83,8 @@ if (FROM_SRC) {
     console.error('产物不是合法 JSON：' + artifact + ' —— ' + e.message);
     process.exit(2);
   }
-  const SCRIPTS = (PRESET.extensions && PRESET.extensions.tavern_helper && PRESET.extensions.tavern_helper.scripts) || [];
-  ZIP = SCRIPTS.find(s => String(s.name || '').indexOf('压缩') >= 0);
+  const SCRIPTS = flattenScriptTrees((PRESET.extensions && PRESET.extensions.tavern_helper && PRESET.extensions.tavern_helper.scripts) || []);
+  ZIP = SCRIPTS.find(s => s.id === '3f8a1c72-9d4e-4b6a-8c15-2e7d9b04f6a3');
   if (!ZIP || !ZIP.content) {
     console.error('产物里没有「压缩」脚本：' + path.basename(artifact));
     console.error('现有脚本：' + SCRIPTS.map(s => s.name).join(' / '));
@@ -120,7 +100,7 @@ if (FROM_SRC) {
 const CODE_LINES = CODE.split('\n').length;
 const VERSION_IN_CODE = (CODE.match(/var VERSION = '([^']+)'/) || [, '?'])[1];
 
-const SRC_MAIN = path.join(ROOT, 'src', 'scripts', '60-压缩.js');
+const SRC_MAIN = path.join(ROOT, 'src', 'scripts', '60-工具箱.js');
 const SRC_PURE = path.join(ROOT, 'src', 'scripts', '_summarize-pure.js');
 const srcMtime = Math.max(
   fs.existsSync(SRC_MAIN) ? fs.statSync(SRC_MAIN).mtimeMs : 0,
@@ -129,7 +109,7 @@ const srcMtime = Math.max(
 const artMtime = artifact ? fs.statSync(artifact).mtimeMs : 0;
 const STALE = !FROM_SRC && srcMtime > artMtime + 1000;
 
-console.log('=== 📜 压缩 · 离线集成自测 ===');
+console.log('=== 🧰 工具箱 · 离线集成自测 ===');
 console.log('加载源：' + (FROM_SRC ? '工作区源码（--src）' : path.relative(ROOT, artifact)));
 console.log('脚本：' + ZIP.name + '（v' + VERSION_IN_CODE + '，' + CODE.length + ' 字符 / ' + CODE_LINES + ' 行）');
 if (STALE) {
@@ -545,7 +525,7 @@ console.log('\n--- 用例 0：启动与环境自检 ---');
   ok(typeof st0.version === 'string' && st0.version.length > 0, 'status().version 有值（' + st0.version + '）');
   ok(st0.keep === 5 && st0.chunk === 10, '脚本变量里的 keep=5 / chunk=10 被读进来', 'keep=' + st0.keep + ' chunk=' + st0.chunk);
   ok(st0.covered === -1 && st0.blocks === 0, '空世界书：前沿 -1、0 个块');
-  ok(env.HOST.__hubDefs && env.HOST.__hubDefs.some(d => d && d.name === '📜 压缩'), '向按钮中转站登记了「📜 压缩」按钮');
+  ok(env.HOST.__hubDefs && env.HOST.__hubDefs.some(d => d && d.name === '🧰 工具箱'), '向按钮中转站登记了「🧰 工具箱」按钮');
   ok(env.lbName() === '测试聊天世界书', '聊天已绑世界书（getChatLorebook）');
   ok(env.logs.some(l => l.indexOf('启动 v') > 0), '脚本日志里有启动记录');
   api.shutdown();
@@ -955,7 +935,7 @@ console.log('\n--- 用例 9：注销零残留（iframe + 父窗口两处全局�
   await settle();
   ok(env.W.KamiSummarize === undefined, 'shutdown 后 window.KamiSummarize 没了');
   ok(env.HOST.KamiSummarize === undefined, 'shutdown 后 HOST.KamiSummarize 也没了');
-  ok(!(env.HOST.__hubDefs || []).some(d => d && d.name === '📜 压缩'), '按钮中转站里的登记被撤了');
+  ok(!(env.HOST.__hubDefs || []).some(d => d && d.name === '🧰 工具箱'), '按钮中转站里的登记被撤了');
   ok(env.HOST.fetch === env.nativeFetch, '实测钩子摘干净（HOST.fetch 还原成原生函数）');
   ok(env.intervals.length === 0, '心跳 setInterval 被清掉（进程可以正常退出）');
   eq(env.doc.getElementById('kami-compress-panel'), null, '面板节点没建过/已拆除（本环境没开面板）');
@@ -1115,6 +1095,7 @@ console.log('\n--- 用例 12（加测）：未绑世界书自动创建 / 生成�
   env.setGen((req, n) => {
     seen.push({
       model: env.ctx.chatCompletionSettings.model,
+      effectiveModel: env.ctx.chatCompletionSettings.deepseek_model,
       src: env.ctx.chatCompletionSettings.chat_completion_source,
       proxy: env.ctx.chatCompletionSettings.reverse_proxy,
     });
@@ -1124,10 +1105,11 @@ console.log('\n--- 用例 12（加测）：未绑世界书自动创建 / 生成�
   await settle();
   eq(env.blockRanges(), ['0-9', '10-14'], '指定酒馆连接配置时也照常落盘');
   ok(env.calls.gen.length === 2 && env.calls.gen.every(r => r.custom_api === undefined), '指定酒馆连接时不带 custom_api');
-  ok(seen.length === 2 && seen.every(x => x.model === 'deepseek-chat' && x.src === 'deepseek' &&
+  ok(seen.length === 2 && seen.every(x => x.model === 'deepseek-chat' && x.effectiveModel === 'deepseek-chat' && x.src === 'deepseek' &&
     x.proxy === 'https://proxy.example.com/v1'),
     '摘要请求发出时，选中那套连接配置已临时套到酒馆设置上', JSON.stringify(seen));
   ok(env.ctx.chatCompletionSettings.model === undefined &&
+    !Object.hasOwn(env.ctx.chatCompletionSettings, 'deepseek_model') &&
     env.ctx.chatCompletionSettings.chat_completion_source === undefined &&
     env.ctx.chatCompletionSettings.reverse_proxy === undefined, '跑完立刻还原（不留痕）');
   api.shutdown();

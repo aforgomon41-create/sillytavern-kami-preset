@@ -442,6 +442,13 @@ html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-root[data-kami-co
   width: var(--kami-panel-w, 420px);
   height: var(--kami-panel-h, 560px);
 }
+/* 手动查询使用原生弹窗，装饰贴着弹窗，不再套用主面板舞台坐标。 */
+html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-manual-dialog .kami-root[data-kami-comp="panel"]::before,
+html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-manual-dialog .kami-root[data-kami-comp="panel"]::after {
+  inset: 2%;
+  width: auto;
+  height: auto;
+}
 /* 一滴雨的一生：命中（~1.4%）→ 留在那儿（水滴痕迹持续可见）→ 变淡并扩散 / 下淌 → 最后淡出。
    每段之间在 opacity 为 0 的那一瞬把 transform 静默归零，所以轨迹不会累积。
    位移与缩放都锁在 inset 的 2% 里，绝不贡献给 scrollWidth / scrollHeight。 */
@@ -2057,6 +2064,19 @@ html[data-kami-skin="rain"] .kami-root .kami-item-note > .kami-card {
  *   见 src/skin/tavern.css 第 ⑤ 段与契约 §9.8），包裹层不再产生，故本节删除。
  *   消息楼层的容器（.mes）与正文排版都由全局层负责，皮肤包这边零维护。
  * ============================================================ */
+
+/* Native search/model menu rows: keep an opaque surface and a paired foreground. */
+html[data-kami-skin="rain"] .kami-root select option,
+html[data-kami-skin="rain"] .kami-root select optgroup {
+  color: var(--kami-fg) !important;
+  background-color: var(--kami-card-2) !important;
+  color-scheme: inherit !important;
+}
+html[data-kami-skin="rain"] .kami-root select option:checked {
+  color: var(--kami-accent-fg) !important;
+  background-color: var(--kami-accent) !important;
+}
+html[data-kami-skin="rain"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="rain"] {

@@ -1,3 +1,4 @@
+import { flattenScriptTrees } from '../../build/kami-doc.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -36,6 +37,7 @@ function vendorFile(name) {
 }
 
 const DEMO = {
+  search: '<introduction><search_results>' + JSON.stringify({ schema_version: 1, origin: 'service', world: '示例世界', scope: '当前剧情时间', facts: [{ key: '建筑', text: '城镇以浅色石材建筑为主，城门朝向东侧。', source_ids: ['s1'], note: '网络资料只补充空缺，以本聊天已确认设定为准。' }], sources: [{ id: 's1', title: '示例资料来源', url: 'https://example.org/world' }] }) + '</search_results></introduction>',
   think: [
     '## 理解现状',
     '',
@@ -113,11 +115,11 @@ function collectSkins() {
 }
 function presetScripts() {
   const p = newestPreset();
-  return p ? JSON.parse(fs.readFileSync(p, 'utf8')).extensions.tavern_helper.scripts : null;
+  return p ? flattenScriptTrees(JSON.parse(fs.readFileSync(p, 'utf8')).extensions.tavern_helper.scripts) : null;
 }
-function scriptIndex(file) {
+function scriptId(file) {
   const meta = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scripts', 'meta.json'), 'utf8'));
-  return meta.findIndex(m => m.file === file);
+  return meta.find(m => m.file === file)?.id;
 }
 function devScript(file) {
   const src = path.join(ROOT, 'src', 'scripts', file);
@@ -127,8 +129,8 @@ function devScript(file) {
     const skins = collectSkins();
     if (!skins.length) {
       const scripts = presetScripts();
-      const i = scriptIndex(file);
-      if (scripts && scripts[i]) { return scripts[i].content; }
+      const entry = scripts && scripts.find(script => script.id === scriptId(file));
+      if (entry) { return entry.content; }
     }
     code = code.replace('/* @@KAMI_SKINS@@ */', 'var SKINS = ' + JSON.stringify(skins) + ';');
   }
@@ -170,8 +172,8 @@ function devScript(file) {
 function builtScript(file) {
   const scripts = presetScripts();
   if (!scripts) { return null; }
-  const i = scriptIndex(file);
-  return (i >= 0 && scripts[i]) ? scripts[i].content : null;
+  const entry = scripts.find(script => script.id === scriptId(file));
+  return entry ? entry.content : null;
 }
 
 const server = http.createServer((req, res) => {
@@ -201,9 +203,14 @@ const server = http.createServer((req, res) => {
      （正文那条 2026-09-26 起不在这里了 —— 它改成父文档外壳，验收页见 /test/harness/body.html） */
   if (p.startsWith('/doc/')) {
     const name = p.slice(5);
-    if (name !== 'think' && name !== 'options') { send(404, 'text/plain', 'no doc: ' + name); return; }
+    if (name !== 'think' && name !== 'options' && name !== 'search') { send(404, 'text/plain', 'no doc: ' + name); return; }
     const payload = url.searchParams.get('payload') != null ? url.searchParams.get('payload') : DEMO[name];
-    send(200, 'text/html; charset=utf-8', expandForPreview(ROOT, name, payload));
+    let html = expandForPreview(ROOT, name, payload);
+    if (name === 'search' && url.searchParams.get('demo') === '1') {
+      const safe = JSON.stringify(String(payload)).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+      html = html.replace('<script>', '<script>window.getCurrentMessageId=function(){return 0;};window.getChatMessages=function(){return [{message:' + safe + '}];};</script><script>');
+    }
+    send(200, 'text/html; charset=utf-8', html);
     return;
   }
 
