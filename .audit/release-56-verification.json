@@ -1,0 +1,36 @@
+{
+  "tag": "v0.92-56",
+  "asset": "kami-v0.92-56-20261019.json",
+  "bytes": 4742290,
+  "sha256": "47bf57d6514d375bf79fa309447298663c6fe2d8f61683184681d07d52868592",
+  "checkedAt": "2026-10-18T16:19:50.272Z",
+  "checks": {
+    "release": {
+      "pass": true,
+      "assetCount": 1
+    },
+    "github": {
+      "pass": true,
+      "bytes": 4742290,
+      "sha256": "47bf57d6514d375bf79fa309447298663c6fe2d8f61683184681d07d52868592"
+    },
+    "cdn": {
+      "pass": true,
+      "bytes": 4742290,
+      "sha256": "47bf57d6514d375bf79fa309447298663c6fe2d8f61683184681d07d52868592"
+    },
+    "manifest": {
+      "pass": true,
+      "version": "v0.92-56"
+    },
+    "refs": {
+      "pass": true
+    }
+  },
+  "release": "https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/tag/v0.92-56",
+  "remoteRefs": {
+    "refs/heads/main": "b65f2c3728d1b4b7f0df5c5341d1f2c97b140209",
+    "refs/tags/v0.92-56": "b65f2c3728d1b4b7f0df5c5341d1f2c97b140209"
+  },
+  "localHead": "b65f2c3728d1b4b7f0df5c5341d1f2c97b140209"
+}
