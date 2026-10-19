@@ -765,6 +765,65 @@ const MERGE_BASE = miniPreset(96, [prompt('a', 'base 版'), prompt('b'), prompt(
   [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }],
   { regex_scripts: [{ id: 'r1', script_name: '压缩', find_regex: 'f1', replace_string: 'r', disabled: false }] });
 
+
+console.log('--- 脚本分类升级：修复旧平面更新器留下的顶层副本，保留用户设置 ---');
+{
+  const leaf = (id, enabled, data) => ({ type: 'script', id, name: id, enabled, data, content: 'new-' + id });
+  const oldSettings = { skin: 'rain', compress: { budget: 4321 } };
+  const duplicateFolder = { type: 'folder', id: 'official-tools', name: '功能与设置', enabled: true,
+    scripts: [leaf('s1', true, {}), leaf('s2', true, {})] };
+  const pollutedScripts = [leaf('s1', false, oldSettings), leaf('s2', false, { keep: 2 }),
+    leaf('my-copy', true, { custom: true }), duplicateFolder];
+  const nextText = miniPreset(97, [prompt('a', 'base 版'), prompt('b'), prompt('c')],
+    [{ identifier: 'a', enabled: true }, { identifier: 'b', enabled: true }, { identifier: 'c', enabled: true }],
+    { tavern_helper: { scripts: [duplicateFolder] } });
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, popupResult: '1',
+    localPreset: PN + '-96-20260921', presetText: nextText, baseTag: PV + '-96',
+    baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' }, baseText: MERGE_BASE });
+  const st = env.W.SillyTavern.getContext().chatCompletionSettings;
+  Object.assign(st, JSON.parse(MERGE_BASE));
+  st.extensions.tavern_helper = { scripts: pollutedScripts, variables: { keep: 'user' } };
+  await settle(); const r = await env.api().check(false);
+  ok(r.action === 'imported' && env.importCalls.length === 2, '异常重复配置也先备份、再合并');
+  const backup = JSON.parse(env.importCalls[0].content), merged = JSON.parse(env.importCalls[1].content);
+  ok(JSON.stringify(backup.extensions.tavern_helper.scripts) === JSON.stringify(pollutedScripts), '备份原样保留修复前的全部副本与设置');
+  const roots = merged.extensions.tavern_helper.scripts, scripts = roots.flatMap(x => x.type === 'folder' ? x.scripts : [x]);
+  ok(scripts.length === 3 && new Set(scripts.map(x => x.id)).size === 3, '两份重复官方脚本收为各一份，用户自建脚本保留');
+  ok(roots.filter(x => x.type !== 'folder').map(x => x.id).join(',') === 'my-copy', '官方脚本只在文件夹里');
+  const s1 = scripts.find(x => x.id === 's1');
+  ok(JSON.stringify(s1.data) === JSON.stringify(oldSettings) && s1.enabled === false, '首份旧用户设置和关闭状态不被新版默认副本覆盖');
+  ok(scripts.find(x => x.id === 's2').enabled === false, '第二份旧脚本的关闭状态同样保留');
+  ok(merged.extensions.tavern_helper.variables.keep === 'user', '脚本变量仍属于用户');
+  ok(env.api().status().lastMerge.scriptsDeduplicated === 2, '状态报告给出收拢的重复数量');
+  ok(env.api().status().logs.some(x => x.includes('按ID合并重复脚本 2 份')), '日志说明去重并保留首份用户设置');
+}
+
+
+console.log('--- 手动导入修复版后继承旧设置：同一合并器去重并保留配置 ---');
+{
+  const leaf = (id, enabled, data) => ({ type: 'script', id, name: id, enabled, data, content: 'new-' + id });
+  const original = JSON.parse(MERGE_BASE);
+  const oldConfig = { budget: 4321, skin: 'rain' };
+  const nextFolder = { type: 'folder', id: 'official-tools', name: '功能与设置', enabled: true, scripts: [leaf('s1', true, {})] };
+  original.extensions.tavern_helper = { scripts: [leaf('s1', false, oldConfig), nextFolder], variables: { user: 'keep' } };
+  const savedOld = JSON.stringify(original);
+  const env = makeEnv({ code: CODE_NO_RETRY_DELAY, vars: REPO_VARS, localPreset: PN + '-97-20260922',
+    baseTag: PV + '-96', baseManifest: { version: PV + '-96', file: PN + '-96-20260921.json' }, baseText: MERGE_BASE });
+  const ctx = env.W.SillyTavern.getContext(), manager = ctx.getPresetManager();
+  ctx.getPresetManager = () => ({ ...manager, getPresetList: () => ({ preset_names: { [PN + '-96-20260921']: 0 }, presets: [original] }) });
+  Object.assign(ctx.chatCompletionSettings, JSON.parse(MERGE_BASE));
+  ctx.chatCompletionSettings.extensions.tavern_helper = { scripts: [nextFolder] };
+  await settle(); const result = await env.api().inheritFrom(PN + '-96-20260921');
+  ok(result.ok === true, '可从已重复的旧预设继承到手动导入的修复版');
+  ok(env.importCalls.length === 1 && /继承前备份$/.test(env.importCalls[0].name), '只备份当前新预设，合并结果由既有面板负责落盘');
+  const roots = result.merged.extensions.tavern_helper.scripts;
+  ok(roots.length === 1 && roots[0].type === 'folder' && roots[0].scripts.length === 1, '继承结果只保留文件夹内的一份');
+  ok(roots[0].scripts[0].enabled === false && JSON.stringify(roots[0].scripts[0].data) === JSON.stringify(oldConfig), '继承保住旧顶层脚本开关和设置');
+  ok(result.report.scriptsDeduplicated === 1 && env.api().status().lastMerge.scriptsDeduplicated === 1, '继承报告也包含去重数量');
+  ok(JSON.stringify(original) === savedOld, '读取旧预设不修改其原始内容');
+  ok(result.merged.name === PN + '-97-20260922', '继承后保持修复版身份');
+}
+
 console.log('--- 合并①：没有冲突 → 先备份、再导入合并结果（几乎静默） ---');
 {
   const theirsText = miniPreset(96, [prompt('a', '我从没动过这条'), prompt('b'), prompt('c')],

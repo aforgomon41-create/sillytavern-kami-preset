@@ -1176,6 +1176,7 @@
   function mergeReportText(rep) {
     return '合并报告：应用新版 ' + rep.applied + ' 处，保留你的 ' + rep.kept + ' 处，新增 ' + rep.added +
       ' 条，待裁决 ' + rep.conflicts + ' 处（保留我的 ' + rep.decidedMine + ' / 用新版 ' + rep.decidedNext + '）' +
+      (rep.scriptsDeduplicated ? '，按ID合并重复脚本 ' + rep.scriptsDeduplicated + ' 份（保留首份配置）' : '') +
       (rep.degraded ? '（退化模式：认不出你的旧版，全部按冲突处理）' : '');
   }
 
@@ -1226,7 +1227,7 @@
     var repLine = rep ? mergeReportText(rep) : null;
     last.merge = rep ? {
       degraded: !!rep.degraded, applied: rep.applied, kept: rep.kept, added: rep.added,
-      conflicts: rep.conflicts, decidedMine: rep.decidedMine, decidedNext: rep.decidedNext
+      conflicts: rep.conflicts, decidedMine: rep.decidedMine, decidedNext: rep.decidedNext, scriptsDeduplicated: rep.scriptsDeduplicated || 0
     } : null;
     log('已写入预设「' + remote.name + '」' + (via ? ('（写盘用的通道 ' + via + '）') : '') +
       (repLine ? '；' + repLine : ''));
@@ -1716,7 +1717,7 @@
           last.merge = {
             degraded: !!applied.report.degraded, applied: applied.report.applied, kept: applied.report.kept,
             added: applied.report.added, conflicts: applied.report.conflicts,
-            decidedMine: applied.report.decidedMine, decidedNext: applied.report.decidedNext
+            decidedMine: applied.report.decidedMine, decidedNext: applied.report.decidedNext, scriptsDeduplicated: applied.report.scriptsDeduplicated || 0
           };
           log('继承方案已就绪（' + mergeReportText(applied.report) + '；名字钉成「' + targetName +
             '」）→ 交给 40 号写回当前预设');

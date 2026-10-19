@@ -51,22 +51,36 @@ export function groupScriptTrees(scripts, groups) {
 
 /* 叶子仍按既有口径：正文取新版，enabled/data 留用户；新增脚本用新版默认。
  * 新版定义分组时采用新版归属，用户自加的脚本与文件夹保留。
- * 不把文件夹当成脚本整体覆盖，不复制同 ID 脚本，也不因移出关闭的文件夹而启用脚本。 */
+ * 不把文件夹当成脚本整体覆盖，不复制同 ID 脚本，也不因移出关闭的文件夹而启用脚本。
+ * 早期平面更新器可能留下“旧顶层 + 新文件夹”同ID副本：按首次旧记录保留开关/data，
+ * 后面的默认副本不能再覆盖它；只按ID去重，用户同名但不同ID的脚本照常保留。 */
 export function mergeScriptTrees(theirs, next) {
   var copy = function (v) { return JSON.parse(JSON.stringify(v)); };
   var oldRows = scriptTreeEntries(theirs), newRows = scriptTreeEntries(next);
   var oldById = Object.create(null), nextById = Object.create(null), merged = Object.create(null);
   var oldFolders = Object.create(null), folders = Object.create(null), used = Object.create(null);
-  var flat = [], out = [], report = { applied: 0, kept: 0, added: 0 };
-  var i;
-  for (i = 0; i < oldRows.length; i++) { oldById[oldRows[i].script.id] = oldRows[i]; }
-  for (i = 0; i < newRows.length; i++) { nextById[newRows[i].script.id] = newRows[i]; }
+  var flat = [], out = [], report = { applied: 0, kept: 0, added: 0, deduplicated: 0 };
+  var i, allRows = oldRows.concat(newRows);
+  /* 不把缺失ID的异常记录折叠成一份；在写盘前中止，原配置保持完整。 */
+  for (i = 0; i < allRows.length; i++) {
+    var identity = allRows[i].script && allRows[i].script.id;
+    if (typeof identity !== 'string' || !identity.replace(/^\s+|\s+$/g, '')) { throw new Error('发现缺少标识（ID）的脚本，为保留原配置已停止合并，请先检查脚本列表'); }
+  }
+  for (i = 0; i < oldRows.length; i++) {
+    if (oldById[oldRows[i].script.id]) { report.deduplicated++; }
+    else { oldById[oldRows[i].script.id] = oldRows[i]; }
+  }
+  for (i = 0; i < newRows.length; i++) {
+    if (nextById[newRows[i].script.id]) { report.deduplicated++; }
+    else { nextById[newRows[i].script.id] = newRows[i]; }
+  }
   var oldTrees = Array.isArray(theirs) ? theirs : [], newTrees = Array.isArray(next) ? next : [];
   for (i = 0; i < oldTrees.length; i++) {
     if (oldTrees[i] && oldTrees[i].type === 'folder') { oldFolders[oldTrees[i].id] = oldTrees[i]; }
   }
   for (i = 0; i < oldRows.length; i++) {
     var old = oldRows[i].script, incoming = nextById[old.id];
+    if (oldById[old.id] !== oldRows[i]) { continue; }
     var item = copy(incoming ? incoming.script : old);
     if (incoming) {
       item.enabled = old.enabled !== undefined ? !!old.enabled : item.enabled !== false;
@@ -77,6 +91,7 @@ export function mergeScriptTrees(theirs, next) {
   }
   for (i = 0; i < newRows.length; i++) {
     var fresh = newRows[i].script;
+    if (nextById[fresh.id] !== newRows[i]) { continue; }
     if (!oldById[fresh.id]) {
       var added = copy(fresh); merged[fresh.id] = added; flat.push(added);
       report.added++; report.applied++;

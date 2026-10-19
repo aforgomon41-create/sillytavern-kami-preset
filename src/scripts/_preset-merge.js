@@ -426,6 +426,7 @@ function analyze(base, theirs, next, decisions) {
     report.applied += result.applied;
     report.kept += result.kept;
     report.added += result.added;
+    report.scriptsDeduplicated = result.deduplicated;
     return result;
   }
 
