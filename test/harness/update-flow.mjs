@@ -22,6 +22,7 @@
  * 不依赖浏览器。改 70-远程更新.js 后跑一遍，能挡住大部分回归。
  */
 import { expandPanelGestures } from '../../build/kami-doc.mjs';
+import {snapshotCompletionPreset,completionPresetForLive} from '../../src/scripts/_preset-snapshot.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +56,9 @@ const el = (visibleFlag) => ({
 /* ---------- 每次用例一套全新环境（定时器队列也各自独立） ---------- */
 function makeEnv(opts) {
   opts = opts || {};
-  const toasts = [], slashCalls = [], importCalls = [], fetchCalls = [];
+  const toasts = [], slashCalls = [], importCalls = [], fetchCalls = [], helperImportCalls = [], nativeSaveCalls = [];
+  const files = new Map(), listeners = new Map();
+  let selectedName = opts.localPreset || '卡密预设0.9-96';
   const scriptVars = JSON.parse(JSON.stringify(opts.vars || {}));
   let timerId = 0;
   const timers = [];
@@ -95,8 +98,19 @@ function makeEnv(opts) {
   const ctx = {
     chatCompletionSettings: Object.assign({ preset_settings_openai: opts.localPreset || '卡密预设0.9-96' }, opts.settings || {}),
     getPresetManager: () => ({
-      getSelectedPresetName: () => opts.localPreset || '卡密预设0.9-96',
-      getAllPresets: () => opts.installed || ['卡密预设0.9-96', 'Default'],
+      getSelectedPresetName: () => selectedName,
+      getAllPresets: () => [...new Set([...(opts.installed || ['卡密预设0.9-96', 'Default']), ...files.keys()])],
+      savePreset: opts.noNativeSave ? undefined : async (name, raw, options) => {
+        nativeSaveCalls.push({name, options});
+        importCalls.push({name, content:JSON.stringify(raw)});
+        if (opts.importFail || opts.backupFail) throw Error('backup save failed');
+        files.set(name, JSON.parse(JSON.stringify(raw)));
+        if (opts.onNativeSave) await opts.onNativeSave({name,raw,options,ctx,select:value=>{selectedName=value;}});
+        if (!options?.skipUpdate && opts.switchOnImport) {
+          selectedName = name;
+          for (const fn of [...(listeners.get('pagehide') || [])]) fn({persisted:false});
+        }
+      },
     }),
     getRequestHeaders: () => ({ 'Content-Type': 'application/json', 'X-CSRF-Token': 'tok' }),
     executeSlashCommandsWithOptions: async (cmd) => {
@@ -119,6 +133,13 @@ function makeEnv(opts) {
        failReleases  = Releases 清单接口抛 TypeError（模拟手机连不上 api.github.com），
                        但 jsDelivr 与附件接口正常 —— 清单兜底路径的用武之地 */
     const u = String(url);
+    if (u === '/api/presets/save') {
+      const body = JSON.parse(opt.body);
+      importCalls.push({name:body.name,content:JSON.stringify(body.preset)});
+      if(opts.backupFail)return Promise.resolve({ok:false,status:500});
+      files.set(body.name,JSON.parse(JSON.stringify(body.preset)));
+      return Promise.resolve({ok:true,status:200});
+    }
     const isApiList = u.indexOf('https://api.github.com/') === 0 && u.indexOf('/releases?per_page=') >= 0;
     const isJsd = u.indexOf('https://cdn.jsdelivr.net/') === 0;
     if (isApiList && opts.failReleases) {
@@ -170,7 +191,8 @@ function makeEnv(opts) {
   const W = {
     document: HDOC, console, parent: null, top: null,
     setTimeout: fakeSetTimeout, clearTimeout: fakeClearTimeout,
-    addEventListener: () => { }, removeEventListener: () => { },
+    addEventListener: (type, fn) => { if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type).add(fn); },
+    removeEventListener: (type, fn) => { listeners.get(type)?.delete(fn); },
     toastr: {
       options: {},
       success: (m, t) => toasts.push(['success', m, t]),
@@ -186,16 +208,22 @@ function makeEnv(opts) {
   const injected = {
     getVariables: () => JSON.parse(JSON.stringify(scriptVars)),
     replaceVariables: (all) => { Object.keys(scriptVars).forEach(k => delete scriptVars[k]); Object.assign(scriptVars, all); },
-    getPresetNames: () => ['in_use'].concat(opts.installed || ['卡密预设0.9-96', 'Default']),
+    getPresetNames: () => ['in_use'].concat([...new Set([...(opts.installed || ['卡密预设0.9-96', 'Default']),...files.keys()])]),
     triggerSlash: async (cmd) => { slashCalls.push(cmd); return popupVal(); },
-    importRawPreset: (name, content) => { importCalls.push({ name, content }); return opts.importFail ? false : true; },
+    importRawPreset: (name, content) => {
+      importCalls.push({ name, content });helperImportCalls.push({name,content});
+      if(opts.importFail || opts.targetFail)return false;
+      files.set(name,JSON.parse(content));
+      if(opts.switchOnImport){selectedName=name;for(const fn of [...(listeners.get('pagehide')||[])])fn({persisted:false});}
+      return true;
+    },
   };
   const names = Object.keys(injected);
   const runner = new Function(...names, 'window', 'document', 'console', 'fetch', opts.code || CODE);
   runner(...names.map(n => injected[n]), W, HDOC, console, fetchMock);
   W.__injected = injected;
 
-  return { W, toasts, slashCalls, importCalls, fetchCalls, scriptVars, dom, pump, api: () => W.KamiUpdate };
+  return { W, toasts, slashCalls, importCalls, helperImportCalls, nativeSaveCalls, files, fetchCalls, scriptVars, dom, pump, selected:()=>selectedName, api: () => W.KamiUpdate };
 }
 
 /* 下载链的几条用例要「原地重试」：假定时器没有真实时钟，把通道重试延迟清成 0 */
@@ -845,7 +873,7 @@ console.log('--- 合并①：没有冲突 → 先备份、再导入合并结果�
   await settle();
   const r = await env.api().check(false);
   ok(env.slashCalls.length === 1, '先弹「要不要更新」的普通弹窗（一次）');
-  ok(env.importCalls.length === 2, '合并流程 = 两次 importRawPreset：备份 + 合并结果', env.importCalls.length);
+  ok(env.importCalls.length === 2, '合并流程 = 两次写盘：后台备份 + 导入合并结果', env.importCalls.length);
   ok(env.importCalls[0].name === PN + '-96-20260921 · 合并前备份', '第 1 次写盘是「合并前备份」备份当前那份',
     env.importCalls[0] && env.importCalls[0].name);
   const backup = JSON.parse(env.importCalls[0].content);
@@ -1096,6 +1124,73 @@ console.log('--- 合并⑦：按 tag 取不到 base，但按**预设名**能从�
   const merged = env.importCalls.length ? JSON.parse(env.importCalls[env.importCalls.length - 1].content) : null;
   ok(!!merged && merged.prompts[0].content === '新版改过的 a',
     '用户没动过的条目吃到了新版正文（证明 base 真被用上了）', merged && merged.prompts[0]);
+}
+
+console.log('--- 真正切预设会注销iframe：后台备份必须越过这一关 ---');
+{
+ const names={temp_openai:'temperature',freq_pen_openai:'frequency_penalty',pres_pen_openai:'presence_penalty',top_p_openai:'top_p',top_k_openai:'top_k',top_a_openai:'top_a',min_p_openai:'min_p',repetition_penalty_openai:'repetition_penalty'};
+ const settings={prompts:[prompt('a','base 版')],extensions:{tavern_helper:{scripts:[]}}},stored={customField:'keep',extensions:{custom:{keep:true},tavern_helper:{variables:{keep:true}}}};
+ Object.keys(names).forEach((key,i)=>{settings[key]=0.31+i;stored[names[key]]=99;});
+ const snapshot=snapshotCompletionPreset(settings,stored),live=completionPresetForLive(snapshot,settings);
+ for(const key of Object.keys(names)){
+  ok(snapshot[names[key]]===settings[key]&&!Object.prototype.hasOwnProperty.call(snapshot,key),'备份字段转换：'+key);
+  ok(live[key]===settings[key],'继承写回字段转换：'+key);
+ }
+ ok(snapshot.customField==='keep'&&snapshot.extensions.custom.keep&&snapshot.extensions.tavern_helper.variables.keep,'快照保留缓存扩展和自定义字段');
+ const env=makeEnv({code:CODE_NO_RETRY_DELAY,vars:REPO_VARS,localPreset:PN+'-96-20260921',settings,baseTag:PV+'-96',baseText:MERGE_BASE});
+ await env.api().check(false);
+ ok(JSON.parse(env.importCalls[0].content).temperature===0.31,'实际更新备份使用正确温度字段');
+ ok(JSON.parse(env.importCalls[1].content).temperature===0.31,'实际更新目标按正确预设字段保留温度');
+}
+{
+  const local=PN+'-96-20260921',next=PN+'-97-20260922';
+  let backupSawSource=false;
+  const env=makeEnv({code:CODE_NO_RETRY_DELAY,vars:REPO_VARS,localPreset:local,switchOnImport:true,
+    settings:{prompts:[prompt('a','base 版')]},baseTag:PV+'-96',baseText:MERGE_BASE,
+    onNativeSave:({options,ctx})=>{backupSawSource=options.skipUpdate===true&&ctx.chatCompletionSettings.preset_settings_openai===local;}});
+  const api=env.api();await api.check(false);
+  ok(backupSawSource,'备份确实使用skipUpdate，旧预设仍选中');
+  ok(env.nativeSaveCalls.length===1&&env.nativeSaveCalls[0].options.skipUpdate===true,'只有备份走原生后台保存');
+  ok(env.helperImportCalls.length===1&&env.helperImportCalls[0].name===next,'真正的导入只用于新版，不会导入备份');
+  ok(env.files.has(local+' · 合并前备份')&&env.files.has(next),'备份和新版都实际写入，而不是只写出备份');
+  ok(env.selected()===next,'目标写盘完成后原生导入才切到新版');
+  ok(env.api()===undefined,'模拟真实pagehide卸载旧更新器，确保测试覆盖自毁生命周期');
+  const nextEnv=makeEnv({code:CODE.replaceAll('@@KAMI_PRESET_NAME@@',next),vars:REPO_VARS,localPreset:next,installed:[local,next]});
+  const result=await nextEnv.api().check(false);
+  ok(result.action==='none'&&nextEnv.slashCalls.length===0,'重开新版后识别正确，不再提示同一版本');
+}
+console.log('--- 继承备份同样保持当前预设，防止旧快照覆盖新编辑 ---');
+for(const edit of [false,true]){
+ const local=PN+'-97-20260922',old=PN+'-96-20260921';
+ const env=makeEnv({code:CODE_NO_RETRY_DELAY,vars:REPO_VARS,localPreset:local,switchOnImport:true,
+  settings:{prompts:[prompt('a','base 版')],temp_openai:0.55},baseTag:PV+'-96',baseText:MERGE_BASE,
+  onNativeSave:edit?({ctx})=>{ctx.chatCompletionSettings.temp_openai=0.21;}:undefined});
+ const ctx=env.W.SillyTavern.getContext(),pm=ctx.getPresetManager();
+ ctx.getPresetManager=()=>({...pm,getPresetList:()=>({preset_names:{[old]:0},presets:[{...JSON.parse(MERGE_BASE),temperature:0.91}]})});
+ const result=await env.api().inheritFrom(old);
+ ok(env.helperImportCalls.length===0&&env.selected()===local,'继承备份不导入、不切换当前预设');
+ if(edit){ok(result.ok===false&&!result.merged,'继承期间有编辑就停止，不返回旧合并结果');ok(ctx.chatCompletionSettings.temp_openai===0.21,'保留备份期间的新编辑');}
+ else {ok(result.ok===true&&result.targetName===local,'正常继承仍能把合并结果交给面板');ok(result.merged.temp_openai===0.91,'实际继承结果包含宿主需要的温度字段');}
+}
+console.log('--- 后台备份失败、目标失败和中途改动不能显示完成 ---');
+for(const scenario of ['backupFail','targetFail','editDuringBackup','switchDuringBackup','fallback']){
+  const local=PN+'-96-20260921',next=PN+'-97-20260922';
+  const options={code:CODE_NO_RETRY_DELAY,vars:REPO_VARS,localPreset:local,
+    settings:{prompts:[prompt('a','base 版')]},baseTag:PV+'-96',baseText:MERGE_BASE};
+  if(scenario==='backupFail')options.backupFail=true;
+  if(scenario==='targetFail')options.targetFail=true;
+  if(scenario==='editDuringBackup')options.onNativeSave=({ctx})=>{ctx.chatCompletionSettings.temperature=0.31;};
+  if(scenario==='switchDuringBackup')options.onNativeSave=({select})=>{select('another-preset');};
+  if(scenario==='fallback'){options.noNativeSave=true;options.switchOnImport=true;}
+  const env=makeEnv(options),api=env.api();const result=await api.check(false);
+  if(scenario==='fallback'){
+    ok(env.fetchCalls.some(x=>x.url==='/api/presets/save'),'无原生后台接口时使用不切换的服务端保存');
+    ok(env.files.has(next)&&env.helperImportCalls.length===1,'兼容路径仍写入新版，备份不走导入');
+  }else{
+    ok(result.action==='failed'&&result.ok===false,scenario+'：明确报告更新失败');
+    ok(!env.files.has(next)&&!env.toasts.some(x=>x[0]==='success'),scenario+'：不落错误目标、不报成功');
+    ok(!api.status().logs.some(x=>x.includes('更新流程结束：')),scenario+'：不显示更新完成');
+  }
 }
 
 console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');process.exit(bad ? 1 : 0);

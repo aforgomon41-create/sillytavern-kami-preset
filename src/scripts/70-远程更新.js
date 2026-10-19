@@ -1,5 +1,5 @@
 /* ============================================================
- * 🔄 远程更新   v1.4
+ * 🔄 远程更新   v1.6
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 纯后台脚本：**不向按钮中转站登记任何按钮**。它只在每次启动时做一件事：
@@ -73,7 +73,7 @@
   'use strict';
   /* @@KAMI_UI@@ */
 
-  var VERSION = '1.5';
+  var VERSION = '1.6';
   var API_NAME = 'KamiUpdate';
 
   /* 「更新进度弹窗」的纯逻辑（src/scripts/_update-progress.js）：
@@ -141,6 +141,7 @@
   /* ───────── 三方合并引擎（唯一真相：src/scripts/_preset-merge.js，构建期内联） ───────── */
 
   /* @@KAMI_PRESET_MERGE@@ */
+  /* @@KAMI_PRESET_SNAPSHOT@@ */
 
   /* ───────── 日志 / 提示 ───────── */
 
@@ -744,15 +745,21 @@
   /* 主路径：酒馆助手的 importRawPreset（= 点酒馆界面「导入预设」那一套，
      文件原样写进 OpenAI Settings，并顺手刷新预设下拉列表）。
      退回路径：直接打酒馆自己的 /api/presets/save（需要刷新页面才在下拉里出现）。 */
-  function writePreset(name, json, text) {
+  function writePreset(name, json, text, background) {
     if (disposed) { return Promise.reject(new Error('脚本已注销，已停止写入')); }
-    if (typeof importRawPreset === 'function') {
+    var ctx = stCtx(), pm = ctx && ctx.getPresetManager && ctx.getPresetManager('openai');
+    /* 备份绝不能走导入：导入会切到备份，卸载当前iframe，后续新版写入永远执行不到。 */
+    if (background && pm && typeof pm.savePreset === 'function') {
+      return Promise.resolve(pm.savePreset(name, json, { skipUpdate: true })).then(function () {
+        return { via: 'savePreset(skipUpdate)' };
+      });
+    }
+    if (!background && typeof importRawPreset === 'function') {
       return Promise.resolve(importRawPreset(name, text)).then(function (ok) {
         if (!ok) { throw new Error('importRawPreset 返回失败'); }
         return { via: 'importRawPreset' };
       });
     }
-    var ctx = stCtx();
     if (!ctx || typeof ctx.getRequestHeaders !== 'function') {
       return Promise.reject(new Error('没有 importRawPreset，也拿不到酒馆的请求头，无法写盘'));
     }
@@ -1004,7 +1011,7 @@
     var s = settingsOf(ctx);
     if (!s || typeof s !== 'object' || !Array.isArray(s.prompts)) { return null; }
     var snap = null;
-    try { snap = JSON.parse(JSON.stringify(s)); } catch (e) { return null; }
+    try { snap = snapshotCompletionPreset(s, readPresetSnapshot(resolvePresetName().name)); } catch (e) { return null; }
     if (!snap || !Array.isArray(snap.prompts)) { return null; }
     return snap;
   }
@@ -1142,7 +1149,7 @@
     });
   }
 
-  /* 写盘（硬规格 D）：① 先把用户当前那份（theirs）用 importRawPreset 另存一份备份；
+  /* 写盘（硬规格 D）：① 后台保存用户当前那份（theirs），不切换当前预设；
      ② 再把合并结果导入成新预设。备份写不进去就报错停下 —— 备份不许跳过。 */
   function writeMergedFiles(remote, theirs, merged) {
     if (disposed) { return Promise.reject(new Error('脚本已注销，已停止写入')); }
@@ -1154,8 +1161,10 @@
     }
     var backupName = safePresetName(localName + ' · 合并前备份');
     log('第 1 步 · 先备份：把当前预设另存为「' + backupName + '」');
-    return writePreset(backupName, JSON.parse(backupText), backupText).then(function () {
-      if (disposed) { throw new Error('脚本已注销，已停止写入'); }
+    return writePreset(backupName, JSON.parse(backupText), backupText, true).then(function () {
+      ensureActive();
+      if (cleanStr(resolvePresetName().name) !== localName) { throw new Error('保存备份期间切换了预设，本次未导入新版'); }
+      if (JSON.stringify(currentPresetSnapshot()) !== backupText) { throw new Error('保存备份期间预设又有改动，本次未导入新版，请重新检查更新'); }
       log('第 2 步 · 导入合并结果：' + remote.name);
       /* ⚠️ 这一句是 2026-10-10 那个"脚本被关掉"事故的关键修复。
          下面这个 writePreset 会调 importRawPreset → preset_manager.savePreset，
@@ -1214,9 +1223,8 @@
     })['catch'](function (e) {
       if (disposed) { return last; }
       last.error = (e && e.message) || String(e);
-      warn('更新失败：' + last.error);
-      toast('error', '更新失败：' + last.error + '（可以手动去仓库下载导入）', 12000);
-      return last;
+      /* 交给进度窗口的失败分支，不能把失败当作成功并显示“更新完成”。 */
+      throw e;
     });
   }
 
@@ -1536,6 +1544,8 @@
       });
     }).then(function (r) {
       if (disposed) { return last; }
+      if (r && r.action === 'merge-cancelled') { closeProgress(); return r; }
+      if (!r || r.action !== 'imported' || r.error) { throw new Error((r && r.error) || '新版尚未保存，更新未完成'); }
       stopProgressTimer();
       doneProgress(progState, remote.version || remote.name, Date.now());
       paintProgress();
@@ -1558,6 +1568,8 @@
       return r;
     })['catch'](function (e) {
       if (disposed) { return last; }
+      last.ok = false;
+      last.action = 'failed';
       last.error = (e && e.message) || String(e);
       warn('更新失败：' + last.error);
       var tip = (e && e.networkAll)
@@ -1638,7 +1650,10 @@
     var backupName = safePresetName(curName + ' · 继承前备份');
     var text = JSON.stringify(snap);
     log('第 1 步 · 先备份当前预设为「' + backupName + '」');
-    return writePreset(backupName, JSON.parse(text), text).then(function () {
+    return writePreset(backupName, JSON.parse(text), text, true).then(function () {
+      ensureActive();
+      if (cleanStr(resolvePresetName().name) !== curName) { throw new Error('保存备份期间切换了预设，继承已中止'); }
+      if (JSON.stringify(currentPresetSnapshot()) !== text) { throw new Error('继承期间当前预设又有改动，已中止，请重新继承'); }
       return { backupName: backupName };
     })['catch'](function (e) {
       throw new Error('备份当前预设失败（' + ((e && e.message) || e) + '），已经中止，你的东西一个字都没动');
@@ -1722,7 +1737,7 @@
           log('继承方案已就绪（' + mergeReportText(applied.report) + '；名字钉成「' + targetName +
             '」）→ 交给 40 号写回当前预设');
           return {
-            ok: true, merged: applied.merged, report: applied.report,
+            ok: true, merged: completionPresetForLive(applied.merged, settingsOf(stCtx())), report: applied.report,
             oldName: name, targetName: targetName, backupName: b.backupName,
             decidedVia: chosen.via || null,
             oldPrompts: theirs.prompts.length, currentPrompts: next.prompts.length

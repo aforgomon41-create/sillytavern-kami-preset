@@ -380,6 +380,8 @@ export function expandPanelGestures(root, code) {
   if (code.includes(upgradeMark)) { code = code.replace(upgradeMark, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts/_script-upgrade.js'),'utf8'),'_script-upgrade.js')); }
   const catalogMark = '/* @@KAMI_SCRIPT_UPGRADE_CATALOG@@ */';
   if (code.includes(catalogMark)) { code = code.replace(catalogMark, () => 'var SCRIPT_UPGRADE_CATALOG = ' + JSON.stringify(scriptUpgradeCatalog(root)) + ';'); }
+  const snapshotMark = '/* @@KAMI_PRESET_SNAPSHOT@@ */';
+  if (code.includes(snapshotMark)) { code = code.replace(snapshotMark, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts/_preset-snapshot.js'),'utf8'),'_preset-snapshot.js')); }
   code = expandScriptTrees(root, code);
   code = expandPresetCards(root, code);
   code = expandCustomStyleUi(root, code);

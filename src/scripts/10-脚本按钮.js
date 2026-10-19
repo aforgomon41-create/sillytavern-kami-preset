@@ -56,6 +56,7 @@
   /* @@KAMI_SCRIPT_TREE@@ */
   /* @@KAMI_SCRIPT_UPGRADE@@ */
   /* @@KAMI_SCRIPT_UPGRADE_CATALOG@@ */
+  /* @@KAMI_PRESET_SNAPSHOT@@ */
 
   var HUB_VER = 3;         // 登记协议版本（登记格式不变就不要改动）
   var HUB_VERSION = '1.4'; // 本脚本版本
@@ -802,6 +803,7 @@
     trees: typeof getScriptTrees === 'function' ? getScriptTrees : null,
     replaceTrees: typeof replaceScriptTrees === 'function' ? function (trees) { resetKamiScriptRuntime(HOST, trees, SCRIPT_UPGRADE_CATALOG); } : null,
     variables: typeof getVariables === 'function' ? getVariables : null,
+    snapshot: snapshotCompletionPreset,
     context: function () { return HOST.SillyTavern && HOST.SillyTavern.getContext(); },
     wait: function () { return new Promise(function (resolve) { (HOST.setTimeout || setTimeout)(resolve, 0); }); }
   }).then(function (state) {

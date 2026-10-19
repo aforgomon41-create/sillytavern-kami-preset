@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {scriptUpgradeCatalog} from '../../build/kami-doc.mjs';
 import {groupScriptTrees,flattenScriptTrees,mergeScriptTrees} from '../../src/scripts/_script-tree.js';
 import {planKamiScriptUpgrade,runKamiScriptUpgrade,resetKamiScriptRuntime} from '../../src/scripts/_script-upgrade.js';
+import {snapshotCompletionPreset} from '../../src/scripts/_preset-snapshot.js';
 const clone=x=>JSON.parse(JSON.stringify(x)),catalog=scriptUpgradeCatalog(process.cwd());
 catalog.build='kami-v0.92-72-20261019';
 const meta=JSON.parse(fs.readFileSync('src/scripts/meta.json','utf8'));
@@ -22,7 +23,7 @@ function fixture(options={}){
  const variables={[name]:{keep:'preset'},[nameB]:{B:1}},calls=[],applies=[],events=[],host={};
  const pm={getSelectedPresetName:()=>selected,getPresetList:()=>({presets:cache,preset_names:names}),
  async savePreset(target,raw,opts){eq(opts,{skipUpdate:true},'保存不切预设');calls.push({target,raw:clone(raw)});events.push('save-start:'+target);if(options.save)await options.save(target,raw,calls.length,state);files.set(target,clone(raw));events.push('save-done:'+target);}};
- const env={host,catalog,merge:mergeScriptTrees,id:()=>options.id||catalog.carrier,alive:()=>alive,onDispose:fn=>{disposeHook=fn;},
+ const env={host,catalog,merge:mergeScriptTrees,snapshot:snapshotCompletionPreset,id:()=>options.id||catalog.carrier,alive:()=>alive,onDispose:fn=>{disposeHook=fn;},
  context:()=>({chatCompletionSettings:live,getPresetManager:()=>pm}),
  trees:({type})=>type==='preset'?clone(scope[selected]):clone(type==='global'?options.global||[]:options.character||[]),
  variables:()=>clone(variables[selected]),
@@ -235,5 +236,12 @@ function runtimeFixture(){
  f.run();f.pm.savePreset('A',{extensions:{tavern_helper:{scripts:paused}}});
  eq(flattenScriptTrees(f.files.get('A').extensions.tavern_helper.scripts).find(x=>x.id===id).enabled,false,'恢复与延迟保存都尊重新出现的跨作用域冲突');
  f.run();f.cleanup();
+}
+{
+ const f=fixture();f.live().temp_openai=.37;
+ await runKamiScriptUpgrade(f.env);
+ const saved=f.files.get(f.name);
+ eq(saved.temperature,.37,'脚本整理按真实预设字段保存最新温度，不取旧缓存值');
+ eq(Object.prototype.hasOwnProperty.call(saved,'temp_openai'),false,'落盘不遗留酒馆内部温度字段');
 }
 console.log('无感脚本升级、持久化与并发边界：'+checks+' 项通过');

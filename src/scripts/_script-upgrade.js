@@ -174,8 +174,8 @@ export async function runKamiScriptUpgrade(env) {
     raw.extensions.tavern_helper.scripts = trees;
   }
   function snapshot(state, trees) {
-    var raw = copy(state.settings), key;
-    for (key in state.row) { if (!Object.prototype.hasOwnProperty.call(raw, key)) { raw[key] = copy(state.row[key]); } }
+    var raw = env.snapshot ? env.snapshot(state.settings, state.row) : copy(state.settings), key;
+    if (!env.snapshot) { for (key in state.row) { if (!Object.prototype.hasOwnProperty.call(raw, key)) { raw[key] = copy(state.row[key]); } } }
     var storedExt = state.row.extensions || {};
     raw.extensions = raw.extensions || {};
     for (key in storedExt) { if (!Object.prototype.hasOwnProperty.call(raw.extensions, key)) { raw.extensions[key] = copy(storedExt[key]); } }
