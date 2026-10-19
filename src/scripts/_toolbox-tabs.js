@@ -147,7 +147,7 @@ export function buildToolboxTabs() {
         modelRequest: modelListRequest, responseText: responseTextOf,
         readVariables: function () { return typeof getVariables === 'function' ? getVariables({ type: 'script' }) || {} : {}; },
         writeVariables: function (data) { if (typeof replaceVariables === 'function') { replaceVariables(data, { type: 'script' }); } },
-        headers: modelListHeaders,
+        headers: modelListHeaders, fetchUserHandle: kamiUserHandle,
         stamp: chatStamp, validStamp: sameChat,
         connections: function () {
           var choices = [{ value: '', label: '当前剧情连接' }];

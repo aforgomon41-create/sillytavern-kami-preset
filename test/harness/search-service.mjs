@@ -1,3 +1,4 @@
+import { kamiUserHandle } from '../../src/scripts/_user-scope.js';
 import assert from 'node:assert/strict';
 import { createKamiSearchService } from '../../src/scripts/_search-service.js';
 import * as pure from '../../src/scripts/_search-pure.js';
@@ -28,7 +29,7 @@ function make(options = {}) {
     readVariables: () => structuredClone(vars), writeVariables: next => { vars = structuredClone(next); },
     on(event, fn) { if (!listeners.has(event)) listeners.set(event, new Set()); listeners.get(event).add(fn); return { stop: () => listeners.get(event).delete(fn) }; }, events,
     canRun: () => true, count: options.count || (async text => options.tokens || Math.ceil(text.length / 3)), connections: () => [],
-    responseText: response => response?.content || '', toast() {}, saveNotice() {}, stopRaw: id => stopped.push(id),
+    fetchUserHandle: kamiUserHandle, responseText: response => response?.content || '', toast() {}, saveNotice() {}, stopRaw: id => stopped.push(id),
     async raw(request, connection) {
       rawCalls.push({ request, connection }); const index = rawIndex++;
       equal(request.should_silence, true, '后台搜索使用独立取消按钮');

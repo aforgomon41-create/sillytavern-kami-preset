@@ -351,6 +351,7 @@ export function expandPanelGestures(root, code) {
     ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
     ['/* @@KAMI_SEARCH_SERVICE@@ */', '_search-service.js'],
     ['/* @@KAMI_SEARCH_NATIVE_PROBE@@ */', '_search-native-probe.js'],
+    ['/* @@KAMI_USER_SCOPE@@ */', '_user-scope.js'],
     ['/* @@KAMI_SEARCH_TASK@@ */', '_search-task.js'],
     ['/* @@KAMI_LLM_UI@@ */', '_llm-ui.js'],
     ['/* @@KAMI_LLM_SETTINGS@@ */', '_llm-settings.js'],

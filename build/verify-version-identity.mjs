@@ -63,7 +63,11 @@ ok(/presetVersionLabel\(name\)/.test(panel), '③ 40 号同样保留兜底');
 ok(guide.indexOf('PRESET_MARK') < 0, '④ 引导脚本里没有 PRESET_MARK（名字闸已拆）');
 ok(guide.indexOf('不自动弹') < 0 || guide.indexOf('已看过') >= 0,
   '④ 只剩「这一版看过没有」这一道闸');
-ok(/readGuideVars\(\)\s*===\s*BUILD_N/.test(guide), '④ 「看过的产物号」那道闸还在（同一个产物只弹一次）');
+ok(/hasSeenCurrentVersion\(\)/.test(guide), '④ 按完整版本展示记录判定，不再只认关闭时的数字产物号');
+const guideIdentity = /SELF_NAME\s*=\s*'([^']+)'/.exec(guide);
+ok(!!guideIdentity && guideIdentity[1] === asset && /guideVersionOf\(SELF_NAME\)/.test(guide), '④ 引导的完整版本取自构建常量');
+const guideScript = scripts.find(s => String(s.name).includes('引导'));
+ok(!!guideScript && Object.keys(guideScript.data || {}).length === 0 && guideScript.export_with?.data === false, '④ 分发与导出不携带用户引导记录');
 ok(guide.indexOf('@@KAMI_BUILD_N@@') < 0, '④ 引导的产物号已注入');
 
 /* ⑤ 70 号对外暴露版本读取口（用户点名要的） */

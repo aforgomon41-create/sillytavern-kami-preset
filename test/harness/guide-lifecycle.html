@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>引导生命周期验收</title>
+<textarea id="send_textarea" hidden></textarea><pre id="result">引导测试夹具</pre>
+<script type="module">
+const params=new URLSearchParams(location.search),user=params.get('user')||'guide-test',version=params.get('version');
+const nativeFetch=window.fetch.bind(window);let frame,variables={},requests=0;
+const settings={name:'用户改名后的预设',prompts:[{identifier:'fixture-disclaimer',name:'免责声明',content:'{{//用于本地验证自动展示。}}'}],
+prompt_order:[{character_id:100001,order:[{identifier:'fixture-disclaimer',enabled:true}]}]};
+window.SillyTavern={getContext:()=>({chatCompletionSettings:settings,getRequestHeaders:()=>({})})};
+window.fetch=function(input,init){
+ if(input==='/api/users/me'){requests++;return Promise.resolve(new Response(JSON.stringify({handle:user}),{headers:{'Content-Type':'application/json'}}));}
+ return nativeFetch(input,init);
+};
+async function load(){
+ frame=document.createElement('iframe');frame.hidden=true;
+ const ready=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.srcdoc='<!doctype html><html><body></body></html>';document.body.appendChild(frame);await ready;
+ const w=frame.contentWindow;w.getVariables=()=>structuredClone(variables);
+ /* 故意只更新运行内存，模拟酒馆助手尚未写盘；整页刷新后脚本状态会丢失。 */
+ w.replaceVariables=value=>{variables=structuredClone(value);};
+ let code=await(await nativeFetch('/built/50-引导.js')).text();
+ if(version){if(!/^\d+\.\d+-\d+$/.test(version))throw Error('invalid test version');
+  code=code.replace(/var SELF_NAME = '[^']+';/,"var SELF_NAME = 'kami-v"+version+"-20261019';")
+   .replace(/var BUILD_N = parseInt\('[^']+', 10\) \|\| 0;/,"var BUILD_N = parseInt('"+version.split('-')[1]+"', 10) || 0;");}
+ w.eval(code);window.__guideLoaded=true;
+}
+window.__guideFixture={user,variables:()=>structuredClone(variables),requests:()=>requests,
+ async reboot(){frame.contentWindow.KamiGuide.shutdown();frame.remove();await load();}};
+await load();
+</script>

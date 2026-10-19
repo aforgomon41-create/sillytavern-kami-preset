@@ -1,5 +1,5 @@
 /* ============================================================
- * 🧭 引导   v0.1
+ * 🧭 引导   v0.6
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 首次使用本预设时自动弹出的全屏引导向导；也可以随时点按钮条上的「🧭引导」重看。
@@ -24,15 +24,17 @@
  *   · 面板骨架按 docs/皮肤契约.md §4.4（kami-root → kami-drop → 头/正文/脚），
  *     皮肤管理在跑时吃当前皮肤，没在跑时吃内联的兜底皮肤（src/skin/base.css）。
  *   · 「首次」判定：构建时把产物号写进本脚本（@@KAMI_BUILD_N@@），
- *     脚本变量 kami-guide.seen 记「看过的产物号」，不一致才自动弹；每页加载最多弹一次。
- *     关掉面板或走到完成页 = 这个产物看过了。按钮随时能重看。
+ *     完整版本记录「已展示」，脚本变量与按账号隔离的本机记录互为兜底。
+ *     面板成功展示即记录；确认与完成单独保存。按钮随时能重看。
  *   · 注销零残留：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局，预设与酒馆设置不被改动。
  * ============================================================ */
 (function () {
   'use strict';
   /* @@KAMI_UI@@ */
 
-  var VERSION = '0.1';
+  /* @@KAMI_USER_SCOPE@@ */
+
+  var VERSION = '0.6';
   var HUB_NAME = '🧭引导';
   /* 按钮条上的排布（2026-09-21 用户裁定）：**按使用频率从低到高，从左到右** ——
      引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50)。
@@ -53,6 +55,8 @@
 
   /* 产物号：构建时把 @@KAMI_BUILD_N@@ 替换成真实编号（源码必须能独立编译，所以这么写） */
   var BUILD_N = parseInt('@@KAMI_BUILD_N@@', 10) || 0;
+  var SELF_NAME = '@@KAMI_PRESET_NAME@@';
+  var GUIDE_VERSION = guideVersionOf(SELF_NAME);
 
   /* 预留页（状态变量）：内容就绪后把 RESERVED_ON 改 true 并填文案即可上线。
      压缩页已于 2026-09-23 上线（见 buildSteps 里「6.5 压缩」那一步），不再是预留页。 */
@@ -220,30 +224,119 @@
   var steps = [];            // 可见的步骤模型（打开时构建）
   var cur = 0;               // 当前页下标
   var confirmed = false;     // 第一页「确认」门禁
-  var seen = 0;              // 看过的产物号（脚本变量 kami-guide.seen）
-  var autoOpened = false;    // 本次页面加载已自动弹过
+  var seen = 0;              // 兼容旧读数；自动弹出以完整版本的 shown 记录为准
+  var autoOpened = false;    // 本次脚本实例已成功自动展示
   var readyTimer = null, openTimer = null, pingTimer = null, hideHandler = null;
   var ownDef = null;
 
-  /* ───────── 脚本变量（记「看过的产物号」） ───────── */
+  /* ───────── 展示记录：脚本变量兼容 + 按账号隔离的同步本地兜底 ───────── */
 
+  var visit = { shown: false, confirmed: false, completed: false, updatedAt: 0 };
+  var visitDirty = false, localVisitKey = null, accountHandle = null, identityPending = false;
+  var identityAbort = null, identityTimer = null, storageWarned = false, scriptVisitSaved = false;
+
+  function guideVersionOf(name) {
+    var match = /^kami-v(\d+\.\d+)-(\d+)-\d{8}$/.exec(String(name || ''));
+    return match ? 'v' + match[1] + '-' + match[2] : '';
+  }
+  function cleanVisit(value) {
+    if (!value || value.version !== GUIDE_VERSION || typeof value.shown !== 'boolean'
+      || (value.account && value.account !== accountHandle)) { return null; }
+    return { shown: value.shown, confirmed: value.shown && value.confirmed === true,
+      completed: value.shown && value.completed === true,
+      updatedAt: typeof value.updatedAt === 'number' && isFinite(value.updatedAt) && value.updatedAt >= 0
+        && value.updatedAt < 9007199254740990 ? Math.floor(value.updatedAt) : 0 };
+  }
+  function visitValue() {
+    return { schema: 2, version: GUIDE_VERSION, account: accountHandle, seen: visit.shown ? BUILD_N : 0,
+      shown: visit.shown, confirmed: visit.confirmed, completed: visit.completed, updatedAt: visit.updatedAt };
+  }
   function readGuideVars() {
-    var all = {};
+    var value = null;
     try {
-      if (typeof getVariables === 'function') { all = getVariables({ type: 'script' }) || {}; }
-    } catch (e) { all = {}; }
-    var v = all[VARS_KEY];
-    seen = (v && typeof v.seen === 'number') ? v.seen : 0;
+      var all = typeof getVariables === 'function' ? getVariables({ type: 'script' }) : {};
+      var saved = all && all[VARS_KEY];
+      /* 旧 seen 仅保留作诊断；它缺少主版本，不能用来判定新版本已经展示。 */
+      seen = saved && typeof saved.seen === 'number' ? saved.seen : 0;
+      value = cleanVisit(saved);
+    } catch (e) { log('读引导记录失败'); }
+    if (!visitDirty) { visit = value || { shown: false, confirmed: false, completed: false, updatedAt: 0 }; scriptVisitSaved = !!value; }
     return seen;
   }
-  function saveGuideVars() {
+  function readLocalVisit() {
+    if (!localVisitKey || visitDirty) { return; }
     try {
-      if (typeof replaceVariables !== 'function') { return; }
-      var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};
-      all[VARS_KEY] = { seen: seen };
-      replaceVariables(all, { type: 'script' });
-      log('已记「看过的产物号」=' + seen);
-    } catch (e) { log('记变量失败：' + ((e && e.message) || e)); }
+      var raw = HOST.localStorage.getItem(localVisitKey);
+      var value = raw ? cleanVisit(JSON.parse(raw)) : null;
+      /* 比较更新时间；reset 的 false 记录可覆盖尚未落盘的旧 true，旧 tombstone 也不会压住新记录。 */
+      if (value && value.updatedAt >= visit.updatedAt) { visit = value; seen = visit.shown ? BUILD_N : 0; }
+    } catch (e) { log('本机引导记录不可读，使用脚本记录'); }
+  }
+  function saveGuideVars() {
+    if (!GUIDE_VERSION) { return; }
+    var localSaved = false;
+    if (localVisitKey && visitDirty) {
+      try {
+        var previous = cleanVisit(JSON.parse(HOST.localStorage.getItem(localVisitKey) || 'null'));
+        if (previous && previous.updatedAt >= visit.updatedAt) { visit.updatedAt = previous.updatedAt + 1; }
+      } catch (e) { }
+    }
+    var value = visitValue();
+    scriptVisitSaved = false;
+    if (localVisitKey) {
+      try {
+        var raw = JSON.stringify(value);
+        HOST.localStorage.setItem(localVisitKey, raw);
+        localSaved = HOST.localStorage.getItem(localVisitKey) === raw;
+      } catch (e) { log('本机引导记录不可写，使用脚本记录'); }
+    }
+    try {
+      if (typeof getVariables === 'function' && typeof replaceVariables === 'function') {
+        var all = getVariables({ type: 'script' }) || {};
+        all[VARS_KEY] = Object.assign({}, all[VARS_KEY] || {}, value);
+        replaceVariables(all, { type: 'script' });
+        var saved = (getVariables({ type: 'script' }) || {})[VARS_KEY];
+        scriptVisitSaved = !!cleanVisit(saved) && saved.shown === visit.shown
+          && saved.confirmed === visit.confirmed && saved.completed === visit.completed;
+      }
+    } catch (e) { log('引导脚本记录保存失败'); }
+    if (!localSaved && !scriptVisitSaved && !identityPending && !storageWarned) {
+      storageWarned = true;
+      toast('warning', '引导记录未能保存，下次打开可能再次显示。请检查本站存储权限。');
+    }
+  }
+  function markVisit(patch) {
+    visit = Object.assign({}, visit, patch);
+    visit.updatedAt = Math.max(Date.now(), visit.updatedAt + 1);
+    seen = visit.shown ? BUILD_N : 0;
+    visitDirty = true;
+    saveGuideVars();
+  }
+  function hasSeenCurrentVersion() {
+    /* 未打包的开发预览不自动抢占页面，也不写正式版本的展示记录。 */
+    return !GUIDE_VERSION || visit.shown;
+  }
+  async function prepareVisitStorage() {
+    if (!GUIDE_VERSION || disposed) { return; }
+    identityPending = true;
+    try {
+      identityAbort = new (HOST.AbortController || AbortController)();
+      identityTimer = setTimeout(function () { if (identityAbort) { identityAbort.abort(); } }, 5000);
+      var ctx = stCtx(), headers = ctx && typeof ctx.getRequestHeaders === 'function' ? ctx.getRequestHeaders() : {};
+      var handle = await kamiUserHandle(HOST.fetch.bind(HOST), headers, identityAbort.signal);
+      if (disposed) { return; }
+      accountHandle = handle;
+      localVisitKey = 'kami-guide-v2:' + encodeURIComponent(handle) + ':' + GUIDE_VERSION;
+      readGuideVars();
+      readLocalVisit();
+    } catch (e) { if (!disposed) { log('无法读取账号本机引导记录，使用脚本记录'); } }
+    finally {
+      if (identityTimer) { clearTimeout(identityTimer); identityTimer = null; }
+      identityAbort = null; identityPending = false;
+    }
+    if (disposed) { return; }
+    /* 展示/重置可能发生在账号查询之前；此时保留用户刚做的操作，不能被旧记录盖回去。 */
+    if (visitDirty || visit.shown) { saveGuideVars(); }
   }
 
   /* ───────── 酒馆设置：读 ───────── */
@@ -1700,11 +1793,12 @@
     if (btnNext.getAttribute('data-kami-confirm') === '1') {
       /* 点的是「确认」：解锁，留在本页，按钮变回「下一步」 */
       confirmed = true;
+      markVisit({ shown: true, confirmed: true });
       log('免责声明已确认');
       paintNav();
       return;
     }
-    if (cur >= steps.length - 1) { closeWizard(true); return; }
+    if (cur >= steps.length - 1) { closeWizard(true, true); return; }
     showStep(cur + 1);
   }
   function prev() { if (cur > 0) { showStep(cur - 1); } }
@@ -1795,13 +1889,14 @@
     paintDots();
     showStep(0);
     panelDrop.setAttribute('data-kami-open', '1');
-    log('引导打开：共 ' + steps.length + ' 页（产物 ' + BUILD_N + '，看过 ' + seen + '）');
+    markVisit({ shown: true });
+    log('引导打开：共 ' + steps.length + ' 页（版本 ' + GUIDE_VERSION + '）');
+    return true;
   }
 
-  function closeWizard(markSeen) {
-    if (markSeen !== false) {
-      seen = BUILD_N || seen;
-      saveGuideVars();
+  function closeWizard(markSeen, completed) {
+    if (panelRoot && markSeen !== false) {
+      markVisit(completed ? { shown: true, completed: true } : { shown: true });
     }
     if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); }
     panelRoot = null; panelDrop = null; panelBody = null; panelDots = null;
@@ -1838,15 +1933,16 @@
        而它确实误伤了：2026-09-23 起产物名改成 ASCII（GitHub 会削非 ASCII 附件名），
       更新脚本导入的预设名是 `kami-v0.91-46-20260926`，不含中文那四个字，
        于是**自动弹出等于被关掉了**只能手动点 🧭（预览台日志就是这个现象）。
-       用户改预设名同样不受影响 —— 现在只看「这个产物的构建号看过没有」。 */
-    if (readGuideVars() === BUILD_N) {
+       用户改预设名同样不受影响 —— 现在只看「这个完整版本展示过没有」。 */
+    if (hasSeenCurrentVersion()) {
       log('产物 ' + BUILD_N + ' 已看过（seen=' + seen + '），不自动弹');
       return;
     }
-    autoOpened = true;
     log('这一版（产物 ' + BUILD_N + '）还没看过，准备自动弹；当前预设「' + (name || '?') + '」');
     openTimer = setTimeout(function () {
-      if (!disposed && !panelRoot) { openWizard(); }
+      openTimer = null;
+      if (!disposed) { readGuideVars(); readLocalVisit(); }
+      if (!disposed && !panelRoot && !hasSeenCurrentVersion()) { autoOpened = openWizard() === true; }
     }, OPEN_DELAY);
   }
 
@@ -1858,10 +1954,11 @@
       build: BUILD_N,
       open: function () { openWizard(); },
       close: function () { closeWizard(true); },
-      reset: function () { seen = 0; saveGuideVars(); log('已清除「看过」标记（下次加载会自动弹）'); },
+      reset: function () { markVisit({ shown: false, confirmed: false, completed: false }); log('已清除本版展示记录（下次加载会自动弹）'); },
       status: function () {
         return {
           version: VERSION, build: BUILD_N, seen: seen, autoOpened: autoOpened,
+          presetVersion: GUIDE_VERSION, shown: visit.shown, confirmed: visit.confirmed, completed: visit.completed,
           open: !!panelRoot, steps: steps.length, cur: cur,
           stepTitles: steps.map(function (s) { return s.title; }),
           liveOk: readRaw().ok, presetName: presetName()
@@ -1906,6 +2003,8 @@
   function teardown() {
     if (disposed) { return; }
     disposed = true;
+    if (identityAbort) { identityAbort.abort(); identityAbort = null; }
+    if (identityTimer) { clearTimeout(identityTimer); identityTimer = null; }
     log('正在注销：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局');
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (readyTimer) { clearInterval(readyTimer); readyTimer = null; } } catch (e) { }
@@ -1945,7 +2044,7 @@
     if (HOST !== window) { try { HOST.addEventListener('pagehide', hideHandler); } catch (e) { } }
     waitForTavernReady(function (name) {
       log('酒馆就绪：当前预设「' + name + '」');
-      maybeAutoOpen(name);   /* 内部自带 OPEN_DELAY 缓冲，不抢启动瞬间 */
+      prepareVisitStorage().then(function () { if (!disposed) { maybeAutoOpen(name); } });
     });
   }
 

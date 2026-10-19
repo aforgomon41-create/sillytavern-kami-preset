@@ -120,6 +120,7 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/llm-settings.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-service.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/native-search.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/guide-flow.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-providers.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-results.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/toolbox-ui.mjs')], { stdio: 'inherit' });

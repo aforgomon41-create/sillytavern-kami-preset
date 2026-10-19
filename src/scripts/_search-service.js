@@ -48,11 +48,8 @@ export function createKamiSearchService(env) {
     if (!userScopeTask) {
       userScopeTask = (async function () {
         var fetcher = env.host.fetch.bind(env.host), headers = await env.headers(fetcher);
-        var response = await fetcher('/api/users/me', { method: 'GET', headers: headers, credentials: 'same-origin', redirect: 'error', cache: 'no-store' });
-        if (!response.ok) { throw new Error('无法确认当前酒馆用户，请刷新酒馆后重试'); }
-        var user = await response.json();
-        if (!user || typeof user.handle !== 'string' || !user.handle || user.handle.length > 255) { throw new Error('无法确认当前酒馆用户，请刷新酒馆后重试'); }
-        return 'kami-web-search-keys-v1:' + encodeURIComponent(user.handle) + ':';
+        var handle = await env.fetchUserHandle(fetcher, headers);
+        return 'kami-web-search-keys-v1:' + encodeURIComponent(handle) + ':';
       })().catch(function (error) { userScopeTask = null; throw error; });
     }
     return userScopeTask;

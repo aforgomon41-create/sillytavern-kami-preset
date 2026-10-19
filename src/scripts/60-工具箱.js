@@ -405,6 +405,7 @@
   /* @@KAMI_RESPONSE_PIPELINE@@ */
   /* @@KAMI_RESPONSE_TRANSPORT@@ */
   /* @@KAMI_SEARCH_NATIVE_PROBE@@ */
+  /* @@KAMI_USER_SCOPE@@ */
   /* @@KAMI_SEARCH_SERVICE@@ */
   /* @@KAMI_LLM_UI@@ */
   /* @@KAMI_LLM_SETTINGS@@ */
