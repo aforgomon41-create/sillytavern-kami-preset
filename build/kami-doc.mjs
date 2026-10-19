@@ -376,6 +376,11 @@ export function expandPanelGestures(root, code) {
     if (source.includes(assetsMark)) { throw new Error('_skin-assets.js 不能包含自己的构建标记'); }
     code = code.replace(assetsMark, () => source);
   }
+  const upgradeMark = '/* @@KAMI_SCRIPT_UPGRADE@@ */';
+  if (code.includes(upgradeMark)) { code = code.replace(upgradeMark, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts/_script-upgrade.js'),'utf8'),'_script-upgrade.js')); }
+  const catalogMark = '/* @@KAMI_SCRIPT_UPGRADE_CATALOG@@ */';
+  if (code.includes(catalogMark)) { code = code.replace(catalogMark, () => 'var SCRIPT_UPGRADE_CATALOG = ' + JSON.stringify(scriptUpgradeCatalog(root)) + ';'); }
+  code = expandScriptTrees(root, code);
   code = expandPresetCards(root, code);
   code = expandCustomStyleUi(root, code);
   code = expandPresetMerge(root, code);
@@ -580,10 +585,31 @@ export function presetMergeSource(root) {
   return inlineModuleSource(expandScriptTrees(root, raw), '_preset-merge.js');
 }
 
+export function scriptUpgradeCatalog(root) {
+  const meta = JSON.parse(fs.readFileSync(path.join(root, 'src/scripts/meta.json'), 'utf8'));
+  const groups = JSON.parse(fs.readFileSync(path.join(root, 'src/scripts/folders.json'), 'utf8'));
+  const ids = new Set(meta.map(row => row.id)), aliases = {};
+  for (const row of meta) {
+    for (const old of row.legacy_ids || []) {
+      if (!old || ids.has(old) || aliases[old]) { throw new Error('脚本旧ID冲突：' + old); }
+      aliases[old] = row.id;
+    }
+  }
+  const folder_aliases = {};
+  for (const group of groups) { for (const old of group.legacy_ids || []) {
+    if (!old || ids.has(old) || groups.some(row => row.id === old) || folder_aliases[old]) { throw new Error('分类旧ID冲突：' + old); }
+    folder_aliases[old] = group.id;
+  } }
+  return { carrier: meta.find(row => row.file === '10-脚本按钮.js').id, aliases, folder_aliases,
+    build: '@@KAMI_PRESET_NAME@@', groups: groups.map(group => ({ id: group.id, script_ids: group.files.map(file => {
+      const row = meta.find(item => item.file === file); if (!row) throw new Error('分组脚本不存在：' + file); return row.id;
+    }) })) };
+}
+
 export function expandScriptTrees(root, code) {
   const marker = '/* @@KAMI_SCRIPT_TREE@@ */';
   if (!code.includes(marker)) { return code; }
-  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_script-tree.js'), 'utf8'), '_script-tree.js');
+  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_script-tree.js'), 'utf8'), '_script-tree.js').replace('/* @@KAMI_SCRIPT_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).aliases)).replace('/* @@KAMI_SCRIPT_FOLDER_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).folder_aliases));
   if (source.includes(marker)) { throw new Error('_script-tree.js 不能包含自己的构建标记'); }
   return code.replace(marker, () => source);
 }

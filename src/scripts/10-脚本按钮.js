@@ -1,5 +1,5 @@
 /* ============================================================
- * 🎛 脚本按钮中转站   v1.3
+ * 🎛 脚本按钮中转站   v1.4
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 它是一个「纯服务」：自己一个按钮都不写死，只做四件事
@@ -9,6 +9,8 @@
  *   ④ 点击时调用登记方提供的 click() / label() / ready()
  *
  * 一切功能都走酒馆助手接口，不使用任何斜杠命令。
+ *
+ * v1.4：普通更新后自动整理历史重复脚本，并重建自家运行实例，保留用户设置。
  *
  * v1.3 关键改动：
  *   · 删除全部斜杠命令相关代码（登记声明、命令注册、退避重试、日志报错）
@@ -51,9 +53,12 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_SCRIPT_TREE@@ */
+  /* @@KAMI_SCRIPT_UPGRADE@@ */
+  /* @@KAMI_SCRIPT_UPGRADE_CATALOG@@ */
 
   var HUB_VER = 3;         // 登记协议版本（登记格式不变就不要改动）
-  var HUB_VERSION = '1.3'; // 本脚本版本
+  var HUB_VERSION = '1.4'; // 本脚本版本
   var TAG = 'data-hub-btn';// 属性名（选择器请用 '[' + TAG + ']'，不要再拼 data-）
   var CSS_ID = 'kami-hub-css';
   var EVT_DEF = 'kami-hub-def';
@@ -722,7 +727,7 @@
       try { hb = Number(prev.hb || 0); } catch (e) { }
       if (hb && (Date.now() - hb) < HB_STALE) {
         log('已有同版本「🎛 脚本按钮」在运行（' + Math.round((Date.now() - hb) / 1000) + 's 前的心跳）→ 本实例退出。' +
-          '如果脚本库里有两份同名脚本，请删掉多余的');
+          '沿用已经运行的中转站');
         try { prev.refresh(); } catch (e) { }
         api.disposed = true;
         return false;
@@ -782,5 +787,36 @@
     return true;
   }
 
-  try { boot(); } catch (e) { log('启动失败：' + ((e && e.message) || e)); }
+  var upgradeAlive = true, upgradeRelease = null;
+  var upgradeHide = function () { upgradeAlive = false; if (upgradeRelease) { upgradeRelease(); } };
+  try { window.addEventListener('pagehide', upgradeHide, { once: true }); } catch (e) { }
+  runKamiScriptUpgrade({ host: HOST, catalog: SCRIPT_UPGRADE_CATALOG, merge: mergeScriptTrees,
+    alive: function () { return upgradeAlive; },
+    onDispose: function (release) { upgradeRelease = release; },
+    beforeApply: function () {
+      /* 先停旧实例，再移除旧iframe；即使用户关闭了入口，也不能留下旧心跳和事件。 */
+      var prior = HOST.__hub;
+      if (prior && prior !== api && prior.ver === HUB_VER && typeof prior.teardown === 'function') { try { prior.teardown('新版脚本自动接管'); } catch (e) { } }
+    },
+    id: typeof getScriptId === 'function' ? getScriptId : null,
+    trees: typeof getScriptTrees === 'function' ? getScriptTrees : null,
+    replaceTrees: typeof replaceScriptTrees === 'function' ? function (trees) { resetKamiScriptRuntime(HOST, trees, SCRIPT_UPGRADE_CATALOG); } : null,
+    variables: typeof getVariables === 'function' ? getVariables : null,
+    context: function () { return HOST.SillyTavern && HOST.SillyTavern.getContext(); },
+    wait: function () { return new Promise(function (resolve) { (HOST.setTimeout || setTimeout)(resolve, 0); }); }
+  }).then(function (state) {
+    try { window.removeEventListener('pagehide', upgradeHide); } catch (e) { }
+    if (!upgradeAlive) { return; }
+    if (!state.boot) { api.disposed = true; return; }
+    if (state.repaired) {
+      log('已自动整理重复脚本并保存，保留旧设置');
+    }
+    try { boot(); } catch (e) { log('启动失败：' + ((e && e.message) || e)); }
+  }, function (error) {
+    try { window.removeEventListener('pagehide', upgradeHide); } catch (e) { }
+    if (!upgradeAlive) { return; }
+    warn('自动整理暂未完成：' + ((error && error.message) || error));
+    if (error && error.kamiUpgradeBoot === false) { api.disposed = true; return; }
+    try { boot(); } catch (e) { log('启动失败：' + ((e && e.message) || e)); }
+  });
 })();

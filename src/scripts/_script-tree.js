@@ -54,12 +54,24 @@ export function groupScriptTrees(scripts, groups) {
  * 不把文件夹当成脚本整体覆盖，不复制同 ID 脚本，也不因移出关闭的文件夹而启用脚本。
  * 早期平面更新器可能留下“旧顶层 + 新文件夹”同ID副本：按首次旧记录保留开关/data，
  * 后面的默认副本不能再覆盖它；只按ID去重，用户同名但不同ID的脚本照常保留。 */
-export function mergeScriptTrees(theirs, next) {
+export function scriptTreeAliases() { return /* @@KAMI_SCRIPT_ALIASES@@ */ {}; }
+
+export function scriptTreeFolderAliases() { return /* @@KAMI_SCRIPT_FOLDER_ALIASES@@ */ {}; }
+
+export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
   var copy = function (v) { return JSON.parse(JSON.stringify(v)); };
   var oldRows = scriptTreeEntries(theirs), newRows = scriptTreeEntries(next);
   var oldById = Object.create(null), nextById = Object.create(null), merged = Object.create(null);
   var oldFolders = Object.create(null), folders = Object.create(null), used = Object.create(null);
   var flat = [], out = [], report = { applied: 0, kept: 0, added: 0, deduplicated: 0 };
+  aliases = aliases || scriptTreeAliases();
+  folderAliases = folderAliases || scriptTreeFolderAliases();
+  var folderTargets = Object.create(null);
+  (Array.isArray(next) ? next : []).forEach(function (node) { if (node && node.type === 'folder') { folderTargets[node.id] = true; } });
+  function folderKey(id) { return folderAliases[id] && folderTargets[folderAliases[id]] ? folderAliases[id] : id; }
+  var targets = Object.create(null);
+  newRows.forEach(function (row) { targets[row.script.id] = true; });
+  function keyOf(id) { return aliases[id] && targets[aliases[id]] ? aliases[id] : id; }
   var i, allRows = oldRows.concat(newRows);
   /* 不把缺失ID的异常记录折叠成一份；在写盘前中止，原配置保持完整。 */
   for (i = 0; i < allRows.length; i++) {
@@ -67,33 +79,43 @@ export function mergeScriptTrees(theirs, next) {
     if (typeof identity !== 'string' || !identity.replace(/^\s+|\s+$/g, '')) { throw new Error('发现缺少标识（ID）的脚本，为保留原配置已停止合并，请先检查脚本列表'); }
   }
   for (i = 0; i < oldRows.length; i++) {
-    if (oldById[oldRows[i].script.id]) { report.deduplicated++; }
-    else { oldById[oldRows[i].script.id] = oldRows[i]; }
+    if (oldById[keyOf(oldRows[i].script.id)]) {
+      report.deduplicated++;
+      if (oldRows[i].script.id !== keyOf(oldRows[i].script.id) && oldById[keyOf(oldRows[i].script.id)].script.id === keyOf(oldRows[i].script.id)) { oldById[keyOf(oldRows[i].script.id)] = oldRows[i]; }
+    }
+    else { oldById[keyOf(oldRows[i].script.id)] = oldRows[i]; }
   }
   for (i = 0; i < newRows.length; i++) {
-    if (nextById[newRows[i].script.id]) { report.deduplicated++; }
-    else { nextById[newRows[i].script.id] = newRows[i]; }
+    if (nextById[keyOf(newRows[i].script.id)]) {
+      report.deduplicated++;
+      if (newRows[i].script.id === keyOf(newRows[i].script.id) && nextById[keyOf(newRows[i].script.id)].script.id !== newRows[i].script.id) { nextById[newRows[i].script.id] = newRows[i]; }
+    }
+    else { nextById[keyOf(newRows[i].script.id)] = newRows[i]; }
   }
   var oldTrees = Array.isArray(theirs) ? theirs : [], newTrees = Array.isArray(next) ? next : [];
   for (i = 0; i < oldTrees.length; i++) {
-    if (oldTrees[i] && oldTrees[i].type === 'folder') { oldFolders[oldTrees[i].id] = oldTrees[i]; }
+    if (oldTrees[i] && oldTrees[i].type === 'folder') {
+      var folderId = folderKey(oldTrees[i].id), previous = oldFolders[folderId];
+      if (!previous || (oldTrees[i].id !== folderId && previous.id === folderId)) { oldFolders[folderId] = oldTrees[i]; }
+    }
   }
   for (i = 0; i < oldRows.length; i++) {
-    var old = oldRows[i].script, incoming = nextById[old.id];
-    if (oldById[old.id] !== oldRows[i]) { continue; }
+    var old = oldRows[i].script, key = keyOf(old.id), incoming = nextById[key];
+    if (oldById[key] !== oldRows[i]) { continue; }
     var item = copy(incoming ? incoming.script : old);
     if (incoming) {
       item.enabled = old.enabled !== undefined ? !!old.enabled : item.enabled !== false;
       if (old.data !== undefined) { item.data = copy(old.data); }
       report.applied++;
     } else { report.kept++; }
-    merged[old.id] = item; flat.push(item);
+    item.id = key; merged[key] = item; flat.push(item);
   }
   for (i = 0; i < newRows.length; i++) {
     var fresh = newRows[i].script;
-    if (nextById[fresh.id] !== newRows[i]) { continue; }
-    if (!oldById[fresh.id]) {
-      var added = copy(fresh); merged[fresh.id] = added; flat.push(added);
+    var freshKey = keyOf(fresh.id);
+    if (nextById[freshKey] !== newRows[i]) { continue; }
+    if (!oldById[freshKey]) {
+      var added = copy(fresh); added.id = freshKey; merged[freshKey] = added; flat.push(added);
       report.added++; report.applied++;
     }
   }
@@ -102,11 +124,12 @@ export function mergeScriptTrees(theirs, next) {
   if (!grouped && !hadFolders) { report.list = flat; return report; }
 
   function take(script, targetFolder) {
-    if (!script || used[script.id] || !merged[script.id]) { return null; }
-    var node = merged[script.id], prior = oldById[script.id];
+    var key = script && keyOf(script.id);
+    if (!script || used[key] || !merged[key]) { return null; }
+    var node = merged[key], prior = oldById[key];
     if (prior && prior.folder && prior.folder.enabled === false &&
         (!targetFolder || targetFolder.enabled !== false)) { node.enabled = false; }
-    used[script.id] = true;
+    used[key] = true;
     return node;
   }
   function emit(trees) {
@@ -117,17 +140,17 @@ export function mergeScriptTrees(theirs, next) {
         var leaf = take(node, null); if (leaf) { out.push(leaf); }
         continue;
       }
-      var folder = folders[node.id];
+      var targetId = folderKey(node.id), folder = folders[targetId];
       if (!folder) {
-        folder = copy(node); folder.scripts = [];
-        var previous = oldFolders[node.id];
+        folder = copy(node); folder.id = targetId; folder.scripts = [];
+        var previous = oldFolders[targetId];
         if (previous) {
           var fields = ['enabled', 'name', 'icon', 'color'];
           for (var f = 0; f < fields.length; f++) {
             if (previous[fields[f]] !== undefined) { folder[fields[f]] = copy(previous[fields[f]]); }
           }
         }
-        folders[node.id] = folder;
+        folders[targetId] = folder;
       }
       var children = Array.isArray(node.scripts) ? node.scripts : [];
       for (var c = 0; c < children.length; c++) {

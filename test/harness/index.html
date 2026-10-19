@@ -168,7 +168,7 @@ function report() {
 
   /* ---------- 启动阶段 ---------- */
   check('中转站挂上宿主全局 HOST.__hub', !!HOST.__hub);
-  check('中转站版本 = 1.3', HOST.__hub && HOST.__hub.version === '1.3', HOST.__hub && HOST.__hub.version);
+  check('中转站版本 = 1.4', HOST.__hub && HOST.__hub.version === '1.4', HOST.__hub && HOST.__hub.version);
   check('中转站协议版本 ver = 3（登记格式兼容）', HOST.__hub && HOST.__hub.ver === 3);
   check('中转站不再导出 run/commands（斜杠命令已删）',
     HOST.__hub && HOST.__hub.run === undefined && HOST.__hub.commands === undefined);
@@ -254,8 +254,8 @@ function report() {
   /* ---------- 回归：重新启动能接管（可反复开关） ---------- */
   await loadScript('/src/scripts/10-脚本按钮.js', 'hub2');
   await sleep(1200);
-  check('重新启动中转站后能重新挂上 __hub（v1.3 可反复开关）',
-    !!HOST.__hub && HOST.__hub.version === '1.3');
+  check('重新启动中转站后能重新挂上 __hub（v1.4 可反复开关）',
+    !!HOST.__hub && HOST.__hub.version === '1.4');
 
   /* ---------- 回归：按钮串台（名字互为前缀 + 祖先拼接文字） ----------
      背景：老版本的 DOM 兜底通道会从点击目标往上爬 6 层，把每一层的 textContent

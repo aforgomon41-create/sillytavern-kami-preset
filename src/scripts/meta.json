@@ -58,8 +58,8 @@
     },
     {
         "file": "10-脚本按钮.js",
-        "name": "🎛 脚本按钮 v1.3",
-        "id": "2f5031a1-2d5a-483e-af01-8f472e75c6c5",
+        "name": "🎛 脚本按钮 v1.4",
+        "id": "04c9a1b3-6de4-45ec-b827-3f2c42c78a19",
         "enabled": true,
         "info": "唯一负责注册/绑定/绘制脚本按钮的脚本，其它脚本不再自己注册按钮。\n\n· 反截断脚本登记 🛡 → 点击执行 AntiTruncation.toggle()，标签显示 开/关\n· 皮肤管理脚本登记 🎨 → 点击展开皮肤面板，标签显示「🎨 + 当前皮肤名」\n· 预设设置脚本登记 🌟卡密预设 → 点击展开设置面板\n· 以后新增按钮：新脚本自己登记即可，中转站与其它脚本都不用改\n· 点击绑定走「官方事件通道 + 窗口捕获兜底」，任一可用即可\n· 目标脚本没在运行时点击会弹提示，而不是没反应\n· 登记方式：HOST.__hubDefs.push({name, order, tip, label, get, ready, click, absent})，\n  或 window.__hub.register({...})；也可 dispatch 一个 kami-hub-def 事件让它立刻刷新\n· 登记名是标签的前缀：登记 🎨 时按钮可以显示 🎨暗夜紫（登记名之间不要互相前缀包含）\n\n本脚本不使用任何斜杠命令，一切功能都依赖酒馆助手接口。",
         "button": {
@@ -70,7 +70,10 @@
         "export_with": {
             "data": true,
             "button": false
-        }
+        },
+        "legacy_ids": [
+            "2f5031a1-2d5a-483e-af01-8f472e75c6c5"
+        ]
     },
     {
         "file": "20-反截断.js",
