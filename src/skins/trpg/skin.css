@@ -272,7 +272,7 @@ html[data-kami-skin="trpg"] .kami-root::before {
   transform: translateY(var(--kami-trpg-board));
   pointer-events: none;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]::before { content: none; }
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])::before { content: none; }
 
 /* 纸面本体：底色 + 涂鸦 + 稿纸格 + 纸纹，四层一次性画完，之后不再重绘 */
 html[data-kami-skin="trpg"] .kami-surface {
@@ -373,8 +373,8 @@ html[data-kami-skin="trpg"] .kami-deco[data-kami-deco="d20"]::after {
   100% { transform: translateZ(2px) rotateX(-14deg) rotateY(-26deg) rotateZ(-4deg); }
 }
 /* 同屏多颗骰子必须错开相位，否则像一排同步闪的灯 */
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco[data-kami-deco="d20"]::before,
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco[data-kami-deco="d20"]::after {
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="think"],[data-kami-comp="search"]) .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="think"],[data-kami-comp="search"]) .kami-deco[data-kami-deco="d20"]::after {
   animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
   animation-delay: -.4s;
 }
@@ -383,8 +383,8 @@ html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp
   animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
   animation-delay: -6.3s;
 }
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"]::before,
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"]::after {
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-deco[data-kami-deco="d20"]::before,
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-deco[data-kami-deco="d20"]::after {
   animation: kami-trpg-d20 var(--kami-trpg-die-dur) ease-in-out infinite;
   animation-delay: -11.6s;
 }
@@ -394,7 +394,7 @@ html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp
   animation-delay: -3.1s;
 }
 /* 面板里的骰子更大 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-deco[data-kami-deco="d20"] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-deco[data-kami-deco="d20"] {
   width: calc(var(--kami-fs) * 3.4 * var(--kami-trpg-die));
   height: calc(var(--kami-fs) * 3.4 * var(--kami-trpg-die));
 }
@@ -448,9 +448,9 @@ html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-deco.kami-d20 .kami
   animation: kami-trpg-d20-idle var(--kami-trpg-die-dur) ease-in-out infinite;
 }
 /* 同屏多颗骰子错开相位，否则像一排同步闪的灯 */
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="think"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -.4s; }
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="think"],[data-kami-comp="search"]) .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -.4s; }
 html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="options"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -6.3s; }
-html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root[data-kami-comp="panel"] .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -11.6s; }
+html[data-kami-skin="trpg"][data-kami-effects~="dice"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-deco.kami-d20 .kami-d20-stage { animation-delay: -11.6s; }
 
 /* —— 标题：默认（行动选项 / 面板）是一张写了字的硬纸条 —— */
 html[data-kami-skin="trpg"] .kami-title {
@@ -851,7 +851,7 @@ html[data-kami-skin="trpg"] .kami-foot {
 /* ==========================================================================
  * 6 · 面板：桌上摊开的那张最大的纸
  * ======================================================================== */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
   background: rgba(38, 32, 20, .28);
 }
 /* .kami-drop 也是 .kami-surface：面板几何层给的是 position:absolute，
@@ -973,10 +973,10 @@ html[data-kami-skin="trpg"] input.kami-number[type="number"] { text-align: right
     .kami-number 上的亮底，深色主题下就变成深底压深字（真机实测，见本轮报告）。
     底只能写 background-color：写成 background 简写会把 .kami-select 那枚自绘箭头
     的 background-image 一起重置掉。 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] input.kami-number,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] input.kami-text,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] textarea.kami-textarea,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] select.kami-select {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-number,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
   color: var(--kami-fg) !important;
   background-color: var(--kami-card-2) !important;
   border-color: var(--kami-line-strong) !important;
@@ -1181,11 +1181,11 @@ html[data-kami-skin="trpg"][data-kami-motion="off"] .kami-deco.kami-d20 .kami-d2
  *
  * 三重限定，缺一不可：
  *   · html[data-kami-skin="trpg"] —— 皮肤契约要求的皮肤前缀；
- *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options 两种组件，
+ *   · :is([data-kami-comp="panel"],[data-kami-comp="dialog"])    —— 消息 iframe 里只有 think / options 两种组件，
  *                                   没有 panel。带上它，面板的改动绝不会渗进聊天前端；
  *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
  * ======================================================================== */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])#kami-preset-panel {
   --kami-items-min: 96px;
 }
 
@@ -1194,17 +1194,17 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel
    375px 抽屉 → 2 列（卡 ~166px），320px → 2 列（卡 ~110px）。
    只改令牌，不动脚本结构；桌面 420px 面板不受影响（视口 > 560px 时照旧 3~4 列）。 */
 @media (max-width: 560px) {
-  html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+  html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])#kami-preset-panel {
     --kami-items-min: 152px;
   }
 }
 @media (max-width: 380px) {
-  html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"]#kami-preset-panel {
+  html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])#kami-preset-panel {
     --kami-items-min: 108px;
   }
 }
 
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card.is-on {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card.is-on {
   border-color: var(--kami-accent-line);
   background-color: var(--kami-accent-soft);
 }
@@ -1218,14 +1218,14 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card.is-on 
  *
  * 三重限定，缺一不可（理由同上节）：
  *   · html[data-kami-skin="trpg"] —— 皮肤前缀；
- *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *   · :is([data-kami-comp="panel"],[data-kami-comp="dialog"])    —— 消息 iframe 里只有 think / options，没有 panel；
  *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
  * 只用本皮肤已有令牌；把这一枚上「整块铺色」的跑纸底纹收掉，角上只留 emoji 本身。
  * ============================================================ */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item.kami-card {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item.kami-card {
   position: relative;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge {
   position: absolute;
   top: 1px;
   right: 4px;
@@ -1243,26 +1243,26 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kam
   transform: rotate(-1.4deg);
   pointer-events: none;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   right: auto;
   left: 4px;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   top: auto;
   bottom: 1px;
 }
 /* 角标**不占宽度**：文字始终拿整张卡的宽度；只在上下方向让出角标的高度。
    有上角标（tl/tr）就加上边距，有下角标（bl/br）就加下边距 —— 卡片略高一点点，
    文字那一行永远是整宽的（用户裁定：角标可以占高度，不能占宽度）。 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
   padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:hover > .kami-badge {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:hover > .kami-badge {
   transform: rotate(0deg);
 }
 
@@ -1275,12 +1275,12 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:hover 
  *
  * 三重限定，缺一不可（理由同上面 22 节）：
  *   · html[data-kami-skin="trpg"] —— trpg 的作用域前缀；
- *   · [data-kami-comp="panel"]    —— 消息 iframe 里只有 think / options，没有 panel；
+ *   · :is([data-kami-comp="panel"],[data-kami-comp="dialog"])    —— 消息 iframe 里只有 think / options，没有 panel；
  *  · **不再用面板 id 限定**（契约 §4.4）：组件规则对所有面板生效，以后加面板零维护。
  * ============================================================ */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled],
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:active {
   background-color: var(--kami-card);
   background-image: none;
   border-color: var(--kami-line);
@@ -1291,17 +1291,17 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabl
   cursor: not-allowed;
 }
 /* 悬停才会冒出来的装饰（角标转正 / 左缘竖条 / 湿痕横线）在锁死时一律不许动 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::before,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::after {
   transform: scale(0);
   opacity: 0;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge { transform: none; }
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover > .kami-badge { transform: none; }
 
 /* 注释标记 + 展开出来的注释正文：**不得用面板 id 限定**（契约 §4.4 硬规则），
    否则后加的面板（如引导 ）一条都匹配不上。
    标记元素 = span.kami-card-note[data-kami-note-mark]，与 🌟 预设面板同构。 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark] {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1319,13 +1319,13 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[d
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:focus-visible {
   background: var(--kami-accent);
   color: var(--kami-bg);
   border-color: var(--kami-accent);
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note] {
   display: block;
   margin: 5px 0 0;
   padding: 5px 7px;
@@ -1339,7 +1339,7 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[d
   word-break: break-word;
   text-align: left;
 }
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note][hidden] { display: none; }
 
 /* ============================================================
  * · 面板里的控件边界：描边抬到「看得见」那一档
@@ -1350,9 +1350,9 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card-note[d
  * 只用本皮肤已有令牌，没有新颜色；不开 --kami-line 本身：聊天前端的细线该细还是细。
  * 不带面板 id（契约 §4.4）：三块面板与以后的新面板共用这一条。
  * ============================================================ */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card:not(.kami-item),
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-btn:not(.is-on):not(.kami-btn--primary) {
   border-color: var(--kami-line-strong);
 }
 
@@ -1369,7 +1369,7 @@ html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is
  *    带注释的卡就比同行其它卡矮一截（网格 stretch 只拉外包层，不拉它的子元素）。
  *    flex:1 1 auto 让卡片撑满外包层；注释展开时外包层被内容撑高，卡片照旧拿自然高度。
  * ============================================================ */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 1px;
   right: 4px;
@@ -1403,7 +1403,7 @@ html[data-kami-skin="trpg"] .kami-md li li::marker { color: var(--kami-fg-mute);
 /* 特效页说明（.kami-field 里的那枚 .kami-sub）：375px 窄屏必须能换行读全。
    结构层的 .kami-sub 是 white-space:nowrap（标题栏计数确实要单行），
    这里只对「字段标签里的说明」这一处放开，不碰标题栏 / 页脚的。 */
-html[data-kami-skin="trpg"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+html[data-kami-skin="trpg"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field .kami-field-label .kami-sub {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -1431,7 +1431,15 @@ html[data-kami-skin="trpg"] .kami-root select option:checked {
   background-color: var(--kami-fg) !important;
   font-weight: 600;
 }
-html[data-kami-skin="trpg"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
+html[data-kami-skin="trpg"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }/* Shared component roles: descriptions follow the selectable surface foreground. */
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="choiceCard"][data-kami-card-role="choice"] > .kami-card-note { color:inherit; opacity:1; }
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="field"] > .kami-card-note { color:var(--kami-fg-dim); opacity:1; }
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="tabs"] .kami-tab[aria-selected="true"] { color:var(--kami-fg); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="choiceCard"][aria-pressed="true"] { color:var(--kami-fg); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="choiceCard"][aria-pressed="true"] .kami-item-main { color:inherit; }
+
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="empty"] { color:var(--kami-fg-dim); }
+html[data-kami-skin="trpg"] .kami-root [data-kami-ui="steps"] .is-current :is(strong,small) { color:var(--kami-fg); }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="trpg"] {
@@ -1624,8 +1632,5 @@ html[data-kami-skin="trpg"][data-kami-effects~="grid"] {
 }
 html[data-kami-skin="trpg"][data-kami-effects~="doodle"] {
   --kami-trpg-doodle: var(--kami-trpg-art);
-}
-html[data-kami-skin="trpg"] {
-  --kami-items-min: 96px;
 }
 /* ==== END 全局层令牌上提 ==== */

@@ -15,7 +15,7 @@ html,body{margin:0;padding:0;background:transparent;border:0}
 </head>
 <body>
 <!-- 不把捕获到的 JSON 拼进 HTML；从本 iframe 对应的楼层读取原始数据。 -->
-<div class="kami-root" data-kami-comp="think" data-kami-view="render" data-kami-search="1">
+<div class="kami-root" data-kami-comp="search" data-kami-view="render" data-kami-search="1" data-kami-container="embedded">
   <div class="kami-shell kami-surface kami-collapse" data-kami-open="0">
     <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="false" aria-controls="search-body">
       <span class="kami-dot" aria-hidden="true"></span>
@@ -29,11 +29,12 @@ html,body{margin:0;padding:0;background:transparent;border:0}
 <script>
 (function(){
   'use strict';
+  /* @@KAMI_UI@@ */
   /* @@KAMI_SEARCH_PURE@@ */
-  var root=document.querySelector('[data-kami-search]'),body=root.querySelector('[data-search-content]');
+  var root=createKamiUi(document).adopt(document.querySelector('[data-kami-search]')),body=root.querySelector('[data-search-content]');
   var shell=root.querySelector('.kami-collapse'),head=root.querySelector('.kami-collapse-head'),count=root.querySelector('[data-search-count]');
   var disposed=false,retry=null;
-  function make(tag,className,text){var element=document.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
+  function make(tag,className,text){var element=createKamiUi(document).element(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
   function find(name){var target=window;for(var i=0;i<8;i++){try{if(typeof target[name]==='function')return target[name].bind(target);if(target.TavernHelper&&typeof target.TavernHelper[name]==='function')return target.TavernHelper[name].bind(target.TavernHelper);if(!target.parent||target.parent===target)break;target=target.parent;}catch(e){break;}}return null;}
   function toggle(){var open=shell.getAttribute('data-kami-open')!=='1';shell.setAttribute('data-kami-open',open?'1':'0');head.setAttribute('aria-expanded',open?'true':'false');}
   head.addEventListener('click',toggle);

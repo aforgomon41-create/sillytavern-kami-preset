@@ -1,0 +1,126 @@
+/* Public component foundation. Low specificity preserves every theme's visual rules. */
+:where(html) {
+/* @@KAMI_UI_DEFAULTS@@ */
+}
+:where(.kami-root) { color:var(--kami-fg);font-family:var(--kami-font);font-size:var(--kami-fs);line-height:var(--kami-lh); }
+:where(.kami-root *, .kami-root *::before, .kami-root *::after) { box-sizing:border-box; }
+:where(.kami-root [hidden]) { display:none!important; }
+:where(.kami-root [data-kami-ui]) { min-width:0; }
+:where(.kami-root .kami-btn,.kami-root .kami-icon-btn,.kami-root .kami-seg-item) { appearance:none;font:inherit;color:var(--kami-fg);background-color:var(--kami-card-2);border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:var(--kami-r-sm);padding:var(--kami-pad-y) var(--kami-pad-x);cursor:pointer;min-height:var(--kami-row-h);overflow-wrap:anywhere; }
+:where(.kami-root .kami-btn--primary) { background-color:var(--kami-accent);color:var(--kami-accent-fg); }
+:where(.kami-root .kami-icon-btn) { display:inline-grid;place-items:center;min-width:var(--kami-row-h); }
+:where(.kami-root button:disabled,.kami-root input:disabled,.kami-root select:disabled,.kami-root textarea:disabled) { cursor:not-allowed;opacity:.62; }
+:where(.kami-root :focus-visible) { outline:2px solid var(--kami-accent);outline-offset:3px; }
+:where(.kami-root .kami-actions,.kami-root .kami-seg) { display:flex;flex-wrap:wrap;gap:var(--kami-gap);align-items:center; }
+:where(.kami-root .kami-seg-item[aria-checked="true"]) { background-color:var(--kami-accent);color:var(--kami-accent-fg); }
+:where(.kami-root .kami-text,.kami-root .kami-number,.kami-root .kami-textarea,.kami-root .kami-select) { font:inherit;color:var(--kami-fg);background-color:var(--kami-card-2);border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:var(--kami-r-sm);padding:var(--kami-pad-y) var(--kami-pad-x);min-height:var(--kami-row-h);min-width:0;max-width:100%; }
+:where(.kami-root .kami-textarea) { width:100%;min-height:7em;resize:vertical; }
+:where(.kami-root .kami-number) { width:7ch;text-align:right; }
+:where(.kami-root .kami-text,.kami-root .kami-select) { width:100%; }
+:where(.kami-root .kami-select option,.kami-root .kami-select optgroup) { color:var(--kami-fg);background-color:var(--kami-bg); }
+:where(.kami-root .kami-check,.kami-root .kami-range) { accent-color:var(--kami-accent); }
+:where(.kami-root .kami-range) { width:100%; }
+:where(.kami-root [data-kami-card-role="container"],.kami-root [data-kami-card-role="collapse"]) { background-color:var(--kami-card);border:var(--kami-border-w) solid var(--kami-line);border-radius:var(--kami-r-md);padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x); }
+:where(.kami-root .kami-card-head) { display:flex;align-items:center;justify-content:space-between;gap:var(--kami-gap); }
+:where(.kami-root .kami-card-title) { font-family:var(--kami-font-title);font-weight:var(--kami-fw-title);overflow-wrap:anywhere; }
+:where(.kami-root .kami-card-body) { min-width:0; }
+:where(.kami-root .kami-card-note) { color:var(--kami-fg-dim);font-size:var(--kami-fs-sm);overflow-wrap:anywhere; }
+:where(.kami-root details[data-kami-ui="collapse"]>summary,.kami-root details[data-kami-ui="searchResults"]>summary) { cursor:pointer; }
+:where(.kami-root [data-kami-ui="choiceCard"]) { font:inherit;text-align:start;color:var(--kami-fg);background-color:var(--kami-card-2);border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:var(--kami-r-sm);padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x);cursor:pointer; }
+:where(.kami-root [data-kami-ui="choiceCard"][aria-pressed="true"]) { background-color:var(--kami-accent);color:var(--kami-accent-fg); }
+:where(.kami-root [data-kami-ui="choiceCard"] .kami-card-note) { color:inherit; }
+:where(.kami-root .kami-field) { display:flex;flex-wrap:wrap;align-items:center;gap:var(--kami-gap); }
+:where(.kami-root .kami-field-label) { flex:1 1 10em; }
+:where(.kami-root .kami-field-value) { min-width:0; }
+:where(.kami-root .kami-field>.kami-card-note) { flex-basis:100%; }
+:where(.kami-root .kami-ui-group) { border:var(--kami-border-w) solid var(--kami-line);border-radius:var(--kami-r-sm);padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x);min-width:0; }
+:where(.kami-root .kami-ui-divider) { border:0;border-top:var(--kami-border-w) solid var(--kami-line);margin:var(--kami-gap-lg) 0; }
+:where(.kami-root .kami-chip) { display:inline-flex;align-items:center;gap:.3em;padding:.15em .55em;color:var(--kami-fg);background-color:var(--kami-accent-soft);border-radius:var(--kami-r-pill); }
+:where(.kami-root .kami-ui-status) { display:inline-flex;align-items:center;gap:.5em; }
+:where(.kami-root .kami-ui-status::before) { content:"";display:inline-block;width:.55em;height:.55em;border-radius:50%;background-color:var(--kami-accent); }
+:where(.kami-root [data-kami-state="error"],.kami-root .kami-ui-field-error) { color:var(--kami-warn); }
+:where(.kami-root .kami-ui-progress) { overflow:hidden;min-height:.7em;background-color:var(--kami-bg-soft);border:1px solid var(--kami-line);border-radius:var(--kami-r-pill); }
+:where(.kami-root .kami-ui-progress-fill) { display:block;width:var(--kami-progress,0%);height:.7em;background-color:var(--kami-accent);transition:width var(--kami-dur); }
+:where(.kami-root .kami-ui-progress[data-kami-indeterminate]>.kami-ui-progress-fill) { animation:kami-ui-progress 1.4s ease-in-out infinite alternate; }
+:where(.kami-root .kami-ui-spinner) { display:inline-block;width:1.3em;height:1.3em;border:2px solid var(--kami-line-strong);border-top-color:var(--kami-accent);border-radius:50%;animation:kami-ui-spin .9s linear infinite;vertical-align:middle; }
+:where(.kami-root .kami-ui-alert) { padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x);border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:var(--kami-r-sm);background-color:var(--kami-card-2); }
+:where(.kami-root .kami-ui-list,.kami-root .kami-ui-sources) { margin:0;padding-inline-start:1.5em;overflow-wrap:anywhere; }
+:where(.kami-root .kami-ui-table-wrap) { width:100%;overflow:auto; }
+:where(.kami-root .kami-ui-table) { width:100%;border-collapse:collapse;color:var(--kami-fg); }
+:where(.kami-root .kami-ui-table th,.kami-root .kami-ui-table td) { text-align:start;padding:var(--kami-pad-y) var(--kami-pad-x);border-bottom:var(--kami-border-w) solid var(--kami-line);overflow-wrap:anywhere; }
+:where(.kami-root .kami-ui-table th) { font-weight:var(--kami-fw-title);background-color:var(--kami-bg-soft); }
+:where(.kami-root .kami-ui-tree,.kami-root .kami-ui-tree ul) { list-style:none;margin:0;padding-inline-start:1em; }
+:where(.kami-root .kami-ui-tree-label) { display:block;padding:var(--kami-pad-y) var(--kami-pad-x);cursor:pointer; }
+:where(.kami-root .kami-ui-tree [aria-selected="true"]>.kami-ui-tree-label) { background-color:var(--kami-accent-soft); }
+:where(.kami-root .kami-empty) { padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x);color:var(--kami-fg-dim);text-align:center; }
+:where(.kami-root .kami-ui-tooltip,.kami-root .kami-ui-menu,.kami-root .kami-ui-combobox) { position:relative;display:inline-block;max-width:100%; }
+:where(.kami-root .kami-ui-tooltip-text,.kami-root .kami-ui-menu-items,.kami-root .kami-ui-combobox-list) { position:absolute;inset-inline-start:0;top:100%;z-index:20;min-width:100%;max-width:min(30em,90vw);max-height:18em;overflow:auto;color:var(--kami-fg);background-color:var(--kami-bg);border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:var(--kami-r-sm);box-shadow:var(--kami-shadow-sm);padding:var(--kami-pad-y); }
+:where(.kami-root .kami-ui-menu-items>.kami-btn) { display:block;width:100%;text-align:start; }
+:where(.kami-root .kami-ui-combobox) { display:block;width:100%; }
+:where(.kami-root .kami-ui-combobox-option) { padding:var(--kami-pad-y) var(--kami-pad-x);cursor:pointer; }
+:where(.kami-root .kami-ui-combobox-option.is-on) { background-color:var(--kami-accent);color:var(--kami-accent-fg); }
+:where(.kami-root[data-kami-container="embedded"] .kami-ui-menu-items,.kami-root[data-kami-container="embedded"] .kami-ui-combobox-list,.kami-root[data-kami-container="embedded"] .kami-ui-tooltip-text) { position:relative;top:auto;max-width:100%; }
+:where(.kami-root .kami-ui-steps) { list-style:none;padding:0;margin:0; }
+:where(.kami-root .kami-ui-steps li) { display:flex;align-items:center;gap:var(--kami-gap);padding:var(--kami-pad-lg-y) var(--kami-pad-lg-x);border:var(--kami-border-w) solid transparent;border-radius:var(--kami-r-sm); }
+:where(.kami-root .kami-ui-steps .is-current) { border-color:var(--kami-accent);background-color:var(--kami-accent-soft); }
+:where(.kami-root .kami-ui-step-mark) { display:grid;place-items:center;flex:0 0 2em;min-height:2em;border:var(--kami-border-w) solid var(--kami-line-strong);border-radius:50%; }
+:where(.kami-root .kami-ui-steps small) { display:block;color:var(--kami-fg-dim); }
+:where(.kami-root .kami-ui-resources) { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,var(--kami-items-min)),1fr));gap:var(--kami-gap); }
+:where(.kami-root .kami-layout) { display:flex;gap:var(--kami-gap);min-width:0;max-width:100%; }
+:where(.kami-root .kami-layout>*) { min-width:0; }
+:where(.kami-root [data-kami-layout-kind="stack"]) { flex-direction:column; }
+:where(.kami-root [data-kami-layout-kind="row"]) { align-items:center; }
+:where(.kami-root [data-kami-layout-kind="wrap"]) { flex-wrap:wrap;align-items:center; }
+:where(.kami-root [data-kami-layout-kind="grid"]) { display:grid;grid-template-columns:repeat(var(--kami-layout-columns,auto-fit),minmax(min(100%,var(--kami-layout-min,14em)),1fr)); }
+:where(.kami-root [data-kami-layout-kind="split"]) { flex-wrap:wrap; }
+:where(.kami-root [data-kami-layout-kind="split"]>*) { flex:1 1 var(--kami-layout-min,18em); }
+:where(.kami-root [data-kami-layout-kind="center"]) { justify-content:center;align-items:center; }
+:where(.kami-root [data-kami-slot="decoration"]) { pointer-events:none; }
+:where(.kami-root[data-kami-container="embedded"]) { position:relative;min-width:0;max-width:100%; }
+:where(.kami-root[data-kami-container="dialog"]) { position:relative;width:100%;height:auto;min-height:0;margin:0;pointer-events:auto; }
+:where(.kami-root[data-kami-container="dialog"]>.kami-shell) { display:flex;flex-direction:column;max-height:90dvh;min-height:0;margin:0; }
+:where(.kami-root[data-kami-container="dialog"] .kami-body) { overflow:auto;min-height:0; }
+:where(dialog.kami-ui-dialog) { border:0;padding:0;background-color:transparent;width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;overflow:visible; }
+:where(dialog.kami-ui-dialog::backdrop) { background-color:rgba(0,0,0,.58); }
+:where(.kami-root[data-kami-container="panel"]) { position:fixed;inset:0;min-height:100dvh;z-index:30000;pointer-events:none; }
+:where(.kami-root[data-kami-container="panel"]>.kami-drop) { position:absolute;left:var(--kami-panel-x,12px);top:var(--kami-panel-y,60px);width:var(--kami-panel-w,min(420px,calc(100% - 24px)));height:var(--kami-panel-h,min(560px,85dvh));display:flex;flex-direction:column;max-width:calc(100% - 24px);max-height:calc(100% - 24px);pointer-events:auto; }
+:where(.kami-root[data-kami-container="panel"]>.kami-drop[data-kami-open="0"]) { display:none; }
+:where(.kami-root[data-kami-container="panel"]>.kami-drop>.kami-body) { flex:1 1 auto;min-height:0;overflow:auto; }
+@keyframes kami-ui-spin { to { transform:rotate(360deg); } }
+@keyframes kami-ui-progress { to { transform:translateX(200%); } }
+@media(max-width:600px) {
+:where(.kami-root[data-kami-container="panel"]>.kami-drop) { left:0;top:auto;right:0;bottom:0;width:100%;max-width:100%;height:80dvh; }
+}
+@media(prefers-reduced-motion:reduce) {
+:where(.kami-root .kami-ui-spinner,.kami-root .kami-ui-progress-fill) { animation:none;transition:none; }
+}
+:where(html[data-kami-motion="off"] .kami-root .kami-ui-spinner,html[data-kami-motion="calm"] .kami-root .kami-ui-spinner,html[data-kami-motion="off"] .kami-root .kami-ui-progress-fill,html[data-kami-motion="calm"] .kami-root .kami-ui-progress-fill) { animation:none;transition:none; }
+
+/* Container geometry is platform-owned. A theme may decorate but cannot move its viewport stage. */
+.kami-root.kami-root[data-kami-container="panel"]{position:fixed;inset:0;min-height:100vh;min-height:100dvh;margin:0;pointer-events:none;}
+.kami-root.kami-root[data-kami-container="panel"]>.kami-drop{transform:none;pointer-events:auto;}
+@media(max-width:600px){.kami-root.kami-root[data-kami-container="panel"]>.kami-drop.kami-drop{left:0!important;right:0!important;top:auto!important;bottom:0!important;transform:none!important;width:100%!important;max-width:100%!important;height:80dvh!important;}}
+
+.kami-root[data-kami-container="panel"] .kami-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;touch-action:none;}
+@media(max-width:600px){.kami-root[data-kami-container="panel"] .kami-resize{display:none;}}
+
+/* New semantic components own readable text; themes still supply every color token. */
+.kami-root [data-kami-ui="sources"] a{color:var(--kami-fg);text-decoration:underline;text-underline-offset:.18em;overflow-wrap:anywhere;}
+.kami-root [data-kami-ui="field"] .kami-ui-field-error{color:var(--kami-fg);border-inline-start:3px solid var(--kami-warn);padding-inline-start:.65em;flex-basis:100%;}
+
+/* Long modal content scrolls in its body; theme shell decoration cannot change this structure. */
+.kami-root.kami-root[data-kami-container="dialog"]>.kami-shell.kami-shell{display:flex;flex-direction:column;max-height:90dvh;min-height:0;margin:0;overflow:hidden;}
+.kami-root.kami-root[data-kami-container="dialog"]>.kami-shell>.kami-body{flex:1 1 auto;min-height:0;overflow:auto;}
+.kami-root.kami-root[data-kami-container="dialog"]>.kami-shell>:is(.kami-head,.kami-foot){flex:0 0 auto;}
+
+.kami-root.kami-root[data-kami-container="dialog"]{position:relative;width:100%;max-width:100%;height:auto;min-height:0;margin:0;pointer-events:auto;}
+
+/* Tab navigation is a one-row scrolling rail, never a wrapping action group. */
+.kami-root .kami-tabs{display:flex;flex-direction:row;flex-wrap:nowrap;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;align-items:center;white-space:nowrap;touch-action:pan-x;overscroll-behavior-x:contain;}
+.kami-root .kami-tabs>.kami-tab{flex:0 0 auto;white-space:nowrap;overflow-wrap:normal;word-break:normal;}
+:where(.kami-root .kami-tab){appearance:none;font:inherit;color:var(--kami-fg-dim);background:transparent;border:0;border-radius:0;padding:var(--kami-pad-y) var(--kami-pad-x);cursor:pointer;}
+:where(.kami-root .kami-tab[aria-selected="true"]){color:var(--kami-accent-fg);background-color:var(--kami-accent);border-bottom:var(--kami-accent-mark) solid var(--kami-accent);}
+.kami-root .kami-tabs>[data-kami-slot="tab-actions"]{display:flex;align-items:center;position:sticky;inset-inline-end:0;margin-inline-start:auto;flex:0 0 auto;max-width:50%;min-width:0;}
+.kami-root .kami-tabs>[data-kami-slot="tab-actions"] .kami-select{width:auto;max-width:100%;min-width:0;}
+
+.kami-root .kami-tabs[data-kami-tabs-mode="fit"]>.kami-tab{flex:1 0 0;min-width:max-content;}

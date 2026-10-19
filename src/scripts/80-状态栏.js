@@ -26,6 +26,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '0.2';
   var PANEL_ID = 'kami-status-ball';
@@ -517,10 +518,7 @@
   var ribbon = null;           /* 从球背后向右探出的那条横幅 */
 
   function mk(tag, cls, text) {
-    var el = HDOC.createElement(tag);
-    if (cls) { el.className = cls; }
-    if (text !== undefined && text !== null) { el.textContent = text; }
-    return el;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
   /* 拖动节的拍子（2026-10-01）：pointermove 只更新坐标并**请求一帧**，真正写样式挪进 rAF 回调，
      一帧最多写一次。⚠️ rAF 必须向**宿主窗口**要：脚本跑在隐藏 iframe 里，

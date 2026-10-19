@@ -525,10 +525,10 @@ html[data-kami-skin="wod"] .kami-seg-item.is-on {
 /* ==========================================================================
  * 4 · 消息楼层：思维链 (think) 与行动选项 (options)
  * ======================================================================== */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="think"] .kami-collapse > .kami-collapse-body {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="think"],[data-kami-comp="search"]) .kami-collapse > .kami-collapse-body {
   display: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="think"] .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="think"],[data-kami-comp="search"]) .kami-collapse[data-kami-open="1"] > .kami-collapse-body {
   display: block;
   animation: kami-wod-in var(--kami-dur-slow) var(--kami-ease-out) backwards;
 }
@@ -912,21 +912,21 @@ html[data-kami-skin="wod"] .kami-toast.is-bad {
 }
 
 /* ==========================================================================
- * 8 · 面板通用（契约 §4.4：组件规则一律 .kami-root[data-kami-comp="panel"] …）
+ * 8 · 面板通用（契约 §4.4：组件规则一律 .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) …）
  * ======================================================================== */
 /* 面板成员通吃：面板内的卡片描边抬到「看得见」那一档 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:not(.is-on):not([aria-pressed="true"]) {
   border-color: var(--kami-line-strong);
 }
 /* 面板内的条目卡：稍收紧、保证触屏可点高度 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item {
   position: relative;
   min-height: 42px;
   padding: var(--kami-pad-y) var(--kami-pad-x);
 }
 /* 卡片头做成整行标题条（button.kami-card-head.kami-btn--ghost 的复用） */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) button.kami-card-head.kami-btn {
   width: 100%;
   min-height: 0;
   border: 0;
@@ -937,28 +937,28 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] button.kami-card-h
   box-shadow: none;
 }
 /* 分组卡内部网格：别把内边距叠两层 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card:not(.kami-item) {
   padding: var(--kami-pad-lg-y) var(--kami-pad-lg-x);
   margin-bottom: var(--kami-gap-lg);
   background-color: var(--kami-card);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card > .kami-card-body {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card > .kami-card-body {
   padding: 2px 0 0;
 }
 
 /* —— 面板网格：密集判据必须把列宽令牌一块儿调小，否则条目一行只排一张 —— */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
   --kami-items-min: 100px;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--kami-items-min)), 1fr));
   gap: var(--kami-gap);
 }
 /* 分组卡内部的条目网格：卡身只剩 ~350px，列宽再收半档 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
   --kami-items-min: 88px;
 }
 
 /* —— 面板内字段 / 表单控件 —— */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -966,23 +966,23 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field {
   padding: var(--kami-pad-y) 0;
   border-bottom: 1px solid var(--kami-t1);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field:last-child {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field:last-child {
   border-bottom: 0;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field-label {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field-label {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--kami-fs-sm);
   color: var(--kami-fg);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field-value {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field-value {
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--kami-gap);
 }
 /* 滑杆：暗轨 + 封蜡圆钮 + 已走过的一段染色（--kami-value 由脚本下发 0–1） */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-range {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -995,7 +995,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range {
     var(--kami-card-2) calc(var(--kami-value, 0) * 100%), var(--kami-card-2) 100%);
   cursor: pointer;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range::-webkit-slider-thumb {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -1006,7 +1006,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range::-webk
   cursor: pointer;
   box-shadow: 0 0 4px rgba(0, 0, 0, .6);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range::-moz-range-thumb {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-range::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -1015,7 +1015,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-range::-moz-
   cursor: pointer;
 }
 /* 开关：方角轨道 + 骨白旋钮，选中泛红像烛火点亮 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch {
   position: relative;
   display: inline-block;
   width: 44px;
@@ -1023,13 +1023,13 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch {
   cursor: pointer;
   user-select: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-input {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-track {
   position: absolute;
   inset: 0;
   background-color: var(--kami-card-2);
@@ -1037,7 +1037,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-track
   border-radius: var(--kami-r-pill);
   transition: background-color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-knob {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-knob {
   position: absolute;
   left: 3px;
   top: 3px;
@@ -1047,26 +1047,26 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-knob 
   border-radius: 50%;
   transition: transform var(--kami-dur-fast) var(--kami-ease), background-color var(--kami-dur-fast) var(--kami-ease);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:checked + .kami-switch-track {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
   transform: translateX(20px);
   background-color: var(--kami-accent);
   box-shadow: 0 0 6px var(--kami-glow);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:focus-visible + .kami-switch-track {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }
 
 /* 对比度四件套（硬性三项 !important：background-color + color + color-scheme）。
    面板输入一律走「墨井」：暗色深井压骨白字，两档方案同读数（13:1），亮档也不劣化。 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-number,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-text,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-textarea,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   background-color: #171119 !important;
   color: #f2e8d5 !important;
   color-scheme: dark !important;
@@ -1079,7 +1079,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-select {
   text-align: left;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-number {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number {
   width: 68px;
   min-height: 30px;
   padding: 2px 7px;
@@ -1087,8 +1087,8 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-number {
   font-size: var(--kami-fs-xs);
   font-variant-numeric: tabular-nums;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-textarea { resize: vertical; }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea { resize: vertical; }
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--kami-pad-x) + 16px);
@@ -1100,12 +1100,12 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-select {
   background-repeat: no-repeat;
   cursor: pointer;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] input.kami-number[type="number"] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-number[type="number"] {
   text-align: right;
 }
 
 /* —— 面板 Tabs —— */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tabs {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-tabs {
   display: flex;
   gap: 2px;
   padding: 0 var(--kami-pad-lg-x);
@@ -1116,8 +1116,8 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tabs {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
   mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tabs::-webkit-scrollbar { display: none; }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tab {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-tabs::-webkit-scrollbar { display: none; }
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-tab {
   flex: none;
   min-height: calc(var(--kami-row-h) - 6px);
   padding: var(--kami-pad-y) var(--kami-pad-x);
@@ -1133,20 +1133,20 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tab {
   transition: color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease);
 }
 @media (hover: hover) {
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tab:hover { color: var(--kami-fg); }
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-tab:hover { color: var(--kami-fg); }
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-tab[aria-selected="true"] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-tab[aria-selected="true"] {
   color: var(--kami-fg);
   border-bottom-color: var(--kami-accent);
   font-weight: var(--kami-fw-title);
 }
 
 /* —— 拖动抓手 —— */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-head[data-kami-drag] { cursor: grab; }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-head[data-kami-drag]:active { cursor: grabbing; }
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-head[data-kami-drag] { cursor: grab; }
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-head[data-kami-drag]:active { cursor: grabbing; }
 
 /* —— 缩放手柄 —— */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-resize {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-resize {
   position: absolute;
   right: 2px;
   bottom: 2px;
@@ -1161,7 +1161,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-resize {
  * 9 · 角标与注释（预设 / 引导两块面板同一套 DOM，绝不挂面板 id）
  * ======================================================================== */
 /* emoji 角标（条目名里摘出来的那枚）：钉在卡角、不占宽度、不抢点击 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge {
   position: absolute;
   top: 1px;
   right: 4px;
@@ -1176,19 +1176,19 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami
   color: var(--kami-fg-mute);
   pointer-events: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   right: auto;
   left: 4px;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   top: auto;
   bottom: 1px;
 }
 /* ⓘ 注释标记：右上角角标（tr），必须能点（-opposite：emoji 角标是 none） */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner],
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card > .kami-card-head [data-kami-note-mark] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner],
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card > .kami-card-head [data-kami-note-mark] {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1206,7 +1206,7 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card > .kami
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 3px;
   right: 4px;
@@ -1216,24 +1216,24 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item > .kami
   pointer-events: auto;
 }
 @media (hover: hover) {
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover {
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:hover {
     background: var(--kami-accent);
     color: var(--kami-accent-fg);
   }
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 1px;
 }
 /* 上/下角标的内边距补偿：条目卡里有 tl/tr ⓘ 时顶上让出一格 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(var(--kami-pad-y) + 1em);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
   padding-bottom: calc(var(--kami-pad-y) + 1em);
 }
 /* 注释正文（展开出来的那块）：羊皮纸批注 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note] {
   display: block;
   margin: 5px 0 0;
   padding: 6px 9px;
@@ -1247,16 +1247,16 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card-note[da
   word-break: break-word;
   text-align: left;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note][hidden] { display: none; }
 
 /* ==========================================================================
  * 10 · 锁死的条目（原生 disabled）：一眼看出点不动
  *      预设面板里固定有十几个「非当前模型」的条目带原生 disabled，兜底皮肤的
  *      同类规则被 html:not([data-kami-skin]) 限定，真实皮肤生效时一条都不匹配。
  * ======================================================================== */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled],
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:active {
   background-color: var(--kami-card);
   background-image: none;
   border-color: var(--kami-line);
@@ -1269,19 +1269,19 @@ html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disable
   font-weight: var(--kami-fw);
   animation: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled] .kami-item-main,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled] .kami-card-title,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled] .kami-item-side {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled] .kami-item-main,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled] .kami-card-title,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled] .kami-item-side {
   color: var(--kami-fg-mute);
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::before,
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::after {
   animation: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover > .kami-badge {
   transform: none;
 }
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-item[disabled] .kami-item.is-demo {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled] .kami-item.is-demo {
   opacity: var(--kami-dim-lock, .42);
 }
 
@@ -1357,10 +1357,10 @@ html[data-kami-skin="wod"] .kami-scroll::-webkit-scrollbar-thumb:hover { backgro
 /* ==========================================================================
  * 12 · 面板本体几何与贴底抽屉（唯一允许不带 comp 限定的「骨架」段）
  * ======================================================================== */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
   background-color: rgba(10, 6, 14, .55);
 }
-html[data-kami-skin="wod"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] {
+html[data-kami-skin="wod"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
   background-color: rgba(58, 40, 28, .28);
 }
 html[data-kami-skin="wod"] .kami-root .kami-drop.kami-drop {
@@ -1720,10 +1720,10 @@ html[data-kami-skin="wod"][data-kami-effects~="seal"] .kami-card.is-on::before {
     --kami-row-h: 44px;
     --kami-ls: .01em;
   }
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 152px;
   }
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 150px;
   }
   html[data-kami-skin="wod"] .kami-root .kami-bar { flex-wrap: wrap; }
@@ -1734,10 +1734,10 @@ html[data-kami-skin="wod"][data-kami-effects~="seal"] .kami-card.is-on::before {
     --kami-pad-lg-x: 12px;
     --kami-pad-lg-y: 11px;
   }
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 108px;
   }
-  html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card .kami-card .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 108px;
   }
   html[data-kami-skin="wod"] .kami-root .kami-head { flex-wrap: wrap; }
@@ -1759,13 +1759,13 @@ html[data-kami-skin="wod"] .kami-md ol ol ol { list-style-type: lower-roman; }
 /* 特效页说明（.kami-field 里的那枚 .kami-sub）：375px 窄屏必须能换行读全。
    结构层的 .kami-sub 是 white-space:nowrap（标题栏计数确实要单行），
    这里只对「字段标签里的说明」这一处放开，不碰标题栏 / 页脚的。 */
-html[data-kami-skin="wod"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field .kami-field-label .kami-sub {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   min-width: 0;
 }
-
+
 
 /* ============================================================
  * · 正文美化包裹层 [data-kami-comp="body"]（已退役，2026-09-26）
@@ -1787,7 +1787,14 @@ html[data-kami-skin="wod"] .kami-root select option:checked {
   color: var(--kami-accent-fg) !important;
   background-color: var(--kami-accent) !important;
 }
-html[data-kami-skin="wod"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
+html[data-kami-skin="wod"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }/* Shared component roles: descriptions follow the selectable surface foreground. */
+html[data-kami-skin="wod"] .kami-root [data-kami-ui="choiceCard"][data-kami-card-role="choice"] > .kami-card-note { color:inherit; opacity:1; }
+html[data-kami-skin="wod"] .kami-root [data-kami-ui="field"] > .kami-card-note { color:var(--kami-fg-dim); opacity:1; }
+html[data-kami-skin="wod"] .kami-root [data-kami-ui="tabs"] .kami-tab[aria-selected="true"] { color:var(--kami-fg); }
+html[data-kami-skin="wod"] .kami-root[data-kami-container="embedded"] [data-kami-ui="tabs"] .kami-tab[aria-selected="true"] { color:var(--kami-accent-fg); }
+
+html[data-kami-skin="wod"] .kami-root [data-kami-ui="empty"] { color:var(--kami-fg-dim); }
+html[data-kami-skin="wod"] .kami-root [data-kami-ui="steps"] .is-current :is(strong,small) { color:var(--kami-fg); }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="wod"] {
@@ -1948,32 +1955,5 @@ html[data-kami-skin="wod"][data-kami-motion="off"] {
   --kami-enter-y: 0px;
   --kami-enter-scale: 1;
   --kami-stagger: 0ms;
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-action);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-persona);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-plot);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-info);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-fun);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-nsfw);
-}
-html[data-kami-skin="wod"] {
-  --kami-kind-curr: var(--kami-kind-other);
-}
-html[data-kami-skin="wod"] {
-  --kami-items-min: 100px;
-}
-html[data-kami-skin="wod"] {
-  --kami-items-min: 88px;
 }
 /* ==== END 全局层令牌上提 ==== */

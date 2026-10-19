@@ -1,7 +1,9 @@
 /* 同宿主仅一层 fetch；响应按 order 从小到大通过处理器。注册票据隔离新旧脚本实例。 */
 export function kamiResponsePipeline(host) {
   var key = '__kamiResponsePipelineV1';
-  if (host[key]) { return host[key]; }
+  var cached = host[key];
+  /* 空闲实例可能夹在已卸载的其他 fetch 包装中；另建闭包，不能把旧 base 改成包着自己的函数。 */
+  if (cached && (cached.size() || (typeof cached.isCurrent === 'function' && cached.isCurrent()))) { return cached; }
   var base = host.fetch, entries = new Map(), hooked;
   function generation(input) {
     try {
@@ -29,7 +31,8 @@ export function kamiResponsePipeline(host) {
         if (!entries.size && host.fetch === hooked) { host.fetch = base; }
       };
     },
-    size: function () { return entries.size; }
+    size: function () { return entries.size; },
+    isCurrent: function () { return host.fetch === base || host.fetch === hooked; }
   };
   host[key] = api;
   return api;

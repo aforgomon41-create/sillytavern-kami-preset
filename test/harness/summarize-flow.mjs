@@ -227,6 +227,12 @@ function makeEl(doc, tag) {
     getBoundingClientRect() { return { left: 0, top: 0, width: 420, height: 560, right: 420, bottom: 560 }; },
     closest() { return null; }, focus() { }, blur() { }, click() { },
   };
+  el.classList = {
+    toggle(name, force) { const names = new Set(el.className.split(/\s+/).filter(Boolean)); const enabled = force === undefined ? !names.has(name) : !!force; if (enabled) names.add(name); else names.delete(name); el.className = [...names].join(' '); return enabled; },
+    add(...names) { names.forEach(name => this.toggle(name, true)); },
+    remove(...names) { names.forEach(name => this.toggle(name, false)); },
+    contains(name) { return el.className.split(/\s+/).includes(name); }
+  };
   Object.defineProperty(el, 'textContent', {
     get() { return el._text + el.children.map(textOf).join(''); },
     set(v) { el.children.length = 0; el._text = String(v === undefined || v === null ? '' : v); },
@@ -1169,6 +1175,28 @@ console.log('\n--- 探针（不计分）：删掉**最后**一个块 + 账本一
   await settle();
   console.log('OBSERVE · 那一轮之后再刷新：orphan=' + JSON.stringify(api.status().orphan) +
     ' pending=' + JSON.stringify(api.status().pending) + ' covered=' + api.status().covered);
+  api.shutdown();
+}
+
+
+/* 独立搜索不能覆盖自动压缩所依赖的剧情发送量。 */
+{
+  const env = makeEnv({ vars: VARS({ keep: 5, chunk: 10 }) });
+  CUR = env; await settle();
+  const api = env.api();
+  await env.HOST.fetch('/api/backends/chat-completions/generate', {
+    body: JSON.stringify({ messages: [{ role: 'system', content: '剧情提示词'.repeat(1000) }] })
+  });
+  await settle();
+  const baseline = JSON.stringify(api.status().measured);
+  ok(api.status().measured && api.status().measured.total > 0, '正常剧情请求建立发送量基线');
+  for (const marker of [{ _kami_native_probe: 'test' }, { _kami_background_task: 'web_search' }]) {
+    await env.HOST.fetch('/api/backends/chat-completions/generate', {
+      body: JSON.stringify({ ...marker, messages: [{ role: 'system', content: '短测试' }] })
+    });
+    await settle();
+    eq(JSON.stringify(api.status().measured), baseline, '独立搜索请求保留原有剧情发送量基线');
+  }
   api.shutdown();
 }
 

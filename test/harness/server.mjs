@@ -1,3 +1,4 @@
+import { migrateComponentSelectors } from '../../build/css-scope.mjs';
 import { flattenScriptTrees } from '../../build/kami-doc.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packSkinAssets } from '../../build/skin-assets.mjs';
-import { expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandTagsPure, expandGodCmdPure } from '../../build/kami-doc.mjs';
+import { uiCss, expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandTagsPure, expandGodCmdPure } from '../../build/kami-doc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -180,6 +181,9 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   let p = decodeURIComponent(url.pathname);
   const send = (code, type, body) => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
+
+  if (p === '/dev/ui.css') { send(200,'text/css; charset=utf-8',uiCss(ROOT)); return; }
+  if (p === '/skin-pack') { send(200,'application/json; charset=utf-8',JSON.stringify(collectSkins())); return; }
 
   if (p.startsWith('/dev/') || p.startsWith('/built/')) {
     const dev = p.startsWith('/dev/');

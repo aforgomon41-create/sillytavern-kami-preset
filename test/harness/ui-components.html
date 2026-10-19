@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>共享组件验证台</title><link rel="stylesheet" href="/dev/ui.css"><style>
+body{margin:0;padding:12px;background:#202124}#mount{max-width:1100px;margin:auto}
+.kami-ui-sample{margin-bottom:16px} .kami-ui-sample>.kami-card-body{padding-top:10px}
+</style></head><body><div id="mount"></div><script type="module">
+import {createKamiUi} from '/src/ui/core.js';
+import {createSkinAssetPool} from '/src/scripts/_skin-assets.js';
+import {buildUiFixtures} from './ui-fixtures.mjs';
+const ui=createKamiUi(document),skins=await(await fetch('/skin-pack')).json(),pool=createSkinAssetPool(window),style=document.createElement('style');
+document.head.appendChild(style);
+let mounted=null,fixtures=null,refs={},mode='embedded';
+function clear(){if(mounted){ui.destroy(mounted);mounted.remove();mounted=null;}document.querySelector('#mount').textContent='';}
+function render(id='grokbot',scheme='dark',kind='embedded'){
+ clear();mode=kind;const skin=skins.find(x=>x.id===id);document.documentElement.dataset.kamiSkin=id;document.documentElement.dataset.kamiScheme=scheme;document.documentElement.dataset.kamiMotion='off';document.documentElement.dataset.kamiDensity='cozy';document.documentElement.dataset.kamiEffects=(skin.effects||[]).filter(x=>x.default).map(x=>x.id).join(' ');
+ style.textContent=skin.css+pool.css(skin);fixtures=buildUiFixtures(ui);refs={};
+ const box=kind==='dialog'?ui.dialog({title:'共享组件弹窗'}):kind==='panel'?ui.panel({title:'共享组件面板'}):ui.embedded({title:'共享组件',component:'custom'});
+ mounted=box;const body=box.body;
+ for(const [name,make] of Object.entries(fixtures.sample)){const frame=ui.settingsCard({title:name,flatTitle:true});frame.classList.add('kami-ui-sample');const child=make();refs[name]=child;frame.body.appendChild(child);body.appendChild(frame);}
+ if(kind==='dialog')box.kami.open();else{document.querySelector('#mount').appendChild(box);if(kind==='panel')box.kami.open();}
+ return {components:Object.keys(refs).length,mode};
+}
+window.UIFixture={ui,skins:skins.map(x=>({id:x.id,name:x.name})),render,clear,get refs(){return refs;},get state(){return fixtures.state;},get root(){return mounted;},get mode(){return mode;}};
+render();window.uiReady=true;
+</script></body></html>

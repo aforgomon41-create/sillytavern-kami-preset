@@ -24,6 +24,7 @@ export function createKamiSearchService(env) {
   function notice(text, phase, current, total) { message = text; if (active && active.manual) { progress = { phase: phase || progress.phase, message: text, current: current || 0, total: total || 0, running: ['done', 'cancelled', 'error'].indexOf(phase) < 0 }; progressListeners.slice().forEach(function (fn) { try { fn(Object.assign({}, progress)); } catch (e) { } }); } if (typeof env.saveNotice === 'function') { env.saveNotice(); } }
   function save() { var vars = env.readVariables(); vars[STORAGE] = { enabled: cfg.enabled, mode: cfg.mode, provider: cfg.provider, connection: cfg.connection, system: cfg.system, endpoints: { searxng: cfg.endpoints.searxng, koboldcpp: cfg.endpoints.koboldcpp }, wikiLanguage: cfg.wikiLanguage, limits: cfg.limits, manual: manualSettings }; env.writeVariables(vars); }
   function syncTask() {
+    if (env.nativeProbe) { env.nativeProbe.refresh(); }
     if (!env.task || disposed || syncingTask) { return; }
     syncingTask = true;
     try {
@@ -83,6 +84,7 @@ export function createKamiSearchService(env) {
     catch (error) { failed(error); return null; }
   }
   function cancel(reason, preserveCommittedSearch) {
+    if (env.nativeProbe) { env.nativeProbe.cancel(reason); }
     mainSeq++;
     var cleanup = null;
     if (outputGuard && outputGuard.native) { outputGuard.cancelled = true; cleanup = discardNativeDraft(outputGuard); }
@@ -299,6 +301,7 @@ export function createKamiSearchService(env) {
     return Number(counts[0]) + Number(counts[1]) + (data.messages.length + additions.length) * 6 + Number(data.max_tokens || settings.openai_max_tokens || 0) <= maximum;
   }
   async function beforeSend(data) {
+    if (env.nativeProbe && env.nativeProbe.prepare(data)) { return; }
     syncTask();
     if (disposed || !data || !Array.isArray(data.messages)) { return; }
     var privateMessage = data.messages.find(function (row) { return row.role === 'system' && contentText(row.content).indexOf('__kami_search_private_') >= 0; });
@@ -312,6 +315,7 @@ export function createKamiSearchService(env) {
       data.reasoning_effort = 'low'; return;
     }
     if (['normal', 'regenerate', 'swipe', 'continue'].indexOf(data.type) < 0) { return; }
+    if (env.nativeProbe) { env.nativeProbe.cancel('开始剧情生成，测试已中断'); }
     if (active) { cancel('开始新的剧情生成，已取消先前搜索'); }
     var requestSeq = ++mainSeq;
     pending = null; outputGuard = null;
@@ -400,6 +404,8 @@ export function createKamiSearchService(env) {
   subscribe(env.events.GENERATION_STOPPED, function (id) { if (typeof id === 'string' && id.indexOf('kami-search-') === 0) { return; } return cancel('生成已停止，搜索已取消'); });
   subscribe(env.events.CHAT_CHANGED, function () { outputGuard = null; cancel('聊天已切换，搜索已取消'); cache = Object.create(null); });
   subscribe(env.events.OAI_PRESET_CHANGED_AFTER, syncTask);
+  subscribe(env.events.CHATCOMPLETION_MODEL_CHANGED, function () { if (env.nativeProbe) { env.nativeProbe.refresh(); } });
+  subscribe(env.events.CHATCOMPLETION_SOURCE_CHANGED, function () { if (env.nativeProbe) { env.nativeProbe.refresh(); } });
 
   function configure(patch) {
     syncTask();
@@ -469,8 +475,8 @@ export function createKamiSearchService(env) {
       mountTask(container);
       var nativeBox = ui.section('模型联网能力'); container.appendChild(nativeBox.card);
       ui.note(nativeBox.body, '使用当前剧情连接提供的搜索能力。Gemini 原生搜索与反截断正文工具不能同时使用，本轮会优先搜索。');
-      var test = make('button', 'kami-btn kami-btn--ghost', '检查当前连接'); test.type = 'button'; nativeBox.body.appendChild(test);
-      test.addEventListener('click', function () { var ctx = env.context() || {}, settings = ctx.chatCompletionSettings || {}; notice(nativeSupported(settings) ? '当前连接已接入酒馆原生搜索；实际是否搜索由模型决定' : '当前接口未接入原生搜索，可改用搜索服务'); });
+      ui.note(nativeBox.body, '测试会实际调用当前连接，可能产生模型与搜索费用；不携带剧情、不写入聊天，可随时中断。');
+      if (env.nativeProbe) { env.nativeProbe.mount(nativeBox.body, function () { if (active) { notice('请等待当前搜索完成后再测试'); return false; } return true; }); }
       return;
     }
     var connection = ui.section('搜索服务连接'); container.appendChild(connection.card);
@@ -536,7 +542,7 @@ export function createKamiSearchService(env) {
     saveManual: function () { if (active && active.manual) { cancel('手动搜索设置已变化，旧任务已取消', true); } save(); if (env.saveNotice) { env.saveNotice(); } },
     configureManual: function (next) { if (active && active.manual) { cancel('手动搜索设置已变化，旧任务已取消', true); } manualSettings = env.pure.normalizeWebSearchManualSettings(next); save(); },
     subscribeProgress: function (fn) { progressListeners.push(fn); fn(Object.assign({}, progress)); return function () { progressListeners = progressListeners.filter(function (item) { return item !== fn; }); }; },
-    status: function () { syncTask(); return { enabled: cfg.enabled, mode: cfg.mode, provider: cfg.provider, running: !!active, manualRunning: !!(active && active.manual), shortcut: manualSettings.shortcut, message: message }; },
-    shutdown: function () { if (disposed) { return; } cancel('搜索脚本已关闭'); outputGuard = null; disposed = true; stops.forEach(function (off) { try { off(); } catch (e) { } }); stops = []; progressListeners = []; drafts = {}; mounted = null; } };
+    status: function () { syncTask(); return { enabled: cfg.enabled, mode: cfg.mode, provider: cfg.provider, running: !!active || !!(env.nativeProbe && env.nativeProbe.status().running), probeRunning: !!(env.nativeProbe && env.nativeProbe.status().running), nativeProbe: env.nativeProbe ? env.nativeProbe.status() : null, manualRunning: !!(active && active.manual), shortcut: manualSettings.shortcut, message: message }; },
+    shutdown: function () { if (disposed) { return; } cancel('搜索脚本已关闭'); if (env.nativeProbe) { env.nativeProbe.shutdown(); } outputGuard = null; disposed = true; stops.forEach(function (off) { try { off(); } catch (e) { } }); stops = []; progressListeners = []; drafts = {}; mounted = null; } };
   return api;
 }

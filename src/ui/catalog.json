@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "base": [
+    "button",
+    "iconButton",
+    "buttonGroup",
+    "tabs",
+    "segmented",
+    "menu",
+    "text",
+    "textarea",
+    "number",
+    "password",
+    "select",
+    "combobox",
+    "checkbox",
+    "radio",
+    "switch",
+    "range",
+    "card",
+    "collapse",
+    "group",
+    "divider",
+    "badge",
+    "status",
+    "progress",
+    "spinner",
+    "tooltip",
+    "alert",
+    "list",
+    "table",
+    "tree",
+    "empty"
+  ],
+  "composite": [
+    "field",
+    "settingsCard",
+    "choiceCard",
+    "modelConnection",
+    "promptEditor",
+    "templateManager",
+    "markdown",
+    "searchResults",
+    "sources",
+    "steps",
+    "resourceGrid",
+    "toolbar"
+  ],
+  "containers": [
+    "embedded",
+    "panel",
+    "dialog"
+  ],
+  "layouts": [
+    "stack",
+    "row",
+    "wrap",
+    "grid",
+    "split",
+    "center"
+  ]
+}

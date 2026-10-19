@@ -109,6 +109,7 @@ function installMocks(w, scriptId) {
   w.__scriptVars = {};
   w.iframe_events = { MESSAGE_IFRAME_RENDER_STARTED: 'message_iframe_render_started', MESSAGE_IFRAME_RENDER_ENDED: 'message_iframe_render_ended' };
   w.getScriptId = () => scriptId;
+  if(scriptId==='compress'&&window.__nativeProbeFixture)window.__nativeProbeFixture.installWorker(w,async function(event,...args){const handlers=STATE.handlers.get(event);if(handlers)for(const fn of [...handlers.values()])await fn(...args);});
   w.getScriptButtons = () => (STATE.buttons.get(scriptId) || []).slice();
   w.replaceScriptButtons = (a, b) => { const l = (typeof a === 'string' ? b : a) || []; STATE.buttons.set(scriptId, JSON.parse(JSON.stringify(l))); STATE.visible.set(scriptId, JSON.parse(JSON.stringify(l))); STATE.render(); };
   w.appendInexistentScriptButtons = (l) => { const c = STATE.buttons.get(scriptId) || []; w.replaceScriptButtons([...c, ...(l || []).filter(x => !c.some(y => y.name === x.name))]); };
@@ -602,6 +603,7 @@ function assertDevExpanded(w, code, file) {
 }
 
 async function loadScript(file, scriptId, seedVars) {
+  if(new URLSearchParams(location.search).get("built")==="1"&&file.startsWith("/dev/"))file="/built/"+file.slice(5);
   const f = document.createElement('iframe');
   f.style.cssText = 'width:0;height:0;border:0;position:absolute;left:-9999px';
   f.src = 'about:blank';
@@ -870,6 +872,7 @@ function installSpresetHost(ST) {
   /* 预设置面板要读酒馆设置，所以先把 SillyTavern 全局准备好（真预设数据）。
      ?nocontext=1：**故意不给** SillyTavern —— 验收「拿不到设置时面板照常打开并说明原因」。 */
   var ST = (params.get('nocontext') === '1') ? { saves: 0 } : await setupSillyTavern();
+  if(params.get('nativeProbePreview')==='1'){const fixture=await import('/test/harness/native-search-fixture.mjs');fixture.installNativeSearchFixture(window,ST);}
   /* ?merge=1：三方合并端到端探针（2026-09-25 加）。造一份「用户改过条目内容 + 关过开关 +
      自己加过条目」的活设置，把远程更新的网络请求全部替成本地夹具（base = src/preset.base.json、
      next = 打了上游补丁的副本），然后由 KamiUpdate.check(true) 走完整流程：下载 → 合并计划

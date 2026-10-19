@@ -30,6 +30,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '0.1';
   var HUB_NAME = '🧭引导';
@@ -719,10 +720,7 @@
   /* ───────── DOM 工具 ───────── */
 
   function el(tag, cls, text) {
-    var n = HDOC.createElement(tag);
-    if (cls) { n.className = cls; }
-    if (text != null && text !== '') { n.textContent = String(text); }
-    return n;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
   /* 图版用：取条目名开头的图形符号（emoji/方括号区等），取不到就退回首字符 */
   function leadingGlyph(name) {
@@ -1724,6 +1722,7 @@
     panelRoot = el('div', 'kami-root');
     panelRoot.id = PANEL_ID;
     panelRoot.setAttribute('data-kami-comp', 'panel');
+    panelRoot.setAttribute('data-kami-container', 'panel');
     panelRoot.setAttribute(GUIDE_TAG, '1');
     panelRoot.style.zIndex = String(Z);
     /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：

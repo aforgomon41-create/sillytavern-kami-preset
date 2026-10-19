@@ -52,6 +52,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '0.9';
   var HUB_NAME = '🌟卡密预设';
@@ -1337,10 +1338,7 @@
   /* ───────── 面板 ───────── */
 
   function mk(tag, cls, text) {
-    var el = HDOC.createElement(tag);
-    if (cls) { el.className = cls; }
-    if (text !== undefined && text !== null) { el.textContent = text; }
-    return el;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
   function clampNum(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
@@ -1402,6 +1400,7 @@
     panelRoot = mk('div', 'kami-root');
     panelRoot.id = PANEL_ID;
     panelRoot.setAttribute('data-kami-comp', 'panel');
+    panelRoot.setAttribute('data-kami-container', 'panel');
     /* 舞台是「结构」：内联保证任何皮肤下都能摆面板；外观与摆法归皮肤（契约 §4.4） */
     panelRoot.style.position = 'fixed';
     panelRoot.style.inset = '0';

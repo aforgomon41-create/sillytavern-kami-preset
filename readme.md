@@ -46,3 +46,4 @@
 
 - 构建命令：`node build/build.mjs`，产物输出到 dist/ 目录。
 - 项目文档位于 docs/，开发交接请从 docs/交接.md 开始。
+- 前端共用45项组件（30基础、12组合、3容器），使用方法见[组件库](docs/ui-components.md)，不增加酒馆助手脚本项。

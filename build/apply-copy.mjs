@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * apply-copy：把「风格性文案表」design/copy/copy-table.json 落地进四套皮肤包
+ * apply-copy：把「风格性文案表」design/copy/copy-table.json 落地进现有皮肤包
  * ------------------------------------------------------------
  * 输入（唯一真相来源，本脚本只读）：
  *   design/copy/copy-table.json
@@ -33,7 +33,7 @@ const COLON = String.fromCharCode(58);
 const SEMI = String.fromCharCode(59);
 const SEP = String.fromCharCode(92);
 
-const SKIN_IDS = ['grokbot', 'memo', 'nixie', 'rain', 'trpg'];
+const SKIN_IDS = fs.readdirSync(SKIN_DIR).filter(id=>fs.existsSync(path.join(SKIN_DIR,id,'skin.json'))).sort();
 
 /* [文案表槽位名, skin.css 里的令牌名]，顺序即报告顺序 */
 const SLOT_TOKENS = [
@@ -46,7 +46,10 @@ const SLOT_TOKENS = [
 const EFFECT_FIELDS = ['label', 'desc'];
 const PARAM_FIELDS = ['label', 'group', 'unit'];
 
-const CHECK = process.argv.slice(2).indexOf('--check') >= 0;
+const args=process.argv.slice(2);
+if(args.includes('--help')){console.log('用法：node build/apply-copy.mjs [--check]；--check 仅预览，不写文件。');process.exit(0);}
+if(args.some(arg=>arg!=='--check')){console.error('未知参数；使用 --help 查看用法。');process.exit(1);}
+const CHECK = args.includes('--check');
 
 const fails = [];
 function bad(msg) { fails.push(msg); }
@@ -54,7 +57,7 @@ function bad(msg) { fails.push(msg); }
 function rel(p) { return path.relative(ROOT, p).split(SEP).join('/'); }
 function show(v) { return v === undefined ? '(无此字段)' : String(v); }
 
-/* 保持现有文件的缩进风格（四套都是 2 空格），找不到缩进行就退回 2 */
+/* 保持现有文件的缩进风格（现有文件多数为 2 空格），找不到缩进行就退回 2 */
 function detectIndent(raw) {
   for (const line of raw.split(LF)) {
     if (line.length && line.charAt(0) === SP) {
@@ -163,11 +166,13 @@ function planCss(plan) {
   if (!slots || typeof slots !== 'object' || Array.isArray(slots)) { bad('slots.' + plan.id + ' 缺失或不是对象'); return; }
 
   const lines = raw.split(LF);
+  const generatedLine = lines.findIndex(line => line.startsWith('/* ==== 全局层令牌上提'));
+  const sourceLength = generatedLine < 0 ? lines.length : generatedLine;
   for (const [slot, token] of SLOT_TOKENS) {
     const nextValue = slots[slot];
     const needle = token + COLON;
     const hits = [];
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < sourceLength; i++) {
       if (lines[i].indexOf(needle) >= 0) { hits.push(i); }
     }
     /* 断言：每个令牌在每个文件里必须恰好出现 1 次，0 次或 2 次以上都不许静默继续 */
@@ -191,7 +196,9 @@ function planCss(plan) {
       continue;
     }
     const oldValue = line.slice(p, semiAt).trim();
-    const nextLine = line.slice(0, at) + gap + nextValue + line.slice(semiAt);
+    const unquoted=oldValue.length>=2&&((oldValue[0]===String.fromCharCode(34)&&oldValue.at(-1)===String.fromCharCode(34))||(oldValue[0]===String.fromCharCode(39)&&oldValue.at(-1)===String.fromCharCode(39)))?oldValue.slice(1,-1):oldValue;
+    if(unquoted===nextValue)continue;
+    const nextLine = line.slice(0, at) + gap + JSON.stringify(nextValue) + line.slice(semiAt);
     if (nextLine !== line) {
       lines[idx] = nextLine;
       plan.cssRows.push({ line: idx + 1, field: token, old: oldValue, next: nextValue });
@@ -201,7 +208,7 @@ function planCss(plan) {
   plan.cssChanged = plan.nextCss !== raw;
 }
 
-/* ---------- 依次处理四套皮肤：先全部算完并断言，再统一写盘 ---------- */
+/* ---------- 依次处理全部皮肤：先全部算完并断言，再统一写盘 ---------- */
 const plans = [];
 for (const id of SKIN_IDS) {
   const plan = {

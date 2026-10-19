@@ -298,10 +298,10 @@ html[data-kami-skin="isekai"] .kami-root :focus-visible {
 /* ==========================================================================
  * 5 · 控件对比度四件套（硬性三项 !important：阻击宿主与用户自定义深色 CSS 污染）
  * ======================================================================== */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-number,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-text,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-textarea,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   background-color: var(--kami-card) !important;
   color: var(--kami-fg) !important;
   color-scheme: light !important;
@@ -312,22 +312,22 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-select {
   transition: border-color var(--kami-dur-fast) var(--kami-ease), box-shadow var(--kami-dur-fast) var(--kami-ease);
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-number:focus,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-text:focus,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-textarea:focus,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-select:focus {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number:focus,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text:focus,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea:focus,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select:focus {
   border-color: var(--kami-accent);
   box-shadow: 0 0 0 2px var(--kami-accent-soft);
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] input.kami-number[type="number"] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-number[type="number"] {
   text-align: right;
 }
 
-html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root[data-kami-comp="panel"] .kami-number,
-html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root[data-kami-comp="panel"] .kami-text,
-html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root[data-kami-comp="panel"] .kami-textarea,
-html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,
+html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,
+html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,
+html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color-scheme: dark !important;
 }
 
@@ -377,9 +377,9 @@ html[data-kami-skin="isekai"] .kami-root .kami-icon-btn[disabled] {
   box-shadow: none !important;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled],
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:active {
   background-color: var(--kami-card);
   background-image: none;
   border-color: var(--kami-line);
@@ -390,13 +390,13 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disa
   cursor: default;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::before,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover::after {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::before,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover::after {
   transform: none;
   opacity: 0;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover > .kami-badge {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover > .kami-badge {
   transform: none;
 }
 
@@ -1255,11 +1255,11 @@ html[data-kami-skin="isekai"] .kami-toast.is-bad {
  * 15 · 注释系统与角标定位
  * ======================================================================== */
 /* 角标定位 */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item.kami-card {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item.kami-card {
   position: relative;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge {
   position: absolute;
   top: 2px;
   right: 4px;
@@ -1274,28 +1274,28 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .k
   pointer-events: none;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   right: auto;
   left: 4px;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   top: auto;
   bottom: 2px;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
   padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
 }
 
 /* 注释标记 ⓘ */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark] {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -1315,13 +1315,13 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note
   transition: background var(--kami-dur-fast) var(--kami-ease), color var(--kami-dur-fast) var(--kami-ease);
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:focus-visible {
   background: var(--kami-accent);
   color: #ffffff;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 2px;
   right: 4px;
@@ -1332,7 +1332,7 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-item > .k
 }
 
 /* 注释展开正文 */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note] {
   display: block;
   margin: 6px 0 0;
   padding: 6px 9px;
@@ -1347,12 +1347,12 @@ html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note
   text-align: left;
 }
 
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note][hidden] {
   display: none;
 }
 
 /* 面板网格判据 */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
   --kami-items-min: 96px;
 }
 
@@ -1573,19 +1573,19 @@ html[data-kami-skin="isekai"][data-kami-effects~="gradient"] .kami-head {
  * 19 · 移动端与窄屏媒体查询（硬性规范：两档只调令牌）
  * ======================================================================== */
 @media (max-width: 560px) {
-  html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] {
+  html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
     --kami-row-h: 44px;
   }
-  html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 152px;
   }
 }
 
 @media (max-width: 380px) {
-  html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] {
+  html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
     --kami-row-h: 44px;
   }
-  html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 108px;
   }
 }
@@ -1604,7 +1604,7 @@ html[data-kami-skin="isekai"] .kami-md ol ol ol { list-style-type: lower-roman; 
 /* 特效页说明（.kami-field 里的那枚 .kami-sub）：375px 窄屏必须能换行读全。
    结构层的 .kami-sub 是 white-space:nowrap（标题栏计数确实要单行），
    这里只对「字段标签里的说明」这一处放开，不碰标题栏 / 页脚的。 */
-html[data-kami-skin="isekai"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+html[data-kami-skin="isekai"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field .kami-field-label .kami-sub {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -1631,7 +1631,15 @@ html[data-kami-skin="isekai"] .kami-root select option:checked {
   color: var(--kami-accent-fg) !important;
   background-color: var(--kami-accent) !important;
 }
-html[data-kami-skin="isekai"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }
+html[data-kami-skin="isekai"] .kami-root select option:disabled:not(:checked) { color: var(--kami-fg-dim) !important; }/* Shared component roles: descriptions follow the selectable surface foreground. */
+html[data-kami-skin="isekai"] .kami-root [data-kami-ui="choiceCard"][data-kami-card-role="choice"] > .kami-card-note { color:inherit; opacity:1; }
+html[data-kami-skin="isekai"] .kami-root [data-kami-ui="field"] > .kami-card-note { color:var(--kami-fg-dim); opacity:1; }
+html[data-kami-skin="isekai"] .kami-root [data-kami-ui="tabs"] .kami-tab[aria-selected="true"] { color:var(--kami-fg); }
+
+html[data-kami-skin="isekai"] .kami-root [data-kami-ui="empty"] { color:var(--kami-fg-dim); }
+html[data-kami-skin="isekai"] .kami-root [data-kami-ui="steps"] .is-current :is(strong,small) { color:var(--kami-fg); }
+
+html[data-kami-skin="isekai"][data-kami-scheme="light"] .kami-root [data-kami-ui="button"].kami-btn--primary { background-image:linear-gradient(135deg,var(--kami-accent),color-mix(in srgb,var(--kami-accent) 94%,#000)); }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="isekai"] {
@@ -1781,8 +1789,5 @@ html[data-kami-skin="isekai"][data-kami-motion="off"] {
   --kami-enter-y: 0px;
   --kami-enter-scale: 1;
   --kami-stagger: 0ms;
-}
-html[data-kami-skin="isekai"] {
-  --kami-items-min: 96px;
 }
 /* ==== END 全局层令牌上提 ==== */

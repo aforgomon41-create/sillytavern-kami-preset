@@ -1,3 +1,4 @@
+function kamiLlmElement(doc,tag){return typeof createKamiUi==='function'?createKamiUi(doc).element(tag):doc.createElement(tag);}
 /* 压缩和手动搜索共用模型选择与头/任务/尾模板编辑。仅文案、状态和事件作用域不同。 */
 function scopeKamiLlmCard(card,scope){
   card.setAttribute('data-kami-llm-scope',scope||'compress');
@@ -70,7 +71,7 @@ var tavernCCProfiles=env.profiles,currentSumConfig=env.currentConfig,cachedModel
       /* 存为新配置：名称行（名称框 + 两个按钮） */
       var nameRow = fieldRow(sec4.body, COPY.model.namePh, null);
       nameRow.setAttribute('data-kami-role', 'name-row');
-      var nameInput = HDOC.createElement('input');
+      var nameInput = kamiLlmElement(HDOC,'input');
       nameInput.className = 'kami-text';
       nameInput.type = 'text';
       nameInput.setAttribute('data-kami-mi', '__name');
@@ -95,7 +96,7 @@ var cfg=env.state,COPY=env.copy,mk=env.make,HDOC=env.document,sectionCard=env.se
 var snapPrompts=env.snapshot,currentTpl=env.currentTemplate;
   /* 提示词条目里的角色下拉（带头/尾条目序号，改哪条就是哪条） */
   function roleSelect(value, list, idx) {
-    var sel = HDOC.createElement('select');
+    var sel = kamiLlmElement(HDOC,'select');
     sel.className = 'kami-select';
     sel.setAttribute('data-kami-prompt', list);
     sel.setAttribute('data-kami-pi', String(idx));
@@ -103,7 +104,7 @@ var snapPrompts=env.snapshot,currentTpl=env.currentTemplate;
     sel.setAttribute('aria-label', COPY.prompts.roleLabel);
     var opts = [['system', COPY.prompts.roleSystem], ['user', COPY.prompts.roleUser], ['assistant', COPY.prompts.roleChar]];
     for (var i = 0; i < opts.length; i++) {
-      var op = HDOC.createElement('option');
+      var op = kamiLlmElement(HDOC,'option');
       op.value = opts[i][0];
       op.textContent = opts[i][1];
       if (opts[i][0] === value) { op.selected = true; }
@@ -113,7 +114,7 @@ var snapPrompts=env.snapshot,currentTpl=env.currentTemplate;
   }
   /* 多行文本框：类名 = 契约 §4.2 的 `.kami-textarea`（尺寸由 LAYOUT_CSS 管） */
   function promptTextarea(list, idx) {
-    var ta = HDOC.createElement('textarea');
+    var ta = kamiLlmElement(HDOC,'textarea');
     ta.className = 'kami-textarea';
     ta.setAttribute('data-kami-prompt', list);
     ta.setAttribute('data-kami-pi', String(idx));
@@ -158,7 +159,7 @@ var snapPrompts=env.snapshot,currentTpl=env.currentTemplate;
     selectRow(sec7.body, COPY.prompts.tplLabel, tplOpts, cfg.promptTplCurrent, { 'data-kami-pt': '__tpl' });
     var tplRow = fieldRow(sec7.body, COPY.prompts.tplNamePh, null);
     tplRow.setAttribute('data-kami-role', 'name-row');
-    var tplInput = HDOC.createElement('input');
+    var tplInput = kamiLlmElement(HDOC,'input');
     tplInput.className = 'kami-text';
     tplInput.type = 'text';
     tplInput.setAttribute('data-kami-pt', '__name');

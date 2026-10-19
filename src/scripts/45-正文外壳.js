@@ -30,6 +30,7 @@
  * .kami-btn--ghost / .kami-body / .kami-raw / .kami-toast。
  * ========================================================================== */
 (function () {
+  /* @@KAMI_UI@@ */
   /* 「只复制干净的正文」的取文本规则：与 💭 显式思维链前端共用同一份实现
      （src/scripts/_copy-clean.js，构建期由 build/kami-doc.mjs 的 expandCopyClean 内联）。 */
   /* @@KAMI_COPY_CLEAN@@ */
@@ -70,10 +71,7 @@
   function warn(msg) { log('⚠ ' + msg); }
 
   function el(tag, cls, text) {
-    var n = HDOC.createElement(tag);
-    if (cls) { n.className = cls; }
-    if (text != null && text !== '') { n.textContent = String(text); }
-    return n;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
 
   /* ───────── 读原文：正文只从聊天数组里取（DOM 那份是酒馆渲染过的，不能当原文用） ───────── */
@@ -112,6 +110,7 @@
     var body = bodyOf(raw);
     var root = el('div', 'kami-root');
     root.setAttribute('data-kami-comp', 'body');
+    root.setAttribute('data-kami-container', 'embedded');
     root.setAttribute('data-kami-view', 'render');
     root.setAttribute(HOST_ATTR, String(mesid));
     root.style.zIndex = String(Z);

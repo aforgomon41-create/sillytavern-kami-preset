@@ -1,0 +1,63 @@
+import {inspectTabStrip} from './tab-layout-checks.mjs';
+// Browser-only checks. All model data is mocked and no external service is called.
+export function probeUi() {
+ const issues=[],root=UIFixture.root,visible=n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden'&&!n.closest('[hidden]');
+ const parse=s=>{const m=s.match(/[\d.]+/g);if(!m)return[0,0,0,0];const a=m.map(Number);if(s.startsWith('color(srgb '))for(let i=0;i<3;i++)a[i]*=255;return a;};
+ const blend=(a,b)=>{const k=a.length>3?a[3]:1;return[0,1,2].map(i=>a[i]*k+b[i]*(1-k));};
+ const background=n=>{const chain=[];while(n){chain.push(n);n=n.parentElement;}let b=[255,255,255];for(const el of chain.reverse())b=blend(parse(getComputedStyle(el).backgroundColor),b);return b;};
+ const lum=c=>c.slice(0,3).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;}).reduce((a,x,i)=>a+x*[.2126,.7152,.0722][i],0);
+ const ratio=(a,b)=>{const x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ const shell=root.shell||root,r=shell.getBoundingClientRect();
+ if(UIFixture.mode==='dialog'&&(r.height>innerHeight*.9+1||getComputedStyle(shell).display!=='flex'))issues.push({kind:'dialog-height',height:r.height,viewport:innerHeight,display:getComputedStyle(shell).display});
+ if(r.left<-.5||r.right>innerWidth+.5)issues.push({kind:'shell',left:r.left,right:r.right,width:innerWidth});
+ for(const bar of root.querySelectorAll('.kami-tabs')){const result=inspectTabStrip(bar);for(const detail of result.issues)issues.push({kind:'tab-layout',detail});}
+ let sampled=0,min=100;
+ for(const n of root.querySelectorAll('.kami-card-title,.kami-card-note,.kami-item-main,input.kami-text,input.kami-number,textarea,select,button.kami-btn,.kami-tab,.kami-seg-item,.kami-ui-table th,.kami-ui-table td,.kami-ui-tree-label,.kami-ui-status,.kami-ui-alert,.kami-ui-combobox-option,.kami-ui-tooltip-text,.kami-field-label,.kami-empty,.kami-chip,.kami-ui-steps strong,.kami-ui-steps small,.kami-ui-sources a,.kami-ui-list li,.kami-md,.kami-ui-field-error')){
+  if(!visible(n)||n.disabled||n.closest('button:disabled')||n.closest('[aria-hidden="true"]'))continue;
+  const cs=getComputedStyle(n),bg=background(n),fg=blend(parse(cs.color),bg),stops=n.classList.contains('kami-btn--primary')&&cs.backgroundImage.includes('gradient')?[...cs.backgroundImage.matchAll(/rgba?\([^)]*\)/g)].map(m=>blend(parse(m[0]),bg)):[],value=stops.length?Math.min(...stops.map(stop=>ratio(blend(parse(cs.color),stop),stop))):ratio(fg,bg),component=n.closest('.kami-ui-sample')?.firstElementChild?.textContent;
+  sampled++;min=Math.min(min,value);
+  if(value<4.49)issues.push({kind:'contrast',component,cls:n.className,text:n.textContent.slice(0,30),fg:cs.color,bg:bg.map(Math.round),ratio:+value.toFixed(2)});
+  const box=n.getBoundingClientRect();
+  if(box.left<r.left-1||box.right>r.right+1)if(!n.closest('.kami-ui-table-wrap')&&!n.closest('.kami-tabs'))issues.push({kind:'control-overflow',component,cls:n.className,left:box.left,right:box.right,shell:r.right});
+ }
+ return{issues,sampled,min:+min.toFixed(2),components:Object.keys(UIFixture.refs).length};
+}
+export async function runBehaviorChecks() {
+ UIFixture.render('gpt','light','embedded');
+ const {ui,refs:r,state}=UIFixture,report=[],check=(v,label)=>report.push({label,ok:!!v}),key=(n,k)=>n.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true})),change=n=>n.dispatchEvent(new Event('change',{bubbles:true})),tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+ check(Object.keys(r).length===42,'All base and composite factories render');
+ r.button.click();check(state.events.includes('button')&&r.button.type==='button','Button callback and form-safe type');
+ r.button.kami.setBusy(true);r.button.click();check(state.events.filter(x=>x==='button').length===1&&r.button.disabled,'Busy button prevents duplicate actions');r.button.kami.setBusy(false);
+ key(r.tabs.querySelector('[role=tab]'),'ArrowRight');check(r.tabs.kami.value()==='two'&&r.tabs.kami.panes[0].hidden&&!r.tabs.kami.panes[1].hidden,'Tabs keyboard selection and pane visibility');
+ const rail=r.tabs.kami.bar;check(rail.scrollWidth>rail.clientWidth,'Long tab fixture actually needs horizontal scrolling');key(r.tabs.querySelector('[role=tab]'),'End');check(rail.scrollLeft>0&&r.tabs.kami.value()==='long-7','Keyboard selection reveals a far-away tab');
+ const fit=ui.tabs({mode:'fit',items:[{id:'a',label:'一'},{id:'b',label:'二'},{id:'c',label:'三'}]});fit.style.width='260px';UIFixture.root.body.appendChild(fit);const fitWidths=[...fit.kami.bar.children].map(n=>n.getBoundingClientRect().width);check(Math.max(...fitWidths)-Math.min(...fitWidths)<1&&inspectTabStrip(fit.kami.bar).issues.length===0,'Equal-width tabs preserve the single row contract');ui.destroy(fit);fit.remove();
+ const actions=ui.buttonGroup({items:[{label:'第一组较长操作'},{label:'第二组较长操作'}]});actions.style.width='140px';UIFixture.root.body.appendChild(actions);check(getComputedStyle(actions).flexWrap==='wrap'&&actions.children[1].getBoundingClientRect().top>actions.children[0].getBoundingClientRect().top,'Action groups can still wrap independently of tab navigation');ui.destroy(actions);actions.remove();
+ key(r.segmented.firstElementChild,'End');check(r.segmented.kami.value()==='two','Segmented keyboard skips disabled items');
+ r.menu.kami.trigger.click();check(r.menu.kami.trigger.getAttribute('aria-expanded')==='true','Menu opens');r.menu.querySelector('[role=menuitem]').click();check(state.events.includes('menu')&&r.menu.kami.trigger.getAttribute('aria-expanded')==='false','Menu commits and closes');
+ const combo=r.combobox.kami.input;combo.click();key(combo,'ArrowDown');key(combo,'ArrowDown');key(combo,'Enter');change(combo);check(state.combo==='two'&&r.combobox.kami.value()==='two','Combobox commits key without native label overwrite');combo.click();key(combo,'Escape');check(combo.getAttribute('aria-expanded')==='false','Combobox Escape closes options');combo.value='第二';combo.dispatchEvent(new Event('input',{bubbles:true}));combo.click();check(r.combobox.querySelectorAll('[role=option]').length===1,'Combobox cursor click preserves active filter');r.combobox.kami.setItems([{value:'two',label:'更新后的选项'}]);check(combo.value==='更新后的选项'&&r.combobox.kami.value()==='two','Combobox refresh updates selected label');r.combobox.kami.setItems([{value:'new',label:'新选项'}]);check(combo.value===''&&r.combobox.kami.value()===null,'Combobox refresh clears removed selection');
+ check(r.select.value==='two','Select preserves initial value');
+ r.switch.kami.setChecked(false);check(!r.switch.kami.input.checked,'Switch state updates');
+ r.collapse.kami.setOpen(true);await tick();check(r.collapse.open,'Collapse opens');
+ check(!r.searchResults.open,'Search results default collapsed');
+ const tree=r.tree.kami.nodes;tree[0].focus();key(tree[0],'ArrowDown');check(document.activeElement===tree[1],'Tree keyboard navigation');key(tree[1],'Enter');check(state.tree==='子项','Tree selection');
+ const input=r.field.querySelector('input'),label=r.field.querySelector('label');check(label.htmlFor===input.id&&!!input.getAttribute('aria-describedby'),'Field label and explanation association');
+ r.field.kami.setError('请填写有效内容');check(input.getAttribute('aria-invalid')==='true'&&r.field.querySelector('[role=alert]'),'Field error shown accessibly');r.field.kami.setError('');check(input.getAttribute('aria-invalid')==='false'&&!r.field.querySelector('[role=alert]')&&input.getAttribute('aria-describedby'),'Field error clears and preserves hint');
+ r.choiceCard.click();check(state.choice===false&&r.choiceCard.getAttribute('aria-pressed')==='false','Choice card state callback');
+ r.progress.kami.update(150,100);check(r.progress.getAttribute('aria-valuenow')==='100','Progress clamps to range');r.progress.kami.update(null);check(!r.progress.hasAttribute('aria-valuenow'),'Indeterminate progress');
+ check(!r.markdown.querySelector('script')&&r.markdown.textContent.includes('<script>'),'Markdown text cannot execute markup');check(r.sources.querySelectorAll('a').length===1&&r.sources.querySelector('a').rel.includes('noopener'),'Sources reject unsafe protocols');
+ r.templateManager.nameInput.value='自定义';r.templateManager.querySelector('button').click();check(state.templates[0]==='自定义','Template save callback');
+ const prompt=r.promptEditor.kami.controls;prompt.task.value='新的任务';change(prompt.task);check(state.prompt.task==='新的任务','Prompt editor emits complete value');
+ r.resourceGrid.children[1].click();check(state.resource==='b'&&r.resourceGrid.children[1].getAttribute('aria-pressed')==='true'&&r.resourceGrid.children[0].getAttribute('aria-pressed')==='false','Resource grid exclusive selection');
+ const toolbar=r.toolbar.querySelectorAll('button');toolbar[0].focus();key(toolbar[0],'ArrowRight');key(toolbar[1],'ArrowRight');check(document.activeElement===toolbar[0],'Toolbar skips disabled action');
+ const tip=r.tooltip.querySelector('button');tip.focus();check(!r.tooltip.querySelector('[role=tooltip]').hidden,'Tooltip opens on focus');tip.blur();check(r.tooltip.querySelector('[role=tooltip]').hidden,'Tooltip hides on blur');
+ r.modelConnection.querySelector('button').click();await tick();check(r.modelConnection.querySelectorAll('[data-kami-model-catalog] option').length===2,'Mocked model list loads');r.modelConnection.kami.address.value='https://changed.invalid/v1';r.modelConnection.kami.address.dispatchEvent(new Event('input',{bubbles:true}));check(!r.modelConnection.querySelector('[data-kami-model-catalog]'),'Connection changes invalidate model catalog');
+ const trigger=r.button;trigger.focus();const dialog=ui.dialog({title:'验证',content:ui.text({label:'弹窗输入'})});dialog.kami.open(trigger);check(dialog.open&&dialog.root.dataset.kamiComp==='dialog'&&getComputedStyle(dialog.root).position==='relative','Dialog has independent local geometry');check(document.activeElement===dialog.body.querySelector('input'),'Dialog focuses input');dialog.dispatchEvent(new Event('cancel',{cancelable:true}));check(!dialog.open&&document.activeElement===trigger,'Dialog cancel restores focus');dialog.kami.destroy();check(!dialog.isConnected,'Dialog destroys DOM');
+ let changes=0;const panel=ui.panel({title:'验证面板',mount:document.body,onGeometryChange:()=>changes++});panel.kami.open(trigger);check(panel.shell.dataset.kamiOpen==='1','Panel opens');
+ if(innerWidth>600){const old=panel.shell.getBoundingClientRect();panel.head.dispatchEvent(new PointerEvent('pointerdown',{button:0,clientX:old.left+30,clientY:old.top+15,bubbles:true,cancelable:true}));document.dispatchEvent(new PointerEvent('pointermove',{clientX:old.left+70,clientY:old.top+45}));document.dispatchEvent(new PointerEvent('pointerup',{clientX:old.left+70,clientY:old.top+45}));check(parseFloat(panel.style.getPropertyValue('--kami-panel-x'))===old.left+40&&changes===1,'Panel drag stores clamped position');const before=panel.shell.getBoundingClientRect().width;key(panel.querySelector('.kami-resize'),'ArrowRight');check(parseFloat(panel.style.getPropertyValue('--kami-panel-w'))>=before,'Panel keyboard resize');}
+ key(panel.shell,'Escape');check(panel.shell.dataset.kamiOpen==='0','Panel Escape closes');panel.kami.destroy();check(!panel.isConnected,'Panel destruction removes DOM');
+ const linked=ui.text({attrs:{'aria-describedby':'existing-help'}}),linkedField=ui.field({control:linked,hint:'新增说明'});check(linked.getAttribute('aria-describedby').split(' ').includes('existing-help'),'Field preserves existing description association');ui.destroy(linkedField);
+ const disabled=ui.button({label:'禁用',attrs:{disabled:true}});check(disabled.disabled,'Button preserves disabled attribute');ui.destroy(disabled);
+ let calls=0;const holder=ui.embedded({content:[ui.button({label:'操作',onClick:()=>calls++}),ui.text({onChange:()=>calls++}),ui.choiceCard({label:'选择',onChange:()=>calls++}),ui.collapse({title:'折叠',onChange:()=>calls++}),ui.promptEditor({onChange:()=>calls++})]});document.body.appendChild(holder);const retained=[...holder.querySelectorAll('button,input,textarea,details')];ui.destroy(holder);for(const n of retained){n.click();change(n);n.dispatchEvent(new Event('toggle'));}await tick();check(calls===0,'Destroyed descendants release all retained event callbacks');holder.remove();
+ let resolveModels;const late=ui.modelConnection({fetchModels:()=>new Promise(resolve=>resolveModels=resolve)});document.body.appendChild(late);late.querySelector('button').click();ui.destroy(late);resolveModels(['late']);await tick();check(!late.querySelector('[data-kami-model-catalog]'),'Destroyed model card ignores late asynchronous response');late.remove();
+ return report;
+}

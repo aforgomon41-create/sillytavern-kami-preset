@@ -101,6 +101,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '1.0';
   var HUB_NAME = '🧰 工具箱';
@@ -401,6 +402,9 @@
   /* @@KAMI_SEARCH_PURE@@ */
   /* @@KAMI_SEARCH_TASK_DEF@@ */
   /* @@KAMI_SEARCH_TASK@@ */
+  /* @@KAMI_RESPONSE_PIPELINE@@ */
+  /* @@KAMI_RESPONSE_TRANSPORT@@ */
+  /* @@KAMI_SEARCH_NATIVE_PROBE@@ */
   /* @@KAMI_SEARCH_SERVICE@@ */
   /* @@KAMI_LLM_UI@@ */
   /* @@KAMI_LLM_SETTINGS@@ */
@@ -1295,6 +1299,8 @@
     var stamp = chatStamp();
     try {
       var body = JSON.parse(raw);
+      /* 独立搜索不含剧情头部，不能用它覆盖剧情生成的用量基线。 */
+      if (body && (body._kami_native_probe || body._kami_background_task === 'web_search')) { return; }
       var msgs = body && body.messages;
       if (!Array.isArray(msgs) || !msgs.length) { return; }
       var total = 0;
@@ -1832,10 +1838,7 @@
   /* ───────── 面板 ───────── */
 
   function mk(tag, cls, text) {
-    var el = HDOC.createElement(tag);
-    if (cls) { el.className = cls; }
-    if (text !== undefined && text !== null) { el.textContent = text; }
-    return el;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
   function clampNum(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
@@ -1878,7 +1881,6 @@
     '#'+PANEL_ID+' .kami-toolbox-pane[hidden]{display:none!important;}',
     '#'+PANEL_ID+' .kami-toolbox-pane>.kami-body{flex:1 1 auto;min-height:0;overflow:auto;}',
     '#'+PANEL_ID+' .kami-tabs{display:flex;flex:0 0 auto;gap:0;}',
-    '#'+PANEL_ID+' .kami-tab{flex:1 1 0;min-width:0;white-space:nowrap;}',
     '#'+PANEL_ID+' .kami-toolbox-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:var(--kami-gap);padding:var(--kami-pad-y) var(--kami-pad-lg-x);}',
     '#'+PANEL_ID+' .kami-toolbox-actions>.kami-btn{flex:1 1 auto;min-width:0;white-space:nowrap;font-size:var(--kami-fs-xs);}',
     '#'+PANEL_ID+' [data-toolbox-pane=other] .kami-card{margin-bottom:var(--kami-gap);}',
@@ -1890,10 +1892,9 @@
     '#'+PANEL_ID+' [data-search-limits] input[type=number]{width:130px;min-width:0;max-width:100%;flex:0 1 130px;}',
     '.kami-manual-dialog{border:0;padding:0;background:transparent;color:inherit;width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;overflow:visible;}',
     '.kami-manual-dialog::backdrop{background:rgba(0,0,0,.58);}',
-    '.kami-manual-dialog .kami-root[data-kami-comp="panel"]{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;display:block!important;pointer-events:auto!important;z-index:auto!important;}',
     '.kami-manual-dialog .kami-shell{position:relative!important;inset:auto!important;transform:none!important;width:100%!important;max-height:90dvh;display:flex;flex-direction:column;margin:0!important;}',
     '.kami-manual-dialog .kami-body{overflow:auto;min-height:0;background:var(--kami-card-2);color:var(--kami-fg);}',
-    '.kami-manual-dialog .kami-root[data-kami-comp="panel"] .kami-card-note{color:var(--kami-fg-dim);opacity:1;}',
+    '.kami-manual-dialog .kami-root[data-kami-comp="dialog"] .kami-card-note{color:var(--kami-fg-dim);opacity:1;}',
     '.kami-manual-dialog textarea.kami-textarea{width:100%;box-sizing:border-box;min-height:150px!important;resize:vertical;}',
     '.kami-manual-dialog .kami-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--kami-gap);}',
     '.kami-manual-dialog li{padding:var(--kami-gap) 0;}',
@@ -1996,6 +1997,7 @@
     panelRoot = mk('div', 'kami-root');
     panelRoot.id = PANEL_ID;
     panelRoot.setAttribute('data-kami-comp', 'panel');
+    panelRoot.setAttribute('data-kami-container', 'panel');
     panelRoot.style.position = 'fixed';
     panelRoot.style.inset = '0';
     panelRoot.style.zIndex = String(Z);

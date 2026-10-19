@@ -1,84 +1,13 @@
-/* 压缩页的现有控件与渲染。内联到工具箱闭包，继续使用原有配置、事件和保存流程。 */
+/* 压缩业务保留，基础字段和卡片由共享组件库生成。 */
 export function sectionCard(title) {
-    var card = mk('div', 'kami-card');
-    card.appendChild(mk('div', 'kami-card-title', title));
-    var body = mk('div', 'kami-card-body');
-    card.appendChild(body);
-    return { card: card, body: body };
-  }
-  function noteLine(parent, text) {
-    var n = mk('div', 'kami-card-note', text);
-    parent.appendChild(n);
-    return n;
-  }
-  /* 字段行：契约 §4.2 的 .kami-field 三件套（40-预设设置.js 第 1538-1545 行、
-      30-皮肤管理.js 第 804-806 行同款）。行距、分隔线、点线引导符全靠皮肤，前端零内联。 */
-  function fieldRow(parent, label, control) {
-    var row = mk('div', 'kami-field');
-    if (label !== null && label !== undefined && label !== '') { row.appendChild(mk('span', 'kami-field-label', label)); }
-    if (control) { row.appendChild(control); }
-    parent.appendChild(row);
-    return row;
-  }
-  /* 数字框：input 裹在 .kami-field-value 里（40 号 varInput 同款），宽度用皮肤登记的 62px */
-  function numInput(parent, label, value, key, hint) {
-    var input = HDOC.createElement('input');
-    input.className = 'kami-number';
-    input.type = 'number';
-    input.setAttribute('data-kami-var', key);
-    input.value = String(value);
-    var val = mk('span', 'kami-field-value');
-    val.appendChild(input);
-    fieldRow(parent, label, val);
-    if (hint) { noteLine(parent, hint); }
-    return input;
-  }
-  /* 文本/密码框：作为 .kami-field 的直接子元素，撑开由 LAYOUT_CSS 负责。
-     类名 = 契约 §4.2 的 `.kami-text`（2026-09-21 起不再借用数字框的 `.kami-number`：
-     那条规则带 `text-align:right`，会把文本框一起变成右对齐）。 */
-  function textInput(parent, label, value, attrs, hint) {
-    var input = HDOC.createElement('input');
-    input.className = 'kami-text';
-    if (attrs) { for (var k in attrs) { input.setAttribute(k, attrs[k]); } }
-    input.value = String(value === undefined || value === null ? '' : value);
-    fieldRow(parent, label, input);
-    if (hint) { noteLine(parent, hint); }
-    return input;
-  }
-  /* 下拉框：options = [[value, text], …]；同样作为 .kami-field 直接子元素。
-     类名 = 契约 §4.2 的 `.kami-select`（六份样式表里原本一条下拉框规则都没有，
-     真机上就是浏览器默认样式；`.kami-number` 是数字框，不许再借用）。 */
-  function selectRow(parent, label, options, current, attrs) {
-    var sel = HDOC.createElement('select');
-    sel.className = 'kami-select';
-    if (attrs) { for (var k2 in attrs) { sel.setAttribute(k2, attrs[k2]); } }
-    for (var i = 0; i < options.length; i++) {
-      var op = HDOC.createElement('option');
-      var choice = options[i], value = Array.isArray(choice) ? choice[0] : choice.value;
-      op.value = value;
-      op.textContent = Array.isArray(choice) ? choice[1] : choice.label;
-      if (value === current) { op.selected = true; }
-      sel.appendChild(op);
-    }
-    fieldRow(parent, label, sel);
-    return sel;
-  }
-  /* 开关卡：button.kami-item.kami-card + .is-on + aria-pressed（40 号第 1546-1576 行同款），
-     行内结构用 span.kami-card-head > span.kami-item-main（button 的内容模型只允许 phrasing content） */
-  function toggleCard(parent, key, title, on, extraLine) {
-    var btn = mk('button', 'kami-item kami-card' + (on ? ' is-on' : ''));
-    btn.type = 'button';
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('data-kami-cmode', key);
-    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.setAttribute('aria-label', title);
-    var head = mk('span', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-item-main', title));
-    btn.appendChild(head);
-    if (extraLine) { btn.appendChild(mk('span', 'kami-card-note', extraLine)); }
-    parent.appendChild(btn);
-    return btn;
-  }
+  var card=createKamiUi(HDOC).settingsCard({title:title,flatTitle:true});return {card:card,body:card.body};
+}
+function noteLine(parent,text){var n=mk('div','kami-card-note',text);parent.appendChild(n);return n;}
+function fieldRow(parent,label,control){var row=createKamiUi(HDOC).field({label:label,control:control,labelTag:'span'});parent.appendChild(row);return row;}
+function numInput(parent,label,value,key,hint){var input=createKamiUi(HDOC).number({value:value,attrs:{'data-kami-var':key}}),val=mk('span','kami-field-value');val.appendChild(input);fieldRow(parent,label,val);if(hint)noteLine(parent,hint);return input;}
+function textInput(parent,label,value,attrs,hint){var input=createKamiUi(HDOC).text({value:value,attrs:attrs});fieldRow(parent,label,input);if(hint)noteLine(parent,hint);return input;}
+function selectRow(parent,label,items,current,attrs){var input=createKamiUi(HDOC).select({items:items,value:current,attrs:attrs});fieldRow(parent,label,input);return input;}
+function toggleCard(parent,key,title,on,extraLine){var n=createKamiUi(HDOC).choiceCard({label:title,selected:on,description:extraLine,attrs:{'data-kami-cmode':key,role:'button','aria-label':title}});parent.appendChild(n);return n;}
 
   function renderContent() {
     if (!bodyEl || disposed) { return; }
@@ -112,7 +41,7 @@ export function sectionCard(title) {
     bodyEl.appendChild(sec3.card);
 
     /* ④ 大总结模型 */
-    var sec4 = renderKamiLlmModel({state:cfg,copy:COPY,make:mk,document:HDOC,section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow,profiles:tavernCCProfiles,currentConfig:currentSumConfig,models:cachedModelList,fetchState:fetchState});
+    var sec4 = createKamiUi(HDOC).modelConnection({render:renderKamiLlmModel,env:{state:cfg,copy:COPY,make:mk,document:HDOC,section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow,profiles:tavernCCProfiles,currentConfig:currentSumConfig,models:cachedModelList,fetchState:fetchState}});
     bodyEl.appendChild(sec4.card);
 
     /* ⑤ 例外楼层 */
@@ -134,7 +63,7 @@ export function sectionCard(title) {
       noteLine(sec5.body, COPY.pins.empty);
     }
     var pinRow = fieldRow(sec5.body, COPY.pins.ph, null);
-    var pinInput = HDOC.createElement('input');
+    var pinInput = createKamiUi(HDOC).element('input');
     pinInput.className = 'kami-number';
     pinInput.type = 'number';
     pinInput.setAttribute('data-kami-var', 'pin');
@@ -204,7 +133,7 @@ export function sectionCard(title) {
     bodyEl.appendChild(sec6.card);
 
     /* ⑦ 摘要提示词（模板 + 头/任务/尾） */
-    var sec7 = renderKamiLlmPrompts({state:cfg,copy:COPY,make:mk,document:HDOC,section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow,snapshot:snapPrompts,currentTemplate:currentTpl});
+    var sec7 = createKamiUi(HDOC).promptEditor({render:renderKamiLlmPrompts,env:{state:cfg,copy:COPY,make:mk,document:HDOC,section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow,snapshot:snapPrompts,currentTemplate:currentTpl}});
     bodyEl.appendChild(sec7.card);
 
     /* ⑧ 摘要条目状态 */

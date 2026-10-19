@@ -11,6 +11,7 @@ export function buildToolboxTabs() {
     toolboxTabsBar = mk('div', 'kami-tabs');
     toolboxTabsBar.setAttribute('data-kami-role', 'tabs');
     toolboxTabsBar.setAttribute('role', 'tablist');
+    toolboxTabsBar.setAttribute('data-kami-tabs-mode', 'fit');
     toolboxTabsBar.setAttribute('aria-label', '工具类别');
     TOOLBOX_PAGES.forEach(function (page, index) {
       var button = mk('button', 'kami-tab', page.title);
@@ -134,12 +135,12 @@ export function buildToolboxTabs() {
         },
         save: function (raw) { if (typeof raw.ctx.saveSettingsDebounced !== 'function') { throw new Error('当前酒馆无法保存任务条目'); } raw.ctx.saveSettingsDebounced(); notifyPresetChanged(raw.ctx); }
       }, WEB_SEARCH_TASK_DEF);
-      SEARCH = createKamiSearchService({
+      var searchEnv = {
         task: taskBinding, taskDefinition: WEB_SEARCH_TASK_DEF,
         providers: { list: webSearchProviders, get: webSearchProvider, endpoint: webSearchEndpoint, request: webSearchRequest, rows: webSearchRows },
         pure: { webSearchTaskGuide: webSearchTaskGuide, webSearchLimitFields: webSearchLimitFields, normalizeWebSearchLimits: normalizeWebSearchLimits, normalizeWebSearchManualSettings: normalizeWebSearchManualSettings, parseWebSearchJSON: parseWebSearchJSON, webSearchSource: webSearchSource, webSearchTag: webSearchTag,
           readWebSearchRecords: readWebSearchRecords, normalizeWebSearchRecord: normalizeWebSearchRecord, attachWebSearchRecord: attachWebSearchRecord },
-        host: HOST, document: HDOC, context: stCtx, make: mk,
+        host: HOST, document: HDOC, context: stCtx, make: mk, components: createKamiUi(HDOC),
         saveNotice: function () { renderStatus(); updateDef(); },
         profile: withTavernProfile, profiles: tavernCCProfiles,
         legacyConfigs: function () { return cfg.sumConfigs; },
@@ -157,16 +158,17 @@ export function buildToolboxTabs() {
         canRun: function () { return !pipeline.running; },
         count: countText,
         ui: { section: sectionCard, field: fieldRow, note: noteLine, text: textInput, select: selectRow },
-        fold: function (title) { var card=mk('details','kami-card'),head=mk('summary','kami-card-head'),body=mk('div','kami-card-body');head.appendChild(mk('span','kami-card-title',title));card.appendChild(head);card.appendChild(body);return {card:card,body:body}; },
+        fold: function(title){var card=createKamiUi(HDOC).collapse({title:title});return {card:card,body:card.body};},
         openManual: function (trigger) { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.open(trigger); } },
         mountManualSettings: function (container) { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.mount(container); } },
-        raw: async function (request, selection) {
+        raw: async function (request, selection, guard) {
+          function callRaw() { if (guard) { guard(); } return generateRaw(request); }
           if (typeof generateRaw !== 'function') { throw new Error('需要更新酒馆助手才能调用搜索模型'); }
-          if (selection && typeof selection === 'object' && selection.custom_api) { request.custom_api = selection.custom_api; return withTavernProfile('', function () { return generateRaw(request); }); }
+          if (selection && typeof selection === 'object' && selection.custom_api) { request.custom_api = selection.custom_api; return withTavernProfile('', function () { return callRaw(); }); }
           if (selection && selection.indexOf('profile:') === 0) {
             if (!findTavernProfile(selection.slice(8))) { throw new Error('所选酒馆连接已不存在，请重新选择搜索模型'); }
             var result;
-            await withTavernProfile(selection.slice(8), async function () { result = await generateRaw(request); });
+            await withTavernProfile(selection.slice(8), async function () { result = await callRaw(); });
             return result;
           }
           if (selection && selection.indexOf('config:') === 0) {
@@ -175,7 +177,7 @@ export function buildToolboxTabs() {
             if (!picked || !picked.apiurl || !picked.key || !picked.model) { throw new Error('所选自定义连接不存在或配置不完整，请在压缩页检查'); }
             request.custom_api = { apiurl: picked.apiurl, key: picked.key, model: picked.model, source: picked.source || 'custom' };
           }
-          return withTavernProfile('', function () { return generateRaw(request); });
+          return withTavernProfile('', function () { return callRaw(); });
         },
         stopRaw: function (id) { if (typeof stopGenerationById === 'function') { stopGenerationById(id); } },
         createMessages: function (messages) { if (typeof createChatMessages !== 'function') { throw new Error('缺少聊天消息接口'); } return createChatMessages(messages); },
@@ -183,7 +185,9 @@ export function buildToolboxTabs() {
         on: typeof eventOn === 'function' ? eventOn : null,
         events: typeof tavern_events !== 'undefined' ? tavern_events : {},
         toast: function (kind, message) { toast(kind, message, '网络搜索'); }
-      });
+      };
+      searchEnv.nativeProbe = createKamiNativeSearchProbe(Object.assign({}, searchEnv, {pipeline:function(){return kamiResponsePipeline(HOST);},transport:createKamiResponseTransport(),canRun:function(){if(pipeline.running)return false;var ctx=stCtx(),processor=ctx&&ctx.streamingProcessor;if(processor&&processor.isFinished===false)return false;var stop=HDOC.getElementById('mes_stop');return !stop||HOST.getComputedStyle(stop).display==='none';}}));
+      SEARCH = createKamiSearchService(searchEnv);
     }
     MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,document:HDOC,make:mk,copy:COPY,profiles:tavernCCProfiles,
       defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,ensureStyle:injectCss,

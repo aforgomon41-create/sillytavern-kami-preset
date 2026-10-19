@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packSkinAssets } from './skin-assets.mjs';
+import { inspectSkinMeta, inspectSkinCss } from './skin-contract.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -17,13 +18,7 @@ const assetBudget = {bytes: 0};
 const base = fs.readFileSync(path.join(ROOT, 'src', 'skin', 'base.css'), 'utf8');
 const ALL_TOKENS = [...new Set([...base.matchAll(/(--kami-[a-z0-9-]+)\s*:/g)].map(m => m[1]))];
 
-/* 可选令牌：**新增的令牌一律先落这里，再逐套皮肤补值**（2026-10-07 立的规矩）。
-   为什么需要这张表：base.css 是"兜底皮肤"的参考实现，往里加一支令牌，
-   上面那条 MUST 逻辑就会要求**18 套皮肤全都定义**，缺一个就构建失败。
-   而新令牌从"设计定稿"到"18 套皮肤都配好色"之间必然有一个中间态 ——
-   没有这张表，那个中间态里仓库是**红的**，谁都不敢提交。
-   规矩：令牌在 base.css 里带**完整默认值**（皮肤不定义也能看），名字进这张表；
-   等 18 套皮肤都在生成块里给了值，再把它从表里摘掉，转成必填。 */
+/* 可选令牌在 base.css 有完整默认值；全体皮肤补齐后再转为必填。 */
 const OPTIONAL_TOKENS = new Set([
   /* RPG 界面层 —— 状态栏重构新增，四个面板共用 */
   '--kami-surface-2', '--kami-surface-3', '--kami-surface-4',
@@ -44,20 +39,6 @@ const REQUIRED_LABEL_TOKENS = ['--kami-label-think-title', '--kami-label-options
 const DQ = String.fromCharCode(34);
 const SQ = String.fromCharCode(39);
 
-/** 只在括号外（顶层）按逗号切分选择器，避免把 :is(.a, .b) 切开 */
-function splitSelectors(sel) {
-  const out = [];
-  let depth = 0, cur = "";
-  for (const ch of sel) {
-    if (ch === "(" || ch === "[") { depth++; }
-    else if (ch === ")" || ch === "]") { depth--; }
-    if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
-    cur += ch;
-  }
-  if (cur.trim()) { out.push(cur.trim()); }
-  return out.filter(Boolean);
-}
-
 function stripComments(css) { return css.replace(/\/\*[\s\S]*?\*\//g, ''); }
 function hasAttrValue(code, attr, value) {
   return code.indexOf(attr + '~=' + DQ + value + DQ) >= 0 || code.indexOf(attr + '~=' + SQ + value + SQ) >= 0;
@@ -72,13 +53,14 @@ function checkSkin(id) {
   if (!fs.existsSync(cp)) { errs.push('缺少 skin.css'); }
   if (errs.length) { return { id, errs, warns }; }
 
-  const meta = JSON.parse(fs.readFileSync(mp, 'utf8'));
+  let meta;
+  try { meta = JSON.parse(fs.readFileSync(mp, 'utf8')); } catch (error) { return { id, errs: ['skin.json 解析失败：' + error.message], warns }; }
+  errs.push(...inspectSkinMeta(meta, id));
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return { id, errs, warns };
   const css = fs.readFileSync(cp, 'utf8');
   const code = stripComments(css);
 
-  for (const k of ['id', 'name', 'button']) { if (!meta[k]) { errs.push('skin.json 缺少字段 ' + k); } }
-  if (meta.id !== id) { errs.push('skin.json 的 id (' + meta.id + ') 与目录名 (' + id + ') 不一致'); }
-  if (meta.css) { warns.push('skin.json 里不该有 css 字段（皮肤 CSS 请写在 skin.css）'); }
+  errs.push(...inspectSkinCss(css, id));
   try { packSkinAssets(ROOT, id, meta, assetBudget); } catch (e) { errs.push(e.message); }
   const declaredAssets = meta.assets && typeof meta.assets === 'object' ? Object.keys(meta.assets) : [];
   for (const m of code.matchAll(/var\(\s*--kami-asset-([a-z0-9-]+)/g)) {
@@ -89,65 +71,12 @@ function checkSkin(id) {
   if (/@font-face/i.test(code)) { errs.push('出现 @font-face（不允许外部字体）'); }
   if (/<script|javascript:/i.test(code)) { errs.push('出现脚本内容'); }
   if (/[\d.]+vh\b/i.test(code)) { errs.push('使用了 vh 单位'); }
-  /* 只拦真正的“外部网络引用”，放行 data: URI 里的命名空间标识符（永不发起请求） */
-  var lower = code.toLowerCase();
-  /* 用纯字面量匹配，避免任何转义：url(http 同时覆盖 http:// 与 https:// */
-  var NET_PATTERNS = [
-    "url(http", "url(//",
-    "url(@@SQ@@http", "url(@@DQ@@http", "url(@@SQ@@//", "url(@@DQ@@//",
-    "@@import @@SQ@@http", "@@import @@DQ@@http",
-    "src=http", "src=//",
-  ];
-  var netHits = NET_PATTERNS.filter(function (pat) {
-    pat = pat.split("@@SQ@@").join(String.fromCharCode(39)).split("@@DQ@@").join(String.fromCharCode(34));
-    return lower.indexOf(pat) >= 0;
-  });
-
-  const badSel = [];
-  const cssNoAt = code
-    .replace(/@media[^{]*\{/g, '{')
-    .replace(/@supports[^{]*\{/g, '{')
-    .replace(/@container[^{]*\{/g, '{')
-    .replace(/@keyframes[\s\S]*?\}\s*\}/g, '');
-  for (const m of cssNoAt.matchAll(/(^|[}])\s*([^{}@]+)\{/g)) {
-    const sel = m[2].trim();
-    if (!sel || sel.startsWith('from') || sel.startsWith('to') || /^[\d.]+%$/.test(sel)) { continue; }
-    for (const part of sel.split(',')) {
-      const t = part.trim();
-      if (!t) { continue; }
-      if (t.indexOf('kami') < 0) { badSel.push(t); }
-    }
-  }
-  /* 每条选择器必须以该皮肤的作用域前缀原样开头（面板要做机械替换生成预览副本）
-     ⚠️ 全局层豁免（契约 §2.1 开口子 + §3）：build/sync-tavern.mjs 会把 --kami-* 令牌
-     同时上提一份到 <html> 作用域（选择器恰为 PREFIX 本身、或 PREFIX + 档位属性），
-     供 src/skin/tavern.css 的全局层在 #chat/.mes 上继承。它们既含 kami 又以皮肤前缀开头，
-     下面两条检查天然放行；这里显式登记，别让以后「收紧成必须落 .kami-root」的改动误伤它。 */
-  const PREFIX = "html[data-kami-skin=\"" + id + "\"]";
-  const badPrefix = [];
-  for (const m of cssNoAt.matchAll(/(^|[}])\s*([^{}@]+)\{/g)) {
-    const sel = m[2].trim();
-    if (!sel || sel.startsWith("from") || sel.startsWith("to") || /^[0-9.]+%$/.test(sel)) { continue; }
-    for (const t of splitSelectors(sel)) {
-      if (t.indexOf("kami") < 0) { continue; }
-      if (t === PREFIX) { continue; }   // 全局层 <html> 令牌作用域：合法，不按组件选择器要求
-      if (t.indexOf(PREFIX) !== 0) { badPrefix.push(t); }
-    }
-  }
-  if (badPrefix.length) {
-    errs.push("选择器未以皮肤前缀开头（共 " + badPrefix.length + " 处）：" + badPrefix.slice(0, 4).join(" | "));
-  }
-  if (badSel.length) { errs.push('选择器未包含 kami（共 ' + badSel.length + ' 处）：' + badSel.slice(0, 5).join(' | ')); }
-
   const defined = new Set([...code.matchAll(/(--kami-[a-z0-9-]+)\s*:/g)].map(m => m[1]));
   const missing = MUST.filter(t => !defined.has(t));
   if (missing.length) { errs.push('缺少令牌（' + missing.length + ' 个）：' + missing.join(' ')); }
-  /* 全局层（契约 §3）：--kami-* 令牌必须**同时**定义在 <html> 作用域上（build/sync-tavern.mjs
-     生成的那块），否则 src/skin/tavern.css 的全局层规则在 #chat/.mes 上继承不到令牌、整块失效。
-     抓「漏跑同步脚本 / 手删了生成块」的真问题：html[data-kami-skin="<id>"] { … } 里必须看得到 --kami-fg。
-     （只认 <html> 作用域那一块：`]` 后紧跟 `{`，`.kami-root {` 那种不算。） */
+  /* 根级令牌副本供组件继承，不为酒馆自身添加外观。 */
   if (!new RegExp('html\\[data-kami-skin="' + id + '"\\]\\s*\\{[^}]*--kami-fg\\s*:').test(code)) {
-    errs.push('基础令牌未上提到 <html>（全局层读不到）：跑 node build/sync-tavern.mjs');
+    errs.push('基础令牌未上提到 <html>（组件继承不完整）：跑 node build/sync-tavern.mjs');
   }
   const missingLabel = REQUIRED_LABEL_TOKENS.filter(t => !defined.has(t));
   if (missingLabel.length) { warns.push('没有提供文案令牌：' + missingLabel.join(' ') + '（皮肤会失去品牌化标题）'); }
@@ -159,30 +88,14 @@ function checkSkin(id) {
   if (!/:focus-visible/.test(code)) { errs.push('缺少 :focus-visible 焦点样式'); }
   if (!/--kami-fs-scale/.test(code)) { errs.push('没有把 --kami-fs-scale 乘进字号'); }
 
-  for (const f of (meta.effects || [])) {
-    if (!f.id || !f.label) { errs.push('effects 项缺少 id 或 label'); continue; }
+  for (const f of (Array.isArray(meta.effects) ? meta.effects : [])) {
+    if (!f || !f.id || !f.label) { errs.push('effects 项缺少 id 或 label'); continue; }
     if (!hasAttrValue(code, 'data-kami-effects', f.id)) {
       errs.push('特效 ' + f.id + ' 在 CSS 里找不到 data-kami-effects 的规则');
     }
   }
-  /* 装饰模块（契约 §8）：由皮肤声明、由皮肤管理注入。装饰 id 由平台定义，皮肤只声明要不要 */
-  const KNOWN_DECOR = ['d20', 'd10'];
-  if (meta.decor !== undefined) {
-    if (!Array.isArray(meta.decor)) { errs.push('decor 必须是数组（如 ["d20"]）'); }
-    else {
-      for (const d of meta.decor) {
-        if (typeof d !== 'string' || !d) { errs.push('decor 项必须是非空字符串'); continue; }
-        if (KNOWN_DECOR.indexOf(d) < 0) { warns.push('decor 里的 ' + d + ' 不是皮肤管理认识的装饰模块，会被忽略'); }
-        else if (code.indexOf('.kami-' + d) < 0) { warns.push('声明了 ' + d + ' 装饰，但 skin.css 里没有 .kami-' + d + ' 相关样式'); }
-      }
-    }
-  }
-  for (const p of (meta.params || [])) {
-    if (!p.id || !p.label || !p.token) { errs.push('params 项缺少 id/label/token'); continue; }
-    if (typeof p.min !== 'number' || typeof p.max !== 'number' || typeof p.value !== 'number') {
-      errs.push('params.' + p.id + ' 缺少 min/max/value 数值');
-    }
-    if (p.min > p.value || p.value > p.max) { errs.push('params.' + p.id + ' 的 value 不在 min..max 内'); }
+  for (const d of (Array.isArray(meta.decor) ? meta.decor : [])) {
+    if (typeof d === 'string' && code.indexOf('.kami-' + d) < 0) warns.push('声明了 ' + d + ' 装饰，但没有对应样式');
   }
 
   return { id, errs, warns, bytes: Buffer.byteLength(css), tokens: defined.size };

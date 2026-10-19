@@ -614,20 +614,20 @@ html[data-kami-skin="gpt"] .kami-root .kami-number {
 
 html[data-kami-skin="gpt"] .kami-root input.kami-number[type="number"] { text-align: right; }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-number,
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-text,
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-textarea,
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   background-color: var(--kami-card-2) !important;
   color: var(--kami-fg) !important;
   color-scheme: dark !important;
   border-color: var(--kami-line-strong) !important;
 }
 
-html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-number,
-html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-text,
-html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-textarea,
-html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-select {
+html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,
+html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,
+html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,
+html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color-scheme: light !important;
 }
 
@@ -793,7 +793,7 @@ html[data-kami-skin="gpt"] .kami-preview i {
 
 html[data-kami-skin="gpt"] .kami-preview i:first-child { width: 58%; background-color: var(--kami-accent); }
 
-html[data-kami-skin="gpt"] .kami-root:not([data-kami-comp="panel"]) {
+html[data-kami-skin="gpt"] .kami-root:not([data-kami-comp="panel"],[data-kami-comp="dialog"]) {
   margin: 10px 0 8px;
 }
 
@@ -842,27 +842,27 @@ html[data-kami-skin="gpt"] .kami-root .kami-drop[data-kami-layout="sheet"] > .ka
   transform: translateX(-50%);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
   --kami-items-min: 104px;
 }
 
 @media (max-width: 560px) {
-  html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 152px;
   }
 }
 
 @media (max-width: 380px) {
-  html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-grid:has(> .kami-item, > .kami-item-note) {
+  html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-grid:has(> .kami-item, > .kami-item-note) {
     --kami-items-min: 108px;
   }
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card .kami-card:not(.is-on):not([aria-pressed="true"]) {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card .kami-card:not(.is-on):not([aria-pressed="true"]) {
   background-color: var(--kami-card-2);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] button.kami-card-head.kami-btn {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) button.kami-card-head.kami-btn {
   width: 100%;
   min-height: 0;
   border-radius: var(--kami-r-xs);
@@ -873,14 +873,14 @@ html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] button.kami-card-h
   text-align: left;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item {
   min-height: 40px;
   font-size: var(--kami-fs-sm);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item:not(.is-on):not([aria-pressed="true"]),
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item),
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-btn:not(.is-on):not(.kami-btn--primary) {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:not(.is-on):not([aria-pressed="true"]),
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card:not(.kami-item),
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-btn:not(.is-on):not(.kami-btn--primary) {
   border-color: var(--kami-line-strong);
 }
 
@@ -917,7 +917,7 @@ html[data-kami-skin="gpt"] .kami-root .kami-guide-pv-frame {
   border: 0;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark] {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark] {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -936,13 +936,13 @@ html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[da
   -webkit-tap-highlight-color: transparent;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:hover,
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note-mark]:focus-visible {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:hover,
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note-mark]:focus-visible {
   background-color: var(--kami-accent);
   color: var(--kami-accent-fg);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-card-note[data-kami-note-mark][data-kami-corner] {
   position: absolute;
   top: 1px;
   right: 3px;
@@ -952,7 +952,7 @@ html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami
   pointer-events: auto;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note] {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note] {
   display: block;
   margin: 5px 0 0;
   padding: 5px 7px;
@@ -967,9 +967,9 @@ html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[da
   text-align: left;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card-note[data-kami-note][hidden] { display: none; }
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card-note[data-kami-note][hidden] { display: none; }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge {
   position: absolute;
   top: 1px;
   right: 3px;
@@ -984,29 +984,29 @@ html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami
   pointer-events: none;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="tl"],
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="tl"],
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   right: auto;
   left: 3px;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="br"],
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item > .kami-badge[data-kami-corner="bl"] {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="br"],
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item > .kami-badge[data-kami-corner="bl"] {
   top: auto;
   bottom: 1px;
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="tl"], > .kami-badge[data-kami-corner="tr"], > .kami-card-note[data-kami-corner="tr"]) {
   padding-top: calc(var(--kami-pad-lg-y) + 0.4em);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item:has(> .kami-badge[data-kami-corner="bl"], > .kami-badge[data-kami-corner="br"]) {
   padding-bottom: calc(var(--kami-pad-lg-y) + 0.4em);
 }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item[disabled],
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:hover,
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-item[disabled]:active {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled],
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:hover,
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-item[disabled]:active {
   background-color: var(--kami-card);
   background-image: none;
   border-color: var(--kami-line);
@@ -1050,7 +1050,7 @@ html[data-kami-skin="gpt"] .kami-md ol ol ol { list-style-type: lower-roman; }
 html[data-kami-skin="gpt"] .kami-md li::marker { color: var(--kami-fg); }
 html[data-kami-skin="gpt"] .kami-md li li::marker { color: var(--kami-fg-mute); }
 
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-field .kami-field-label .kami-sub {
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-field .kami-field-label .kami-sub {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -1070,9 +1070,9 @@ html[data-kami-skin="gpt"] .kami-root .kami-tab.is-on { border-bottom-color:var(
 html[data-kami-skin="gpt"] .kami-root .kami-fold { margin-left:auto;font-size:var(--kami-fs-xs);line-height:1;color:var(--kami-fg-dim); }
 html[data-kami-skin="gpt"] .kami-root .kami-title { min-width:0;overflow:hidden;text-overflow:ellipsis; }
 html[data-kami-skin="gpt"] .kami-root .kami-card-title { overflow-wrap:anywhere; }
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-card:not(.kami-item) { background-color:var(--kami-card); }
-html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-number,html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-text,html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-textarea,html[data-kami-skin="gpt"] .kami-root[data-kami-comp="panel"] .kami-select { color-scheme:dark !important; }
-html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-number,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-text,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-textarea,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root[data-kami-comp="panel"] .kami-select { color-scheme:light !important; }
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-card:not(.kami-item) { background-color:var(--kami-card); }
+html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,html[data-kami-skin="gpt"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select { color-scheme:dark !important; }
+html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-number,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-text,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-textarea,html[data-kami-skin="gpt"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select { color-scheme:light !important; }
 html[data-kami-skin="gpt"][data-kami-density="compact"] .kami-root { --kami-pad-x:8px;--kami-pad-y:5px;--kami-pad-lg-x:11px;--kami-pad-lg-y:9px;--kami-gap:6px;--kami-gap-lg:9px;--kami-row-h:30px; }
 html[data-kami-skin="gpt"][data-kami-density="roomy"] .kami-root { --kami-pad-x:13px;--kami-pad-y:9px;--kami-pad-lg-x:18px;--kami-pad-lg-y:16px;--kami-gap:10px;--kami-gap-lg:15px;--kami-row-h:42px; }
 html[data-kami-skin="gpt"][data-kami-motion="calm"] .kami-root { --kami-dur-fast:.08s;--kami-dur:.13s;--kami-dur-slow:.18s;--kami-enter-y:0px;--kami-stagger:0ms; }
@@ -1099,7 +1099,13 @@ html[data-kami-skin="gpt"] .kami-root .kami-title { font-weight:550;letter-spaci
 html[data-kami-skin="gpt"] .kami-root .kami-item { border-radius:14px;box-shadow:none; }
 html[data-kami-skin="gpt"] .kami-root .kami-btn { border-radius:9px; }
 html[data-kami-skin="gpt"] .kami-root .kami-seg { background-color:var(--kami-bg); }
-html[data-kami-skin="gpt"] .kami-root .kami-md { background-color:var(--kami-card);padding:14px;border-radius:12px; }
+html[data-kami-skin="gpt"] .kami-root .kami-md { background-color:var(--kami-card);padding:14px;border-radius:12px; }/* Shared component roles: descriptions follow the selectable surface foreground. */
+html[data-kami-skin="gpt"] .kami-root [data-kami-ui="choiceCard"][data-kami-card-role="choice"] > .kami-card-note { color:inherit; opacity:1; }
+html[data-kami-skin="gpt"] .kami-root [data-kami-ui="field"] > .kami-card-note { color:var(--kami-fg-dim); opacity:1; }
+html[data-kami-skin="gpt"] .kami-root [data-kami-ui="tabs"] .kami-tab[aria-selected="true"] { color:var(--kami-fg); }
+
+html[data-kami-skin="gpt"] .kami-root [data-kami-ui="empty"] { color:var(--kami-fg-dim); }
+html[data-kami-skin="gpt"] .kami-root [data-kami-ui="steps"] .is-current :is(strong,small) { color:var(--kami-fg); }
 
 /* ==== 全局层令牌上提（build/sync-tavern.mjs 生成，勿手改；把 --kami-* 令牌同时定义到 <html>，契约 §3）==== */
 html[data-kami-skin="gpt"] {
@@ -1201,9 +1207,6 @@ html[data-kami-skin="gpt"][data-kami-scheme="light"] {
   --kami-t2: #eeeeee;
   --kami-t3: #cccccc;
   --kami-warn: #b3261e;
-}
-html[data-kami-skin="gpt"] {
-  --kami-items-min: 104px;
 }
 html[data-kami-skin="gpt"][data-kami-density="compact"] {
   --kami-pad-x: 8px;

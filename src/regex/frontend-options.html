@@ -21,7 +21,7 @@ body { font-family: inherit; color: inherit; }
 <!-- 载荷：模型输出的行动选项 JSON（构建期会把载荷占位换成正则捕获组） -->
 <script type="text/plain" data-kami-payload>@@PAYLOAD@@</script>
 
-<div class="kami-root" data-kami-comp="options" data-kami-mode="fill">
+<div class="kami-root" data-kami-comp="options" data-kami-mode="fill" data-kami-container="embedded">
   <div class="kami-shell kami-surface kami-collapse" data-kami-open="1">
     <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="true">
       <span class="kami-dot"></span>
@@ -50,6 +50,7 @@ body { font-family: inherit; color: inherit; }
 <script>
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var NL = String.fromCharCode(10);
   var SP = '[\\s\\u3000]';
@@ -244,28 +245,28 @@ body { font-family: inherit; color: inherit; }
   }
   function makeCard(root, item, demo, idx) {
     var kind = KIND[item.type] || 'other';
-    var btn = document.createElement('button');
+    var btn = createKamiUi(document).element('button');
     btn.type = 'button';
     btn.className = 'kami-item kami-card' + (demo ? ' is-demo' : '');
     btn.setAttribute('data-kami-kind', kind);
     if (demo) { btn.setAttribute('aria-disabled', 'true'); }
 
-    var head = document.createElement('span');
+    var head = createKamiUi(document).element('span');
     head.className = 'kami-card-head';
-    var badge = document.createElement('span');
+    var badge = createKamiUi(document).element('span');
     badge.className = 'kami-badge';
     badge.setAttribute('data-kami-kind', kind);
     badge.textContent = item.type === 'nsfw' ? 'NSFW' : item.type;
-    var title = document.createElement('span');
+    var title = createKamiUi(document).element('span');
     title.className = 'kami-card-title';
     title.textContent = item.title || ('选项 ' + (idx + 1));
-    var side = document.createElement('span');
+    var side = createKamiUi(document).element('span');
     side.className = 'kami-item-side';
     side.setAttribute('aria-hidden', 'true');
     side.textContent = root.getAttribute('data-kami-mode') === 'send' ? '→' : '↵';
     head.appendChild(badge); head.appendChild(title); head.appendChild(side);
 
-    var bodyEl = document.createElement('span');
+    var bodyEl = createKamiUi(document).element('span');
     bodyEl.className = 'kami-card-body';
     bodyEl.textContent = item.content;
 

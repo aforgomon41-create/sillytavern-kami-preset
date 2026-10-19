@@ -9,10 +9,8 @@
  *   按原选择器条件生成一份 <html> 作用域副本，追加到皮肤末尾的「生成块」里。
  *     · 只追加、不改写既有规则：.kami-root 层行为一字不变。
  *     · 顶层规则才上提；@media（如 prefers-reduced-motion 的时长）跳过。
- *     · 判据是「选择器里出现 .kami-root」（不是「以它结尾」）—— 因为皮肤把**组件面专用令牌
- *       的重映射**写在 `.kami-root .kami-md, .kami-root .kami-raw` 这类多段选择器上
- *       （如 grokbot 的 --kami-clay-*）；判据收紧会整批漏掉，兜底皮肤与其它非 .kami-root
- *       消费方就读不到那套配色。
+ *     · 只提升以 .kami-root 结尾的根级规则。后代、伪元素、组件类型及卡片局部令牌保留原处，
+ *       不把局部的前景/背景翻转或类型映射泄漏到整页。公共基础层补齐默认值。
  *     · 生成块带起止标记，重跑先整块删除再按当前源码重建，故幂等。
  *
  * ⛔ **已删除的两件事（2026-09-26 用户裁定「我们不动酒馆本身了」）**：
@@ -21,8 +19,8 @@
  *   ② 消息楼层的面与特效镜像 —— 见下面 MES_DORMANT 那段（代码保留、不参与生成）。
  *   现在这份脚本**不写酒馆 UI 一个像素**。
  *
- * 为什么是脚本：令牌上提是「唯一需要 15 套皮肤同步的点」。做成幂等脚本后，
- * 将来的第 16 套皮肤跑一次即自动跟随，且不会重复改写已上提的皮肤。
+ * 为什么是脚本：令牌上提是「需要全部皮肤同步的点」。做成幂等脚本后，
+ * 将来的新增皮肤跑一次即自动跟随，且不会重复改写已上提的皮肤。
  * 只写 src/skins/<id>/skin.css。
  */
 import fs from 'node:fs';
@@ -166,14 +164,8 @@ function assemble(stripped, blks, EOL) {
   return head + EOL + (blks.length ? EOL + blks.join(EOL + EOL) + EOL : '');
 }
 
-/* 「哪些令牌算基础令牌、可以上提」：只要声明块里出现 --kami-* 就上提。
-   ⚠️ 2026-09-26 起从「选择器必须以 .kami-root 结尾」放宽成「选择器里出现 .kami-root」——
-   原因是皮肤把**组件面专用的令牌重映射**写在 `.kami-root .kami-md, .kami-root .kami-raw` 上
-   （grokbot 的 --kami-clay-* 系列、memo 的纸色、nixie 的管色…），旧写法把这类整批跳过，
-   结果全局层读到的是「另一套配色」（实测：grokbot 的消息卡拿到炭底而不是黏土白），
-   而它写在 .kami-shell 上的 background-color: var(--kami-clay-surface) 更会解析成空、整条声明被丢。
-   放宽后这类重映射也进 <html>，三样东西（面 / 字色 / 令牌）就落在同一个作用域上，成对成立。
-   自定义属性只向下继承，所以对 .kami-root 层是纯增量、行为不变。 */
+/* 根级令牌才可上提。局部组件映射必须留在局部，不能扩散到 html。
+   历史全局美化已退役，公共组件底座提供完整默认值。 */
 function buildLift(css, id) {
   const PREFIX = 'html[data-kami-skin="' + id + '"]';
   const stripped = stripBlocks(css);                   // 先删旧生成块（幂等）
@@ -183,11 +175,12 @@ function buildLift(css, id) {
   const rules = parseRules(stripped);
   const gen = [];
   for (const r of rules) {    if (r.media) { continue; }                          // 只上提顶层（@media 的 reduced-motion 时长跳过）
-    /* 每个含 .kami-root 的选择器 → 剥掉 .kami-root 得到 <html> 作用域 */
+    /* 只去掉准确落在末尾的 .kami-root，保留 html 上的状态条件。 */
     const htmlSel = [];
     for (const s of splitSel(r.sel)) {
       const at = s.indexOf('.kami-root');
-      if (at < 0) { continue; }
+      /* Only root-wide declarations may be inherited by the document. Keep local variants local. */
+      if (at < 0 || s.slice(at).trim() !== '.kami-root') { continue; }
       const head = s.slice(0, at).trim();               // 形如 html[data-kami-skin="x"][data-kami-scheme="light"]
       if (head.indexOf(PREFIX) !== 0) { continue; }
       if (!/\{/.test(head) && htmlSel.indexOf(head) < 0) { htmlSel.push(head); }
@@ -408,7 +401,7 @@ for (const id of ids) {
   console.log('  ' + id.padEnd(10) + ' 令牌 ' + String(r.blocks).padStart(2) + ' 条 · 消息楼层面与特效 ' +
     String(r.mesBlocks).padStart(2) + ' 条 · ' + (r.changed ? '本轮写盘' : '无变化'));
 }
-console.log('\n令牌上提同步' + (dry ? '（dry）' : '完成') + '：15 套皮肤共生成 ' + totalBlocks +
+console.log('\n令牌上提同步' + (dry ? '（dry）' : '完成') + '：' + ids.length + ' 套皮肤共生成 ' + totalBlocks +
   ' 条 <html> 令牌规则；本轮改动 ' + changedSkins + ' 套皮肤。');
 if (!dry && changedSkins === 0 && !scriptRes.changed) {
   console.log('（全部已是最新，重复运行零变化 —— 幂等 ✓）');

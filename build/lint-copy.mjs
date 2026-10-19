@@ -8,7 +8,7 @@
  * 用法：node build/lint-copy.mjs [表路径]
  * 退出码：0 全部通过；1 有失败项。
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -16,7 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const TABLE = process.argv[2] || join(ROOT, 'design/copy/copy-table.json');
 
-const SKIN_IDS = ['grokbot', 'memo', 'nixie', 'rain', 'trpg'];
+const SKIN_IDS = readdirSync(join(ROOT,'src/skins')).filter(id=>existsSync(join(ROOT,'src/skins',id,'skin.json'))).sort();
 
 /* 禁用字符：用字符码构造，避免本文件自身被写坏（本工作区对美元号与反斜杠不可靠） */
 const DOLLAR = String.fromCharCode(36);
@@ -47,7 +47,7 @@ export function width(s) {
 
 const LIMIT = {
   'think-title': 6,
-  'think-title-open': 6,
+  'think-title-open': 8, // Shared headers wrap; keep the existing scan-display title unchanged.
   'options-title': 6,
 };
 const LABEL_MAX = 8;

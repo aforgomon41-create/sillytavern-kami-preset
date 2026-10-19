@@ -1,7 +1,7 @@
 /* 从20号抽取的共同流传输层；保留SSE/JSON数组拆包、取消与UTF-8增量解码。 */
 export function createKamiResponseTransport() {
   const SNIFF_BYTES=12, BACKSLASH=String.fromCharCode(92), QUOTE='"';
-  function peek(response) {
+  function peek(response, signal) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     const seen = [];
@@ -10,6 +10,8 @@ export function createKamiResponseTransport() {
     let failure = null;
 
     return (async function () {
+      const stop=function(){reader.cancel().catch(function(){});};
+      if(signal){if(signal.aborted)stop();else signal.addEventListener('abort',stop,{once:true});}
       try {
         while (!ended && head.length < SNIFF_BYTES) {
           const step = await reader.read();
@@ -21,7 +23,7 @@ export function createKamiResponseTransport() {
       } catch (err) {
         failure = err;
         ended = true;
-      }
+      } finally { if(signal)signal.removeEventListener('abort',stop); }
 
       const body = new ReadableStream({
         start(controller) {
@@ -234,5 +236,41 @@ export function createKamiResponseTransport() {
   }
 
 
-  return {peek:peek,shapeOf:shapeOf,restream:restream,jsonResponse:jsonResponse,sseRelay:sseRelay,arrayToSse:arrayToSse};
+
+  /* Bounded JSON/SSE reader shared by short diagnostics; never clones a live stream. */
+  async function readEvents(response, consume, opts) {
+    opts=opts||{};
+    const signal=opts.signal, limit=opts.maxBytes||1048576;
+    let bytes=0, reader=null, abortReject=null,ended=false;
+    const aborted=function(){const error=new Error('响应读取已中断');error.name='AbortError';return error;};
+    const stop=function(){if(reader)reader.cancel().catch(function(){});if(abortReject)abortReject(aborted());};
+    const cancellation=new Promise(function(_,reject){abortReject=reject;});
+    cancellation.catch(function(){});
+    if(signal){if(signal.aborted)throw aborted();signal.addEventListener('abort',stop,{once:true});}
+    function check(){if(signal&&signal.aborted)throw aborted();}
+    function value(text){check();if(text.trim()==='[DONE]'){ended=true;return;}const parsed=JSON.parse(text);if(Array.isArray(parsed))parsed.forEach(consume);else consume(parsed);}
+    try{
+      check();
+      if(!response.body){const text=await Promise.race([response.text(),cancellation]);if(new TextEncoder().encode(text).length>limit)throw Error('诊断响应超过大小限制');value(text);return {format:'json'};}
+      const inspected=await Promise.race([peek(response,signal),cancellation]);
+      let source=inspected.body.pipeThrough(new TransformStream({transform(chunk,controller){bytes+=chunk.byteLength;if(bytes>limit)throw Error('诊断响应超过大小限制');controller.enqueue(chunk);}}));
+      const shape=shapeOf(inspected.head,response.headers.get('content-type')||'');
+      if(shape==='json-array')source=arrayToSse(source);
+      reader=source.getReader();
+      const decoder=new TextDecoder();
+      let buffer='',data=[];
+      function line(text){if(text.slice(-1)==='\r')text=text.slice(0,-1);if(!text){if(data.length){value(data.join('\n'));data=[];}return;}if(text.indexOf('data:')===0)data.push(text.slice(5).replace(/^ /,''));}
+      while(true){check();const part=await Promise.race([reader.read(),cancellation]);if(part.done)break;buffer+=decoder.decode(part.value,{stream:true});if(shape!=='json'){let cut;while((cut=buffer.indexOf('\n'))>=0){line(buffer.slice(0,cut));buffer=buffer.slice(cut+1);}}}
+      buffer+=decoder.decode();check();
+      if(shape==='json')value(buffer);
+      else{if(buffer)line(buffer);line('');}
+      return {format:shape==='json'?'json':'sse',ended:ended};
+    }finally{
+      if(signal)signal.removeEventListener('abort',stop);
+      if(reader){try{await reader.cancel();}catch(error){}try{reader.releaseLock();}catch(error){}}
+      else if(signal&&signal.aborted&&response.body){try{await response.body.cancel();}catch(error){}}
+    }
+  }
+
+  return {peek:peek,shapeOf:shapeOf,restream:restream,jsonResponse:jsonResponse,sseRelay:sseRelay,arrayToSse:arrayToSse,readEvents:readEvents};
 }

@@ -19,7 +19,7 @@ body { font-family: inherit; color: inherit; }
 <!-- 载荷：模型输出的思考原文（正则捕获组 1）。用 text/plain 承载，正文里的标签不会被解析 -->
 <script type="text/plain" data-kami-payload>@@PAYLOAD@@</script>
 
-<div class="kami-root" data-kami-comp="think" data-kami-view="render">
+<div class="kami-root" data-kami-comp="think" data-kami-view="render" data-kami-container="embedded">
   <div class="kami-shell kami-surface kami-collapse" data-kami-open="0">
     <div class="kami-head kami-collapse-head" role="button" tabindex="0" aria-expanded="false">
       <span class="kami-dot"></span>
@@ -47,6 +47,7 @@ body { font-family: inherit; color: inherit; }
 <script>
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   /* 「只复制干净的正文」的取文本规则：与 📄 正文外壳共用同一份实现
      （src/scripts/_copy-clean.js，构建期由 build/kami-doc.mjs 的 expandCopyClean 内联）。 */
@@ -193,7 +194,7 @@ body { font-family: inherit; color: inherit; }
     }
     function fallback() {
       try {
-        var ta = document.createElement('textarea');
+        var ta = createKamiUi(document).element('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
         ta.style.left = '-9999px';
@@ -228,7 +229,7 @@ body { font-family: inherit; color: inherit; }
     if (!raw) {
       if (mdBox) {
         mdBox.innerHTML = '';
-        var emp = document.createElement('p');
+        var emp = createKamiUi(document).element('p');
         emp.className = 'kami-empty';
         emp.textContent = labelVar(root, 'empty') || '未捕获到内容';
         mdBox.appendChild(emp);
@@ -250,7 +251,7 @@ body { font-family: inherit; color: inherit; }
              真抛在 catch 里就把整个 boot 打断，面板直接死掉（这条是实测踩出来的）。 */
           try { mdBox.innerHTML = ''; } catch (e2) { }
           try { while (mdBox.firstChild) { mdBox.removeChild(mdBox.firstChild); } } catch (e3) { }
-          var failNote = document.createElement('p');
+          var failNote = createKamiUi(document).element('p');
           failNote.className = 'kami-empty';
           failNote.textContent = labelVar(root, 'renderFailed') || '正文渲染失败，暂时不能复制';
           mdBox.appendChild(failNote);

@@ -71,6 +71,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '1.5';
   var API_NAME = 'KamiUpdate';
@@ -1294,7 +1295,7 @@
   function injectProgressCss(doc) {
     try {
       if (doc.getElementById(PROG_CSS_ID)) { return; }
-      var s = doc.createElement('style');
+      var s = createKamiUi(doc).element('style');
       s.id = PROG_CSS_ID;
       s.textContent = PROG_CSS;
       (doc.head || doc.documentElement).appendChild(s);
@@ -1306,24 +1307,24 @@
     if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
     var doc = HDOC || document;
     injectProgressCss(doc);
-    var root = doc.createElement('div');
+    var root = createKamiUi(doc).element('div');
     root.id = 'kami-update-progress';
-    function line(cls) { var d = doc.createElement('div'); d.className = cls; root.appendChild(d); return d; }
+    function line(cls) { var d = createKamiUi(doc).element('div'); d.className = cls; root.appendChild(d); return d; }
     var title = line('kami-upd-title');
     var stage = line('kami-upd-stage');
     var track = line('kami-upd-track');
-    var bar = doc.createElement('div');
+    var bar = createKamiUi(doc).element('div');
     bar.className = 'kami-upd-bar';
     track.appendChild(bar);
     var bytes = line('kami-upd-bytes');
     var detail = line('kami-upd-detail');
     var row = line('kami-upd-row');
     /* 重试次数显示在按钮左边（重试不设上限，但要让用户知道自己在第几轮） */
-    var note = doc.createElement('span');
+    var note = createKamiUi(doc).element('span');
     note.className = 'kami-upd-note';
     row.appendChild(note);
     function mkBtn(text, primary) {
-      var b = doc.createElement('button');
+      var b = createKamiUi(doc).element('button');
       b.type = 'button';
       b.textContent = text;
       b.className = 'kami-upd-btn' + (primary ? ' kami-upd-btn--primary' : '');

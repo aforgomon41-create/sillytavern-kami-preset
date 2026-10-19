@@ -37,7 +37,8 @@
  * ============================================================ */
 
 function pcMake(doc, tag, cls, text) {
-  var n = doc.createElement(tag);
+  if (typeof createKamiUi === 'function') return createKamiUi(doc).element(tag,cls,text == null ? undefined : String(text));
+  var n = typeof createKamiUi === 'function' ? createKamiUi(doc).element(tag) : doc.createElement(tag);
   if (cls) { n.className = cls; }
   if (text != null && text !== '') { n.textContent = String(text); }
   return n;

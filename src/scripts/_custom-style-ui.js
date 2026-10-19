@@ -110,7 +110,8 @@ export function customStyleBlock(ctx) {
   var root = null;
 
   function el(tag, cls, text) {
-    var n = DOC.createElement(tag);
+  if (typeof createKamiUi === 'function') return createKamiUi(DOC).element(tag,cls,text == null ? undefined : String(text));
+    var n = typeof createKamiUi === 'function' ? createKamiUi(DOC).element(tag) : DOC.createElement(tag);
     if (cls) { n.className = cls; }
     if (text != null && text !== '') { n.textContent = String(text); }
     return n;

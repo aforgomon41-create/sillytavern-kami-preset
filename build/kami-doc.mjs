@@ -1,3 +1,4 @@
+import { migrateComponentSelectors } from './css-scope.mjs';
 /**
  * 卡密预设 · 正则前端文档展开器
  * ------------------------------------------------------------
@@ -26,7 +27,7 @@ export function frontendSource(root, name) {
   return fs.readFileSync(path.join(root, 'src', 'regex', 'frontend-' + name + '.html'), 'utf8');
 }
 export function baseCss(root) {
-  return fs.readFileSync(path.join(root, 'src', 'skin', 'base.css'), 'utf8');
+  return uiCss(root) + String.fromCharCode(10) + migrateComponentSelectors(fs.readFileSync(path.join(root, 'src', 'skin', 'base.css'), 'utf8'));
 }
 
 /** 统计 $n / $<name> 形式的占位个数（不用正则，避免转义问题） */
@@ -162,7 +163,7 @@ export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
   doc = expandCopyClean(root, doc);
-  doc = expandSearchPure(root, doc);
+  doc = expandUi(root, expandSearchPure(root, doc));
   doc = doc.split(PAYLOAD).join(DOLLAR + '1');
   assertClean(doc, name);
   return NL + FENCE + NL + doc + NL + FENCE;
@@ -173,7 +174,7 @@ export function expandForPreview(root, name, payload) {
   let doc = frontendSource(root, name);
   doc = doc.replace(PLACEHOLDER, () => baseCss(root));
   doc = expandCopyClean(root, doc);
-  doc = expandSearchPure(root, doc);
+  doc = expandUi(root, expandSearchPure(root, doc));
   doc = doc.split(PAYLOAD).join(payload == null ? '' : String(payload));
   return doc;
 }
@@ -342,12 +343,14 @@ export function expandCustomStyleUi(root, code) {
  *  （_preset-cards.js / _preset-merge.js / _custom-style-ui.js）都挂在这里一起展开；
  *  各个占位符彼此独立、互不影响，重复调用是幂等的（占位符已经被换掉就什么都不做）。 */
 export function expandPanelGestures(root, code) {
+  code = expandUi(root, code);
   code = expandSearchPure(root, code);
   for (const [marker, file] of [
     ['/* @@KAMI_COMPRESS_UI@@ */', '_compress-ui.js'],
     ['/* @@KAMI_OTHER_TOOLS_UI@@ */', '_toolbox-other-ui.js'],
     ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
     ['/* @@KAMI_SEARCH_SERVICE@@ */', '_search-service.js'],
+    ['/* @@KAMI_SEARCH_NATIVE_PROBE@@ */', '_search-native-probe.js'],
     ['/* @@KAMI_SEARCH_TASK@@ */', '_search-task.js'],
     ['/* @@KAMI_LLM_UI@@ */', '_llm-ui.js'],
     ['/* @@KAMI_LLM_SETTINGS@@ */', '_llm-settings.js'],
@@ -630,4 +633,19 @@ export function expandRegexList(root, list) {
     const name = rs.slice(11, -2);
     return Object.assign({}, r, { replaceString: expandForRegex(root, name) });
   });
+}
+
+export function uiCss(root) {
+  const base = fs.readFileSync(path.join(root,'src/skin/base.css'),'utf8');
+  const match = /html:not\(\[data-kami-skin\]\) \.kami-root\s*\{([\s\S]*?)\}/.exec(base);
+  if (!match) throw new Error('找不到公共默认变量');
+  const tokens = match[1].split(String.fromCharCode(10)).filter(line => /^\s*--kami-/.test(line)).join(String.fromCharCode(10));
+  return fs.readFileSync(path.join(root,'src/ui/foundation.css'),'utf8').replace('/* @@KAMI_UI_DEFAULTS@@ */', () => tokens);
+}
+export function expandUi(root, code) {
+  const marker = '/* @@KAMI_UI@@ */';
+  if (code.includes(marker)) code = code.replaceAll(marker, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/ui/core.js'),'utf8'),'ui/core.js'));
+  const cssMarker = '/* @@KAMI_UI_CSS_JS@@ */';
+  if (code.includes(cssMarker)) code = code.replaceAll(cssMarker, () => 'var KAMI_UI_CSS = '+JSON.stringify(uiCss(root))+';');
+  return code;
 }

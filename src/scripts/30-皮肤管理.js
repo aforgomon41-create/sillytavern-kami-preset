@@ -22,6 +22,7 @@
  * ============================================================ */
 (function () {
   'use strict';
+  /* @@KAMI_UI@@ */
 
   var VERSION = '0.3';
   var TAG = 'data-kami-skin';
@@ -252,6 +253,7 @@
   function escAttr(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 
   /* 结构兜底层：折叠显隐与双视图切换的默认行为；皮肤可以用同优先级更高的规则覆盖（契约 §4.3） */
+  /* @@KAMI_UI_CSS_JS@@ */
   var STRUCT_CSS = [
     '.kami-collapse[data-kami-open="0"]>.kami-collapse-body{display:none;}',
     '.kami-collapse[data-kami-open="1"]>.kami-collapse-body{display:block;}',
@@ -322,7 +324,7 @@
   function skinCssText(skin) {
     if (cachedSkin === skin) { return cachedSkinCss; }
     cachedSkin = skin;
-    cachedSkinCss = '/* ==== struct ==== */\n' + STRUCT_CSS +
+    cachedSkinCss = KAMI_UI_CSS + '\n/* ==== struct ==== */\n' + STRUCT_CSS +
       '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
       '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '') +
       '\n/* ==== shared image assets ==== */\n' + (ASSET_POOL ? ASSET_POOL.css(skin) : '');
@@ -745,10 +747,7 @@
   var GESTURES = null;
 
   function mk(tag, cls, text) {
-    var el = HDOC.createElement(tag);
-    if (cls) { el.className = cls; }
-    if (text !== undefined && text !== null) { el.textContent = text; }
-    return el;
+    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
 
   function buildPanel() {
@@ -756,6 +755,7 @@
     panelRoot = mk('div', 'kami-root');
     panelRoot.id = PANEL_ID;
     panelRoot.setAttribute('data-kami-comp', 'panel');
+    panelRoot.setAttribute('data-kami-container', 'panel');
     /* 舞台是“结构”：内联保证任何皮肤下都可拖动；外观由皮肤决定 */
     panelRoot.style.position = 'fixed';
     panelRoot.style.inset = '0';
@@ -810,22 +810,13 @@
        两个实现要点：
          · `.kami-tabs` 是**横向滚动**容器（tab 多的时候要能滑），所以下拉框必须
            `position:sticky; right:0` 贴在右端 —— 普通子元素一滑动就跟着跑没了；
-         · 用契约 §4.2 已登记的 `.kami-select`：六套皮肤都已经有它的外观与对比度规则，
-           **不新增类名、不新增令牌**。外观归皮肤，这里只摆位置。
+         · 用契约 §4.2 已登记的 `.kami-select`：全部皮肤都已经有它的外观与对比度规则，
+           外观归皮肤，单行与控件宽度由公共 tab-actions 插槽负责。
        选它就等于点那张皮肤卡（都走同一个 setSkin）。 */
     var pick = mk('select', 'kami-select');
     pick.setAttribute('data-kami-role', 'skin-pick');
     pick.setAttribute('aria-label', '快速切换皮肤');
-    pick.style.maxWidth = '100%';
-    pick.style.minWidth = '5.5em';
-    var pickWrap = mk('span', '', '');
-    pickWrap.style.display = 'flex';
-    pickWrap.style.alignItems = 'center';
-    pickWrap.style.position = 'sticky';
-    pickWrap.style.right = '0';
-    pickWrap.style.marginLeft = 'auto';
-    pickWrap.style.flex = '0 0 auto';
-    pickWrap.appendChild(pick);
+    var pickWrap = createKamiUi(HDOC).slot('tab-actions', pick);
     pick.addEventListener('change', function () { setSkin(pick.value); });
     tabs.appendChild(pickWrap);
     panelDrop.appendChild(tabs);
@@ -1090,7 +1081,7 @@
       (fx.length ? ' data-kami-effects="' + fx.join(' ') + '"' : '') +
       '><head><meta charset="utf-8">' +
       '<style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>' +
-      '<style>' + String(sk.css || '') + (ASSET_POOL ? ASSET_POOL.css(sk) : '') + '</style></head><body>' + PREVIEW_MINI + '</body></html>';
+      '<style>' + KAMI_UI_CSS + String(sk.css || '') + (ASSET_POOL ? ASSET_POOL.css(sk) : '') + '</style></head><body>' + PREVIEW_MINI + '</body></html>';
   }
 
   function previewSkeleton(sk) {

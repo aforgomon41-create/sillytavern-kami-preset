@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { migrateComponentSelectors } from './css-scope.mjs';
 /**
  * 卡密预设构建脚本
  * ------------------------------------------------------------
@@ -71,7 +72,7 @@ function collectSkins() {
       const cssPath = path.join(d, 'skin.css');
       if (!fs.existsSync(metaPath) || !fs.existsSync(cssPath)) { continue; }
       const m = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      out.push({ ...packSkinAssets(ROOT, name, m, assetBudget), css: fs.readFileSync(cssPath, 'utf8') });
+      out.push({ ...packSkinAssets(ROOT, name, m, assetBudget), css: migrateComponentSelectors(fs.readFileSync(cssPath, 'utf8')) });
     }
   }
   if (!out.length) {
@@ -118,6 +119,7 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-task.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/llm-settings.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-service.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/native-search.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-providers.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-results.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/toolbox-ui.mjs')], { stdio: 'inherit' });
@@ -125,6 +127,12 @@ try {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');
   process.exit(1);
 }
+
+try {
+  execFileSync(process.execPath, [path.join(ROOT,'build/lint-skins.mjs')], {stdio:'inherit'});
+  execFileSync(process.execPath, [path.join(ROOT,'test/harness/skin-contract.mjs')], {stdio:'inherit'});
+  execFileSync(process.execPath, [path.join(ROOT,'test/harness/ui-components.mjs')], {stdio:'inherit'});
+} catch (e) { console.error('组件库或皮肤校验失败'); process.exit(1); }
 
 /* ---------- 文案校验（design/copy/copy-table.json 与四套 skin.json 必须一致） ---------- */
 try {
