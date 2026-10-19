@@ -3,9 +3,9 @@ import { webSearchProviders, webSearchProvider, webSearchEndpoint, webSearchRequ
 let count = 0;
 const eq = (actual, expected, label) => { assert.deepEqual(actual, expected, label); count++; };
 const list = webSearchProviders();
-eq(list.length, 13); eq(new Set(list.map(row => row.id)).size, 13);
-eq(list.map(row => row.label), ['Tavily', 'SerpApi', 'Bing', '维基百科', 'SearXNG', 'KoboldCpp', 'Serper', 'Z.AI', 'DeepSeek', 'TinyFish', 'Exa', 'Firecrawl', 'Serping'], '服务选项只显示供应商名称');
-eq(list.filter(row => !row.secret && !row.localKey).map(row => row.id), ['bing', 'wikipedia', 'searxng', 'koboldcpp'], '四类来源不需要服务密钥');
+eq(list.length, 14); eq(new Set(list.map(row => row.id)).size, 14);
+eq(list.map(row => row.label), ['Firecrawl (免key)', 'Tavily', 'SerpApi', 'Bing', '维基百科 (免key)', 'SearXNG', 'KoboldCpp', 'Serper', 'Z.AI', 'DeepSeek', 'TinyFish', 'Exa', 'Firecrawl', 'Serping'], '服务选项显示供应商名称，两个开箱即用来源标注免key');
+eq(list.filter(row => !row.secret && !row.localKey).map(row => row.id), ['firecrawl-keyless', 'bing', 'wikipedia', 'searxng', 'koboldcpp'], '五类来源不需要服务密钥');
 eq(webSearchProvider('anysearch'), null, '移除需要额外转发的渠道');
 eq(list.some(row => row.bridge), false, '没有额外插件渠道');
 eq(webSearchProvider('unknown'), null);
@@ -27,6 +27,15 @@ const tiny = webSearchRequest('tinyfish', '中土 & ? #', {}, 'key');
 eq(tiny.method, 'GET'); eq(new URL(tiny.path).pathname, '/'); eq(new URL(tiny.path).searchParams.get('query'), '中土 & ? #');
 eq(webSearchRequest('firecrawl', '城镇', {}, 'key').body, { query: '城镇', limit: 3, sources: ['web'] });
 eq(webSearchRequest('exa', '城镇', {}, 'key').body.contents, { highlights: true });
+const keyless = webSearchRequest('firecrawl-keyless', '城镇', {}, 'IGNORED_SAVED_KEY');
+eq(keyless.path, 'https://api.firecrawl.dev/v2/search'); eq(keyless.method, 'POST'); eq(keyless.direct, true);
+eq(keyless.headers, { Accept: 'application/json', 'Content-Type': 'application/json' }, '免key请求不含认证头');
+eq(keyless.body, webSearchRequest('firecrawl', '城镇', {}, 'key').body, '两种Firecrawl共用低开销网页搜索协议');
+eq(keyless.body.scrapeOptions, undefined, '不默认额外抓取整页');
+eq(JSON.stringify(keyless).includes('IGNORED_SAVED_KEY'), false);
+eq(webSearchProvider('firecrawl-keyless').keyUrl, undefined); eq(webSearchProvider('firecrawl-keyless').localKey, undefined);
+eq(webSearchRequest('firecrawl-keyless', '城镇').body.query, '城镇');
+assert.throws(() => webSearchRequest('firecrawl-keyless', '字'.repeat(501)), /搜索查询过长/); count++;
 eq(webSearchEndpoint('http://localhost:8080/', 'searxng'), 'http://localhost:8080');
 eq(webSearchEndpoint('http://localhost:5001/v1/', 'koboldcpp'), 'http://localhost:5001/v1');
 for (const address of ['javascript:alert(1)', 'https://user:key@example.org', 'https://example.org/?key=private', 'https://example.org/#token', 'invalid', 'file:///test']) {
@@ -65,6 +74,14 @@ eq(webSearchRows('exa', { results: [{ title: result.title, url: result.url, high
 eq(webSearchRows('firecrawl', { success: true, data: { web: [{ title: result.title, url: result.url, description: result.content }] } }), [result]);
 eq(webSearchRows('serping', { organic: [{ title: result.title, link: result.url, snippet: result.content }] }), [result]);
 eq(webSearchRows('serping', { searchParameters: { q: 'x' } }), []);
+for (const provider of ['firecrawl', 'firecrawl-keyless']) {
+  eq(webSearchRows(provider, { success: true, data: { web: [{ title: result.title, url: result.url, description: result.content }] } }), [result]);
+  eq(webSearchRows(provider, { success: true, data: { web: [{ title: result.title, url: result.url, markdown: result.content }] } }), [result], '兼容Markdown正文');
+  eq(webSearchRows(provider, { success: true, data: { web: [{ ...result, content: undefined, markdown: '字'.repeat(6000) }] } })[0].content.length, 2800, '整页资料仍受摘录上限限制');
+  eq(webSearchRows(provider, { success: true, data: { web: [] } }), []);
+  assert.throws(() => webSearchRows(provider, { success: false, error: 'limited' })); count++;
+  assert.throws(() => webSearchRows(provider, { success: true, data: {} })); count++;
+}
 eq(webSearchRows('deepseek', { results: [{ ...result, summary: '字'.repeat(6000) }] })[0].content.length, 2800);
 eq(webSearchRows('koboldcpp', [{ title: result.title, url: result.url, desc: result.content }]), [result]);
 eq(webSearchRows('wikipedia', { batchcomplete: true, query: { pages: [{ title: result.title, fullurl: result.url, extract: result.content }] } }), [result]);
@@ -77,4 +94,4 @@ eq(webSearchRows('bing', { results: [] }), []);
 assert.throws(() => webSearchRows('bing', { results: [result] }), /未返回可核对的Bing/); count++;
 for (const provider of list) { assert.throws(() => webSearchRows(provider.id, { error: { message: 'invalid key' } })); count++; }
 for (const provider of ['tavily', 'serper', 'serpapi', 'zai', 'wikipedia', 'koboldcpp']) { assert.throws(() => webSearchRows(provider, '<html>验证页面</html>')); count++; }
-console.log('十三类搜索来源、直连协议、获取密钥入口与响应适配：' + count + ' 项通过');
+console.log('十四个搜索选项、直连协议、获取密钥入口与响应适配：' + count + ' 项通过');

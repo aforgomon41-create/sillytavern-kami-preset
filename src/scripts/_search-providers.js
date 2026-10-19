@@ -1,11 +1,12 @@
 /* 搜索来源目录、原生酒馆端点与响应归一化。构建内联，不增加运行脚本。
- * 额度核对日期 2026-10-18；没有密钥、没有默认公共代理，不自动切换到收费来源。 */
+ * 额度核对日期 2026-10-19；没有密钥、没有默认公共代理，不自动切换到收费来源。 */
 export function webSearchProviders() {
   var list = [
+    { id: 'firecrawl-keyless', label: "Firecrawl (免key)", url: 'https://docs.firecrawl.dev/rate-limits#keyless-no-api-key', note: '无需注册或密钥，当前设备直接连接Firecrawl全网搜索。免费用量按IP每日限制，请求数或积分任一达到上限都会限流；同一网络可能共用额度，具体上限以官方政策为准。只取网页搜索摘录，不额外抓取整页；限流后可稍后重试或自行切换来源。' },
     { id: 'tavily', label: "Tavily", secret: 'api_key_tavily', url: 'https://docs.tavily.com/documentation/api-credits', note: '每月1000免费积分（credits）；当前普通搜索每次1积分，需注册领取密钥。超额费用以账户套餐为准。' },
     { id: 'serpapi', label: "SerpApi", secret: 'api_key_serpapi', url: 'https://serpapi.com/pricing', note: '免费计划每月250次搜索，需注册领取密钥；超额需按服务商规则升级。' },
     { id: 'bing', label: "Bing", endpoint: true, endpointKey: 'searxng', url: 'https://docs.searxng.org/dev/engines/online/bing.html', note: '通过SearXNG的Bing网页引擎检索，无需搜索API密钥。需填写自己部署或获准使用、且启用了Bing的实例；与SearXNG共用地址。服务器及上游费用、网络与限流仍需自行处理。微软原官方搜索API已停用。' },
-    { id: 'wikipedia', label: "维基百科", url: 'https://www.mediawiki.org/wiki/API:Search', note: '无需密钥；只检索维基百科，不是全网搜索。由浏览器直接访问，设备需能连接维基百科；冷门同人设定可能查不到，请遵守接口限流。' },
+    { id: 'wikipedia', label: "维基百科 (免key)", url: 'https://www.mediawiki.org/wiki/API:Search', note: '无需密钥；只检索维基百科，不是全网搜索。由浏览器直接访问，设备需能连接维基百科；冷门同人设定可能查不到，请遵守接口限流。' },
     { id: 'searxng', label: "SearXNG", endpoint: true, url: 'https://docs.searxng.org/dev/search_api.html', note: '开源软件免搜索API费用，需填写自己部署或获准使用的实例地址。服务器及上游引擎可能有费用或限流；不预置公共实例。' },
     { id: 'koboldcpp', label: "KoboldCpp", endpoint: true, url: 'https://koboldcpp.net/docs/features/web-search-and-mcp/', note: '需运行启用了 --websearch 的 KoboldCpp，底层使用 DuckDuckGo，免搜索API密钥；服务器、网络与上游限流仍需自行处理。默认用于无密码的本地服务；有密码的实例需另行配置酒馆转发认证。' },
     { id: 'serper', label: "Serper", secret: 'api_key_serper', url: 'https://serper.dev/', note: '官网提供2500次试用查询，需密钥；不是每月自动补充的免费计划，用完后按服务商价格购买。' },
@@ -45,14 +46,14 @@ export function webSearchEndpoint(value, provider) {
 export function webSearchRequest(provider, query, settings, apiKey) {
   var entry = webSearchProvider(provider);
   if (!entry) { throw new Error('无法识别所选搜索服务，请重新选择'); }
-  if (entry.localKey) {
+  if (entry.localKey || provider === 'firecrawl-keyless') {
     if (typeof query !== 'string' || Array.from(query).length > (provider === 'deepseek' ? 128 : 500)) { throw new Error('搜索查询过长；DeepSeek最多128个字符'); }
-    if (query && (typeof apiKey !== 'string' || !apiKey.trim() || apiKey.length > 4096 || /[\r\n]/.test(apiKey))) { throw new Error('请先保存有效的搜索服务密钥'); }
+    if (entry.localKey && query && (typeof apiKey !== 'string' || !apiKey.trim() || apiKey.length > 4096 || /[\r\n]/.test(apiKey))) { throw new Error('请先保存有效的搜索服务密钥'); }
     var headers = { Accept: 'application/json', 'Content-Type': 'application/json' }, directBody, path, method = 'POST';
     if (provider === 'deepseek') { path = 'https://api.deepseek.com/v1/tools/search'; headers.Authorization = 'Bearer ' + apiKey; directBody = { query: query, count: 3, need_content: false }; }
     if (provider === 'tinyfish') { var target = new URL('https://api.search.tinyfish.ai'); target.searchParams.set('query', query); path = target.toString(); method = 'GET'; headers['X-API-Key'] = apiKey; }
     if (provider === 'exa') { path = 'https://api.exa.ai/search'; headers['x-api-key'] = apiKey; directBody = { query: query, type: 'auto', numResults: 3, contents: { highlights: true } }; }
-    if (provider === 'firecrawl') { path = 'https://api.firecrawl.dev/v2/search'; headers.Authorization = 'Bearer ' + apiKey; directBody = { query: query, limit: 3, sources: ['web'] }; }
+    if (provider === 'firecrawl' || provider === 'firecrawl-keyless') { path = 'https://api.firecrawl.dev/v2/search'; if (entry.localKey) { headers.Authorization = 'Bearer ' + apiKey; } directBody = { query: query, limit: 3, sources: ['web'] }; }
     if (provider === 'serping') { path = 'https://api.serpingapi.com/v1/search'; headers['X-API-Key'] = apiKey; directBody = { q: query, num: 3 }; }
     return { path: path, method: method, body: directBody, direct: true, response: 'json', headers: headers };
   }
@@ -88,7 +89,7 @@ export function webSearchRows(provider, data, document) {
   if (data && (data.error || data.success === false)) { throw new Error('搜索服务返回错误，请检查配置、额度或接口限流'); }
   var rows;
   if (provider === 'serper' || provider === 'serping') { rows = data && data.organic; if (provider === 'serping' && rows === undefined && data && data.searchParameters) { return []; } }
-  else if (provider === 'firecrawl') { rows = data && data.data && data.data.web; }
+  else if (provider === 'firecrawl' || provider === 'firecrawl-keyless') { rows = data && data.data && data.data.web; }
   else if (provider === 'serpapi') { rows = data && data.organic_results; }
   else if (provider === 'zai') { rows = data && data.search_result; }
   else if (provider === 'koboldcpp') { rows = Array.isArray(data) ? data : data && data.results; }
@@ -121,7 +122,7 @@ export function webSearchRows(provider, data, document) {
     rows = onlyBing;
   }
   return rows.filter(function (row) { return row && typeof row === 'object'; }).map(function (row) {
-    var content = provider === 'deepseek' ? row.summary || row.snippet : provider === 'exa' ? (Array.isArray(row.highlights) ? row.highlights.filter(function (text) { return typeof text === 'string'; }).join('\n') : '') || row.text || row.summary : row.content || row.snippet || row.desc || row.description;
+    var content = provider === 'deepseek' ? row.summary || row.snippet : provider === 'exa' ? (Array.isArray(row.highlights) ? row.highlights.filter(function (text) { return typeof text === 'string'; }).join('\n') : '') || row.text || row.summary : row.content || row.snippet || row.desc || row.description || ((provider === 'firecrawl' || provider === 'firecrawl-keyless') ? row.markdown : '');
     return { title: row.title, url: row.url || row.link, content: typeof content === 'string' ? content.slice(0, 2800) : '' };
   });
 }

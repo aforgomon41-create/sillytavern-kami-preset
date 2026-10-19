@@ -13,7 +13,7 @@ export function createKamiSearchService(env) {
   var stored = env.readVariables()[STORAGE] || {}, syncingTask = false, unsafeProvider = stored.provider && !providers.get(stored.provider);
   function storedEndpoint(id) { try { return providers.endpoint((stored.endpoints || {})[id], id); } catch (e) { return ''; } }
   var cfg = { enabled: stored.enabled === true && (!stored.provider || !!providers.get(stored.provider)), mode: stored.mode === 'service' ? 'service' : 'native',
-    provider: providers.get(stored.provider) ? stored.provider : 'tavily', connection: typeof stored.connection === 'string' ? stored.connection : '',
+    provider: providers.get(stored.provider) ? stored.provider : 'firecrawl-keyless', connection: typeof stored.connection === 'string' ? stored.connection : '',
     endpoints: { searxng: storedEndpoint('searxng'), koboldcpp: storedEndpoint('koboldcpp') }, wikiLanguage: ['zh', 'en', 'ja'].indexOf(stored.wikiLanguage) >= 0 ? stored.wikiLanguage : 'zh',
     system: typeof stored.system === 'string' && stored.system !== legacySystem ? stored.system : defaultSystem,
     limits: env.pure.normalizeWebSearchLimits(stored.limits || stored, false), timeoutMs: 120000 };
@@ -144,7 +144,9 @@ export function createKamiSearchService(env) {
       check(job);
       if (!response.ok) {
         try { if (response.body && response.body.cancel) { await response.body.cancel(); } } catch (e) { }
-        throw new Error([401, 403].indexOf(response.status) >= 0 ? '搜索密钥无效或没有访问权限，请检查账户' : [402, 429].indexOf(response.status) >= 0 ? '搜索服务额度不足或被限流，请检查账户并稍后重试' : '搜索请求失败（HTTP ' + response.status + '），请检查服务和当前设备网络');
+        if (selected.id === 'firecrawl-keyless' && response.status === 429) { throw new Error('Firecrawl免Key搜索已达到当前IP的免费额度或被限流，请稍后重试，或自行切换搜索来源'); }
+        if (selected.id === 'firecrawl-keyless' && response.status === 402) { throw new Error('Firecrawl免Key搜索暂不可用（HTTP 402），请查看官方说明，或自行切换搜索来源'); }
+        throw new Error([401, 403].indexOf(response.status) >= 0 ? (selected.localKey ? '搜索密钥无效或没有访问权限，请检查账户' : '搜索服务拒绝访问，请检查服务可用性和当前设备网络') : [402, 429].indexOf(response.status) >= 0 ? '搜索服务额度不足或被限流，请检查账户并稍后重试' : '搜索请求失败（HTTP ' + response.status + '），请检查服务和当前设备网络');
       }
       data = await readDirectJSON(response, job); check(job);
     } else { data = await post(spec.path, spec.body, job, spec.response); }
@@ -152,6 +154,7 @@ export function createKamiSearchService(env) {
   }
   async function refreshSecrets() {
     var selected = providers.get(cfg.provider);
+    if (!selected.secret && !selected.localKey) { return; }
     try {
       var state;
       if (selected.localKey) { state = {}; state['browser:' + selected.id] = !!(await readLocalKey(selected.id)); }
@@ -482,7 +485,7 @@ export function createKamiSearchService(env) {
     var select = connection.body.querySelector('[data-search-provider]'); select.addEventListener('change', function () { configure({ provider: select.value }); mount(container, true); });
     ui.note(connection.body, selectedProvider.note);
     var docs = make('a', 'kami-btn kami-btn--ghost', '官方说明与额度 ↗'); docs.href = selectedProvider.url; docs.target = '_blank'; docs.rel = 'noopener noreferrer'; docs.setAttribute('data-search-doc-link', '1'); docs.setAttribute('aria-label', '在新标签页打开官方说明与额度'); connection.body.appendChild(docs);
-    ui.note(connection.body, '免费仅指搜索服务；搜索模型与剧情模型仍按所选连接计费。额度信息核对于2026-10-18，以服务商当前政策为准。');
+    ui.note(connection.body, '免费仅指搜索服务；搜索模型与剧情模型仍按所选连接计费。额度信息核对于2026-10-19，以服务商当前政策为准。');
     if (selectedProvider.keyUrl) {
       var getKey = make('a', 'kami-btn kami-btn--ghost', '获取 API Key'); getKey.href = selectedProvider.keyUrl; getKey.target = '_blank'; getKey.rel = 'noopener noreferrer'; getKey.setAttribute('data-search-key-link', selectedProvider.id); connection.body.appendChild(getKey);
     } else { ui.note(connection.body, '此来源无需搜索API密钥。'); }

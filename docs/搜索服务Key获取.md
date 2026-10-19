@@ -1,9 +1,10 @@
 # 搜索服务与 API Key 获取
 
-当前保留13种搜索来源，全部无需额外安装搜索插件或重启酒馆。工具箱的“网络搜索 → 搜索服务”中可选择供应商，每种需密钥的来源都有“获取 API Key”链接。
+当前保留14个搜索选项（Firecrawl分为免Key和密钥模式），全部无需额外安装搜索插件或重启酒馆。工具箱的“网络搜索 → 搜索服务”中可选择供应商，每种需密钥的来源都有“获取 API Key”链接。
 
 | 来源 | 获取 Key | 保存位置与使用条件 |
 |---|---|---|
+| Firecrawl (免key) | 无需注册或API Key | 默认供应商；浏览器直连全网搜索，按IP每日请求数和积分限额，具体数值以官方为准；同一出口IP可能共用额度 |
 | DeepSeek | [API Keys](https://platform.deepseek.com/api_keys) | 本机浏览器；使用官方Search接口，按官方规则计费，不修改剧情模型密钥 |
 | TinyFish | [API Keys](https://agent.tinyfish.ai/api-keys) | 本机浏览器；使用独立Search接口，有每日免费额度，超额可能扣钱包余额 |
 | Exa | [API Keys](https://dashboard.exa.ai/api-keys) | 本机浏览器；账户免费积分及费用以官方政策为准 |
@@ -16,12 +17,14 @@
 | Bing | 无需搜索API Key | 需可用的、启用了Bing引擎的SearXNG实例，与SearXNG共用地址 |
 | SearXNG | 无需搜索API Key | 需自己部署或获准使用的实例地址 |
 | KoboldCpp | 无需搜索API Key | 需启用了`--websearch`的服务地址 |
-| 维基百科 | 无需搜索API Key | 浏览器需可访问所选语言的维基百科，只检索百科 |
+| 维基百科 (免key) | 无需搜索API Key | 浏览器需可访问所选语言的维基百科，只检索百科 |
 
 本机密钥按当前酒馆用户分别保存，不写入脚本变量、聊天或预设导出。换设备、换浏览器或更换酒馆地址后需要重新填写；清除浏览器网站数据也会移除密钥。“清除本机密钥”只删除当前供应商当前用户的密钥。
 
-前五家和维基百科由当前设备访问官方接口，需要设备能联网；其他渠道由酒馆服务器访问。浏览器拒绝跨站请求或服务商修改接口政策时，会明确报错，不自动改用插件、公共代理或其他收费来源。当前浏览器保存的密钥能被同站点脚本访问，功能不声称具有服务端密钥库的隔离能力。
+Firecrawl免Key、DeepSeek、TinyFish、Exa、Firecrawl密钥模式、Serping和维基百科由当前设备访问官方接口，需要设备能联网；其他渠道由酒馆服务器访问。浏览器拒绝跨站请求或服务商修改接口政策时，会明确报错，不自动改用插件、公共代理或其他收费来源。当前浏览器保存的密钥能被同站点脚本访问，功能不声称具有服务端密钥库的隔离能力。
 
 AnySearch因当前浏览器访问检查未通过、需要额外转发，已按用户要求移除。原v0.92-42的插件方案已撤回，不要安装旧插件包。旧配置若选中已移除的渠道，会关闭搜索能力，需手动选择其他来源。
 
-官方接口依据（2026-10-18核对）：[DeepSeek](https://api-docs.deepseek.com/guides/search/)、[TinyFish](https://docs.tinyfish.ai/search-api/reference)、[Exa](https://exa.ai/docs/reference/search)、[Firecrawl](https://docs.firecrawl.dev/api-reference/endpoint/search)、[Serping](https://serpingapi.com/docs)。免费额度与费用以服务商政策为准，搜索模型和剧情模型的调用费用另计。当前尚未使用有效Key完成逐家真实搜索验收。
+官方接口依据（2026-10-18核对）：[DeepSeek](https://api-docs.deepseek.com/guides/search/)、[TinyFish](https://docs.tinyfish.ai/search-api/reference)、[Exa](https://exa.ai/docs/reference/search)、[Firecrawl](https://docs.firecrawl.dev/api-reference/endpoint/search)、[Serping](https://serpingapi.com/docs)。免费额度与费用以服务商政策为准，搜索模型和剧情模型的调用费用另计。Firecrawl免Key已在2026-10-19匿名POST实测HTTP 200，JSON跨域预检HTTP 204；Tavily已有真实Key实机验收，其余需Key供应商尚未逐家真实验收。
+
+Firecrawl免Key依据：[官方Keyless公告](https://www.firecrawl.dev/blog/firecrawl-keyless-launch)、[当前限额](https://docs.firecrawl.dev/rate-limits#keyless-no-api-key)、[计费](https://docs.firecrawl.dev/billing)。匿名按IP每日限制，不承诺每月固定1,000积分；1,000月度积分是注册免费Key计划。默认使用搜索摘录，不附加整页抓取费用。原Firecrawl密钥模式继续可选，限流或失败不会自动切换过去，也不会读取其已存Key。默认只作用于尚未保存供应商的配置，不会覆盖已有选择，也不会自动开启网络搜索。

@@ -15,7 +15,7 @@ const events = Object.fromEntries(['CHAT_COMPLETION_SETTINGS_READY', 'MESSAGE_RE
 const plan = { needed: true, world: '示例世界', scope: '当前版本', queries: ['城镇的建筑风格'] };
 const evidence = { world: '示例世界', facts: [{ key: '城镇建筑', text: '当地建筑使用浅色石材。', source_ids: ['s1'], note: '仅适用当前版本' }] };
 function make(options = {}) {
-  let vars = { keep: 7, 'kami-web-search': { enabled: true, mode: 'service', ...(options.config || {}) } };
+  let vars = { keep: 7, 'kami-web-search': { enabled: true, mode: 'service', provider: 'tavily', ...(options.config || {}) } };
   let ctx = { chatId: 'A', chat: [{ is_user: true, mes: '走进城镇' }], chatCompletionSettings: options.settings || {}, extensionPrompts: { '1_memory': { value: '已确认的旧剧情', position: 0 } } };
   let epoch = 0, rawIndex = 0;
   const listeners = new Map(), timers = new Map(), rawCalls = [], requests = [], creates = [], writes = [], stopped = [];
@@ -308,6 +308,29 @@ for (const provider of ['serpapi', 'zai', 'koboldcpp', 'wikipedia', 'bing']) {
   await assert.rejects(task, error => error.searchCancelled); count++;
   gate.resolve({ ok: true, json: async () => ({ batchcomplete: true }) }); await tick();
   equal(e.creates.length, 0, '百科请求迟到也不能写进新聊天'); equal(e.rawCalls.length, 1); e.api.shutdown();
+}
+{
+  const e = make({ config: { provider: undefined, enabled: false, mode: undefined } });
+  equal(e.api.status().provider, 'firecrawl-keyless', '无已存选择时默认免key'); equal(e.api.status().enabled, false); equal(e.api.status().mode, 'native', '默认供应商不自动开启搜索或改变模式');
+  equal(e.requests.length, 0); e.api.configure({ system: '保留搜索任务' }); equal(e.vars()['kami-web-search'].provider, 'firecrawl-keyless'); e.api.shutdown();
+}
+for (const manual of [true, false]) {
+  const e = make({ denyStorage: true, config: { provider: undefined }, fetch: async () => Response.json({ success: true, data: { web: [{ title: '资料', url: 'https://example.org/world', description: '浅色石材的建筑。' }] } }) });
+  if (manual) { const record = await e.api.search('城镇'); equal(record.facts.length, 1); equal(e.creates.length, 1, '免key手动只新增一个资料楼层'); }
+  else { const request = e.request(); await e.api.beforeSend(request); equal(e.creates.length, 0, '免key自动不新增中间楼层'); const id = e.reply('<out_body>剧情</out_body>'); await e.emit(events.MESSAGE_RECEIVED, id); equal(readWebSearchRecords(e.context().chat[id].mes).length, 1); equal((e.context().chat[id].mes.match(/<out_body>/g) || []).length, 1); }
+  equal(e.requests.length, 1, '免key不读取账号或酒馆密钥'); equal(e.requests[0].path, 'https://api.firecrawl.dev/v2/search');
+  equal(e.requests[0].init.credentials, 'omit'); equal(e.requests[0].init.mode, 'cors'); equal(e.requests[0].init.redirect, 'error'); equal(e.requests[0].init.referrerPolicy, 'no-referrer');
+  equal(e.requests[0].init.headers, { Accept: 'application/json', 'Content-Type': 'application/json' });
+  equal(e.rawCalls.length, 2); equal(e.api.status().provider, 'firecrawl-keyless'); e.api.shutdown();
+}
+for (const [status, pattern] of [[401, /拒绝访问/], [403, /拒绝访问/], [402, /暂不可用.*HTTP 402/], [429, /当前IP.*限流/], [500, /HTTP 500/]]) {
+  const e = make({ config: { provider: 'firecrawl-keyless' }, fetch: async () => new Response('不读取错误详情', { status }) });
+  await assert.rejects(e.api.search('资料'), pattern); count++; equal(e.requests.length, 1, '免key失败不重试或切到带Key来源'); equal(e.rawCalls.length, 1); equal(e.creates.length, 0); equal(e.api.status().provider, 'firecrawl-keyless'); e.api.shutdown();
+}
+{
+  const gate = deferred(), e = make({ config: { provider: 'firecrawl-keyless' }, fetch: () => gate.promise });
+  const task = e.api.search('资料'); await tick(); e.api.cancel(); await assert.rejects(task, error => error.searchCancelled); count++;
+  equal(e.requests[0].init.signal.aborted, true); gate.resolve(Response.json({ success: true, data: { web: [] } })); await tick(); equal(e.creates.length, 0); equal(e.rawCalls.length, 1); e.api.shutdown();
 }
 for (const provider of providerModule.webSearchProviders().filter(p => p.localKey)) {
   const row = { title: '资料', url: 'https://example.org', content: '石材建筑' };
