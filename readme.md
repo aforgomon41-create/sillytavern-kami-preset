@@ -2,7 +2,7 @@
 
 一套运行在 [SillyTavern](https://github.com/SillyTavern/SillyTavern) 1.18 以上版本与[酒馆助手](https://n0vi028.github.io/JS-Slash-Runner-Doc)（Tavern Helper / JS-Slash-Runner）4.11.2 以上版本上的 AI 角色扮演预设。
 
-作者：kamisama ｜ 当前版本：[v0.92-56](https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/tag/v0.92-56)
+作者：kamisama ｜ 当前版本：[v0.92-62](https://github.com/aforgomon41-create/sillytavern-kami-preset/releases/tag/v0.92-62)
 
 ## 安装
 
