@@ -388,7 +388,7 @@ export function expandPanelGestures(root, code) {
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
   code = expandTagsPure(root, code);
-  for (const [mark, file] of [['RESPONSE_PIPELINE','_response-pipeline.js'],['RESPONSE_TRANSPORT','_response-transport.js'],['REASONING_REFERENCES','_reasoning-references.js'],['TAG_RESPONSE','_tag-response.js']]) {
+  for (const [mark, file] of [['RESPONSE_PIPELINE','_response-pipeline.js'],['RESPONSE_TRANSPORT','_response-transport.js'],['REASONING_REFERENCES','_reasoning-references.js'],['TAG_RESPONSE','_tag-response.js'],['COT_STREAM','_cot-stream.js'],['NAME_WRAP_PURE','_name-wrap-pure.js']]) {
     const token = '/* @@KAMI_' + mark + '@@ */';
     if (code.includes(token)) {
       code = code.replaceAll(token, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts',file),'utf8'),file));

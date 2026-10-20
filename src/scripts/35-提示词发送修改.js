@@ -19,9 +19,10 @@
  *      本脚本接住它，把 `<n>…</n>` 按当前档位换成 反引号 / 双下划线 / 什么都不加。
  *   → 预设文件、屏幕上已显示的消息，两者都不动；只有发出去的那一份被改写。
  *
- * ⚠️ 文生图条目（`🎨 文生图`）**一个字都不许动**：它产出的 tags 会被别的插件用正则抓走
- *    当绘图提示词，混进任何包裹符号都是灾难。那条现在没有 `<n>` 标记，本脚本另外还整条
- *    跳过（SKIP_MARK），万一将来误加了标记会在控制台告警。
+ * ⚠️ 文生图块（`<image_task>…</image_task>`）**一个字都不许动**：它产出的 tags 会被别的插件用正则抓走
+ *    当绘图提示词，混进任何包裹符号都是灾难。保护只作用于**行首的完整块**，不能因为消息里出现
+ *    `<image_task>` 就整条跳过 —— 酒馆合并系统消息后，整条跳过会连输出规范和几十处角色名一起漏掉。
+ *    条目正文里顺口提到 `<image_task>` 的那句话不算块（HTML美化条目里就有一句这样的提及）。
  *
  * 三个档位存在酒馆的**全局变量** `kami_name_wrap` 里（跨聊天、跨角色都跟着账号走）：
  *   bt（默认，等于本预设一直以来的行为）/ ul / none
@@ -38,8 +39,7 @@
   var VAR_RULE = 'kami_name_wrap_rule';   /* 输出规范那句的措辞（由档位派生） */
   var VAR_GODCMD = 'kami_god_cmd';        /* 常驻附加指令的正文（面板在 40 号里写） */
   var VAR_GODCMD_ON = 'kami_god_cmd_on';  /* 它的开关：'1' 开 / 其余（含缺省）关 */
-  var MARK_RE = /<n>([^<]*)<\/n>/g;
-  var SKIP_MARK = '<image_task>';         /* 文生图条目指纹：见到它整条不改 */
+  var SKIP_MARK = '<image_task>';         /* 文生图块指纹：行首的完整块不改 */
   var DEFAULT_MODE = 'bt';
 
   /* 三个档位。rule 是嵌进「所有出现的角色名___，同一条回复内不得混用。」中间那一句 */
@@ -84,6 +84,7 @@
      它的判据与包块形状全在那份模块里（可离线单测），本脚本只负责：读两个全局变量开关、
      在提示词已就绪时把包块**原地接到最后一条 user 消息末尾**。面板在 40 号「🧰 其他功能」。 */
   /* @@KAMI_GODCMD_PURE@@ */
+  /* @@KAMI_NAME_WRAP_PURE@@ */
 
   /* ───────── 全局变量：优先走酒馆自己的通道（st-context.js:204 的 variables.global） ───────── */
   function readGlobal(name) {
@@ -136,12 +137,10 @@
 
   function currentMode() { return modeOf(modeCache) || modeOf(DEFAULT_MODE); }
 
-  /* 把一段文本里的 <n>…</n> 换成该档位的写法；counter 用来数改了几处 */
+  /* 把一段文本里的 <n>…</n> 换成该档位的写法；counter 用来数改了几处。
+     纯逻辑在 _name-wrap-pure.js（构建期内联），文生图块保护也在那边。 */
   function applyMode(text, mode, counter) {
-    return text.replace(MARK_RE, function (_full, inner) {
-      if (counter) { counter.n++; }
-      return mode.open + inner + mode.close;
-    });
+    return nameWrapReplace(text, mode.open, mode.close, counter);
   }
 
   /* ───────── 提示词已就绪：在这里把标记换成当前档位 ─────────
@@ -153,22 +152,31 @@
       if (!chat || !chat.length) { return; }
       var mode = currentMode();
       var counter = { n: 0 };
-      var skipped = 0;
+      var skippedTokens = 0, skippedBlocks = 0;
       for (var i = 0; i < chat.length; i++) {
         var m = chat[i];
         if (!m || typeof m.content !== 'string') { continue; }
         if (m.content.indexOf('<n>') < 0) { continue; }
         if (SKIP_MARK && m.content.indexOf(SKIP_MARK) >= 0) {
-          skipped++;
-          warn('文生图条目里出现了 <n> 标记 —— 已整条跳过（那条会被别的插件抓 tags，不能有包裹符号）');
-          continue;
+          /* 只保护行首的文生图块；同一条合并系统消息里的其它 <n> 照常替换。
+             整条跳过会把「输出规范」和 62 处角色名一起漏掉（2026-10-20 真机 bug）。 */
+          var res = nameWrapExceptImageTask(m.content, mode.open, mode.close, counter);
+          m.content = res.text;
+          skippedBlocks += res.skippedBlocks;
+          skippedTokens += res.skippedTokens;
+        } else {
+          m.content = applyMode(m.content, mode, counter);
         }
-        m.content = applyMode(m.content, mode, counter);
       }
       injectGodCmd(data);
-      if (counter.n > 0 || skipped > 0) {
+      if (counter.n > 0 || skippedTokens > 0) {
         log('本次替换 ' + counter.n + ' 处角色名标记 → ' + mode.label +
-          (skipped ? ('；跳过 ' + skipped + ' 条文生图条目') : '') + (data && data.dryRun ? '（试算）' : ''));
+          (skippedBlocks ? ('；文生图块 ' + skippedBlocks + ' 个原样保留' +
+            (skippedTokens ? ('，块内 ' + skippedTokens + ' 处 <n> 没动') : '')) : '') +
+          (data && data.dryRun ? '（试算）' : ''));
+        if (skippedTokens > 0) {
+          warn('文生图块里出现了 <n> 标记 —— 该块已跳过（那条会被别的插件抓 tags，不能有包裹符号）');
+        }
       }
     } catch (e) {
       warn('改写提示词失败：' + ((e && e.message) || e));

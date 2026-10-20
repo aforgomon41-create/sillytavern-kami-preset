@@ -102,7 +102,10 @@ ok(wc.indexOf('tavern_events.CHAT_COMPLETION_PROMPT_READY') >= 0, '④ 订阅了
 ok(/open: '`'/.test(wc) && /open: '__'/.test(wc) && /open: ''/.test(wc), '④ 三档的包裹符号分别是反引号 / 双下划线 / 空');
 ok(wc.indexOf('kami_name_wrap') >= 0 && wc.indexOf('kami_name_wrap_rule') >= 0, '④ 档位与措辞两个全局变量的名字对得上预设里那处引用');
 ok(wc.indexOf('function syncVars') >= 0 && wc.indexOf('DEFAULT_MODE') >= 0, '④ 有「变量缺了就补默认档」的自愈（换设备/新账号不会读到空）');
-ok(wc.indexOf('SKIP_MARK') >= 0 && wc.indexOf('<image_task>') >= 0, '④ 有文生图整条跳过的保护');
+ok(wc.indexOf('SKIP_MARK') >= 0 && wc.indexOf('<image_task>') >= 0, '④ 有文生图保护标记');
+ok(wc.indexOf('nameWrapExceptImageTask') >= 0 && wc.indexOf('nameWrapReplace') >= 0,
+  '④ 用纯逻辑只保护行首文生图块（不再整条跳过合并后的系统消息）');
+ok(wc.indexOf('IMAGE_TASK_RE') >= 0, '④ 文生图块按行首完整块识别（行内提及不算块）');
 
 /* ④b 代码：30 号（皮肤面板「显示」卡的入口）与 50 号（引导入口）
    ⚠️ 2026-09-28 用户裁定：这一行从「🌟 预设设置」搬到了「🎨 皮肤管理面板 → 显示」那张卡，

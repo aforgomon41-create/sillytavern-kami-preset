@@ -37,7 +37,7 @@ function fixture(options={}){
 }
 {
  const plan=planKamiScriptUpgrade(mixed(),catalog,mergeScriptTrees),rows=flattenScriptTrees(plan.trees);
- eq(rows.length,13);eq(new Set(rows.map(x=>x.id)).size,13);eq(plan.deduplicated,12);
+ eq(rows.length,14);eq(new Set(rows.map(x=>x.id)).size,14);eq(plan.deduplicated,13);
  eq(plan.trees.filter(x=>x.type!=='folder').map(x=>x.id),['custom']);
  for(const leaf of rows.filter(x=>x.id!=='custom')){eq(leaf.data.budget,4321);eq(leaf.content.startsWith('NEW'),true);}
  eq(rows.find(x=>x.id==='custom').content,'CUSTOM');
@@ -50,8 +50,8 @@ function fixture(options={}){
 {
  const f=fixture(),state=await runKamiScriptUpgrade(f.env);
  eq(state.repaired,true);eq(state.boot,true);eq(f.calls.length,2);eq(f.applies.length,1);
- eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,13);
- eq(flattenScriptTrees(f.files.get(f.name+' · 自动整理前备份').extensions.tavern_helper.scripts).length,25);
+ eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,14);
+ eq(flattenScriptTrees(f.files.get(f.name+' · 自动整理前备份').extensions.tavern_helper.scripts).length,27);
  eq(f.files.get(f.name).temperature,.7);eq(f.files.get(f.name).extensions.other,{keep:1});eq(f.files.get(f.name).extensions.tavern_helper.variables,{keep:'preset'});
  eq(f.events.indexOf('save-done:'+f.name)<f.events.indexOf('apply'),true,'收到持久化成功回执后才替换内存');
  eq(f.events.indexOf('save-done:'+f.name)<f.events.indexOf('before-apply'),true,'保存成功后才清理旧实例');
@@ -84,7 +84,7 @@ for(const kind of ['hub','folder'])for(const failAt of [1,2]){
 }
 {
  const gate=deferred(),f=fixture({save:async(_n,_r,i)=>{if(i===2)await gate.promise;}});
- const promise=runKamiScriptUpgrade(f.env);await tick();eq(f.applies.length,0);eq(flattenScriptTrees(f.trees()).length,25,'未收到回执时原树完整保留');
+ const promise=runKamiScriptUpgrade(f.env);await tick();eq(f.applies.length,0);eq(flattenScriptTrees(f.trees()).length,27,'未收到回执时原树完整保留');
  gate.resolve();await promise;eq(f.applies.length,1);
 }
 {
@@ -149,7 +149,7 @@ for(const kind of ['global','character']){
 {
  const f=fixture({wait:async state=>state.stop()}),result=await runKamiScriptUpgrade(f.env);
  eq(result.boot,false);eq(result.cancelled,true);eq(f.host.__kamiScriptUpgrade,undefined,'iframe卸载不把完整快照挂在宿主');
- eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,13,'卸载前已有持久化回执');
+ eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,14,'卸载前已有持久化回执');
 }
 {
  const gate=deferred(),f=fixture({save:async(_n,_r,i)=>{if(i===1)await gate.promise;}});

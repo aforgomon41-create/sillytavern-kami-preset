@@ -115,6 +115,9 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/skin-assets.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/audit-regressions.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/reasoning-references.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/cot-stream.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/cot-response.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/name-wrap.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/script-tree.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/script-upgrade.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-task.mjs')], { stdio: 'inherit' });
@@ -422,6 +425,13 @@ if (dry) {
     execFileSync(process.execPath, [path.join(__dirname, 'verify-tags-pure.mjs'), outPath], { stdio: 'inherit' });
   } catch (e) {
     console.error('  [中止] 自动标签处理接线验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
+  /* 思维链：切流模块内联 + 管线 order 15 + 原生块美化接线（漏了只有真机才看得出来）。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-cot-stream.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 思维链接线验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
   /* 面板交互接线：点击委托的每个分支都必须在（少一条就有一整类控件点不动）。
