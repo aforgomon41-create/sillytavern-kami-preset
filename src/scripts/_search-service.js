@@ -50,6 +50,13 @@ export function createKamiSearchService(env) {
      打到控制台 —— 酒馆助手的「日志」页镜像的就是 console。
      只在失败时打，不刷屏；正文超过 512KB 才截断并注明原长。 */
   var NL = String.fromCharCode(10);
+  /* 同类提醒只打一次，免得每次搜索都刷屏 */
+  var warnedOnce = Object.create(null);
+  function warnOnce(text) {
+    if (warnedOnce[text]) { return; }
+    warnedOnce[text] = 1;
+    try { if (typeof console !== 'undefined' && console.warn) { console.warn('[网络搜索] ' + text); } } catch (e) { }
+  }
   function providerLabel() {
     try { var selected = providers.get(cfg.provider); return selected && selected.label ? String(selected.label) : String(cfg.provider || '未知来源'); }
     catch (e) { return String(cfg.provider || '未知来源'); }
@@ -100,7 +107,17 @@ export function createKamiSearchService(env) {
     if (!userScopeTask) {
       userScopeTask = (async function () {
         var fetcher = env.host.fetch.bind(env.host), headers = await env.headers(fetcher);
-        var handle = await env.fetchUserHandle(fetcher, headers);
+        var handle = 'local';
+        try { handle = await env.fetchUserHandle(fetcher, headers); }
+        catch (error) {
+          /* 2026-10-21 用户实测：有的酒馆构建没有 /api/users/me —— 请求被单页应用兜底成首页，
+             返回 200 + 769KB 的 <!DOCTYPE html>。账号名只用来给**本机密钥**分个前缀，
+             拿不到就退回一个固定前缀，不能让整个来源不可用（与引导脚本同一套口径）。
+             ⚠️ 只有本地密钥来源（DeepSeek / TinyFish / Exa / Firecrawl / Serping）走这里，
+             经酒馆转发的来源（Tavily 等）压根不碰这个接口 —— 所以症状是「只有某几家搜不了」。 */
+          warnOnce('读不到当前酒馆账号（' + errorText(error) + '），本机密钥改用公共前缀继续');
+          handle = 'local';
+        }
         return 'kami-web-search-keys-v1:' + encodeURIComponent(handle) + ':';
       })().catch(function (error) { userScopeTask = null; throw error; });
     }

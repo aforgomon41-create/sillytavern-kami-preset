@@ -350,7 +350,9 @@ for (const provider of providerModule.webSearchProviders().filter(p => p.localKe
   if (provider.id === 'deepseek') equal(e.rawCalls[0].request.ordered_prompts.at(-1).content.includes('128'), true);
   e.api.shutdown();
 }
-for (const options of [{}, { denyStorage: true }, { storage: { 'kami-web-search-keys-v1:Other:exa': 'OTHER_USER_KEY' } }, { userFetch: async () => ({ ok: false }) }]) {
+/* 2026-10-21：原来这里还有一条 `userFetch: ok:false`，断言「账号读不到搜索就该失败」。
+   现在账号读不到会**退回公共前缀继续**（TauriTavern 没有 /api/users/me），所以把它挪到下面单独断言成功。 */
+for (const options of [{}, { denyStorage: true }, { storage: { 'kami-web-search-keys-v1:Other:exa': 'OTHER_USER_KEY' } }]) {
   const e = make({ ...options, config: { provider: 'exa' } });
   await assert.rejects(e.api.search('城镇')); count++;
   equal(e.rawCalls.length, 0, '密钥或用户未就绪不消耗模型调用'); equal(e.creates.length, 0); equal(e.api.status().running, false); e.api.shutdown();
@@ -521,5 +523,39 @@ for(const stop of ['GENERATION_STOPPED','CHAT_CHANGED']){
   equal(all.includes('https://example.org/api/search/tavily'), true, '日志里有请求地址');
   equal(all.includes('tavily') || all.includes('Tavily'), true, '日志里有搜索来源');
   equal(/这张网页|网页.*而不是数据/.test(all), true, '日志给出了「这是网页」的判断');
+}
+{
+  /* 2026-10-21 用户实测：TauriTavern（把酒馆打包进 Tauri 的移动端客户端）**没有 /api/users/me**，
+     请求落到单页兜底，返回 200 + 整个首页 HTML。症状是「只有 DeepSeek 这类本机密钥来源搜不了」，
+     因为经酒馆转发的来源（Tavily 等）压根不碰这个接口。
+     正确行为：账号名只用来给本机密钥分前缀，读不到就退回公共前缀继续，不能整个来源不可用。 */
+  const TAURI_HTML = '<!DOCTYPE html><html><head><title>TauriTavern</title></head><body>app shell</body></html>';
+  const scenarios = [
+    ['返回 200 + 首页 HTML', async () => ({ ok: true, status: 200, statusText: 'OK', headers: { get: () => 'text/html' }, text: async () => TAURI_HTML })],
+    ['返回 403（多用户未登录）', async () => ({ ok: false, status: 403 })],
+    ['返回 500', async () => ({ ok: false, status: 500 })],
+  ];
+  for (const [label, userFetch] of scenarios) {
+    const warns = [];
+    const originWarn = console.warn;
+    console.warn = (...args) => { warns.push(args.map((v) => String(v)).join(' ')); };
+    let record = null, error = null;
+    try {
+      const e = make({
+        config: { provider: 'deepseek' },
+        userFetch,
+        /* 退回「公共前缀」后，密钥就存在这个前缀下 */
+        storage: { 'kami-web-search-keys-v1:local:deepseek': 'TEST_KEY' },
+        fetch: async () => Response.json({ results: [{ title: '资料', url: 'https://example.org/a', content: '石材建筑' }] }),
+      });
+      try { record = await e.api.search('城镇'); } catch (err) { error = err; }
+      equal(e.requests[0].path, '/api/users/me', '仍然先尝试读取账号');
+      equal(e.requests[1].path.indexOf('deepseek') >= 0 || e.requests[1].init.mode === 'cors', true, '账号读不到后照常直连搜索服务');
+      e.api.shutdown();
+    } finally { console.warn = originWarn; }
+    equal(!!error, false, '账号接口' + label + '时搜索仍然成功：' + (error && error.message));
+    equal(!!record && record.facts.length === 1, true, '账号接口' + label + '时能拿到资料');
+    equal(warns.some((line) => /没有 \/api\/users\/me|公共前缀/.test(line)), true, '账号读不到时给出一次说明');
+  }
 }
 console.log('网络搜索结构、单楼生成与取消：' + count + ' 项通过');
