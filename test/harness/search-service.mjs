@@ -368,7 +368,8 @@ for (const [status, pattern] of [[401, /密钥无效/], [403, /访问权限/], [
 }
 for (const response of [new Response('<html>challenge</html>'), new Response('字'.repeat(1024 * 1024)), new Response('{}', { headers: { 'Content-Length': '3000000' } })]) {
   const e = make({ config: { provider: 'exa' }, storage: { 'kami-web-search-keys-v1:A:exa': 'TEST_KEY' }, fetch: async () => response });
-  await assert.rejects(e.api.search('资料'), /格式异常|响应过大/); count++; equal(e.creates.length, 0); equal(e.rawCalls.length, 1, '无效结果不继续提取或写楼'); e.api.shutdown();
+  /* 2026-10-21：解析失败改成「返回的是网页而不是数据…完整返回已打到控制台日志」，断言跟着放宽 */
+  await assert.rejects(e.api.search('资料'), /网页而不是数据|格式异常|响应过大/); count++; equal(e.creates.length, 0); equal(e.rawCalls.length, 1, '无效结果不继续提取或写楼'); e.api.shutdown();
 }
 {
   const e = make({ config: { provider: 'anysearch' } }); equal(e.api.status().enabled, false, '移除渠道的旧配置不会自动换成付费来源'); await assert.rejects(e.api.search('资料')); count++; equal(e.requests.length, 0); e.api.shutdown();
@@ -490,5 +491,35 @@ for(const stop of ['GENERATION_STOPPED','CHAT_CHANGED']){
   e.context().chat[id].mes+='新剧情'+webSearchTag({...sample,origin:'native',facts:[{...sample.facts[0],text:'本轮未核验的新事实'}]});
   const committing=e.emit(events.MESSAGE_RECEIVED,id);await tick();e.api.shutdown();
   let records=readWebSearchRecords(e.context().chat[id].mes);equal(records.length,1,'脚本关闭立即清理未核验原生块，保留之前的增量');equal(records[0].facts[0].text.includes('本轮未核验'),false);equal(e.context().chat[id].mes.includes('新剧情'),true);const cleanupWrites=e.writes.length;gate.resolve(10);await committing;equal(e.writes.length,cleanupWrites,'脚本关闭后token计数迟到不再写入');
+}
+{
+  /* 2026-10-21 用户要求：响应不是 JSON 时，把**完整返回原文**打到日志（酒馆助手控制台）。
+     顺便钉住两件事：用户看的提示不能出现浏览器的原始 SyntaxError；日志里要有完整正文。 */
+  const HTML = '<!DOCTYPE html>' + String.fromCharCode(10) + '<html><head><title>请先登录</title></head><body>代理登录页 SENTINEL_HTML_BODY</body></html>';
+  const response = () => ({
+    ok: true, status: 200, statusText: 'OK', url: 'https://example.org/api/search/tavily',
+    headers: { get: (k) => (String(k).toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null), forEach() { } },
+    text: async () => HTML,
+  });
+  const logs = [];
+  const origin = console.error;
+  console.error = (...args) => { logs.push(args.map((v) => String(v)).join(' ')); };
+  let error = null;
+  try {
+    const e = make({ config: { provider: 'tavily' }, fetch: async () => response() });
+    try { await e.api.search('资料'); } catch (err) { error = err; }
+    e.api.shutdown();
+  } finally { console.error = origin; }
+  equal(!!error, true, '返回网页时搜索会失败');
+  equal(/完整返回已打到控制台日志/.test(String(error && error.message)), true, '提示告诉用户去看日志');
+  equal(/Unexpected token|is not valid JSON/.test(String(error && error.message)), false, '提示里不再漏浏览器原始解析错误');
+  equal(logs.length > 0, true, '确实打了日志');
+  const all = logs.join(String.fromCharCode(10));
+  equal(all.includes('SENTINEL_HTML_BODY'), true, '日志里有完整返回正文');
+  equal(all.includes('<!DOCTYPE html>'), true, '日志保留了返回原文的开头');
+  equal(all.includes('text/html'), true, '日志里有内容类型');
+  equal(all.includes('https://example.org/api/search/tavily'), true, '日志里有请求地址');
+  equal(all.includes('tavily') || all.includes('Tavily'), true, '日志里有搜索来源');
+  equal(/这张网页|网页.*而不是数据/.test(all), true, '日志给出了「这是网页」的判断');
 }
 console.log('网络搜索结构、单楼生成与取消：' + count + ' 项通过');

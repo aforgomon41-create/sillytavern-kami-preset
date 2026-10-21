@@ -44,6 +44,58 @@ export function createKamiSearchService(env) {
     finally { syncingTask = false; }
   }
   function errorText(error) { return error && error.message ? error.message : String(error || '操作失败'); }
+  /* ── 排障日志（2026-10-21 用户点名）──────────────────────────────────────
+     搜索报错时用户只看到「Unexpected token '<'」，完全不知道是谁返回了什么。
+     所以**响应解析失败时**把请求地址、状态码、响应头与**完整返回正文**
+     打到控制台 —— 酒馆助手的「日志」页镜像的就是 console。
+     只在失败时打，不刷屏；正文超过 512KB 才截断并注明原长。 */
+  var NL = String.fromCharCode(10);
+  function providerLabel() {
+    try { var selected = providers.get(cfg.provider); return selected && selected.label ? String(selected.label) : String(cfg.provider || '未知来源'); }
+    catch (e) { return String(cfg.provider || '未知来源'); }
+  }
+  function headerDump(response) {
+    var lines = [];
+    try {
+      if (response && response.headers && typeof response.headers.forEach === 'function') {
+        response.headers.forEach(function (value, key) { lines.push('  ' + key + ': ' + value); });
+      }
+    } catch (e) { }
+    return lines.length ? lines.join(NL) : '  （读不到响应头）';
+  }
+  function looksLikeHTML(text) {
+    var head = String(text || '').replace(/^\s+/, '').slice(0, 200).toLowerCase();
+    if (!head) { return false; }
+    return head.indexOf('<!doctype') === 0 || head.indexOf('<html') === 0 || head.indexOf('<?xml') === 0 || head.charAt(0) === '<';
+  }
+  /* 优先用 text() 拿原文（真实 fetch 响应一定有）；测试替身只有 json() 时退回它，
+     这样日志路径不会因为缺少 text() 而崩掉。 */
+  async function readRawText(response) {
+    if (response && typeof response.text === 'function') { var raw = await response.text(); return typeof raw === 'string' ? raw : String(raw == null ? '' : raw); }
+    if (response && typeof response.json === 'function') { var data = await response.json(); return JSON.stringify(data === undefined ? null : data); }
+    return '';
+  }
+  function dumpRawResponse(where, response, text, error) {
+    try {
+      var body = String(text == null ? '' : text), guard = 512 * 1024, cut = body.length > guard;
+      var lines = [
+        '[网络搜索] ' + where + ' 的返回无法解析',
+        '  搜索来源: ' + providerLabel(),
+        '  请求地址: ' + (response && response.url ? response.url : '(未知)'),
+        '  响应状态: ' + (response ? (response.status + ' ' + (response.statusText || '')) : '(没有响应对象)'),
+        '  内容类型: ' + (response && response.headers && response.headers.get ? (response.headers.get('content-type') || '(没有 content-type)') : '(未知)'),
+        '  解析错误: ' + errorText(error),
+        '  返回长度: ' + body.length + ' 字符' + (cut ? '（太长，下面只贴前 ' + guard + ' 字符）' : ''),
+        looksLikeHTML(body) ? '  判断: 这是**网页**而不是数据 —— 多半是登录页 / 反向代理 / 内网穿透 / 运营商劫持 / 接口地址不对' : '  判断: 不是网页，但也不是合法 JSON',
+        '  ---- 响应头开始 ----',
+        headerDump(response),
+        '  ---- 响应正文开始 ----',
+        cut ? body.slice(0, guard) : body,
+        '  ---- 响应正文结束 ----'
+      ];
+      if (typeof console !== 'undefined' && console.error) { console.error(lines.join(NL)); }
+    } catch (e) { }
+  }
   async function localKeyScope() {
     if (!userScopeTask) {
       userScopeTask = (async function () {
@@ -115,21 +167,48 @@ export function createKamiSearchService(env) {
     var response = await fetcher(path, { method: 'POST', headers: headers, credentials: 'same-origin', cache: 'no-store', body: JSON.stringify(data), signal: job && job.controller ? job.controller.signal : undefined });
     if (job) { check(job); }
     if (!response.ok) { throw new Error('请求失败（HTTP ' + response.status + '），请检查接口和密钥'); }
-    var result = responseType === 'text' ? await response.text() : await response.json(); if (job) { check(job); } return result;
+    /* 先取文本再解析：解析失败时才有**原文**可以打日志（原来是直接 response.json()，报错原文就丢了）。 */
+    var raw = await readRawText(response);
+    if (job) { check(job); }
+    if (responseType === 'text') { return raw; }
+    try { return JSON.parse(raw); }
+    catch (error) {
+      if (job) { check(job); }
+      dumpRawResponse('酒馆转发 ' + path, response, raw, error);
+      throw new Error('搜索服务返回的是网页而不是数据（来源：' + providerLabel() + '，HTTP ' + response.status + '），完整返回已打到控制台日志');
+    }
   }
   async function readDirectJSON(response, job) {
     var limit = 2 * 1024 * 1024, reader = response.body && typeof response.body.getReader === 'function' ? response.body.getReader() : null;
+    var collected = '';
     try {
       if (response.headers && Number(response.headers.get('content-length')) > limit) { throw new Error('搜索响应过大，已停止读取'); }
-      if (!reader) { var data = await response.json(); check(job); if (JSON.stringify(data).length > limit) { throw new Error('搜索响应过大，已停止读取'); } return data; }
-      var decoder = new TextDecoder(), size = 0, text = '';
-      while (true) {
-        var part = await reader.read(); check(job); if (part.done) { break; }
-        size += part.value.byteLength; if (size > limit) { throw new Error('搜索响应过大，已停止读取'); }
-        text += decoder.decode(part.value, { stream: true });
+      if (!reader) {
+        /* 没有流式 reader 时也先取文本：解析失败要能拿到原文打日志。 */
+        collected = await readRawText(response);
+        check(job);
+        if (collected.length > limit) { throw new Error('搜索响应过大，已停止读取'); }
+      } else {
+        var decoder = new TextDecoder(), size = 0;
+        while (true) {
+          var part = await reader.read(); check(job); if (part.done) { break; }
+          size += part.value.byteLength; if (size > limit) { throw new Error('搜索响应过大，已停止读取'); }
+          collected += decoder.decode(part.value, { stream: true });
+        }
+        collected += decoder.decode();
       }
-      return JSON.parse(text + decoder.decode());
-    } catch (error) { check(job); throw new Error(error && /响应过大/.test(error.message) ? error.message : '搜索服务返回格式异常，未写入资料'); }
+      try { return JSON.parse(collected); }
+      catch (error) {
+        dumpRawResponse('直连 ' + providerLabel(), response, collected, error);
+        throw new Error('搜索服务返回的是网页而不是数据（来源：' + providerLabel() + '），完整返回已打到控制台日志');
+      }
+    } catch (error) {
+      check(job);
+      /* 已经包装过的（过大 / 已打日志）原样抛出，别重复打一遍 */
+      if (error && /响应过大|已打到控制台日志/.test(error.message)) { throw error; }
+      dumpRawResponse('直连 ' + providerLabel(), response, collected, error);
+      throw new Error('搜索服务返回异常（来源：' + providerLabel() + '），完整返回已打到控制台日志');
+    }
     finally { if (reader) { try { await reader.cancel(); } catch (e) { } reader.releaseLock(); } }
   }
   async function queryService(query, job) {
@@ -150,7 +229,13 @@ export function createKamiSearchService(env) {
       }
       data = await readDirectJSON(response, job); check(job);
     } else { data = await post(spec.path, spec.body, job, spec.response); }
-    return providers.rows(cfg.provider, data, env.document);
+    /* 解析成功但**结构不对**也会失败（比如接口改了字段名）。这时候同样把原文吐到日志，
+       否则用户只看到一句「没有结果」，还是不知道服务器到底回了什么。 */
+    try { return providers.rows(cfg.provider, data, env.document); }
+    catch (error) {
+      dumpRawResponse('解析 ' + providerLabel() + ' 的返回结构', null, JSON.stringify(data || null, null, 1), error);
+      throw new Error('搜索结果的结构和预期不一致（来源：' + providerLabel() + '），完整返回已打到控制台日志');
+    }
   }
   async function refreshSecrets() {
     var selected = providers.get(cfg.provider);
