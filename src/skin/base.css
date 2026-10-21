@@ -1142,3 +1142,218 @@ html:not([data-kami-skin]) .kami-root .kami-item-note {
 html:not([data-kami-skin]) .kami-root .kami-item-note > .kami-card {
   flex: 1 1 auto;
 }
+
+/* ============================================================
+ * 搜索资料（data-kami-comp="search"，2026-10-21 重做）
+ * ------------------------------------------------------------
+ * 它和思维链**不再共用一套排版**：思维链是一段连续文本，搜索资料是
+ * 「若干条带编号的事实 + 一张来源表」，所以要按列表来排，不能按散文来排。
+ *
+ * 骨架见契约 §5.3。类名（全部为此新增并已登记）：
+ *   .kami-facts / .kami-fact / .kami-fact-n / .kami-fact-text
+ *   .kami-fact-src / .kami-src-mark
+ *   .kami-src-box / .kami-src-label / .kami-src-list / .kami-src
+ *   .kami-src-n / .kami-src-title
+ * ============================================================ */
+
+/* ---- 事实列表：一行一条，左侧编号 ---- */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kami-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--kami-gap);
+  padding-bottom: var(--kami-gap);
+  border-bottom: var(--kami-border-w) solid var(--kami-line);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+/* 编号：小圆点数字，主色，不抢文字 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact-n {
+  display: inline-flex;
+  justify-self: start;   /* 网格项默认 stretch，不写就会被拉成扁椭圆 */
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-accent-soft);
+  color: var(--kami-accent);
+  font-size: var(--kami-fs-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--kami-fs-sm);
+  color: var(--kami-fg);
+  line-height: 1.65;
+}
+/* 事实后面挂的来源标记：小小的方括号文字，别做成按钮 */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact-src {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: baseline;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-mark {
+  color: var(--kami-accent);
+  font-size: var(--kami-fs-xs);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--kami-accent-line);
+}
+@media (hover: hover) {
+  html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-mark:hover {
+    color: var(--kami-fg);
+    border-bottom-color: var(--kami-line-strong);
+  }
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-fact-note {
+  margin: 0;
+  padding-left: 26px;
+}
+
+/* ---- 来源表：底部一块，标题 + 芯片行 ---- */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-box {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--kami-gap) * .6);
+  margin-top: calc(var(--kami-gap) * .6);
+  padding-top: var(--kami-gap);
+  border-top: var(--kami-border-w) solid var(--kami-line-strong);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-label {
+  color: var(--kami-fg-mute);
+  font-size: var(--kami-fs-xs);
+  letter-spacing: var(--kami-ls);
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* 来源芯片：编号 + 标题，标题太长就截断（完整网址在 title 属性里） */
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: var(--kami-border-w) solid var(--kami-line);
+  border-radius: var(--kami-r-pill);
+  background: var(--kami-t1);
+  color: var(--kami-fg-dim);
+  font-size: var(--kami-fs-xs);
+  text-decoration: none;
+  transition: background var(--kami-dur-fast) var(--kami-ease),
+              border-color var(--kami-dur-fast) var(--kami-ease),
+              color var(--kami-dur-fast) var(--kami-ease);
+}
+@media (hover: hover) {
+  html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src:hover {
+    background: var(--kami-t2);
+    border-color: var(--kami-line-strong);
+    color: var(--kami-fg);
+  }
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-n {
+  flex: none;
+  color: var(--kami-accent);
+  font-variant-numeric: tabular-nums;
+}
+html:not([data-kami-skin]) .kami-root[data-kami-comp="search"] .kami-src-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 15em;
+}
+
+/* ---- 结构基线（**不限定无皮肤**）：上面那套是兜底皮肤的完整设计。
+        皮肤激活时如果没有为搜索写过规则，至少要有这一层把它摆对，
+        否则会退化成浏览器默认的圆点 <ol>。皮肤可以用更高特异性覆盖。 ---- */
+.kami-root[data-kami-comp="search"] .kami-facts,
+.kami-root[data-kami-comp="search"] .kami-src-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kami-gap, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kami-root[data-kami-comp="search"] .kami-src-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kami-root[data-kami-comp="search"] .kami-fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--kami-gap, 8px);
+  overflow-wrap: anywhere;
+}
+.kami-root[data-kami-comp="search"] .kami-fact-n {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--kami-r-pill, 999px);
+  background: var(--kami-accent-soft, rgba(127,127,127,.18));
+  color: var(--kami-accent, inherit);
+  font-size: var(--kami-fs-xs, 11px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.kami-root[data-kami-comp="search"] .kami-fact-src {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+}
+.kami-root[data-kami-comp="search"] .kami-src-mark {
+  color: var(--kami-accent, inherit);
+  text-decoration: none;
+}
+.kami-root[data-kami-comp="search"] .kami-src-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: calc(var(--kami-gap, 8px) * .6);
+}
+.kami-root[data-kami-comp="search"] .kami-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+.kami-root[data-kami-comp="search"] .kami-src-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 15em;
+}
+.kami-root[data-kami-comp="search"] .kami-src-n {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}

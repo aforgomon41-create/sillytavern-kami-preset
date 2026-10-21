@@ -89,7 +89,9 @@ export function webSearchTag(record) {
   });
   var lines = ['范围' + (record.origin === 'native' ? '（原生）' : '') + '：' + escape([record.world, record.scope].filter(Boolean).join('｜'))];
   if (!facts.length) { lines.push(record.status === 'not_found' ? '未找到可用资料。' : record.status === 'budget_exceeded' ? '资料超过长度预算。' : '本次无新增资料。'); }
-  else { lines = lines.concat(facts, sources.filter(function (source) { return used[source.id]; }).map(function (source) { return '[' + refs[source.id] + '] ' + escape(source.url); })); }
+  /* 来源行格式：\"[n] 网址 标题\" —— **网址在前**，因为它不含空格，解析端切一刀就能兼容旧格式（旧格式只有网址）。
+     标题放在后面可选，标题里就算有空格也不影响切分。太长的标题在 webSearchSource 里已经截到 180 字。 */
+  else { lines = lines.concat(facts, sources.filter(function (source) { return used[source.id]; }).map(function (source) { var title = String(source.title || '').trim(); return '[' + refs[source.id] + '] ' + escape(source.url) + (title && title !== source.url ? ' ' + escape(title) : ''); })); }
   return '<search_results>\n' + lines.join('\n') + '\n</search_results>';
 }
 
@@ -99,7 +101,9 @@ export function parseWebSearchBlock(value) {
   if (!header) { return null; }
   var decode = function (v) { return v.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); };
   var sources = [], map = Object.create(null), facts = [];
-  lines.slice(1).forEach(function (line) { var match = /^\[(\d{1,2})\]\s+(https?:\/\/\S+)\s*$/.exec(line); if (!match || map[match[1]] || sources.length >= 20) { return; } var source = webSearchSource({ id: 's' + match[1], url: decode(match[2]) }); if (source) { source.title = new URL(source.url).hostname; map[match[1]] = source.id; sources.push(source); } });
+  /* 来源行：[n] 网址 可选标题。**网址必填、标题可选**，所以旧消息（只有网址）照样认，
+     没有标题时才退回主机名。2026-10-21 用户要求把标题救回来。 */
+  lines.slice(1).forEach(function (line) { var match = /^\[(\d{1,2})\]\s+(https?:\/\/\S+)(?:\s+(.*))?$/.exec(line); if (!match || map[match[1]] || sources.length >= 20) { return; } var title = decode(String(match[3] || '')).trim(); var source = webSearchSource({ id: 's' + match[1], url: decode(match[2]), title: title }); if (source) { if (!title) { source.title = new URL(source.url).hostname; } map[match[1]] = source.id; sources.push(source); } });
   lines.slice(1).forEach(function (line) { var match = /^-\s+(.+?)\s*((?:\[\d{1,2}\])+)$/.exec(line.trim()); if (!match || facts.length >= 60) { return; } var ids = [...match[2].matchAll(/\[(\d+)\]/g)].map(function (m) { return map[m[1]]; }).filter(function (id, i, list) { return id && list.indexOf(id) === i; }); var fact = decode(match[1]).trim(); if (ids.length && fact.length <= 1242) { facts.push({ key: fact.slice(0, 50), text: fact, source_ids: ids, note: '' }); } });
   var record = { schema_version: 1, origin: header[1] ? 'native' : 'service', world: decode(header[2]), scope: '', queries: [], facts: facts, sources: sources };
   if (!facts.length) { record.status = text.indexOf('未找到可用资料') >= 0 ? 'not_found' : text.indexOf('资料超过长度预算') >= 0 ? 'budget_exceeded' : 'no_new_facts'; }

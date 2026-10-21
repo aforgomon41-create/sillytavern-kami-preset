@@ -109,7 +109,10 @@ equal(attachWebSearchRecord('正文' + webSearchTag(sample), null), '正文');
   equal(back.origin, 'native'); equal(back.facts[0].text, record.facts[0].text);
   equal(back.sources[0].url, source.url); equal(back.facts[0].source_ids, ['s1']);
   equal(webSearchTag(back), tag, '精简格式重复读写稳定且不重复编码');
-  equal(tag.includes('不需要重复保存的来源标题'), false);
+  /* 2026-10-21 用户裁定：来源标题要救回来（前端要显示真实标题而不是主机名）。
+     这条断言原来是反的（当时刻意不保存标题以省体积），使命完成即翻转，不删除。 */
+  equal(tag.includes('不需要重复保存的来源标题'), true, '来源标题现在会写进标签');
+  equal(readWebSearchRecords('<search_results>范围：世界\n- 旧格式 [1]\n[1] https://old.example/a\n</search_results>')[0].sources[0].title, 'old.example', '旧消息没有标题时退回主机名');
   equal(readWebSearchRecords('<search_results>范围：世界\n- 没有可信来源 [1]\n[1] javascript:alert(1)\n</search_results>')[0].facts, []);
   equal(readWebSearchRecords('<search_results>范围：世界\n- 不能保存密码URL [1]\n[1] https://user:secret@example.org\n</search_results>')[0].facts, []);
   equal(readWebSearchRecords('<search_results>范围：世界\n- 不接受未列出的来源 [2]\n[1] https://example.org\n</search_results>')[0].facts, []);
