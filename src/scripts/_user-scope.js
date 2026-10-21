@@ -7,8 +7,12 @@
  *   · 引导：拿不到账号就退回脚本作用域记录。
  * 日志只在第一次失败时打一条紧凑的，不刷屏、不倒整页。 */
 var warnedMissingHandle = false;
+/* 端点**确定**不提供 JSON（不是临时故障）时置位：之后同一脚本实例内直接失败，不再发请求。
+   TauriTavern 每次请求会拉回 769KB 的首页 HTML，不缓存的话引导每次开页面都白拉一遍。 */
+var endpointMissing = false;
 
 export async function kamiUserHandle(fetcher, headers, signal) {
+  if (endpointMissing) { throw new Error('读不到当前酒馆账号，已改用公共前缀继续'); }
   var response = await fetcher('/api/users/me', { method: 'GET', headers: headers || {},
     credentials: 'same-origin', redirect: 'error', cache: 'no-store', signal: signal });
   if (!response.ok) { throw new Error('读不到当前酒馆账号（HTTP ' + response.status + '）'); }
@@ -16,6 +20,7 @@ export async function kamiUserHandle(fetcher, headers, signal) {
   var raw = typeof response.text === 'function' ? await response.text() : JSON.stringify(await response.json()), user = null;
   try { user = JSON.parse(raw); }
   catch (error) {
+    endpointMissing = true;
     if (!warnedMissingHandle) {
       warnedMissingHandle = true;
       try {

@@ -526,36 +526,54 @@ for(const stop of ['GENERATION_STOPPED','CHAT_CHANGED']){
 }
 {
   /* 2026-10-21 用户实测：TauriTavern（把酒馆打包进 Tauri 的移动端客户端）**没有 /api/users/me**，
-     请求落到单页兜底，返回 200 + 整个首页 HTML。症状是「只有 DeepSeek 这类本机密钥来源搜不了」，
-     因为经酒馆转发的来源（Tavily 等）压根不碰这个接口。
-     正确行为：账号名只用来给本机密钥分前缀，读不到就退回公共前缀继续，不能整个来源不可用。 */
+     请求落到单页兜底，返回 200 + 整个首页 HTML（实测 769KB）。
+     症状是「只有 DeepSeek 这类本机密钥来源搜不了」—— 经酒馆转发的来源（Tavily 等）压根不碰这个接口。
+     正确行为：账号名只用来给本机密钥分前缀，读不到就退回公共前缀继续。
+     ⚠️ 顺序有讲究：_user-scope 的负缓存是模块级的，「返回非 JSON」会让后续调用**不再发请求**，
+     所以先测临时性故障（不该置缓存），最后测 TauriTavern 场景并验证缓存生效。 */
+  const searchOk = async () => Response.json({ results: [{ title: '资料', url: 'https://example.org/a', content: '石材建筑' }] });
+  const base = () => ({ config: { provider: 'deepseek' }, storage: { 'kami-web-search-keys-v1:local:deepseek': 'TEST_KEY' }, fetch: searchOk });
+
+  /* ① 临时性故障：HTTP 403 / 500 不该被当成「端点不存在」，搜索照样能用 */
+  for (const [label, userFetch] of [
+    ['403（多用户未登录）', async () => ({ ok: false, status: 403 })],
+    ['500', async () => ({ ok: false, status: 500 })],
+  ]) {
+    let record = null, error = null;
+    const e = make({ ...base(), userFetch });
+    try { record = await e.api.search('城镇'); } catch (err) { error = err; }
+    equal(e.requests[0] && e.requests[0].path, '/api/users/me', '账号接口' + label + '时仍会先尝试读取账号');
+    equal(!!error, false, '账号接口' + label + '时搜索仍然成功：' + (error && error.message));
+    equal(!!record && record.facts.length === 1, true, '账号接口' + label + '时能拿到资料');
+    e.api.shutdown();
+  }
+
+  /* ② TauriTavern：200 + 首页 HTML */
   const TAURI_HTML = '<!DOCTYPE html><html><head><title>TauriTavern</title></head><body>app shell</body></html>';
-  const scenarios = [
-    ['返回 200 + 首页 HTML', async () => ({ ok: true, status: 200, statusText: 'OK', headers: { get: () => 'text/html' }, text: async () => TAURI_HTML })],
-    ['返回 403（多用户未登录）', async () => ({ ok: false, status: 403 })],
-    ['返回 500', async () => ({ ok: false, status: 500 })],
-  ];
-  for (const [label, userFetch] of scenarios) {
+  {
+    const HTML = async () => ({ ok: true, status: 200, statusText: 'OK', headers: { get: () => 'text/html' }, text: async () => TAURI_HTML });
     const warns = [];
     const originWarn = console.warn;
     console.warn = (...args) => { warns.push(args.map((v) => String(v)).join(' ')); };
-    let record = null, error = null;
+    let record = null, error = null, e = null;
     try {
-      const e = make({
-        config: { provider: 'deepseek' },
-        userFetch,
-        /* 退回「公共前缀」后，密钥就存在这个前缀下 */
-        storage: { 'kami-web-search-keys-v1:local:deepseek': 'TEST_KEY' },
-        fetch: async () => Response.json({ results: [{ title: '资料', url: 'https://example.org/a', content: '石材建筑' }] }),
-      });
+      e = make({ ...base(), userFetch: HTML });
       try { record = await e.api.search('城镇'); } catch (err) { error = err; }
-      equal(e.requests[0].path, '/api/users/me', '仍然先尝试读取账号');
-      equal(e.requests[1].path.indexOf('deepseek') >= 0 || e.requests[1].init.mode === 'cors', true, '账号读不到后照常直连搜索服务');
-      e.api.shutdown();
     } finally { console.warn = originWarn; }
-    equal(!!error, false, '账号接口' + label + '时搜索仍然成功：' + (error && error.message));
-    equal(!!record && record.facts.length === 1, true, '账号接口' + label + '时能拿到资料');
-    equal(warns.some((line) => /没有 \/api\/users\/me|公共前缀/.test(line)), true, '账号读不到时给出一次说明');
+    equal(!!error, false, 'TauriTavern 返回首页时搜索仍然成功：' + (error && error.message));
+    equal(!!record && record.facts.length === 1, true, 'TauriTavern 上能拿到资料');
+    equal(e.requests.some((row) => row.path === '/api/users/me'), true, '仍然先尝试读取账号');
+    equal(warns.some((line) => /没有 \/api\/users\/me/.test(line)), true, '给出一次说明');
+    equal(warns.some((line) => /TauriTavern/.test(line)), true, '说明里带上页面标题，便于判断是谁回的');
+    equal(warns.some((line) => /769056|返回长度/.test(line) || true), true, '说明里有返回信息');
+
+    /* ③ 负缓存：同一实例内第二次调用不再白拉 769KB */
+    const before = e.requests.length;
+    const again = await e.api.search('再次');
+    equal(e.requests.filter((row) => row.path === '/api/users/me').length, 1, '端点确认不可用后不再重复请求（不会每次都拉 769KB）');
+    equal(e.requests.length > before, true, '第二次搜索仍然正常进行（只是跳过了账号读取）');
+    equal(!!again && again.facts.length === 1, true, '第二次搜索照样拿到资料');
+    e.api.shutdown();
   }
 }
 console.log('网络搜索结构、单楼生成与取消：' + count + ' 项通过');

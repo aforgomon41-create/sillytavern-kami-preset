@@ -115,7 +115,7 @@ export function createKamiSearchService(env) {
              拿不到就退回一个固定前缀，不能让整个来源不可用（与引导脚本同一套口径）。
              ⚠️ 只有本地密钥来源（DeepSeek / TinyFish / Exa / Firecrawl / Serping）走这里，
              经酒馆转发的来源（Tavily 等）压根不碰这个接口 —— 所以症状是「只有某几家搜不了」。 */
-          warnOnce('读不到当前酒馆账号（' + errorText(error) + '），本机密钥改用公共前缀继续');
+          warnOnce('本机密钥改用公共前缀继续。原因：' + errorText(error));
           handle = 'local';
         }
         return 'kami-web-search-keys-v1:' + encodeURIComponent(handle) + ':';
