@@ -25,8 +25,10 @@
  * 三条实现约定：
  *   · 横向 vs 纵向：横向位移要**明显大于**纵向（≥1.2 倍）且超过阈值才算切 tab；
  *     判定为横向后才 preventDefault，纵向滚动的默认行为一律放行。
- *   · 指针来源分开：触屏走 touch 事件（能 preventDefault 又不吃掉纵向滚动），
- *     鼠标走 pointer 事件且只认 pointerType === 'mouse'，两边不会重复处理。
+ *   · **只服务触屏**（2026-10-24 用户裁定）：手势整套挂在 touch 事件上。
+ *     鼠标不接管 —— PC 上拖标题栏本来是想移动面板，被手势抢走就成了「拖不动 / 误收回」；
+ *     横向拖切 tab 在桌面上也没有意义，还会和选中文字打架。
+ *     触摸板 / 笔记本触屏同样不受影响（它们走的是鼠标通道，用鼠标操作时不该有手势）。
  *   · 事件只挂在 root 上，root 之外的节点（聊天楼层等）一个都不碰。
  * ============================================================ */
 
@@ -140,39 +142,16 @@ export function bindPanelGestures(cfg) {
     if (st && st.src === 'touch') { if (st.dy) { root.style.transform = ''; } st = null; }
   }
 
-  /* ── 鼠标：pointer 事件，但只认 pointerType === 'mouse'（触屏交给上面那套） ── */
-  function onPointerDown(ev) {
-    if (ev.pointerType !== 'mouse') { return; }
-    if (ev.button !== undefined && ev.button !== 0) { return; }
-    begin('mouse', ev.target, ev.clientX, ev.clientY);
-  }
-  function onPointerMove(ev) {
-    if (!st || st.src !== 'mouse' || ev.pointerType !== 'mouse') { return; }
-    move(ev, ev.clientX, ev.clientY);
-  }
-  function onPointerEnd(ev) {
-    if (ev && ev.pointerType && ev.pointerType !== 'mouse') { return; }
-    finish('mouse');
-  }
-
   root.addEventListener('touchstart', onTouchStart, { passive: true });
   root.addEventListener('touchmove', onTouchMove, { passive: false });
   root.addEventListener('touchend', onTouchEnd);
   root.addEventListener('touchcancel', onTouchCancel);
-  root.addEventListener('pointerdown', onPointerDown);
-  root.addEventListener('pointermove', onPointerMove);
-  root.addEventListener('pointerup', onPointerEnd);
-  root.addEventListener('pointercancel', onPointerEnd);
 
   var destroy = function () {
     root.removeEventListener('touchstart', onTouchStart);
     root.removeEventListener('touchmove', onTouchMove);
     root.removeEventListener('touchend', onTouchEnd);
     root.removeEventListener('touchcancel', onTouchCancel);
-    root.removeEventListener('pointerdown', onPointerDown);
-    root.removeEventListener('pointermove', onPointerMove);
-    root.removeEventListener('pointerup', onPointerEnd);
-    root.removeEventListener('pointercancel', onPointerEnd);
     var s = st;
     st = null;
     if (s && s.dy) { root.style.transform = ''; }

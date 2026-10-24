@@ -65,8 +65,8 @@ html[data-kami-skin="wod"] .kami-root {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 240px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -1367,8 +1367,8 @@ html[data-kami-skin="wod"] .kami-root .kami-drop.kami-drop {
   position: absolute;
   left: var(--kami-panel-x, 50%);
   top: var(--kami-panel-y, 72px);
-  width: var(--kami-panel-w, min(430px, calc(100% - 24px)));
-  height: var(--kami-panel-h, 560px);
+  width: var(--kami-panel-w, min(840px, calc(100% - 24px)));
+  height: var(--kami-panel-h, 1120px);
   max-height: calc(100% - 24px);
   pointer-events: auto;
   display: flex;
@@ -1838,8 +1838,8 @@ html[data-kami-skin="wod"] {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 240px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

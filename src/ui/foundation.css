@@ -83,7 +83,7 @@
 :where(dialog.kami-ui-dialog) { border:0;padding:0;background-color:transparent;width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;overflow:visible; }
 :where(dialog.kami-ui-dialog::backdrop) { background-color:rgba(0,0,0,.58); }
 :where(.kami-root[data-kami-container="panel"]) { position:fixed;inset:0;min-height:100dvh;z-index:30000;pointer-events:none; }
-:where(.kami-root[data-kami-container="panel"]>.kami-drop) { position:absolute;left:var(--kami-panel-x,12px);top:var(--kami-panel-y,60px);width:var(--kami-panel-w,min(420px,calc(100% - 24px)));height:var(--kami-panel-h,min(560px,85dvh));display:flex;flex-direction:column;max-width:calc(100% - 24px);max-height:calc(100% - 24px);pointer-events:auto; }
+:where(.kami-root[data-kami-container="panel"]>.kami-drop) { position:absolute;left:var(--kami-panel-x,12px);top:var(--kami-panel-y,60px);width:var(--kami-panel-w,min(840px,calc(100% - 24px)));height:var(--kami-panel-h,min(1120px,85dvh));display:flex;flex-direction:column;max-width:calc(100% - 24px);max-height:calc(100% - 24px);pointer-events:auto; }
 :where(.kami-root[data-kami-container="panel"]>.kami-drop[data-kami-open="0"]) { display:none; }
 :where(.kami-root[data-kami-container="panel"]>.kami-drop>.kami-body) { flex:1 1 auto;min-height:0;overflow:auto; }
 @keyframes kami-ui-spin { to { transform:rotate(360deg); } }

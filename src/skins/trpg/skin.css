@@ -66,8 +66,8 @@ html[data-kami-skin="trpg"] .kami-root {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 15.5rem;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -1483,8 +1483,8 @@ html[data-kami-skin="trpg"] {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 15.5rem;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

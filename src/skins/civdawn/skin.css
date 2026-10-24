@@ -65,8 +65,8 @@ html[data-kami-skin="civdawn"] .kami-root {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 220px;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -1597,8 +1597,8 @@ html[data-kami-skin="civdawn"] {
   --kami-icon: 16px;
   --kami-maxw: none;
   --kami-items-min: 220px;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

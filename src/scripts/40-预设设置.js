@@ -68,7 +68,8 @@
   var CHAR_ID = 100001;          // 酒馆 preset 的 prompt_order 主键（这份预设就是 100001）
   var Z = 30000;
   /* 面板几何的上下限：与拖动/缩放时的夹取共用同一组常量（照搬皮肤管理面板） */
-  var PANEL_W = 420, PANEL_H = 560, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
+  /* 面板默认尺寸（2026-10-24 统一）：与皮肤管理、工具箱、全部皮肤一致，按视口自动夹取。 */
+var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   var STATUS_ROLE = 'status';
   var SWIPE_AXIS = 12;    // 判定「横向滑动」的位移（小于它不判方向，避免误触）
   var SWIPE_SWITCH = 48;  // 切上一个/下一个 tab 的位移阈值

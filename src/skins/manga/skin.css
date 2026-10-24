@@ -71,8 +71,8 @@ html[data-kami-skin="manga"] .kami-root {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 15.5rem;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -1083,10 +1083,10 @@ html[data-kami-skin="manga"] .kami-root [data-kami-busy="1"] {
 /* 浮动面板本体 */
 html[data-kami-skin="manga"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-drop {
   position: absolute;
-  left: var(--kami-panel-x, calc(50% - var(--kami-panel-w, 430px) / 2));
+  left: var(--kami-panel-x, calc(50% - var(--kami-panel-w, 840px) / 2));
   top: var(--kami-panel-y, 72px);
-  width: var(--kami-panel-w, 430px);
-  height: var(--kami-panel-h, 570px);
+  width: var(--kami-panel-w, 840px);
+  height: var(--kami-panel-h, 1120px);
   display: flex;
   flex-direction: column;
   background-color: var(--kami-bg);
@@ -1865,8 +1865,8 @@ html[data-kami-skin="manga"] {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 15.5rem;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

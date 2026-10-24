@@ -37,8 +37,8 @@ html[data-kami-skin="gpt"] .kami-root {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 240px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;
@@ -1146,8 +1146,8 @@ html[data-kami-skin="gpt"] {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 240px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

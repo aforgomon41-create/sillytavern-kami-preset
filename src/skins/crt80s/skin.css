@@ -71,8 +71,8 @@ html[data-kami-skin="crt80s"] .kami-root {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 232px;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -1457,8 +1457,8 @@ html[data-kami-skin="crt80s"] {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 232px;
-  --kami-panel-w: 430px;
-  --kami-panel-h: 570px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

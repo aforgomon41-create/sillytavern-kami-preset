@@ -60,8 +60,8 @@ html[data-kami-skin="rain"] .kami-root {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 260px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
 
@@ -439,8 +439,8 @@ html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-root:is([data-kam
 html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])::after {
   left: var(--kami-panel-x, 50%);
   top: var(--kami-panel-y, 72px);
-  width: var(--kami-panel-w, 420px);
-  height: var(--kami-panel-h, 560px);
+  width: var(--kami-panel-w, 840px);
+  height: var(--kami-panel-h, 1120px);
 }
 /* 手动查询使用原生弹窗，装饰贴着弹窗，不再套用主面板舞台坐标。 */
 html[data-kami-skin="rain"][data-kami-effects~="impact"] .kami-manual-dialog .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"])::before,
@@ -2124,8 +2124,8 @@ html[data-kami-skin="rain"] {
   --kami-icon: 15px;
   --kami-maxw: none;
   --kami-items-min: 260px;
-  --kami-panel-w: 420px;
-  --kami-panel-h: 560px;
+  --kami-panel-w: 840px;
+  --kami-panel-h: 1120px;
   --kami-list-dir: column;
   --kami-justify: stretch;
   --kami-fs-scale: 1;

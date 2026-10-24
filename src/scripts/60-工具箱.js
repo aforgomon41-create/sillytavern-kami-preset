@@ -113,7 +113,8 @@
   var VARS_KEY = 'kami-summarize';
   var CHAR_ID = 100001;          // 酒馆 prompt_order 主键（与 40-预设设置.js 一致）
   var Z = 30000;
-  var PANEL_W = 420, PANEL_H = 560, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
+  /* 面板默认尺寸（2026-10-24 统一）：与皮肤管理、预设设置、全部皮肤一致，按视口自动夹取。 */
+var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   var STATUS_ROLE = 'status';
 
   /* ── 对象标识（真相在 src/regex/list.json 与 src/preset.base.json） ── */
