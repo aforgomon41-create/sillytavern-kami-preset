@@ -26,6 +26,8 @@
  * 不联网、不起服务器、不开浏览器、不写 dist。
  */
 import { flattenScriptTrees, expandPanelGestures, expandBaseCssJs } from '../../build/kami-doc.mjs';
+/* 面板组件核心现在来自「🧩 运行库」；沙箱里补等价桩（2026-10-26） */
+import { makeRuntimeStub } from './_runtime-stub.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -435,6 +437,8 @@ function makeEnv(opts) {
     },
   };
 
+  /* 运行库桩：面板脚本的 createKamiUi 从它取 */
+  try { W.KamiRuntime = makeRuntimeStub(); } catch (e) { }
   const names = Object.keys(injected);
   const runner = new Function(
     ...names,
