@@ -52,8 +52,19 @@ const panels = flat.filter(s => s !== rt && /皮肤管理|预设设置|引导|�
 ok(panels.length >= 5, '④ 找得到面板脚本', panels.length + ' 个');
 const inlined = panels.filter(s => String(s.content || '').indexOf('__kami_ui_v1__') >= 0);
 ok(inlined.length === 0, '④ 面板脚本里没有内联的组件核心（应全部改成运行库 shim）', inlined.map(s => s.name).join('、') || '无');
+/* 面板分两种状态，都算合格：
+     · 还没迁移 → 有运行库 shim（function createKamiUi(doc) {...}）
+     · 已经迁移 → 完全不提 createKamiUi（界面直接用 React 渲染）
+   真正要拦的是「既没 shim、又在用 createKamiUi」—— 那会在运行时报 is not defined。 */
 const shimmed = panels.filter(s => /function createKamiUi\(doc\)/.test(String(s.content || '')));
-ok(shimmed.length === panels.length, '④ 每个面板都拿到运行库 shim', shimmed.length + '/' + panels.length);
+const migrated = panels.filter(s => String(s.content || '').indexOf('createKamiUi') < 0);
+const orphan = panels.filter(s => {
+  const c = String(s.content || '');
+  return c.indexOf('createKamiUi') >= 0 && !/function createKamiUi\(doc\)/.test(c);
+});
+ok(orphan.length === 0, '④ 没有「用了 createKamiUi 却没拿到 shim」的面板', orphan.map(s => s.name).join('、') || '无');
+ok(migrated.length + shimmed.length === panels.length, '④ 每个面板要么已迁移到 React、要么拿到运行库 shim',
+  '已迁移 ' + migrated.length + ' 个（' + (migrated.map(s => s.name).join('、') || '无') + '），用 shim ' + shimmed.length + ' 个');
 
 console.log('');
 if (bad) { console.log('★ 运行库接线验证失败 ' + bad + ' 条'); process.exit(1); }
