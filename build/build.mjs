@@ -445,4 +445,13 @@ if (dry) {
     console.error('  [中止] 面板交互接线验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
+  /* 🧩 运行库接线（2026-10-26 技术栈迁移）：它是所有面板的地基 ——
+     脚本被关掉 / 排错位 / 占位没展开，都会让面板整片打不开。
+     面板脚本里如果又出现内联的组件核心，也在这里拦下（否则体积优化白做）。 */
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, 'verify-runtime.mjs'), outPath], { stdio: 'inherit' });
+  } catch (e) {
+    console.error('  [中止] 运行库接线验证未通过，产物已写出但请不要使用，先修。');
+    process.exit(1);
+  }
 }

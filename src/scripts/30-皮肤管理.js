@@ -321,12 +321,30 @@
 
 
   var cachedSkin = null, cachedSkinCss = '';
+  /* ── 样式分层（2026-10-26 迁移，用户指定「纯 CSS 变量 + @layer」）─────────
+     三层，顺序即优先级（后面的层压前面的层）：
+       kami.base       公共组件基础（foundation.css + 令牌）——来自运行库，全预设一份
+       kami.component  结构性兜底与面板几何（折叠显隐、双视图、舞台/面板尺寸）
+       kami.skin       **每套皮肤自己的样式（未分层）**
+     ⚠️ 皮肤那部分是**不用 @layer 包**的：CSS 规定「未分层的样式优先于任何层」，
+        所以皮肤天然压过上面两层，这正是我们要的语义 ——
+        皮肤永远最后一句话，而且不用再靠选择器堆特异性去抢。
+     几何/结构两层必须留在层里：它们只是「不这么做就不能跑」的兜底，
+     皮肤要改随时能改（未分层 > 分层，无需 !important）。 */
+  var LAYER_ORDER = '@layer kami.base, kami.component, kami.skin;\n';
+  function wrapLayer(name, css) {
+    var body = String(css || '');
+    if (!body || body.indexOf('{') < 0) { return body; }
+    return '@layer ' + name + ' {\n' + body + '\n}\n';
+  }
   function skinCssText(skin) {
     if (cachedSkin === skin) { return cachedSkinCss; }
     cachedSkin = skin;
-    cachedSkinCss = KAMI_UI_CSS + '\n/* ==== struct ==== */\n' + STRUCT_CSS +
-      '\n/* ==== panel geometry ==== */\n' + GEOMETRY_CSS +
-      '\n/* ==== skin: ' + skin.id + ' ==== */\n' + (skin.css || '') +
+    cachedSkinCss = LAYER_ORDER +
+      '/* ==== base: 公共组件基础（运行库提供）==== */\n' + wrapLayer('kami.base', KAMI_UI_CSS) +
+      '/* ==== struct: 结构性兜底 ==== */\n' + wrapLayer('kami.component', STRUCT_CSS) +
+      '/* ==== panel geometry: 面板几何 ==== */\n' + wrapLayer('kami.component', GEOMETRY_CSS) +
+      '/* ==== skin: ' + skin.id + '（不分层，永远压过上面三层）==== */\n' + (skin.css || '') +
       '\n/* ==== shared image assets ==== */\n' + (ASSET_POOL ? ASSET_POOL.css(skin) : '');
     return cachedSkinCss;
   }
