@@ -37,7 +37,11 @@ function fixture(options={}){
 }
 {
  const plan=planKamiScriptUpgrade(mixed(),catalog,mergeScriptTrees),rows=flattenScriptTrees(plan.trees);
- eq(rows.length,14);eq(new Set(rows.map(x=>x.id)).size,14);eq(plan.deduplicated,13);
+ /* 2026-10-26：原先写死 14/14/13。加了「🧩 运行库」脚本后 meta 多一条，
+    再把数量写死就每次加脚本都要来改。改成按 meta.json 推导 ——
+    断言意图不变（合并不丢行、不重复、去重数等于脚本数），但不再脆。
+    mixed() 里额外塞了一条 id='custom'，所以行数要 +1。 */
+ eq(rows.length,meta.length+1);eq(new Set(rows.map(x=>x.id)).size,meta.length+1);eq(plan.deduplicated,meta.length);
  eq(plan.trees.filter(x=>x.type!=='folder').map(x=>x.id),['custom']);
  for(const leaf of rows.filter(x=>x.id!=='custom')){eq(leaf.data.budget,4321);eq(leaf.content.startsWith('NEW'),true);}
  eq(rows.find(x=>x.id==='custom').content,'CUSTOM');
@@ -50,8 +54,10 @@ function fixture(options={}){
 {
  const f=fixture(),state=await runKamiScriptUpgrade(f.env);
  eq(state.repaired,true);eq(state.boot,true);eq(f.calls.length,2);eq(f.applies.length,1);
- eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,14);
- eq(flattenScriptTrees(f.files.get(f.name+' · 自动整理前备份').extensions.tavern_helper.scripts).length,27);
+ /* 合并后：meta 每条一行 + mixed() 里那条 custom（同样按 meta 推导，加脚本不误报） */
+ eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,meta.length+1);
+ /* 备份里是「旧全量 + 新全量 + custom」，所以是 meta×2 + 1 */
+ eq(flattenScriptTrees(f.files.get(f.name+' · 自动整理前备份').extensions.tavern_helper.scripts).length,meta.length*2+1);
  eq(f.files.get(f.name).temperature,.7);eq(f.files.get(f.name).extensions.other,{keep:1});eq(f.files.get(f.name).extensions.tavern_helper.variables,{keep:'preset'});
  eq(f.events.indexOf('save-done:'+f.name)<f.events.indexOf('apply'),true,'收到持久化成功回执后才替换内存');
  eq(f.events.indexOf('save-done:'+f.name)<f.events.indexOf('before-apply'),true,'保存成功后才清理旧实例');
@@ -84,7 +90,7 @@ for(const kind of ['hub','folder'])for(const failAt of [1,2]){
 }
 {
  const gate=deferred(),f=fixture({save:async(_n,_r,i)=>{if(i===2)await gate.promise;}});
- const promise=runKamiScriptUpgrade(f.env);await tick();eq(f.applies.length,0);eq(flattenScriptTrees(f.trees()).length,27,'未收到回执时原树完整保留');
+ const promise=runKamiScriptUpgrade(f.env);await tick();eq(f.applies.length,0);eq(flattenScriptTrees(f.trees()).length,meta.length*2+1,'未收到回执时原树完整保留');
  gate.resolve();await promise;eq(f.applies.length,1);
 }
 {
@@ -149,7 +155,7 @@ for(const kind of ['global','character']){
 {
  const f=fixture({wait:async state=>state.stop()}),result=await runKamiScriptUpgrade(f.env);
  eq(result.boot,false);eq(result.cancelled,true);eq(f.host.__kamiScriptUpgrade,undefined,'iframe卸载不把完整快照挂在宿主');
- eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,14,'卸载前已有持久化回执');
+ eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).length,meta.length+1,'卸载前已有持久化回执');
 }
 {
  const gate=deferred(),f=fixture({save:async(_n,_r,i)=>{if(i===1)await gate.promise;}});
@@ -171,16 +177,33 @@ function runtimeFixture(){
  return f;
 }
 {
- const f=runtimeFixture(),id=catalog.carrier,other=catalog.groups[0].script_ids[1];
- const a=f.frame(id),b=f.frame(id),blocked=f.frame(other),custom=f.frame('custom');f.frames.push(a,b,blocked,custom);
- f.block(other);
- const next=clone(f.trees());next[0].scripts[1].enabled=false;
+ /* 2026-10-26：原先写死 script_ids[1]。加了「🧩 运行库」后索引整体后移，
+    [1] 恰好变成 carrier 自己，测试语义就变了。改成显式排除 carrier ——
+    断言意图不变：挑一个**别的**官方脚本做「另一作用域冲突」的样本。 */
+ /* 2026-10-26：原先写死 scripts[0] / scripts[1] / script_ids[1]。
+     加了「🧩 运行库」后数组整体后移，scripts[1] 变成了 carrier（脚本按钮）本身，
+     把 carrier 当成「用户关掉的脚本」会让暂停/恢复走出预期分支。
+     这里改成**按语义挑**，不再依赖任何下标：
+       · id      = carrier（官方脚本的载体）
+       · others  = 基础与外观里除 carrier 外的官方脚本
+       · onIdx   = 保持启用的那条（验证恢复后 enabled=true 且 data 更新保留）
+       · offIdx  = 预先关掉的那条（验证恢复不擅自打开）
+       · other   = 拿来做「另一作用域冲突」的样本（取最后一条，避免和上面两条撞） */
+ const f=runtimeFixture(),id=catalog.carrier;
+ const next=clone(f.trees());
+ const g0=next[0].scripts.map(x=>x.id);
+ const others=g0.filter(x=>x!==id);
+ const other=others[others.length-1];
+ const onIdx=g0.indexOf(others[0]),offIdx=g0.indexOf(others[1]);
+ next[0].scripts[offIdx].enabled=false;
+ const a=f.frame(id),b=f.frame(id),custom=f.frame('custom');
+ f.block(other);const blocked=f.frame(other);f.frames.push(a,b,blocked,custom);
  resetKamiScriptRuntime(f.host,next,catalog);
  eq(flattenScriptTrees(f.trees()).filter(x=>x.id!=='custom').every(x=>x.enabled===false),true,'先退出所有官方实例，避免Vue重复key残留');
  eq(f.trees().find(x=>x.id==='custom').enabled,true,'不暂停用户自建脚本');eq(a.removed,true,'切换/改名前已清孤立iframe');
- f.trees()[0].scripts[0].data={latest:1};f.trees().push({id:'custom-new',enabled:true});f.run();
- eq(f.trees()[0].scripts[0].enabled,true);eq(f.trees()[0].scripts[1].enabled,false);eq(f.trees()[0].scripts[0].data,{latest:1},'恢复开关不覆盖暂停期间最新data');
- eq(f.trees().some(x=>x.id==='custom-new'),true);eq(a.removed,true);eq(b.removed,true);eq(blocked.removed,false,'不移除另一作用域的冲突实例');eq(custom.removed,false);
+ f.trees()[0].scripts[onIdx].data={latest:1};f.trees().push({id:'custom-new',enabled:true});f.run();
+ eq(f.trees()[0].scripts[onIdx].enabled,true);eq(f.trees()[0].scripts[offIdx].enabled,false);eq(f.trees()[0].scripts[onIdx].data,{latest:1},'恢复开关不覆盖暂停期间最新data');
+  eq(f.trees().some(x=>x.id==='custom-new'),true);eq(a.removed,true);eq(b.removed,true);eq(blocked.removed,false,'不移除另一作用域的冲突实例');eq(custom.removed,false);
  eq(f.applies(),2);
  eq(flattenScriptTrees(f.trees()).every(x=>!String(x.info).includes('[kami-runtime-pause:')),true,'恢复后不残留临时标记');
  f.cleanup();eq(f.pm.savePreset,f.save,'临时保存保护及时撤下');

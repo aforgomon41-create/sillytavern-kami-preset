@@ -895,6 +895,11 @@ function installSpresetHost(ST) {
     step('装SPreset（排查用）');
     await installSpresetHost(ST);
   }
+  /* 运行库（React + Radix）：必须排在所有面板之前 —— 与真机的脚本顺序一致。
+     它把 KamiRuntime 注册到宿主窗口，面板从这里取 React 去挂载界面。 */
+  step('装运行库（React + Radix）');
+  await loadScript('/dev/00-运行库.js', 'runtime');
+  await new Promise(r => setTimeout(r, 100));
   step('装按钮中转站');
   await loadScript('/dev/10-脚本按钮.js', 'hub');
   await new Promise(r => setTimeout(r, 200));

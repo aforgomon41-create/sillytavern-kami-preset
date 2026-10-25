@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>运行库自检</title>
+<style>
+  body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#101014;color:#ddd;padding:16px}
+  #box{margin-top:12px;padding:12px;border:1px solid #333;border-radius:8px}
+  .ok{color:#6ee7a8}.bad{color:#ff8080}
+</style>
+</head>
+<body>
+<h1>🧩 运行库自检</h1>
+<p id="sum">检测中…</p>
+<div id="box"></div>
+<script src="/dev/00-运行库.js"></script>
+<script>
+(function(){
+  var out = [];
+  function mark(ok, label, extra) { out.push((ok ? 'PASS ' : 'FAIL ') + label + (extra === undefined ? '' : ' :: ' + extra)); }
+  var RT = window.KamiRuntime;
+  mark(!!RT, 'KamiRuntime 已注册到 window');
+  if (!RT) { document.getElementById('sum').textContent = out.join(' | '); return; }
+  mark(RT.version === '1.0.0', 'version 正确', RT.version);
+  mark(!!RT.React && typeof RT.React.createElement === 'function', 'React 可用');
+  mark(!!RT.ReactDOM, 'ReactDOM 可用');
+  mark(!!RT.createRoot, 'createRoot 可用');
+  mark(!!RT.UI && !!RT.UI.Button, '组件层可访问');
+  var radixOk = ['Dialog','Tabs','Select','DropdownMenu','Switch','Collapsible','Accordion','Tooltip','Progress','Separator','Checkbox','RadioGroup','ToggleGroup','Popover']
+    .filter(function (k) { return !RT.primitives || !RT.primitives[k]; });
+  mark(radixOk.length === 0, '14 个 Radix 原语全部就位', radixOk.length ? '缺 ' + radixOk.join(',') : '');
+  var host = document.documentElement.getAttribute('data-kami-runtime');
+  mark(host === '1.0.0', '宿主 html 打了标记', host);
+
+  /* 真渲染一棵树：Button + Segmented + Switch + Progress */
+  try {
+    var el = document.getElementById('box');
+    var root = RT.createRoot(el);
+    var s = RT.React.useState ? null : null;
+    function Demo() {
+      var seg = RT.React.useState('a'), segV = seg[0], setSeg = seg[1];
+      var sw = RT.React.useState(true), swV = sw[0], setSw = sw[1];
+      return RT.React.createElement('div', null,
+        RT.React.createElement(RT.UI.Button, { onClick: function () { window.__clicked = true; } }, '按钮'),
+        RT.React.createElement(RT.UI.Segmented, { value: segV, onValueChange: setSeg, options: [{value:'a',label:'甲'},{value:'b',label:'乙'}] }),
+        RT.React.createElement(RT.UI.SwitchToggle, { checked: swV, onCheckedChange: setSw }),
+        RT.React.createElement(RT.UI.Bar, { value: 42 })
+      );
+    }
+    root.render(RT.React.createElement(Demo));
+    setTimeout(function () {
+      var btn = el.querySelector('.kami-btn');
+      var seg = el.querySelectorAll('.kami-seg-item');
+      var sw = el.querySelector('.kami-switch');
+      var bar = el.querySelector('.kami-progress');
+      mark(!!btn, 'Button 渲染出 .kami-btn');
+      mark(seg.length === 2, 'Segmented 渲染出 2 个 .kami-seg-item', String(seg.length));
+      mark(!!sw, 'Switch 渲染出 .kami-switch（Radix 行为层）');
+      mark(!!bar, 'Progress 渲染出 .kami-progress');
+      var pass = out.filter(function (l) { return l.indexOf('PASS') === 0; }).length;
+      var fail = out.length - pass;
+      document.getElementById('sum').innerHTML = '<span class="' + (fail ? 'bad' : 'ok') + '">' +
+        (fail ? '✗ ' + fail + ' 项失败' : '✓ 全部通过') + '（' + pass + '/' + out.length + '）</span>';
+      document.getElementById('sum').setAttribute('data-kami-runtime-selfcheck', fail ? 'fail:' + fail : 'pass');
+      var pre = document.createElement('pre');
+      pre.textContent = out.join('\n');
+      el.appendChild(pre);
+    }, 500);
+  } catch (e) {
+    mark(false, '渲染抛错', e && e.message);
+    document.getElementById('sum').textContent = out.join(' | ');
+  }
+})();
+</script>
+</body>
+</html>

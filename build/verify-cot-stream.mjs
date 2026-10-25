@@ -48,7 +48,11 @@ const ok = (cond, label, extra) => {
 console.log('=== 思维链接线验证（' + path.basename(p) + '） ===');
 
 ok(!!entry, '① 产物里有「思维链」脚本', entry ? entry.name : '没找到');
-ok(scripts.length === 13, '① 运行脚本总数 13（原 12 + 思维链）', String(scripts.length));
+/* 2026-10-26：原先写死 13（原 12 + 思维链）。加了「🧩 运行库」后是 14。
+   改成直接对 meta.json 的条数 —— 以后加脚本不用再来改这个数字，
+   而「产物脚本数必须等于源码登记数」这个真正要守的不变式还在。 */
+const metaCount = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'scripts', 'meta.json'), 'utf8')).length;
+ok(scripts.length === metaCount, '① 运行脚本总数与 meta.json 一致（' + metaCount + ' 条）', String(scripts.length));
 ok(code.indexOf('@@KAMI_COT_STREAM@@') < 0, '② 占位符 @@KAMI_COT_STREAM@@ 没有残留');
 ok(code.indexOf('@@KAMI_RESPONSE_PIPELINE@@') < 0, '② 占位符 @@KAMI_RESPONSE_PIPELINE@@ 没有残留');
 ok(code.indexOf('@@KAMI_RESPONSE_TRANSPORT@@') < 0, '② 占位符 @@KAMI_RESPONSE_TRANSPORT@@ 没有残留');

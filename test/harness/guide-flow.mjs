@@ -3,6 +3,8 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {flattenScriptTrees,expandBaseCssJs,expandPresetParse,expandPanelGestures,expandGuideCopy} from '../../build/kami-doc.mjs';
+/* 面板组件核心现在来自「🧩 运行库」；沙箱里补一个等价桩（2026-10-26） */
+import {makeRuntimeStub} from './_runtime-stub.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 function matches(node,selector){
  if(selector[0]==='#')return node.id===selector.slice(1);
@@ -47,6 +49,7 @@ function page(preset,code,disk,options={}){
  SillyTavern:{getContext:()=>ctx},toastr:{warning:m=>notices.push(m)},addEventListener:(type,fn)=>listeners.set(type,fn),removeEventListener:(type)=>listeners.delete(type),dispatchEvent(){},scrollTo(){},
  fetch:async(url,init)=>{requests.push({url,init});if(options.request)return options.request(url,init);return{ok:true,json:async()=>({handle:options.user||'alice'})};}};
  win.window=win;win.self=win;win.parent=win;win.top=win;
+ win.KamiRuntime=makeRuntimeStub();
  Object.assign(win,{setTimeout:(fn,ms)=>set(fn,ms,0),clearTimeout:clear,setInterval:(fn,ms)=>set(fn,ms,ms),clearInterval:clear,
  getVariables:()=>{if(options.readError)throw Error('read failed');return clone(memory);},
  replaceVariables(value){if(options.writeError)throw Error('write failed');memory=clone(value);writes++;if(saveId)clear(saveId);saveId=set(()=>{disk.value=clone(memory);},1000,0);}});

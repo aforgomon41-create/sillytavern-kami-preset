@@ -284,6 +284,33 @@ export function panelGesturesSource(root) {
 }
 
 /* ────────────────────────────────────────────────────────────
+ * 运行库（React + Radix 共享包，2026-10-26 引入）
+ *   src/runtime/* 由 build/build-runtime.mjs 用 esbuild 打成单文件 IIFE
+ *   （产物 src/runtime/bundle.js），这里把它内联进「00-运行库.js」脚本。
+ *   **全预设只有这一份**：其他面板脚本从宿主窗口的 KamiRuntime 取用，
+ *   不再各自内联 —— 原来 core.js 被内联 8 份（约 287KB 重复）就是被它取代的。
+ *   注意：这里内联的是**已压缩的打包产物**，不做 export 剥离，
+ *   只做占位替换 + 自我复制检查。
+ * ──────────────────────────────────────────────────────────── */
+export const RUNTIME_MARK = '/* @@KAMI_RUNTIME@@ */';
+
+export function expandRuntime(root, code) {
+  if (code.indexOf(RUNTIME_MARK) < 0) { return code; }
+  const bundlePath = path.join(root, 'src', 'runtime', 'bundle.js');
+  if (!fs.existsSync(bundlePath)) {
+    throw new Error('找不到运行库产物 src/runtime/bundle.js —— 先运行 node build/build-runtime.mjs');
+  }
+  const src = fs.readFileSync(bundlePath, 'utf8');
+  if (src.indexOf(RUNTIME_MARK) >= 0) {
+    throw new Error('运行库产物里出现了它自己的占位符（内联会自我复制）');
+  }
+  if (src.length < 10000) {
+    throw new Error('运行库产物只有 ' + src.length + ' 字节，太小了 —— 打包可能没带上 React');
+  }
+  return code.replace(RUNTIME_MARK, () => src);
+}
+
+/* ────────────────────────────────────────────────────────────
  * 预设卡片共享模块（src/scripts/_preset-cards.js）：模型卡 / 条目卡的结构
  * 只有一份实现，40-预设设置.js 与 50-引导.js 都内联它（两个脚本里各留一个占位注释）。
  * 与手势模块同一条内联规则：只去掉**行首**的 export 前缀。它也不是独立脚本
@@ -671,10 +698,43 @@ export function uiCss(root) {
   const tokens = match[1].split(String.fromCharCode(10)).filter(line => /^\s*--kami-/.test(line)).join(String.fromCharCode(10));
   return fs.readFileSync(path.join(root,'src/ui/foundation.css'),'utf8').replace('/* @@KAMI_UI_DEFAULTS@@ */', () => tokens);
 }
+/* ────────────────────────────────────────────────────────────
+ * 组件核心与基础样式：**不再各脚本各内联一份**（2026-10-26 迁移）
+ *   原来 core.js（41KB）被内联进 8 个脚本、foundation.css（15KB）8 份，
+ *   合计约 390KB 纯重复。现在它们只存在于「🧩 运行库」里一份，
+ *   面板脚本这里只留一个**惰性**取用 shim。
+ *
+ * ⚠️ 为什么必须惰性：这两个占位符在脚本里出现的位置**早于 HOST 的定义**
+ *   （30-皮肤管理.js 第 25 行 vs 第 108 行）。写成 var x = HOST.KamiRuntime.x
+ *   会在定义时就取到 undefined，后面整面板静默白屏。
+ * ──────────────────────────────────────────────────────────── */
+const UI_SHIM = [
+  '/* 组件核心由「🧩 运行库」提供，全预设只有一份（见 src/runtime/index.js）。 */',
+  'function createKamiUi(doc) {',
+  '  var rt = null;',
+  '  try { rt = (typeof HOST !== \'undefined\' && HOST && HOST.KamiRuntime) || null; } catch (e) { }',
+  '  if (!rt) { try { rt = (typeof window !== \'undefined\' && window.KamiRuntime) || null; } catch (e2) { } }',
+  '  if (!rt || typeof rt.createKamiUi !== \'function\') {',
+  '    throw new Error(\'[卡密预设] 运行库未加载：请在酒馆助手脚本列表启用「🧩 运行库」，并让它排在第一位。\');',
+  '  }',
+  '  return rt.createKamiUi(doc);',
+  '}'
+].join(NL);
+
+const UI_CSS_SHIM = [
+  '/* 组件基础样式同样来自运行库（唯一一份，构建期算好塞进 bundle）。 */',
+  'var KAMI_UI_CSS = (function () {',
+  '  try {',
+  '    var rt = (typeof HOST !== \'undefined\' && HOST && HOST.KamiRuntime) || (typeof window !== \'undefined\' && window.KamiRuntime) || null;',
+  '    return (rt && rt.KAMI_UI_CSS) || \'\';',
+  '  } catch (e) { return \'\'; }',
+  '})();'
+].join(NL);
+
 export function expandUi(root, code) {
   const marker = '/* @@KAMI_UI@@ */';
-  if (code.includes(marker)) code = code.replaceAll(marker, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/ui/core.js'),'utf8'),'ui/core.js'));
+  if (code.includes(marker)) code = code.replaceAll(marker, () => UI_SHIM);
   const cssMarker = '/* @@KAMI_UI_CSS_JS@@ */';
-  if (code.includes(cssMarker)) code = code.replaceAll(cssMarker, () => 'var KAMI_UI_CSS = '+JSON.stringify(uiCss(root))+';');
+  if (code.includes(cssMarker)) code = code.replaceAll(cssMarker, () => UI_CSS_SHIM);
   return code;
 }

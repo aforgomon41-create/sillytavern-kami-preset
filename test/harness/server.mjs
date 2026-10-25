@@ -1,5 +1,5 @@
 import { migrateComponentSelectors } from '../../build/css-scope.mjs';
-import { flattenScriptTrees } from '../../build/kami-doc.mjs';
+import { flattenScriptTrees, expandRuntime } from '../../build/kami-doc.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -142,6 +142,9 @@ function devScript(file) {
   code = expandPresetParse(ROOT, code);
   /* 与 build.mjs 一致：面板手势共享模块（src/scripts/_panel-gestures.js） */
   code = expandPanelGestures(ROOT, code);
+  /* 运行库（React + Radix）：与 build.mjs 一致，把 bundle 内联进「00-运行库.js」。
+     漏了它预览台里 KamiRuntime 不存在，所有面板都会走「运行库未加载」分支。 */
+  code = expandRuntime(ROOT, code);
   /* 与 build.mjs 一致：引导文案表（design/copy/guide-copy.json）。漏了它，预览台里的引导
      只会说脚本内置的中性兜底文案，看到的就不是真机上的样子。 */
   code = expandGuideCopy(ROOT, code);

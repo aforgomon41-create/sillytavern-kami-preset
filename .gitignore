@@ -9,3 +9,6 @@ Thumbs.db
 desktop.ini
 .DS_Store
 *.log
+
+# 前端运行库构建依赖（2026-10-26 引入 React/Radix/esbuild）
+node_modules/

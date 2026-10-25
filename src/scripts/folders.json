@@ -5,6 +5,7 @@
     "icon": "fa-solid fa-gears",
     "enabled": true,
     "files": [
+      "00-运行库.js",
       "10-脚本按钮.js",
       "20-反截断.js",
       "30-皮肤管理.js",

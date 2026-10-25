@@ -18,7 +18,7 @@ import { migrateComponentSelectors } from './css-scope.mjs';
  *       这里与发版工具、镜像清单都从它派生；「两位小版本」= 小数部分写两位。
  *       N 会从历史产物里的最大构建号继续递增（新旧命名都认），编号不断档。
  */
-import { groupScriptTrees } from './kami-doc.mjs';
+import { groupScriptTrees, expandRuntime } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -219,6 +219,8 @@ const scripts = meta.map(m => {
   code = expandBaseCssJs(ROOT, code);
   /* 预设结构解析器（test/harness/preset-parse.mjs）内联进脚本，规则只有一份 */
   code = expandPresetParse(ROOT, code);
+  /* 运行库（React + Radix）只内联进「00-运行库.js」一份 */
+  code = expandRuntime(ROOT, code);
   /* 面板手势（src/scripts/_panel-gestures.js）内联进脚本，两个面板共用一份实现 */
   code = expandPanelGestures(ROOT, code);
   /* 引导文案（design/copy/guide-copy.json）内联进引导脚本，文案只有一份真相 */
