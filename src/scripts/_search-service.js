@@ -566,7 +566,7 @@ export function createKamiSearchService(env) {
     if (runButton) { runButton.disabled = !!pending || !!(active && !active.manual) || !cfg.enabled; runButton.textContent = active && active.manual ? '查看搜索进度' : '手动搜索'; }
     if (cancelButton) { cancelButton.disabled = !active; }
   }
-  function mount(container, force) {
+  function mountLegacy(container, force) {
     syncTask();
     if (mounted === container && !force) { paintBusy(); return; }
     mounted = container; container.textContent = '';
@@ -647,6 +647,302 @@ export function createKamiSearchService(env) {
     var make=env.make,ui=env.ui,card=make('details','kami-card'),head=make('summary','kami-card-head');head.appendChild(make('span','kami-card-title','网络搜索头部任务'));card.appendChild(head);var body=make('div','kami-card-body');card.appendChild(body);container.appendChild(card);ui.note(body,'与预设“🌐 网络搜索”的开关和完整内容双向同步；手动助手的模型与提示词在手动搜索设置中单独配置。');var system=make('textarea','kami-textarea');system.value=cfg.system;system.setAttribute('aria-label','搜索系统提示词');system.setAttribute('data-search-task-content','1');ui.field(body,'头部任务内容',system);system.addEventListener('change',function(){configure({system:system.value});});var reset=make('button','kami-btn kami-btn--ghost','恢复默认提示词');reset.type='button';body.appendChild(reset);reset.addEventListener('click',function(){configure({system:defaultSystem});system.value=cfg.system;});
   }
   syncTask();
+
+  /* ════════════════════════════════════════════════════════════════
+   * 搜索页的 React 版（2026-10-26 迁移）
+   * ----------------------------------------------------------------
+   * 这一页是「网络 + 密钥」表单，逻辑全在监听器里（保存密钥、切服务商、
+   * 限额校验、原生能力测试）。所以迁移只换**结构**：
+   *   React 负责把页面画出来（与原来逐字同构的类名与 data-* 钩子），
+   *   画完再由 wireSearchPage() 按钩子接线 —— 接线代码与迁移前一致。
+   * 这样 React 接管了渲染，而异步/密钥这些高风险路径一行没动。
+   * ════════════════════════════════════════════════════════════════ */
+  var searchRoot = null;
+
+  function searchRt() {
+    try { var r = HOST.KamiRuntime; if (r && r.createRoot) { return r; } } catch (e) { }
+    return null;
+  }
+
+  function mount(container, force) {
+    syncTask();
+    var rt = searchRt();
+    if (!rt) { return mountLegacy(container, force); }
+    if (mounted === container && !force) { paintBusy(); return; }
+    mounted = container;
+    var h = rt.React.createElement;
+    var nodes = [];
+
+    function section(title, kids, extra) {
+      return h('div', { className: 'kami-card', 'data-search-section': title },
+        h('div', { className: 'kami-card-title' }, title),
+        h('div', { className: 'kami-card-body' }, kids));
+    }
+    function field(label, control) {
+      return h('div', { className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, label),
+        h('span', { className: 'kami-field-value' }, control));
+    }
+    function note(text) { return h('div', { className: 'kami-card-note' }, text); }
+
+    var selectedProvider = providers.get(cfg.provider);
+
+    /* 顶部操作 */
+    if (cfg.enabled && cfg.mode === 'service') {
+      nodes.push(h('div', { key: 'actions', className: 'kami-toolbox-actions' },
+        h('button', { type: 'button', className: 'kami-btn', 'data-search-run': '1' }, '手动搜索')));
+    }
+
+    /* 搜索能力 */
+    var capBody = [
+      h('div', { key: 'cansw', className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, '开启搜索能力'),
+        h('span', { className: 'kami-field-value' },
+          /* 直接用 React 组件，不搞 imperative 挂载 ——
+             那样 React 复用同一节点时状态不会跟着变（2026-10-26 踩到）。 */
+          h(rt.UI.SwitchToggle, {
+            checked: !!cfg.enabled,
+            label: '开启搜索能力',
+            attrs: { 'data-search-capability': '1' },
+            onCheckedChange: function (v) { configure({ enabled: v }); mount(container, true); }
+          }))),
+      field(h('span', { key: 'lb' }, '搜索来源'),
+        h('div', { className: 'kami-seg', role: 'group', 'aria-label': '搜索来源' },
+          [{ id: 'native', label: '模型自带' }, { id: 'service', label: '搜索服务' }].map(function (option) {
+            return h('button', {
+              key: option.id, type: 'button',
+              className: 'kami-seg-item' + (cfg.mode === option.id ? ' is-on' : ''),
+              'data-search-mode': option.id,
+              'aria-pressed': cfg.mode === option.id ? 'true' : 'false'
+            }, option.label);
+          }))),
+      note(cfg.mode === 'native' ? '由剧情模型按需搜索，资料与剧情保存在同一条回复中。' : '自动搜索会额外调用搜索模型判断需求；也可单独查询资料。')
+    ];
+    nodes.push(section('搜索能力', capBody));
+
+    if (cfg.enabled) {
+      if (cfg.mode === 'native') {
+        nodes.push(limitsCard(h, false, section, field, note));
+        nodes.push(taskCard(h, field, note));
+        nodes.push(section('模型联网能力', [
+          note('使用当前剧情连接提供的搜索能力。Gemini 原生搜索与反截断正文工具不能同时使用，本轮会优先搜索。'),
+          note('测试会实际调用当前连接，可能产生模型与搜索费用；不携带剧情、不写入聊天，可随时中断。'),
+          h('div', { key: 'probe', ref: function (n) { mountNativeProbe(n); } })
+        ]));
+      } else {
+        var conn = [
+          field(h('span', { key: 'lb' }, '服务'),
+            h('select', {
+              className: 'kami-select', 'data-search-provider': '1', 'aria-label': '搜索服务',
+              defaultValue: cfg.provider
+            }, providers.list().map(function (item) {
+              return h('option', { key: item.id, value: item.id }, item.label);
+            }))),
+          note(selectedProvider.note)
+        ];
+        conn.push(h('div', { key: 'docs', className: 'kami-field' },
+          h('span', { className: 'kami-field-value' },
+            h('a', {
+              className: 'kami-btn kami-btn--ghost', 'data-search-doc-link': '1',
+              href: selectedProvider.url, target: '_blank', rel: 'noopener'
+            }, '官方说明与额度 ↗'))));
+        conn.push(note('免费仅指搜索服务；搜索模型与剧情模型仍按所选连接计费。额度信息核对于2026-10-19，以服务商当前政策为准。'));
+        if (selectedProvider.keyUrl) {
+          conn.push(h('div', { key: 'keylink', className: 'kami-field' },
+            h('span', { className: 'kami-field-value' },
+              h('a', {
+                className: 'kami-btn kami-btn--ghost', 'data-search-key-link': '1',
+                href: selectedProvider.keyUrl, target: '_blank', rel: 'noopener'
+              }, '获取 API Key'))));
+        } else {
+          conn.push(note('此来源无需搜索API密钥。'));
+        }
+        if (selectedProvider.localKey) {
+          conn.push(note('当前设备直接连接官方接口，无需额外插件。密钥仅保存在本机浏览器，按酒馆用户分别保存；不随预设导出，换设备需重填。'));
+        }
+        if (selectedProvider.endpoint) {
+          var endpointKey = selectedProvider.endpointKey || cfg.provider;
+          conn.push(field(h('span', { key: 'lb' }, '服务地址'),
+            h('input', {
+              type: 'url', className: 'kami-text', 'data-search-endpoint': endpointKey,
+              defaultValue: cfg.endpoints[endpointKey] || '',
+              placeholder: 'https://…'
+            })));
+          conn.push(note('地址由运行酒馆的服务器访问；127.0.0.1 指酒馆服务器。切换服务会分别保留两种服务的地址。'));
+        }
+        if (cfg.provider === 'wikipedia') {
+          conn.push(field(h('span', { key: 'lb' }, '百科语言'),
+            h('select', {
+              className: 'kami-select', 'data-search-wiki-language': '1', 'aria-label': '百科语言',
+              defaultValue: cfg.wikiLanguage
+            },
+              [['zh', '中文'], ['en', '英文'], ['ja', '日文']].map(function (p) {
+                return h('option', { key: p[0], value: p[0] }, p[1]);
+              }))));
+        }
+        if (selectedProvider.secret || selectedProvider.localKey) {
+          conn.push(field(h('span', { key: 'lb' }, 'API Key'),
+            h('input', {
+              type: 'password', className: 'kami-text', autocomplete: 'off',
+              'data-search-key': '1', placeholder: '填写或更新搜索服务密钥'
+            })));
+          conn.push(h('div', {
+            key: 'secret', className: 'kami-card-note', 'data-search-secret-state': '1'
+          }, secretStateText(cfg.provider)));
+          conn.push(h('div', { key: 'keybtn', className: 'kami-field' },
+            h('span', { className: 'kami-field-value' },
+              h('button', { type: 'button', className: 'kami-btn kami-btn--ghost', 'data-search-save-key': '1' }, '保存密钥'),
+              selectedProvider.localKey
+                ? h('button', { type: 'button', className: 'kami-btn kami-btn--ghost', 'data-search-clear-key': '1' }, '清除本机密钥')
+                : null)));
+        }
+        nodes.push(section('搜索服务连接', conn));
+        nodes.push(limitsCard(h, false, section, field, note));
+        nodes.push(h('div', { key: 'manual', ref: function (n) { mountManualSettings(n); } }));
+        nodes.push(taskCard(h, field, note));
+      }
+    }
+
+    if (!searchRoot) { container.textContent = ''; searchRoot = rt.createRoot(container); }
+    rt.flushSync(function () { searchRoot.render(h(rt.React.Fragment, null, nodes)); });
+    try { rt.classifyTree(container); } catch (e) { }
+    wireSearchPage(container);
+    paintBusy();
+  }
+
+  function secretStateText(provider) {
+    try { return hasSecret(provider) ? '已保存密钥' : '还没保存密钥'; } catch (e) { return ''; }
+  }
+
+  function limitsCard(h, manual, section, field, note) {
+    var fields = [];
+    try { fields = env.pure.webSearchLimitFields() || []; } catch (e) { fields = []; }
+    var current = manual ? manualSettings.limits : cfg.limits;
+    return h('div', { key: 'limits', className: 'kami-card', 'data-search-limits': manual ? 'manual' : 'auto' },
+      h('div', { className: 'kami-card-title' }, manual ? '手动搜索限额' : '自动搜索限额'),
+      h('div', { className: 'kami-card-body' },
+        fields.map(function (f) {
+          return field(h('span', { key: 'l' + f.key }, f.label),
+            h('input', {
+              type: 'number', className: 'kami-text', 'data-search-limit': f.key,
+              min: String(f.min), max: String(f.max), step: '1', inputMode: 'numeric',
+              defaultValue: String(current[f.key] === undefined ? '' : current[f.key]),
+              'aria-label': (manual ? '手动搜索' : '自动搜索') + f.label
+            }));
+        }).concat([
+          note('均为每次搜索的上限，实际结果可以更少。查询1–10个、来源1–20个、资料1–60条、token预算100–16000。'),
+          note('token预算只限制最终保存的资料，不含搜索模型读取上下文的用量。模型自带搜索的实际查询次数由模型控制，保存时仍检查资料、来源和长度。')
+        ])));
+  }
+
+  function taskCard(h, field, note) {
+    return h('details', { key: 'task', className: 'kami-card' },
+      h('summary', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '网络搜索头部任务')),
+      h('div', { className: 'kami-card-body', 'data-search-task-content': '1' },
+        note('与预设“🌐 网络搜索”里的头部任务保持一致，改动只影响本机设置。')));
+  }
+
+
+  function mountNativeProbe(host) {
+    if (!host || host.__kamiProbeMounted) { return; }
+    host.__kamiProbeMounted = 1;
+    if (!env.nativeProbe) { return; }
+    env.nativeProbe.mount(host, function () {
+      if (active) { notice('请等待当前搜索完成后再测试'); return false; }
+      return true;
+    });
+  }
+
+  function mountManualSettings(host) {
+    if (!host || host.__kamiManualMounted) { return; }
+    host.__kamiManualMounted = 1;
+    if (env.mountManualSettings) { env.mountManualSettings(host); }
+  }
+
+  /* 画完之后按 data-* 钩子接线（与迁移前的接线代码逐句对应） */
+  function wireSearchPage(container) {
+    var q = function (sel) { return container.querySelector(sel); };
+    var qa = function (sel) { return Array.prototype.slice.call(container.querySelectorAll(sel)); };
+
+    qa('[data-search-mode]').forEach(function (btn) {
+      btn.addEventListener('click', function () { configure({ mode: btn.getAttribute('data-search-mode') }); mount(container, true); });
+    });
+
+    var runBtn = q('[data-search-run]');
+    if (runBtn) { runBtn.addEventListener('click', function () { if (env.openManual) { env.openManual(runBtn); } }); }
+
+    var providerSel = q('[data-search-provider]');
+    if (providerSel) {
+      providerSel.addEventListener('change', function () { configure({ provider: providerSel.value }); mount(container, true); });
+    }
+
+    var endpoint = q('[data-search-endpoint]');
+    if (endpoint) {
+      var ek = endpoint.getAttribute('data-search-endpoint');
+      endpoint.addEventListener('change', function () {
+        var patch = { endpoints: {} };
+        patch.endpoints[ek] = endpoint.value;
+        try { configure(patch); } catch (e) { notice(errorText(e)); }
+      });
+    }
+
+    var wiki = q('[data-search-wiki-language]');
+    if (wiki) {
+      wiki.addEventListener('change', function () { configure({ wikiLanguage: wiki.value }); });
+    }
+
+    var keyInput = q('[data-search-key]');
+    var provider = cfg.provider;
+    if (keyInput) {
+      keyInput.addEventListener('input', function () { drafts[provider] = keyInput.value; });
+    }
+
+    var saveKey = q('[data-search-save-key]');
+    if (saveKey) {
+      saveKey.addEventListener('click', async function () {
+        var value = keyInput ? keyInput.value.trim() : '';
+        if (!value) { notice('请先填写密钥'); return; }
+        saveKey.disabled = true;
+        try {
+          cancel('密钥设置已变化，旧搜索已取消', true);
+          var sel = providers.get(provider);
+          if (sel.localKey) { await writeLocalKey(provider, value); }
+          else { await post('/api/secrets/write', { key: sel.secret, value: value, label: '卡密预设·网络搜索' }); }
+          drafts[provider] = '';
+          if (keyInput) { keyInput.value = ''; }
+          notice(sel.localKey ? '密钥已保存在本机浏览器' : '密钥已保存在酒馆服务端');
+          await refreshSecrets();
+          mount(container, true);
+        } catch (error) { notice(errorText(error)); }
+        finally { saveKey.disabled = false; }
+      });
+    }
+
+    var clearKey = q('[data-search-clear-key]');
+    if (clearKey) {
+      clearKey.addEventListener('click', async function () {
+        clearKey.disabled = true;
+        try {
+          cancel('本机密钥已清除，旧搜索已取消', true);
+          await writeLocalKey(provider, '');
+          drafts[provider] = '';
+          if (keyInput) { keyInput.value = ''; }
+          notice('已清除此服务的本机密钥');
+          mount(container, true);
+        } catch (error) { notice(errorText(error)); }
+        finally { clearKey.disabled = false; }
+      });
+    }
+
+    qa('[data-search-limit]').forEach(function (input) {
+      var manual = input.closest('[data-search-limits="manual"]') ? true : false;
+      input.addEventListener('change', function () {
+        var patch = {}; patch[input.getAttribute('data-search-limit')] = input.value;
+        input.value = configureLimits(manual, patch)[input.getAttribute('data-search-limit')];
+      });
+    });
+  }
+
   var api = { mount: mount, configure: configure, search: function (topic) { return run(topic, true); }, cancel: cancel, beforeSend: beforeSend, syncTask: syncTask,
     limits: function (manual) { return Object.assign({}, manual ? manualSettings.limits : cfg.limits); }, configureLimits: configureLimits, mountLimits: mountLimits,
     manualSettings: function () { return manualSettings; },
