@@ -2134,6 +2134,126 @@
     return nodes;
   };
 
+  /* 分段行（组件工厂）：行为与 buildSegRow 逐句对应 */
+  function makeSegRow(rt) {
+    return function SegRow(props) {
+      var h = rt.React.createElement, o = props.opt;
+      var s0 = rt.React.useState(function () { try { return String(o.read()); } catch (e) { return ''; } });
+      var cur = s0[0], setCur = s0[1];
+      return h('div', {
+        className: 'kami-guide-switchrow',
+        'aria-disabled': o.disabled ? 'true' : undefined
+      },
+        h('span', { className: 'kami-guide-rowname' }, copyOf(o.labelKey)),
+        o.disabled ? null : h('span', { className: 'kami-seg' },
+          o.options.map(function (m) {
+            return h('button', {
+              key: m.id, type: 'button',
+              className: 'kami-seg-item' + (cur === m.id ? ' is-on' : ''),
+              onClick: function () {
+                var ok = false;
+                try { ok = o.write(m.id) === true; } catch (e) { ok = false; }
+                if (!ok) { toast('error', copyOf('applyFail')); return; }
+                setCur(String(m.id));
+                log(o.labelKey + ' → ' + m.label);
+              }
+            }, m.label);
+          }))
+      );
+    };
+  }
+
+  REACT_STEPS.skin = function (h, st) {
+    var rt = reactRt();
+    var nodes = [h('p', { key: 'i', className: 'kami-guide-lead' }, st.intro)];
+    var api = HOST.KamiSkin;
+    if (!api || typeof api.skins !== 'function') {
+      nodes.push(h('div', { key: 'd', className: 'kami-toast' }, copyOf('skinDegrade')));
+      return nodes;
+    }
+    /* 正文前端区（在皮肤网格上面） */
+    try { if (typeof api.syncBodyFront === 'function') { api.syncBodyFront(); } } catch (e1) { }
+    var hasApi = typeof api.bodyFront === 'function' && typeof api.setBodyFront === 'function';
+    var SwitchRow = makeSwitchRow(rt);
+    nodes.push(h('div', { key: 'bf', className: 'kami-card' },
+      h('div', { className: 'kami-card-title' }, copyOf('bodyFrontTitle')),
+      h('p', { className: 'kami-guide-lead' }, copyOf('bodyFrontNote')),
+      h(SwitchRow, { opt: {
+        labelKey: 'bodyFrontTitle', onKey: 'bodyFrontOn', offKey: 'bodyFrontOff',
+        disabled: !hasApi,
+        read: function () { return hasApi ? !!api.bodyFront() : false; },
+        write: function (want) { return hasApi ? api.setBodyFront(want) : null; }
+      } }),
+      h('p', { className: 'kami-guide-offnote' }, copyOf('bodyFrontWarn')),
+      !hasApi ? h('p', { className: 'kami-guide-offnote' }, copyOf('bodyFrontDegrade')) : null));
+
+    /* 角色名样式区 */
+    var wapi = null;
+    try { wapi = HOST.KamiNameWrap || null; } catch (e2) { }
+    var usable = !!(wapi && wapi.MODES && wapi.MODES.length && typeof wapi.get === 'function' && typeof wapi.set === 'function');
+    var SegRow = makeSegRow(rt);
+    nodes.push(h('div', { key: 'nw', className: 'kami-card' },
+      h('p', { className: 'kami-guide-lead' }, copyOf('nameWrapBody')),
+      usable
+        ? h(SegRow, { opt: { labelKey: 'nameWrapTitle', options: wapi.MODES, read: function () { return wapi.get(); }, write: function (id) { return wapi.set(id); } } })
+        : h('p', { className: 'kami-guide-offnote' }, copyOf('nameWrapDegrade'))));
+
+    /* 皮肤网格（预览小窗是 iframe，React 直接用 srcDoc + onLoad 处理） */
+    var list = [], curId = null;
+    try { list = api.skins() || []; curId = api.skin; } catch (e3) { }
+    var cards = list.map(function (s) {
+      var doc = null;
+      try { doc = api.previewDoc ? api.previewDoc(s.id) : null; } catch (e4) { }
+      var kids = [];
+      if (doc) {
+        kids.push(h('span', { key: 'pv', className: 'kami-guide-pv' },
+          h('iframe', {
+            className: 'kami-guide-pv-frame', scrolling: 'no', title: s.name + ' 预览', srcDoc: doc,
+            onLoad: function (ev) {
+              try {
+                var f = ev.currentTarget;
+                f.style.height = Math.max(f.contentDocument.body.scrollHeight, 48) + 'px';
+              } catch (e5) { }
+            }
+          })));
+      } else {
+        kids.push(h('span', { key: 'pv', className: 'kami-guide-plate' }, (s.name || '?').charAt(0)));
+      }
+      kids.push(h('span', { key: 'cap', className: 'kami-guide-cap' }, s.name));
+      kids.push(h('span', { key: 'd', className: 'kami-guide-capdesc' }, s.tagline || ('按钮显示：🎨' + (s.button || ''))));
+      return h('button', {
+        key: s.id, type: 'button',
+        className: 'kami-item kami-card' + (s.id === curId ? ' is-on' : ''),
+        'data-kami-skin-id': s.id,
+        'aria-pressed': s.id === curId ? 'true' : 'false'
+      }, kids);
+    });
+    nodes.push(h('div', {
+      key: 'grid', className: 'kami-guide-skins',
+      ref: function (n) { wireSkinGrid(n, api); }
+    }, cards));
+    return nodes;
+  };
+
+  /* 给 React 渲染出来的皮肤卡接线（只接一次） */
+  function wireSkinGrid(el, api) {
+    if (!el || el.__kamiWired) { return; }
+    el.__kamiWired = 1;
+    var list = el.querySelectorAll('[data-kami-skin-id]');
+    for (var i = 0; i < list.length; i++) {
+      (function (b) {
+        b.addEventListener('click', function () {
+          try {
+            api.setSkin(b.getAttribute('data-kami-skin-id'));
+            paintSkinCards();
+            log('已切换皮肤：' + b.getAttribute('data-kami-skin-id'));
+          } catch (e) { toast('error', copyOf('applyFail')); }
+        });
+      })(list[i]);
+    }
+  }
+
+
   /* 给 React 渲染出来的模型卡接线（只接一次） */
   function wireModelGrid(el, data, api, canWrite) {
     if (!el || el.__kamiWired) { return; }
