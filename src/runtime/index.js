@@ -41,6 +41,27 @@ function unmount(root) {
   try { if (root && typeof root.unmount === 'function') { root.unmount(); } } catch (e) { }
 }
 
+/* 把单个 React 组件挂到一个 DOM 节点上，返回 { el, update, destroy }。
+ * 用途（2026-10-26）：面板还是命令式代码，但**控件要换成 Radix**。
+ * 与其把整个面板重写成 React，不如让核心控件 API 用这个函数产出 Radix 组件 ——
+ * 调用方拿到的仍是一个 DOM 节点，插到哪儿都行，但里面是 React + Radix。
+ * ⚠️ update 是异步的（React 18 并发渲染），需要立刻读 DOM 的场合用 flushSync 版本。 */
+function createControl(Component, props, mountNode) {
+  var el = mountNode || DOC.createElement('span');
+  var root = ReactDOMClient.createRoot(el);
+  var current = Object.assign({}, props || {});
+  function paint() { root.render(React.createElement(Component, current)); }
+  paint();
+  return {
+    el: el,
+    update: function (patch) {
+      Object.assign(current, patch || {});
+      try { ReactDOM.flushSync(function () { paint(); }); } catch (e) { paint(); }
+    },
+    destroy: function () { try { root.unmount(); } catch (e) { } }
+  };
+}
+
 /* 创建一个挂载点（宿主文档里的一块 div），返回 { el, root, render, destroy } */
 function createMountPoint(className) {
   var el = DOC.createElement('div');
@@ -51,6 +72,45 @@ function createMountPoint(className) {
     root: root,
     render: function (element) { root.render(element); },
     destroy: function () { try { root.unmount(); } catch (e) { } if (el.parentNode) { el.parentNode.removeChild(el); } }
+  };
+}
+
+/* ── 面板用的控件工厂（2026-10-26）──────────────────────────────
+ * 面板是命令式代码，但控件要换成 Radix。这两个工厂让调用方只改一两行：
+ *   var sw = host.KamiRuntime.makeSwitch({ checked:false, onChange:fn });
+ *   parent.appendChild(sw.el);      // 里面就是 Radix 的 button[role=switch]
+ * 原来的焦点/键盘/可访问性由 Radix 负责；外观由皮肤按
+ *   .kami-switch[data-state="checked"] / .kami-switch-thumb 写。
+ */
+function makeSwitch(opts) {
+  var o = opts || {};
+  var ctl = createControl(UI.SwitchToggle, {
+    checked: !!o.checked,
+    disabled: !!o.disabled,
+    label: o.label,
+    onCheckedChange: function (v) { if (o.onChange) { o.onChange(v); } }
+  });
+  return {
+    el: ctl.el,
+    setChecked: function (v) { ctl.update({ checked: !!v }); },
+    destroy: ctl.destroy
+  };
+}
+
+function makeSelect(opts) {
+  var o = opts || {};
+  var ctl = createControl(UI.Select, {
+    value: o.value === undefined ? '' : o.value,
+    options: o.options || [],
+    disabled: !!o.disabled,
+    label: o.label,
+    portal: DOC.body,
+    onValueChange: function (v) { if (o.onChange) { o.onChange(v); } }
+  });
+  return {
+    el: ctl.el,
+    setValue: function (v) { ctl.update({ value: v }); },
+    destroy: ctl.destroy
   };
 }
 
@@ -71,7 +131,10 @@ var runtime = {
   document: DOC,
   mount: mount,
   unmount: unmount,
-  createMountPoint: createMountPoint
+  createMountPoint: createMountPoint,
+  createControl: createControl,
+  makeSwitch: makeSwitch,
+  makeSelect: makeSelect
 };
 
 var readyApi = createReady(runtime);
