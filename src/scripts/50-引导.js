@@ -816,6 +816,59 @@
   function el(tag, cls, text) {
     return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
+
+  /* ── React 渲染（2026-10-26 迁移）──────────────────────────────
+     引导每一页的内容改由 React 渲染：给每种 kind 配一个「数据 → React 节点」的函数
+     （REACT_STEPS），showStep 优先走它；没配的 kind 继续走原来的命令式渲染器。
+     这样就能一页一页迁，中间任何时刻都是可运行的状态。 */
+  var bodyRoot = null;
+  function reactRt() {
+    try { var rt = HOST.KamiRuntime; if (rt && rt.createRoot) { return rt; } } catch (e) { }
+    return null;
+  }
+
+  /* 迷你排版 → React 节点（规则与 fillParagraphs 逐行一致：
+     # 开头当小标题、**x** 加粗、- x 当列表点、空行留一个空格占位） */
+  function paragraphNodes(h, text) {
+    var out = [];
+    var lines = String(text || '').split(String.fromCharCode(10));
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var t = line.replace(/^##+/, '').trim();
+      var isH = /^\s*#/.test(line) && t.length > 0;
+      var isLi = line.trim().indexOf('- ') === 0;
+      var body = isLi ? line.trim().slice(2).trim() : t;
+      if (!body) { out.push(h('p', { key: 'p' + i }, ' ')); continue; }
+      var kids = [];
+      if (isLi) { kids.push('· '); }
+      var rest = body, idx, k = 0;
+      while (rest.length) {
+        idx = rest.indexOf('**');
+        if (idx < 0) { kids.push(rest); break; }
+        if (idx > 0) { kids.push(rest.slice(0, idx)); }
+        rest = rest.slice(idx + 2);
+        idx = rest.indexOf('**');
+        if (idx < 0) { kids.push('**' + rest); break; }
+        kids.push(h('strong', { key: 'b' + (k++) }, rest.slice(0, idx)));
+        rest = rest.slice(idx + 2);
+      }
+      out.push(h(isH ? 'strong' : 'p', { key: 'p' + i }, kids));
+    }
+    return out;
+  }
+
+  /* markdown 块：showdown 认得出就用 innerHTML，认不出退回迷你排版 */
+  function markdownNodes(h, text, cls) {
+    var html = null;
+    try { html = mdHtml(text); } catch (e) { html = null; }
+    if (html) {
+      return [h('div', { key: 'md', className: cls, dangerouslySetInnerHTML: { __html: html } })];
+    }
+    return [h('div', { key: 'md', className: cls }, paragraphNodes(h, text))];
+  }
+
+  var REACT_STEPS = {};
+
   /* 图版用：取条目名开头的图形符号（emoji/方括号区等），取不到就退回首字符 */
   function leadingGlyph(name) {
     var s = String(name || '').trim();
@@ -1717,6 +1770,31 @@
     draft: renderDraft
   };
 
+  /* ── 已迁到 React 的页（2026-10-26）──────────────────────────────
+     每项写法：kind 对应一个 (h, st) => 节点数组 的函数。
+     没列在这里的 kind 仍走上面的命令式 RENDERERS（渐进迁移）。 */
+  REACT_STEPS.disclaimer = function (h, st) {
+    var nodes = [
+      h('p', { key: 'i', className: 'kami-guide-offnote' }, st.intro),
+      h('p', { key: 'hint', className: 'kami-guide-offnote' }, copyOf('disclaimerConfirmHint'))
+    ];
+    if (st.missing) {
+      nodes.push(h('div', { key: 'm', className: 'kami-toast is-bad' }, copyOf('disclaimerMissing')));
+      return nodes;
+    }
+    return nodes.concat(markdownNodes(h, st.text, 'kami-md kami-guide-doc'));
+  };
+
+  REACT_STEPS.done = function (h, st) {
+    return [h('div', { key: 'sec', className: 'kami-guide-sec' }, h('span', { key: 't' }, st.title))]
+      .concat(paragraphNodes(h, st.intro));
+  };
+
+  REACT_STEPS.draft = function (h, st) {
+    return [h('p', { key: 'p', className: 'kami-guide-offnote' }, st.body)];
+  };
+
+
   /* ───────── 导航 ───────── */
 
   function paintDots() {
@@ -1778,13 +1856,28 @@
   function showStep(idx) {
     if (idx < 0 || idx >= steps.length) { return; }
     cur = idx;
-    clearBody();
     var st = steps[cur];
-    try {
-      (RENDERERS[st.kind] || renderDraft)(st);
-    } catch (e) {
-      log('渲染第 ' + cur + ' 页失败：' + ((e && e.message) || e));
-      degradeNote(copyOf('fallbackMissing'));
+    var rt = reactRt();
+    var reactFn = REACT_STEPS[st.kind];
+    if (rt && reactFn) {
+      try {
+        var h = rt.React.createElement;
+        var nodes = reactFn(h, st) || [];
+        if (!bodyRoot) { clearBody(); bodyRoot = rt.createRoot(panelBody); }
+        rt.flushSync(function () { bodyRoot.render(h(rt.React.Fragment, null, nodes)); });
+        try { rt.classifyTree(panelBody); } catch (e2) { }
+      } catch (e) {
+        log('渲染第 ' + cur + ' 页失败：' + ((e && e.message) || e));
+        degradeNote(copyOf('fallbackMissing'));
+      }
+    } else {
+      clearBody();
+      try {
+        (RENDERERS[st.kind] || renderDraft)(st);
+      } catch (e3) {
+        log('渲染第 ' + cur + ' 页失败：' + ((e3 && e3.message) || e3));
+        degradeNote(copyOf('fallbackMissing'));
+      }
     }
     paintNav();
     log('第 ' + (cur + 1) + '/' + steps.length + ' 页：' + st.title);
@@ -1933,7 +2026,7 @@
     }
     if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
     if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); }
-    panelRoot = null; panelDrop = null; panelBody = null; panelDots = null;
+    panelRoot = null; panelDrop = null; panelBody = null; bodyRoot = null; panelDots = null;
     panelCounter = null; btnPrev = null; btnNext = null; btnClose = null;
     steps = []; cur = 0; confirmed = false;
     log('引导关闭' + (markSeen !== false ? '（已记「看过」）' : ''));
@@ -2048,7 +2141,7 @@
     hideHandler = null;
     dropCss();
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
-    panelRoot = null; panelDrop = null; panelBody = null; panelDots = null;
+    panelRoot = null; panelDrop = null; panelBody = null; bodyRoot = null; panelDots = null;
     panelCounter = null; btnPrev = null; btnNext = null; btnClose = null;
     steps = []; cur = 0; confirmed = false;
     try {
