@@ -77,7 +77,7 @@ export function webSearchRequest(provider, query, settings, apiKey) {
     var url = new URL('https://' + language + '.wikipedia.org/w/api.php');
     var params = { action: 'query', generator: 'search', gsrsearch: query, gsrlimit: '3', prop: 'extracts|info', exintro: '1', explaintext: '1', exchars: '1200', exlimit: '3', inprop: 'url', redirects: '1', format: 'json', formatversion: '2', maxlag: '5', origin: '*' };
     for (var key in params) { url.searchParams.set(key, params[key]); }
-    return { path: url.toString(), response: 'json', direct: true, headers: { 'Api-User-Agent': 'KamiPreset/0.92 (+https://github.com/aforgomon41-create/sillytavern-kami-preset)' } };
+    return { path: url.toString(), response: 'json', direct: true, headers: { 'Api-User-Agent': 'KamiPreset/0.93 (+https://github.com/aforgomon41-create/sillytavern-kami-preset)' } };
   }
   return { path: '/api/search/' + route, body: body, response: response };
 }
