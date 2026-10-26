@@ -112,7 +112,11 @@ ok(wc.indexOf('IMAGE_TASK_RE') >= 0, '④ 文生图块按行首完整块识别�
    所以守的是 30 号，**同时守「40 号里不许再留一份」**（两处各长一份是这项目的常见病）。 */
 const skin = String((scripts.find(s => String(s.name).indexOf('皮肤管理') >= 0) || {}).content || '');
 ok(skin.indexOf('function nameWrapRow') >= 0, '④ 30 号里有「角色名样式」那一行的构造');
-ok(/g\.appendChild\(nameWrapRow\(\)\)/.test(skin), '④ 它被挂进「显示」卡（不是写了不用）');
+/* 2026-10-26：30 号的「皮肤」页改成 React 渲染后，挂载写法从
+   g.appendChild(nameWrapRow()) 变成 h(NameWrapRow)。两种都认 ——
+   守的是「它真的被挂进显示卡」，不是某种具体语法。 */
+ok(/g\.appendChild\(nameWrapRow\(\)\)/.test(skin) || /h\(NameWrapRow\)/.test(skin),
+  '④ 它被挂进「显示」卡（不是写了不用）');
 ok(skin.indexOf('KamiNameWrap') >= 0, '④ 皮肤面板走的是 35 号的 API（不是自己另写一份状态）');
 ok(skin.indexOf("mk('span', 'kami-seg'") >= 0, '④ 右边用的是契约已登记的分段控件（零新增类名）');
 

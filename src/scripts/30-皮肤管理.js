@@ -765,6 +765,8 @@
   var skinPickCtl = null;   /* 皮肤快速切换（Radix Select，2026-10-26） */
   var shellRoot = null, pickSlot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var fxPaneRoot = null;   /* 特效页的 React 根 */
+  var paramPaneRoot = null;   /* 参数页的 React 根 */
+  var skinPaneRoot = null;   /* 皮肤页的 React 根 */
   var GESTURES = null;
 
   function mk(tag, cls, text) {
@@ -1091,63 +1093,147 @@
   }
 
   /* ---- 皮肤页 ---- */
+  /* 皮肤页（React，2026-10-26 迁移）：显示卡 + 15 套皮肤网格全部交给组件。
+     点击仍然走 data-kami-act 委托（flag:… / skin:…），所以行为与迁移前一致。
+     唯一特殊的是皮肤卡里的预览 iframe：React 不好直接接管，渲染完再塞进去。 */
   function renderSkinPane() {
     var box = paneEl('skin');
     if (!box) { return; }
-    box.textContent = '';
-    /* 「显示」卡（全局档位）整张放到**皮肤预览之前**（2026-09-25 用户裁定：放在皮肤预览上面）。
-       只调「皮肤」页的卡片顺序；卡内行序保持现状。 */
-    box.appendChild(sectionTitle('显示'));
-    var g = mk('div', 'kami-card');
-    /* 行序（2026-09-26 起）：
-       ① 正文前端 —— 把 `<content>…</content>` 里的正文交给嵌入式前端渲染，**默认开**。
-          它本质是一条酒馆正则（「前端|正文 v0.1」，在 list.json 里排在「显式思维链」**之前**）
-          的启用位；开关与酒馆真正的正则开关**联动**（setBodyFront 读写正则表的启用位）。
-          与下面三个档位同一类：全局、不随皮肤变、存在 state 顶层。
-          默认值必须是字符串 '1'（flagRow 按 String(state[key]) 判选中态，布尔 true 会显示成「关」）。
-       ②③④ 明暗 / 动效 / 密度，相对顺序不变。
-       复用 flagRow 与现成的 flag: 动作链（setFlag → saveState → syncAll → setBodyFront），零新类名零新令牌。 */
-    g.appendChild(flagRow('bodyFront', '正文前端', [['0', '关'], ['1', '开']]));
-    /* 风险提示（用户 2026-09-26 给的定稿文案，逐字照抄，不要再改词）—— 用已登记的 .kami-card-note */
-    g.appendChild(mk('div', 'kami-card-note',
-      '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。'));
-    /* 角色名样式（2026-09-28 用户裁定：从「🌟 预设设置」搬到这张「显示」卡里 ——
-       两件事都是显示相关，不涉及预设本身的调整）。
-       它不是皮肤参数：档位存在酒馆全局变量里，真正的实现在 35-提示词发送修改.js
-       （发出去之前把预设正文里的 <n>…</n> 换成当前档位的包裹符）。
-       与「🧭 引导 → 皮肤页」那一块是同一个状态（KamiNameWrap.get()/set()）。
-       零新增类名：沿用 flagRow 那套 .kami-field / .kami-field-label / .kami-field-value，
-       右边换成契约已登记的 .kami-seg / .kami-seg-item。 */
-    g.appendChild(nameWrapRow());
-    g.appendChild(mk('div', 'kami-card-note', NAME_WRAP_NOTE));
-    /* 行动选项的默认折叠态（2026-10-15 加）：显示相关，所以也在这张卡里 */
-    g.appendChild(optFoldRow());
-    g.appendChild(mk('div', 'kami-card-note', OPT_FOLD_NOTE));
-    g.appendChild(flagRow('scheme', '明暗', [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']]));
-    g.appendChild(flagRow('motion', '动效', [['full', '完整'], ['calm', '克制'], ['off', '关闭']]));
-    g.appendChild(flagRow('density', '密度', [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']]));
-    box.appendChild(g);
+    var rt = HOST.KamiRuntime;
+    if (!rt || !rt.createRoot) { return; }
+    var h = rt.React.createElement;
 
-    /* 皮肤预览（15 套皮肤的网格）在「显示」卡下面 */
-    var grid = mk('div', 'kami-grid');
-    SKINS.forEach(function (s) {
-      var on = s.id === state.skinId;
-      var card = mk('div', 'kami-card');
-      card.setAttribute('role', 'button');
-      card.setAttribute('tabindex', '0');
-      card.setAttribute('data-kami-act', 'skin:' + s.id);
-      card.setAttribute('aria-pressed', on ? 'true' : 'false');
-      if (on) { card.classList.add('is-on'); }
-      var head = mk('span', 'kami-card-head');
-      head.appendChild(mk('span', 'kami-dot'));
-      head.appendChild(mk('span', 'kami-card-title', s.name));
-      if (on) { head.appendChild(mk('span', 'kami-chip', '使用中')); }
-      card.appendChild(head);
-      card.appendChild(mk('span', 'kami-card-note', s.tagline || ('按钮显示：🎨' + s.button)));
-      card.appendChild(previewSkeleton(s));
-      grid.appendChild(card);
+    function FlagRow(props) {
+      var now = String(state[props.k] === undefined || state[props.k] === null ? '' : state[props.k]);
+      return h('div', { className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, props.label),
+        h('span', { className: 'kami-field-value' },
+          h('span', { className: 'kami-seg' },
+            props.opts.map(function (o) {
+              return h('button', {
+                key: o[0], type: 'button',
+                className: 'kami-seg-item' + (now === o[0] ? ' is-on' : ''),
+                'data-kami-act': 'flag:' + props.k + '=' + o[0]
+              }, o[1]);
+            })
+          )
+        )
+      );
+    }
+
+    function NameWrapSeg(props) {
+      var api = props.api;
+      var s0 = rt.React.useState('');
+      var cur = s0[0], setCur = s0[1];
+      rt.React.useEffect(function () { try { setCur(String(api.get())); } catch (e) { } }, []);
+      function pick(m) {
+        var ok = false;
+        try { ok = api.set(m.id) === true; } catch (e) { ok = false; }
+        if (!ok) { toast('error', '切换失败：写不进酒馆的全局变量，档位没变。'); return; }
+        setCur(String(m.id));
+        log('角色名样式 → ' + m.label);
+      }
+      return h('div', { className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, '角色名样式'),
+        h('span', { className: 'kami-field-value' },
+          h('span', { className: 'kami-seg' },
+            api.MODES.map(function (m) {
+              return h('button', {
+                key: m.id, type: 'button',
+                className: 'kami-seg-item' + (cur === String(m.id) ? ' is-on' : ''),
+                onClick: function () { pick(m); }
+              }, m.label);
+            })
+          )
+        )
+      );
+    }
+
+    function NameWrapRow() {
+      var api = nameWrapApi();
+      if (!api || typeof api.get !== 'function' || typeof api.set !== 'function' || !api.MODES || !api.MODES.length) {
+        return h('div', { className: 'kami-field' },
+          h('span', { className: 'kami-field-label' }, '角色名样式'),
+          h('span', { className: 'kami-field-value' }, '脚本未运行'));
+      }
+      return h(NameWrapSeg, { api: api });
+    }
+
+    function OptFoldRow() {
+      var s0 = rt.React.useState(function () { try { return localStorage.getItem(OPT_FOLD_KEY) === '1'; } catch (e) { return false; } });
+      var foldedNow = s0[0], setFolded = s0[1];
+      function pick(v) {
+        try { localStorage.setItem(OPT_FOLD_KEY, v); } catch (e) { toast('error', '写不进本机存储，设置没生效。'); return; }
+        setFolded(v === '1');
+        log('行动选项默认 → ' + (v === '1' ? '折叠' : '展开'));
+      }
+      return h('div', { className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, '行动选项默认'),
+        h('span', { className: 'kami-field-value' },
+          h('span', { className: 'kami-seg' },
+            [['0', '展开'], ['1', '折叠']].map(function (pair) {
+              return h('button', {
+                key: pair[0], type: 'button',
+                className: 'kami-seg-item' + ((pair[0] === '1') === foldedNow ? ' is-on' : ''),
+                onClick: function () { pick(pair[0]); }
+              }, pair[1]);
+            })
+          )
+        )
+      );
+    }
+
+    function DisplayCard() {
+      return h('div', { className: 'kami-card' },
+        h(FlagRow, { k: 'bodyFront', label: '正文前端', opts: [['0', '关'], ['1', '开']] }),
+        h('div', { className: 'kami-card-note' }, '请勿在会话中切换，重载正则前端可能会导致消息内容丢失。'),
+        h(NameWrapRow),
+        h('div', { className: 'kami-card-note' }, NAME_WRAP_NOTE),
+        h(OptFoldRow),
+        h('div', { className: 'kami-card-note' }, OPT_FOLD_NOTE),
+        h(FlagRow, { k: 'scheme', label: '明暗', opts: [['', '跟随皮肤'], ['dark', '暗色'], ['light', '亮色']] }),
+        h(FlagRow, { k: 'motion', label: '动效', opts: [['full', '完整'], ['calm', '克制'], ['off', '关闭']] }),
+        h(FlagRow, { k: 'density', label: '密度', opts: [['compact', '紧凑'], ['cozy', '舒适'], ['roomy', '宽松']] })
+      );
+    }
+
+    function SkinCard(props) {
+      var s = props.s, on = s.id === state.skinId;
+      return h('div', {
+        className: 'kami-card' + (on ? ' is-on' : ''),
+        role: 'button', tabindex: 0,
+        'data-kami-act': 'skin:' + s.id,
+        'aria-pressed': on ? 'true' : 'false'
+      },
+        h('span', { className: 'kami-card-head' },
+          h('span', { className: 'kami-dot' }),
+          h('span', { className: 'kami-card-title' }, s.name),
+          on ? h('span', { className: 'kami-chip' }, '使用中') : null
+        ),
+        h('span', { className: 'kami-card-note' }, s.tagline || ('按钮显示：🎨' + s.button))
+      );
+    }
+
+    if (!skinPaneRoot) { box.textContent = ''; skinPaneRoot = rt.createRoot(box); }
+    rt.flushSync(function () {
+      skinPaneRoot.render(h(rt.React.Fragment, null,
+        h('div', { className: 'kami-card-note', key: 't' }, '显示'),
+        h(DisplayCard, { key: 'display' }),
+        h('div', { className: 'kami-grid', key: 'grid' },
+          SKINS.map(function (s) { return h(SkinCard, { key: s.id, s: s }); })
+        )
+      ));
     });
-    box.appendChild(grid);
+    /* 预览骨架是 iframe 组合体（还要 preload 样式），React 接管收益低、风险高：
+       渲染完直接塞进对应卡片末尾，保持 `.kami-card > .kami-pv` 这个直接子节点关系不变。 */
+    try {
+      SKINS.forEach(function (s) {
+        var card = box.querySelector('[data-kami-act="skin:' + s.id + '"]');
+        if (!card || card.querySelector('.kami-pv')) { return; }
+        var pv = previewSkeleton(s);
+        if (pv) { card.appendChild(pv); }
+      });
+    } catch (e) { warn('皮肤预览骨架注入失败（不影响选择）：' + ((e && e.message) || e)); }
   }
 
   /* 栏目小标题：只用已登记的 .kami-card-note（注释排版类），间距回落到皮肤自己的默认规则。
@@ -1267,54 +1353,79 @@
 
   /* ---- 参数页：分组默认折叠，滑杆 + 数字输入 ---- */
   var folded = {};   // group -> true 折叠
+  /* 参数页（React，2026-10-26 迁移）：分组折叠与每行控件都交给组件，
+     折叠状态仍写回 folded，重画时按它恢复。DOM 结构与类名保持不变。 */
   function renderParamPane() {
     var box = paneEl('param');
     if (!box) { return; }
-    box.textContent = '';
+    var rt = HOST.KamiRuntime;
+    if (!rt || !rt.createRoot) { return; }
+    var h = rt.React.createElement;
     var skin = curSkin();
     var params = (skin.params || []).slice();
     /* 全局参数：字号缩放（所有皮肤都必须尊重 --kami-fs-scale） */
     params.unshift({ id: '__fs', label: '字号缩放', group: '通用', token: '--kami-fs-scale', unit: '×',
       min: 0.8, max: 1.5, step: 0.02, value: 1 });
-    if (!params.length) { box.appendChild(mk('div', 'kami-empty', '这套皮肤没有可调参数')); return; }
-
-    var groups = {};
-    var order = [];
+    var groups = {}, order = [];
     params.forEach(function (p) {
       var g = p.group || '参数';
       if (!groups[g]) { groups[g] = []; order.push(g); }
       groups[g].push(p);
     });
 
-    order.forEach(function (g) {
-      var isFolded = folded[g] !== false ? true : false;
-      /* 契约 §4.3 的折叠写法：外层 .kami-collapse + data-kami-open="0|1"，
-         头是 .kami-head.kami-collapse-head（六套皮肤的箭头旋转规则都写成
-         `.kami-collapse[data-kami-open="1"] > .kami-head .kami-chev`，少了 .kami-head 就一条都匹配不到），
-         折叠体 .kami-collapse-body **始终在 DOM 里**，切属性即可 —— 显隐与进出动画全归皮肤。
-         这里不再内联写 display/gap/cursor/transform/margin：排版与旋转都由皮肤给
-         （.kami-head 提供 flex + gap + cursor 来自 .kami-collapse-head）。 */
-      var wrap = mk('div', 'kami-card kami-collapse');
-      wrap.setAttribute('data-kami-open', isFolded ? '0' : '1');
-      var head = mk('div', 'kami-head kami-collapse-head');
-      head.appendChild(mk('span', 'kami-chev', '▸'));
-      head.appendChild(mk('span', 'kami-card-title', g));
-      head.appendChild(mk('span', 'kami-chip', String(groups[g].length)));
-      head.addEventListener('click', function () {
-        /* ⚠️ 必须读**当前 DOM 状态**再翻转，不能碰渲染时算出来的 isFolded：
-           那个变量是闭包里的初始态，点第二次起就永远是同一个值，
-           表现是「只能开合一次，必须离开参数页再回来（触发重渲染）才能再折一次」。
-           folded 仍然是**状态来源**（重渲染时按它恢复），这里只负责把它同步成
-           「现在到底是折着还是开着」。 */
-        var open = wrap.getAttribute('data-kami-open') === '1';
-        wrap.setAttribute('data-kami-open', open ? '0' : '1');
-        folded[g] = open;   // 记住「现在是折着的」，供下次重渲染时恢复
-      });
-      wrap.appendChild(head);
-      var bodyBox = mk('div', 'kami-card-body kami-collapse-body');
-      groups[g].forEach(function (p) { bodyBox.appendChild(paramRow(p)); });
-      wrap.appendChild(bodyBox);
-      box.appendChild(wrap);
+    function ParamRow(props) {
+      var p = props.p;
+      var v = state.params[p.id];
+      if (typeof v !== 'number' || !isFinite(v)) { v = p.value; }
+      /* 滑块与数字框都用**非受控**（defaultValue）：面板的变更委托直接读 .value，
+         受控反而会跟命令式读写打架。 */
+      return h('div', { className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, p.label),
+        h('span', { className: 'kami-field-value' },
+          h('input', {
+            className: 'kami-range', type: 'range', defaultValue: String(v),
+            min: String(p.min), max: String(p.max), step: String(p.step),
+            'data-kami-param': p.id, 'aria-label': p.label,
+            ref: function (n) { if (n) { try { setRangeValue(n, v, p); } catch (e) { } } }
+          }),
+          h('input', {
+            className: 'kami-number', type: 'number', defaultValue: String(v),
+            min: String(p.min), max: String(p.max), step: String(p.step),
+            'data-kami-param': p.id, 'aria-label': p.label + '（直接输入）'
+          }),
+          h('span', { className: 'kami-sub' }, p.unit || '')
+        )
+      );
+    }
+
+    function ParamGroup(props) {
+      var g = props.g, list = props.list;
+      var st2 = rt.React.useState(folded[g] !== false);
+      var isOpen = st2[0], setOpen = st2[1];
+      function toggle() {
+        var next = !isOpen;
+        setOpen(next);
+        folded[g] = !next;   /* folded 是状态来源，重画时按它恢复 */
+      }
+      return h('div', { className: 'kami-card kami-collapse', 'data-kami-open': isOpen ? '1' : '0' },
+        h('div', { className: 'kami-head kami-collapse-head', onClick: toggle },
+          h('span', { className: 'kami-chev' }, '▸'),
+          h('span', { className: 'kami-card-title' }, g),
+          h('span', { className: 'kami-chip' }, String(list.length))
+        ),
+        h('div', { className: 'kami-card-body kami-collapse-body' },
+          list.map(function (p) { return h(ParamRow, { key: p.id, p: p }); })
+        )
+      );
+    }
+
+    if (!paramPaneRoot) { box.textContent = ''; paramPaneRoot = rt.createRoot(box); }
+    rt.flushSync(function () {
+      paramPaneRoot.render(h(rt.React.Fragment, null,
+        !params.length
+          ? h('div', { className: 'kami-empty', key: 'empty' }, '这套皮肤没有可调参数')
+          : order.map(function (g) { return h(ParamGroup, { key: g, g: g, list: groups[g] }); })
+      ));
     });
   }
 
@@ -1772,7 +1883,7 @@
     /* 面板 DOM */
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;
-    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; pickSlot = null; fxPaneRoot = null; }
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; pickSlot = null; fxPaneRoot = null; paramPaneRoot = null; skinPaneRoot = null; }
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
     panelRoot = null; panelDrop = null; panelHead = null;
     /* 按钮登记 */
