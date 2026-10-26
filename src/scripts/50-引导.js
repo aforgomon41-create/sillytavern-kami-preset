@@ -1794,6 +1794,200 @@
     return [h('p', { key: 'p', className: 'kami-guide-offnote' }, st.body)];
   };
 
+  /* ⓘ 注释标记 / 注释正文（React 版）。翻转逻辑仍然靠 DOM 关系：
+     标记在 .kami-item-note 里，正文是它的 [data-kami-note] 兄弟。
+     这套关系皮肤与既有单测都在依赖，不改。 */
+  function noteMarkNode(h, text) {
+    if (!text) { return null; }
+    function flip(ev) {
+      if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+      var mark = ev.currentTarget;
+      var host = mark.closest ? mark.closest('.kami-item-note') : null;
+      var note = host ? host.querySelector('[data-kami-note]') : null;
+      if (!note) { return; }
+      var open = note.hasAttribute('hidden');
+      if (open) { note.removeAttribute('hidden'); } else { note.setAttribute('hidden', ''); }
+      mark.setAttribute('aria-expanded', open ? 'true' : 'false');
+      mark.setAttribute('aria-label', open ? '收起注释' : '查看注释');
+    }
+    return h('span', {
+      className: 'kami-card-note', 'data-kami-note-mark': '1',
+      role: 'button', tabindex: 0, 'aria-expanded': 'false', 'aria-label': '查看注释',
+      onClick: flip,
+      onKeyDown: function (ev) {
+        if (!ev) { return; }
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar' || ev.keyCode === 13 || ev.keyCode === 32) {
+          ev.preventDefault(); flip(ev);
+        }
+      }
+    }, 'ⓘ');
+  }
+  function noteBoxNode(h, text) {
+    if (!text) { return null; }
+    return h('div', { className: 'kami-card-note', 'data-kami-note': '1', hidden: true }, text);
+  }
+
+  /* 一行「标签 + 数字框」（变量页用） */
+  function varRowNode(h, labelText, varInfo, key) {
+    return h('div', { key: key, className: 'kami-guide-varrow' },
+      h('span', { className: 'kami-field-label' }, labelText),
+      h('input', {
+        type: 'number', className: 'kami-number', defaultValue: String(varInfo.value),
+        'data-kami-var': varInfo.name,
+        'data-kami-entry': varInfo.identifier,
+        'data-kami-old': String(varInfo.value)
+      }));
+  }
+
+  /* 开关行（组件工厂：要拿到 rt 才能用 hooks）。行为与 buildSwitchRow 逐句对应。 */
+  function makeSwitchRow(rt) {
+    return function SwitchRow(props) {
+      var h = rt.React.createElement, o = props.opt;
+      var s0 = rt.React.useState(function () { try { return !!o.read(); } catch (e) { return false; } });
+      var on = s0[0], setOn = s0[1];
+      function click() {
+        var want = !on;
+        try {
+          var r = o.write(want);
+          if (r && typeof r.then === 'function') {
+            r.then(function () { setOn(want); log(o.labelKey + ' → ' + (want ? '开' : '关')); },
+              function () { toast('error', copyOf('applyFail')); });
+          } else if (r === null || r === undefined) {
+            toast('error', copyOf('applyFail'));
+          } else {
+            setOn(typeof r === 'boolean' ? r : want);
+            log(o.labelKey + ' → ' + ((typeof r === 'boolean' ? r : want) ? '开' : '关'));
+          }
+        } catch (e) { toast('error', copyOf('applyFail')); }
+      }
+      return h('button', {
+        type: 'button',
+        className: 'kami-guide-switchrow' + (on ? ' is-on' : ''),
+        disabled: !!o.disabled || undefined,
+        'aria-disabled': o.disabled ? 'true' : undefined,
+        onClick: click
+      },
+        h('span', { className: 'kami-guide-rowname' }, copyOf(o.labelKey)),
+        h('span', { className: 'kami-guide-rowstate' + (on ? ' is-on' : '') },
+          on ? copyOf(o.onKey) : copyOf(o.offKey)));
+    };
+  }
+
+  REACT_STEPS.antitrunc = function (h, st) {
+    var rt = reactRt();
+    var nodes = [h('p', { key: 'i', className: 'kami-guide-lead' }, st.intro)];
+    var api = HOST.AntiTruncation;
+    if (!api || typeof api.status !== 'function' || typeof api.on !== 'function') {
+      nodes.push(h('div', { key: 'd', className: 'kami-toast' }, copyOf('antitruncDegrade')));
+      return nodes;
+    }
+    var stat = null; try { stat = api.status(); } catch (e) { }
+    nodes.push(h(AntitruncRow, { key: 'row', rt: rt, api: api, title: st.title, initialOn: !!(stat && stat.enabled) }));
+    return nodes;
+  };
+  function AntitruncRow(props) {
+    var rt = props.rt, api = props.api;
+    var h = rt.React.createElement;
+    var s0 = rt.React.useState(!!props.initialOn);
+    var on = s0[0], setOn = s0[1];
+    function click() {
+      try {
+        if (on) { api.off(); } else { api.on(); }
+        setOn(!on);
+        log('反截断开关 → ' + (!on ? '开' : '关'));
+      } catch (e) { toast('error', copyOf('applyFail')); }
+    }
+    return h('button', {
+      type: 'button',
+      className: 'kami-guide-switchrow' + (on ? ' is-on' : ''),
+      'data-kami-antitrunc': '1', onClick: click
+    },
+      h('span', { className: 'kami-guide-rowname' }, props.title),
+      h('span', { className: 'kami-guide-rowstate' + (on ? ' is-on' : '') },
+        on ? copyOf('antitruncOn') : copyOf('antitruncOff')));
+  }
+
+  REACT_STEPS.compress = function (h, st) {
+    var rt = reactRt();
+    var nodes = [
+      h('span', { key: 'sec', className: 'kami-guide-sec' }, st.title),
+      h('p', { key: 'i', className: 'kami-guide-lead' }, st.intro)
+    ];
+    var api = HOST.KamiSummarize;
+    if (!api || typeof api.status !== 'function' || typeof api.setGrand !== 'function') {
+      nodes.push(h('div', { key: 'd', className: 'kami-toast' }, copyOf('compressDegrade')));
+      return nodes;
+    }
+    var stat = null; try { stat = api.status(); } catch (e) { }
+    var SwitchRow = makeSwitchRow(rt);
+    var rollOk = !!(stat && stat.roll && stat.roll.ok);
+    if (rollOk) {
+      nodes.push(h(SwitchRow, { key: 'roll', opt: {
+        labelKey: 'compressRollName', onKey: 'compressOn', offKey: 'compressOff',
+        read: function () { return api.status().roll && api.status().roll.enabled; },
+        write: function (v) { return api.setRolling(v); }
+      } }));
+      nodes.push(h('p', { key: 'rn', className: 'kami-guide-lead' }, copyOf('compressRollNote')));
+    }
+    nodes.push(h(SwitchRow, { key: 'grand', opt: {
+      labelKey: 'compressGrandName', onKey: 'compressOn', offKey: 'compressOff',
+      read: function () { return api.status().grandOn; },
+      write: function (v) { return api.setGrand(v); }
+    } }));
+    nodes.push(h('p', { key: 'gn', className: 'kami-guide-lead' }, copyOf('compressGrandNote')));
+    nodes.push(h('span', { key: 'pickT', className: 'kami-guide-sec' }, copyOf('compressPickTitle')));
+    nodes.push(h('p', { key: 'pickN', className: 'kami-guide-lead' }, copyOf('compressPickNote')));
+    nodes.push(h('p', { key: 'params', className: 'kami-guide-offnote' }, copyOf('compressParamsNote')));
+    if (typeof api.open === 'function') {
+      nodes.push(h('button', {
+        key: 'open', type: 'button', className: 'kami-btn kami-btn--ghost',
+        'data-kami-guide-open': 'compress',
+        onClick: function () { try { api.open(); } catch (e) { toast('error', copyOf('applyFail')); } }
+      }, copyOf('compressOpenPanel')));
+    }
+    return nodes;
+  };
+
+  REACT_STEPS.vars = function (h, st) {
+    var nodes = [h('p', { key: 'i', className: 'kami-guide-lead' }, st.intro)];
+    var api = HOST.KamiPreset;
+    if (!api || typeof api.vars !== 'function' || typeof api.setVar !== 'function') {
+      nodes.push(h('div', { key: 'd', className: 'kami-toast' }, copyOf('presetDegrade')));
+      return nodes;
+    }
+    var data = null; try { data = api.vars(); } catch (e) { }
+    var cards = (data && data.cards) || [];
+    var want = st.entryIds || [];
+    var cardNodes = [];
+    for (var i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      if (want.length && want.indexOf(c.entry) < 0) { continue; }
+      var vs = c.vars || [];
+      var rows = [];
+      if (c.kind === 'range' && vs.length >= 2) {
+        rows.push(varRowNode(h, copyOf('varMin'), { name: vs[0].name, value: vs[0].value, identifier: c.entry }, 'min'));
+        rows.push(varRowNode(h, copyOf('varMax'), { name: vs[1].name, value: vs[1].value, identifier: c.entry }, 'max'));
+      } else if (vs.length) {
+        rows.push(varRowNode(h, '', { name: vs[0].name, value: vs[0].value, identifier: c.entry }, 'one'));
+      }
+      cardNodes.push(h('div', { key: c.entry || ('v' + i), className: 'kami-item-note' },
+        h('div', { className: 'kami-card', 'data-kami-var-card': c.entry || '' },
+          h('span', { className: 'kami-card-head' },
+            h('span', { className: 'kami-dot' }),
+            h('span', { className: 'kami-card-title' }, stripBrackets(c.name || c.label || '')),
+            noteMarkNode(h, c.note)),
+          h('div', { className: 'kami-guide-varrow' }, rows)),
+        noteBoxNode(h, c.note)));
+    }
+    if (!cardNodes.length) {
+      nodes.push(h('div', { key: 'd2', className: 'kami-toast' }, copyOf('fallbackMissing')));
+      return nodes;
+    }
+    nodes.push(h('div', { key: 'grid', className: 'kami-guide-grid-cards' }, cardNodes));
+    return nodes;
+  };
+
+
 
   /* ───────── 导航 ───────── */
 
