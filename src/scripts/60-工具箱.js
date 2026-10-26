@@ -518,6 +518,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   var disposed = false;
   var panelRoot = null, panelDrop = null, panelHead = null, bodyEl = null;
+  var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var GESTURES = null;
   var geom = { x: null, y: null, w: null, h: null };
   var cfg = {
@@ -2015,32 +2016,54 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     panelDrop.style.pointerEvents = 'auto';
     panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
 
-    var head = mk('div', 'kami-head');
-    panelHead = head;
-    head.setAttribute('data-kami-drag', '1');
-    /* 标题栏固定两行，且**零内联、零对抗**：
-       第一行 = 状态点 + 标题 + 关闭（三个都是短元素，任何皮肤下都排得下，不会断行）；
-       第二行 = 三个手动操作按钮（data-kami-role="head-actions"）。
-       副标题（世界书名）已从标题栏撤到「压缩块」区——它就是爆行根源：flex 开了 wrap 后
-       浏览器按自然宽度断行，三四十个字符不换行的世界书名会把整行顶爆（记事本下变成四行），
-       而 rain 又给副标题 order:3 + flex-basis:100%。撤掉它，rain 的规则匹配不到任何元素，
-       再也不需要 order/flex 归零去对抗皮肤。
-       第二行的布局由 LAYOUT_CSS（只写布局的一段注入样式，先例 = 50 号 GUIDE_CSS 排版层）负责。 */
-    head.appendChild(mk('span', 'kami-dot'));
-    /* 装饰位（契约 §8）：与两个正则前端同形。皮肤声明了 decor 时，皮肤管理往这个空槽里注入装饰；
-       没声明的皮肤由结构层的 .kami-deco{display:none} 收着，一分钱不付。 */
-    var decoSlot = mk('span', 'kami-deco');
-    decoSlot.setAttribute('data-kami-deco', 'd20');
-    decoSlot.setAttribute('aria-hidden', 'true');
-    head.appendChild(decoSlot);
-    head.appendChild(mk('span', 'kami-title', '🧰 工具箱'));
-    var acts = mk('span', 'kami-actions');
-    var btnClose = mk('button', 'kami-icon-btn', '✕');
-    btnClose.type = 'button';
-    btnClose.setAttribute('aria-label', '关闭');
-    btnClose.setAttribute('data-kami-act', 'close');
-    acts.appendChild(btnClose);
-    head.appendChild(acts);
+    /* ── 面板骨架（React，2026-10-26 迁移）────────────────────────────
+       渲染 head / foot / 缩放手柄。标签条与三个内容页仍动态创建，插在 head 与 foot 之间。
+       注意：headRow2（第二行三个手动操作按钮）**必须留在这里命令式创建** —— 
+       它是要塞进 compressPane 里的，不是 head 的子节点。上次迁移把它一起删了，
+       后面 compressPane.appendChild(headRow2) 直接抛错，整个面板起不来。 */
+    var rt0 = HOST.KamiRuntime;
+    var footEl = null;
+    if (rt0 && rt0.createRoot) {
+      var h0 = rt0.React.createElement;
+      shellRoot = rt0.createRoot(panelDrop);
+      rt0.flushSync(function () {
+        shellRoot.render(h0(rt0.React.Fragment, null,
+          h0('div', { key: 'head', className: 'kami-head', 'data-kami-drag': '1', ref: function (n) { panelHead = n; } },
+            h0('span', { className: 'kami-dot' }),
+            h0('span', { className: 'kami-deco', 'data-kami-deco': 'd20', 'aria-hidden': 'true' }),
+            h0('span', { className: 'kami-title' }, '🧰 工具箱'),
+            h0('span', { className: 'kami-actions' },
+              h0('button', { type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭', 'data-kami-act': 'close' }, '✕')
+            )
+          ),
+          h0('div', { key: 'foot', className: 'kami-foot', ref: function (n) { footEl = n; } },
+            h0('span', { className: 'kami-sub', 'data-kami-role': STATUS_ROLE })
+          ),
+          h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
+        ));
+      });
+      try { rt0.classifyTree(panelDrop); } catch (e0) { }
+    } else {
+      /* 兜底：运行库不可用时退回命令式（单测沙箱走这条路） */
+      var head = mk('div', 'kami-head');
+      panelHead = head;
+      head.setAttribute('data-kami-drag', '1');
+      head.appendChild(mk('span', 'kami-dot'));
+      var decoSlot = mk('span', 'kami-deco');
+      decoSlot.setAttribute('data-kami-deco', 'd20');
+      decoSlot.setAttribute('aria-hidden', 'true');
+      head.appendChild(decoSlot);
+      head.appendChild(mk('span', 'kami-title', '🧰 工具箱'));
+      var acts = mk('span', 'kami-actions');
+      var btnClose = mk('button', 'kami-icon-btn', '✕');
+      btnClose.type = 'button';
+      btnClose.setAttribute('aria-label', '关闭');
+      btnClose.setAttribute('data-kami-act', 'close');
+      acts.appendChild(btnClose);
+      head.appendChild(acts);
+      panelDrop.appendChild(head);
+    }
+    /* 标题栏第二行：三个手动操作按钮（属于「压缩」内容页，命令式创建） */
     var headRow2 = mk('div');
     headRow2.setAttribute('data-kami-role', 'head-actions');
     var hb1 = mk('button', 'kami-btn kami-btn--ghost', COPY.grand.runNow);
@@ -2056,30 +2079,33 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     hb3.type = 'button';
     hb3.setAttribute('data-kami-act', 'clear-data');
     headRow2.appendChild(hb3);
-    panelDrop.appendChild(head);
-    panelDrop.appendChild(buildToolboxTabs());
+    /* 标签条 + 三个内容页：内容随数据重建，所以仍由命令式代码创建，
+       再按顺序插到 foot **之前**（React 那边已经把 foot 画好了）。 */
+    var tabsNode = buildToolboxTabs();
     var compressPane = createToolboxPane('compress', false);
     headRow2.className = 'kami-toolbox-actions';
     compressPane.appendChild(headRow2);
-
     bodyEl = mk('div', 'kami-body kami-scroll');
     bodyEl.setAttribute('data-kami-pane', 'main');
     bodyEl.style.touchAction = 'pan-y';
     compressPane.appendChild(bodyEl);
-    panelDrop.appendChild(compressPane);
-    panelDrop.appendChild(createToolboxPane('search', true));
-    panelDrop.appendChild(createToolboxPane('other', true));
-
-    var foot = mk('div', 'kami-foot');
-    var stl = mk('span', 'kami-sub');
-    stl.setAttribute('data-kami-role', STATUS_ROLE);
-    foot.appendChild(stl);
-    panelDrop.appendChild(foot);
-
-    var rz = mk('span', 'kami-resize');
-    rz.setAttribute('data-kami-act', 'resize');
-    rz.setAttribute('aria-hidden', 'true');
-    panelDrop.appendChild(rz);
+    var searchPane = createToolboxPane('search', true);
+    var otherPane = createToolboxPane('other', true);
+    [tabsNode, compressPane, searchPane, otherPane].forEach(function (node) {
+      if (footEl) { panelDrop.insertBefore(node, footEl); } else { panelDrop.appendChild(node); }
+    });
+    if (!footEl) {
+      /* 兜底：运行库不可用时页脚与缩放手柄也要有 */
+      var foot = mk('div', 'kami-foot');
+      var stl = mk('span', 'kami-sub');
+      stl.setAttribute('data-kami-role', STATUS_ROLE);
+      foot.appendChild(stl);
+      panelDrop.appendChild(foot);
+      var rz = mk('span', 'kami-resize');
+      rz.setAttribute('data-kami-act', 'resize');
+      rz.setAttribute('aria-hidden', 'true');
+      panelDrop.appendChild(rz);
+    }
 
     panelRoot.appendChild(panelDrop);
     HDOC.body.appendChild(panelRoot);
@@ -2683,6 +2709,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     panelDrag = null;
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
     panelRoot = null; panelDrop = null; panelHead = null; bodyEl = null;
     try {
