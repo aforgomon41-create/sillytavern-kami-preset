@@ -112,7 +112,7 @@ export function Modal(props) {
 
 export function Select(props) {
   return h(RSelect.Root, { value: props.value, onValueChange: props.onValueChange, disabled: !!props.disabled },
-    h(RSelect.Trigger, { className: 'kami-select', 'aria-label': props.label || '选择' },
+    h(RSelect.Trigger, Object.assign({ className: 'kami-select', 'aria-label': props.label || '选择' }, props.attrs || {}),
       h(RSelect.Value, null),
       h(RSelect.Icon, { className: 'kami-select-icon' }, '▾')
     ),
@@ -132,11 +132,13 @@ export function Select(props) {
 /* ───────── 开关（Radix Switch）───────── */
 
 export function SwitchToggle(props) {
-  return h(Switch.Root, {
+  /* attrs 用于透传业务钩子（例如皮肤管理特效开关的 data-kami-act="fx:xxx"）——
+     面板的点击委托按这些属性找元素，换框架不能把它们丢掉。 */
+  return h(Switch.Root, Object.assign({
     className: 'kami-switch', checked: !!props.checked,
     onCheckedChange: props.onCheckedChange, disabled: !!props.disabled,
     'aria-label': props.label || '开关'
-  }, h(Switch.Thumb, { className: 'kami-switch-thumb' }));
+  }, props.attrs || {}), h(Switch.Thumb, { className: 'kami-switch-thumb' }));
 }
 
 /* ───────── 折叠（Radix Collapsible）───────── */

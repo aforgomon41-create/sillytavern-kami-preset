@@ -530,6 +530,15 @@ export function createKamiSearchService(env) {
   }
 
   function checkbox(parent, label, value, onChange) {
+    /* 2026-10-26：开关改用 Radix（21 套皮肤已按 .kami-switch[data-state="checked"] 写）。
+       运行库没加载时退回原生结构 —— 那时没有皮肤样式，但不至于不能用。 */
+    var RT = null;
+    try { RT = (env.host && env.host.KamiRuntime) || null; } catch (e0) { RT = null; }
+    if (RT && typeof RT.makeSwitch === 'function') {
+      var sw = RT.makeSwitch({ checked: !!value, label: label, onChange: function (v) { onChange(v); } });
+      env.ui.field(parent, label, sw.el);
+      return sw;
+    }
     var control = env.make('label', 'kami-switch'), input = env.make('input', 'kami-switch-input'); input.type = 'checkbox'; input.checked = value; input.setAttribute('aria-label', label);
     var track = env.make('span', 'kami-switch-track'); track.appendChild(env.make('span', 'kami-switch-knob')); control.appendChild(input); control.appendChild(track);
     input.addEventListener('change', function () { onChange(input.checked); }); env.ui.field(parent, label, control); return input;

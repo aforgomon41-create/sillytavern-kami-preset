@@ -334,7 +334,7 @@ html[data-kami-skin="isekai"][data-kami-scheme="dark"] .kami-root:is([data-kami-
 /* 控件通用排版 */
 html[data-kami-skin="isekai"] input.kami-text,
 html[data-kami-skin="isekai"] textarea.kami-textarea,
-html[data-kami-skin="isekai"] select.kami-select {
+html[data-kami-skin="isekai"] .kami-select {
   min-height: var(--kami-row-h);
   padding: var(--kami-pad-y) var(--kami-pad-x);
   text-align: left;
@@ -351,7 +351,7 @@ html[data-kami-skin="isekai"] textarea.kami-textarea {
 }
 
 /* 下拉选单自绘动漫微光 V 形箭头 */
-html[data-kami-skin="isekai"] select.kami-select {
+html[data-kami-skin="isekai"] .kami-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--kami-pad-x) + 18px);
@@ -1060,7 +1060,7 @@ html[data-kami-skin="isekai"] .kami-switch-input {
   height: 0;
 }
 
-html[data-kami-skin="isekai"] .kami-switch-track {
+html[data-kami-skin="isekai"] .kami-switch {
   position: relative;
   width: 40px;
   height: 22px;
@@ -1070,7 +1070,7 @@ html[data-kami-skin="isekai"] .kami-switch-track {
   transition: background var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="isekai"] .kami-switch-knob {
+html[data-kami-skin="isekai"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -1082,17 +1082,17 @@ html[data-kami-skin="isekai"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease), background var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="isekai"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="isekai"] .kami-switch[data-state="checked"] {
   background: var(--kami-accent);
   border-color: var(--kami-accent);
 }
 
-html[data-kami-skin="isekai"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="isekai"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(18px);
   background: #ffffff;
 }
 
-html[data-kami-skin="isekai"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="isekai"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }

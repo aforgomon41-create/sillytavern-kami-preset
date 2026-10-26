@@ -1019,7 +1019,7 @@ html[data-kami-skin="moonside"] .kami-range::-moz-range-thumb {
 html[data-kami-skin="moonside"] .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
 html[data-kami-skin="moonside"] .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-html[data-kami-skin="moonside"] .kami-switch-track {
+html[data-kami-skin="moonside"] .kami-switch {
   position: relative;
   width: 40px;
   height: 20px;
@@ -1029,7 +1029,7 @@ html[data-kami-skin="moonside"] .kami-switch-track {
   transition: background-color var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="moonside"] .kami-switch-knob {
+html[data-kami-skin="moonside"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -1040,19 +1040,19 @@ html[data-kami-skin="moonside"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease), background-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="moonside"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="moonside"] .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
   box-shadow: inset 2px 0 0 var(--kami-accent);
 }
 
-html[data-kami-skin="moonside"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="moonside"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(20px);
   background-color: var(--kami-accent);
   box-shadow: 0 0 calc(var(--kami-glow-size) * .6) var(--kami-glow);
 }
 
-html[data-kami-skin="moonside"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="moonside"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }

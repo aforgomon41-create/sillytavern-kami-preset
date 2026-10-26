@@ -45,16 +45,13 @@ export function renderToolboxTab(pane) {
     var rowAll = mk('div', 'kami-field');
     rowAll.appendChild(mk('span', 'kami-field-label', TAGFIX_COPY.allLabel));
     var valAll = mk('span', 'kami-field-value');
-    var swAll = mk('label', 'kami-switch');
-    var allOn = mk('input', 'kami-switch-input');
-    allOn.type = 'checkbox';
-    allOn.setAttribute('data-kami-tagfix-all', '1');
-    allOn.setAttribute('aria-label', TAGFIX_COPY.allLabel);
-    allOn.checked = !!tagFixAll;
-    var allTrack = mk('span', 'kami-switch-track');
-    allTrack.appendChild(mk('span', 'kami-switch-knob'));
-    swAll.appendChild(allOn); swAll.appendChild(allTrack);
-    valAll.appendChild(swAll);
+    /* 2026-10-26：开关改用 Radix。tagFixEls.all 存的是**控件对象**（有 setChecked），
+       写回逻辑在 40-预设设置.js 的 paintTagFixAll。 */
+    var tagFixAllSw = HOST.KamiRuntime.makeSwitch({
+      checked: !!tagFixAll, label: TAGFIX_COPY.allLabel,
+      attrs: { 'data-kami-tagfix-all': '1' }
+    });
+    valAll.appendChild(tagFixAllSw.el);
     rowAll.appendChild(valAll);
     body.appendChild(rowAll);
     body.appendChild(mk('div', 'kami-card-note', TAGFIX_COPY.allHint));
@@ -92,7 +89,7 @@ export function renderToolboxTab(pane) {
     box.appendChild(body);
     pane.appendChild(box);
 
-    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp, all: allOn };
+    tagFixEls = { box: box, seg: seg, stat: statNote, btn: btn, chip: chip, custom: inp, all: tagFixAllSw };
     paintTagFixStat();
 
     /* ② 常驻附加指令（用户 2026-09-30 裁定：固定放这一页的第二张卡）。
@@ -118,15 +115,13 @@ export function renderToolboxTab(pane) {
     var gRowSw = mk('div', 'kami-field');
     gRowSw.appendChild(mk('span', 'kami-field-label', GODCMD_COPY.switchLabel));
     var gValSw = mk('span', 'kami-field-value');
-    var gSw = mk('label', 'kami-switch');
-    var gOn = mk('input', 'kami-switch-input');
-    gOn.type = 'checkbox';
-    gOn.setAttribute('data-kami-godcmd-on', '1');
-    gOn.setAttribute('aria-label', GODCMD_COPY.switchLabel);
-    var gTrack = mk('span', 'kami-switch-track');
-    gTrack.appendChild(mk('span', 'kami-switch-knob'));
-    gSw.appendChild(gOn); gSw.appendChild(gTrack);
-    gValSw.appendChild(gSw);
+    /* 2026-10-26：开关改用 Radix。勾选态由 paintGodCmdCard 通过 setChecked 写回。 */
+    var godCmdSw = HOST.KamiRuntime.makeSwitch({
+      checked: false, label: GODCMD_COPY.switchLabel,
+      attrs: { 'data-kami-godcmd-on': '1' },
+      onChange: function () { toggleGodCmd(); }
+    });
+    gValSw.appendChild(godCmdSw.el);
     gRowSw.appendChild(gValSw);
     gBody.appendChild(gRowSw);
 
@@ -146,7 +141,6 @@ export function renderToolboxTab(pane) {
     /* ⚠️ 事件必须在这里绑上。卡片渲染出来不等于功能在：2026-10-01 用户真机报
        「开关点不动、内容关掉面板就丢」，根因就是这两个函数写好了却没有任何地方调用
        （守卫原来只查 data-kami-godcmd-* 钩子存在，查不出「没人听」）。 */
-    gOn.addEventListener('change', function () { toggleGodCmd(); });
     gTxt.addEventListener('input', function () { setGodCmdText(gTxt.value); });
     /* blur 再补一次：有些输入法与粘贴只触发 change，不触发 input */
     gTxt.addEventListener('change', function () { setGodCmdText(gTxt.value); });
@@ -154,7 +148,7 @@ export function renderToolboxTab(pane) {
     gBox.appendChild(gBody);
     pane.appendChild(gBox);
 
-    godcmdEls = { box: gBox, head: gHead, chip: gChip, on: gOn, txt: gTxt };
+    godcmdEls = { box: gBox, head: gHead, chip: gChip, on: godCmdSw, txt: gTxt };
     paintGodCmdCard();
 
     /* ② 「导出纯净正文」（用户 2026-10-05 点名放这一页） */

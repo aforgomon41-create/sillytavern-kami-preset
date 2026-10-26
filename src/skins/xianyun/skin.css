@@ -313,7 +313,7 @@ html[data-kami-skin="xianyun"][data-kami-scheme="dark"] .kami-root:is([data-kami
 /* 控件通用排版 */
 html[data-kami-skin="xianyun"] input.kami-text,
 html[data-kami-skin="xianyun"] textarea.kami-textarea,
-html[data-kami-skin="xianyun"] select.kami-select {
+html[data-kami-skin="xianyun"] .kami-select {
   min-height: var(--kami-row-h);
   padding: var(--kami-pad-y) var(--kami-pad-x);
   text-align: left;
@@ -330,7 +330,7 @@ html[data-kami-skin="xianyun"] textarea.kami-textarea {
 }
 
 /* 下拉选单自绘箭头 */
-html[data-kami-skin="xianyun"] select.kami-select {
+html[data-kami-skin="xianyun"] .kami-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--kami-pad-x) + 18px);
@@ -1281,7 +1281,7 @@ html[data-kami-skin="xianyun"] .kami-switch-input {
   height: 0;
 }
 
-html[data-kami-skin="xianyun"] .kami-switch-track {
+html[data-kami-skin="xianyun"] .kami-switch {
   width: 38px;
   height: 22px;
   border-radius: var(--kami-r-pill);
@@ -1291,7 +1291,7 @@ html[data-kami-skin="xianyun"] .kami-switch-track {
   position: relative;
 }
 
-html[data-kami-skin="xianyun"] .kami-switch-knob {
+html[data-kami-skin="xianyun"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -1303,12 +1303,12 @@ html[data-kami-skin="xianyun"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="xianyun"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="xianyun"] .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent);
   border-color: var(--kami-accent);
 }
 
-html[data-kami-skin="xianyun"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="xianyun"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(16px);
 }
 

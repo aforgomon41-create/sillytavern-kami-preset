@@ -96,21 +96,19 @@ var cfg=env.state,COPY=env.copy,mk=env.make,HDOC=env.document,sectionCard=env.se
 var snapPrompts=env.snapshot,currentTpl=env.currentTemplate;
   /* 提示词条目里的角色下拉（带头/尾条目序号，改哪条就是哪条） */
   function roleSelect(value, list, idx) {
-    var sel = kamiLlmElement(HDOC,'select');
-    sel.className = 'kami-select';
-    sel.setAttribute('data-kami-prompt', list);
-    sel.setAttribute('data-kami-pi', String(idx));
-    sel.setAttribute('data-kami-pf', 'role');
-    sel.setAttribute('aria-label', COPY.prompts.roleLabel);
-    var opts = [['system', COPY.prompts.roleSystem], ['user', COPY.prompts.roleUser], ['assistant', COPY.prompts.roleChar]];
-    for (var i = 0; i < opts.length; i++) {
-      var op = kamiLlmElement(HDOC,'option');
-      op.value = opts[i][0];
-      op.textContent = opts[i][1];
-      if (opts[i][0] === value) { op.selected = true; }
-      sel.appendChild(op);
-    }
-    return sel;
+    /* 2026-10-26：角色下拉改用 Radix Select。走 onChange 直接改配置，
+       不再依赖面板的 data-kami-pf 委托 —— Radix 的选项弹层挂在 body 上，
+       选项的点击冒泡不到面板容器，委托收不到。 */
+    var opts = [
+      { value: 'system', label: COPY.prompts.roleSystem },
+      { value: 'user', label: COPY.prompts.roleUser },
+      { value: 'assistant', label: COPY.prompts.roleChar }
+    ];
+    var ctl = HOST.KamiRuntime.makeSelect({
+      value: value, options: opts, label: COPY.prompts.roleLabel,
+      onChange: function (v) { applyPromptChange(list, idx, 'role', v); }
+    });
+    return ctl.el;
   }
   /* 多行文本框：类名 = 契约 §4.2 的 `.kami-textarea`（尺寸由 LAYOUT_CSS 管） */
   function promptTextarea(list, idx) {

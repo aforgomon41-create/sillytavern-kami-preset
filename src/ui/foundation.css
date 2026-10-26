@@ -124,3 +124,41 @@
 .kami-root .kami-tabs>[data-kami-slot="tab-actions"] .kami-select{width:auto;max-width:100%;min-width:0;}
 
 .kami-root .kami-tabs[data-kami-tabs-mode="fit"]>.kami-tab{flex:1 0 0;min-width:max-content;}
+
+/* ── Radix 控件的基础结构（2026-10-26 换框架）─────────────────────────
+   这些规则只管「换框架后必须存在」的结构与定位，**外观归皮肤**：
+     · .kami-select 现在是按钮（触发者），不是原生 <select>
+     · 选项弹层被 Radix Portal 挂到 body 上，层级/滚动只能在这儿定
+     · .kami-switch 现在是 button[role=switch]，要显式清掉按钮默认外观
+   21 套皮肤里的 .kami-select / .kami-switch 规则负责长得好看。 */
+.kami-select {
+  display: inline-flex; align-items: center; justify-content: space-between;
+  gap: 6px; cursor: pointer; text-align: left;
+}
+.kami-select-icon { flex: none; opacity: .7; font-size: .9em; }
+.kami-select-content {
+  z-index: 100000;
+  min-width: var(--radix-select-trigger-width);
+  max-height: 40vh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px;
+  background: var(--kami-bg-soft, #17171c);
+  color: var(--kami-fg, #f2f2f4);
+  border: var(--kami-border-w, 1px) solid var(--kami-line, #3a3a44);
+  border-radius: var(--kami-r-sm, 8px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
+  font-family: var(--kami-font, inherit);
+  font-size: var(--kami-fs-sm, 13px);
+}
+.kami-select-item {
+  padding: 6px 10px; border-radius: var(--kami-r-xs, 6px);
+  cursor: pointer; outline: none; white-space: nowrap;
+}
+.kami-select-item[data-highlighted] { background: var(--kami-accent-soft, rgba(122, 162, 247, .25)); }
+.kami-select-item[data-state="checked"] { color: var(--kami-accent, #7aa2f7); }
+.kami-switch {
+  -webkit-appearance: none; appearance: none;
+  display: inline-flex; align-items: center;
+  margin: 0; padding: 0; border: 0; background: none;
+  cursor: pointer; position: relative;
+}
+.kami-switch[disabled] { opacity: .5; cursor: not-allowed; }

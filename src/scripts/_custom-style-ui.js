@@ -312,14 +312,16 @@ export function customStyleBlock(ctx) {
     var f2 = el('div', 'kami-field');
     f2.appendChild(el('span', 'kami-field-label', CP.groupLabel));
     var v2 = el('span', 'kami-field-value');
-    var sel = el('select', 'kami-select');
-    for (i = 0; i < st.groups.length; i++) {
-      var g = st.groups[i];
-      var opt = el('option', '', groupLabel(g));
-      opt.value = g.headIdentifier;
-      if (g.headIdentifier === o.groupHeadId) { opt.selected = true; }
-      sel.appendChild(opt);
-    }
+    /* 2026-10-26：分组下拉改用 Radix Select。当前选中的组用闭包变量记着，
+       模式提示直接跟着 onChange 重画（Radix 弹层在 body 上，委托收不到点击）。 */
+    var curGroupId = o.groupHeadId;
+    var groupOpts = [];
+    for (i = 0; i < st.groups.length; i++) { groupOpts.push({ value: st.groups[i].headIdentifier, label: groupLabel(st.groups[i]) }); }
+    var selCtl = HOST.KamiRuntime.makeSelect({
+      value: curGroupId, options: groupOpts, label: CP.groupLabel,
+      onChange: function (v) { curGroupId = v; paintModeNote(); }
+    });
+    var sel = selCtl.el;
     v2.appendChild(sel);
     f2.appendChild(v2);
     body.appendChild(f2);
@@ -327,11 +329,10 @@ export function customStyleBlock(ctx) {
     /* 目标组的模式：用户必须能看出是选一还是任选（用户拍板第 6 条） */
     var note = el('p', 'kami-cs-note', '');
     function paintModeNote() {
-      var g = groupById(sel.value);
+      var g = groupById(curGroupId);
       note.textContent = (g && g.cardMode === '单选') ? CP.modeNoteSingle : CP.modeNoteAny;
     }
     paintModeNote();
-    sel.addEventListener('change', paintModeNote);
     body.appendChild(note);
 
     body.appendChild(el('div', 'kami-field', CP.contentLabel));

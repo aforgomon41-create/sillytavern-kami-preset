@@ -762,6 +762,7 @@
   /* @@KAMI_PANEL_GESTURES@@ */
 
   var panelRoot = null, panelDrop = null, panelHead = null, pane = 'skin', unsubs = [];
+  var skinPickCtl = null;   /* 皮肤快速切换（Radix Select，2026-10-26） */
   var GESTURES = null;
 
   function mk(tag, cls, text) {
@@ -831,11 +832,14 @@
          · 用契约 §4.2 已登记的 `.kami-select`：全部皮肤都已经有它的外观与对比度规则，
            外观归皮肤，单行与控件宽度由公共 tab-actions 插槽负责。
        选它就等于点那张皮肤卡（都走同一个 setSkin）。 */
-    var pick = mk('select', 'kami-select');
-    pick.setAttribute('data-kami-role', 'skin-pick');
-    pick.setAttribute('aria-label', '快速切换皮肤');
-    var pickWrap = createKamiUi(HDOC).slot('tab-actions', pick);
-    pick.addEventListener('change', function () { setSkin(pick.value); });
+    /* 2026-10-26：皮肤快速切换改用 Radix Select。data-kami-role 钩子保留在触发按钮上，
+       paintSkinPick 仍按它找元素；选项由 paintSkinPick 用 setOptions 动态填。 */
+    skinPickCtl = HOST.KamiRuntime.makeSelect({
+      value: '', options: [], label: '快速切换皮肤',
+      attrs: { 'data-kami-role': 'skin-pick' },
+      onChange: function (v) { if (v) { setSkin(v); } }
+    });
+    var pickWrap = createKamiUi(HDOC).slot('tab-actions', skinPickCtl.el);
     tabs.appendChild(pickWrap);
     panelDrop.appendChild(tabs);
 
@@ -1037,22 +1041,14 @@
   /* tab 行右端那个皮肤下拉：选项一次建好，之后每次 renderPane 只同步选中项。
      列表为空（皮肤包没读到）时不显示这一枚，免得给出一个点不动的空框。 */
   function paintSkinPick() {
-    if (!panelDrop) { return; }
-    var pick = panelDrop.querySelector('[data-kami-role="skin-pick"]');
-    if (!pick || !pick.parentNode) { return; }
-    if (!SKINS || !SKINS.length) { pick.parentNode.hidden = true; return; }
-    pick.parentNode.hidden = false;
-    if (pick.options.length !== SKINS.length) {
-      pick.textContent = '';
-      SKINS.forEach(function (s) {
-        var o = HDOC.createElement('option');
-        o.value = s.id;
-        o.textContent = s.name;
-        pick.appendChild(o);
-      });
-    }
-    var now = curSkin().id;
-    if (pick.value !== now) { pick.value = now; }
+    if (!panelDrop || !skinPickCtl) { return; }
+    var host = skinPickCtl.el;
+    if (!host || !host.parentNode) { return; }
+    if (!SKINS || !SKINS.length) { host.parentNode.hidden = true; return; }
+    host.parentNode.hidden = false;
+    /* Radix 版本没有原生 options 集合，选项交给 setOptions 整体替换 */
+    skinPickCtl.setOptions(SKINS.map(function (s) { return { value: s.id, label: s.name }; }));
+    skinPickCtl.setValue(curSkin().id);
   }
 
   function renderPane() {
@@ -1399,16 +1395,14 @@
       }
       row.appendChild(lab);
       var val = mk('span', 'kami-field-value');
-      var sw = mk('label', 'kami-switch');
-      var input = mk('input', 'kami-switch-input');
-      input.type = 'checkbox';
-      input.checked = on;
-      input.setAttribute('data-kami-act', 'fx:' + f.id);
-      input.setAttribute('aria-label', f.label);
-      var track = mk('span', 'kami-switch-track');
-      track.appendChild(mk('span', 'kami-switch-knob'));
-      sw.appendChild(input); sw.appendChild(track);
-      val.appendChild(sw);
+      /* 2026-10-26：特效开关改用 Radix。**故意不接 onChange** ——
+         点击由面板的 data-kami-act="fx:..." 委托统一处理（toggleEffect 会重建这一页），
+         两边都接会把开关翻两次。 */
+      var fxSw = HOST.KamiRuntime.makeSwitch({
+        checked: on, label: f.label,
+        attrs: { 'data-kami-act': 'fx:' + f.id }
+      });
+      val.appendChild(fxSw.el);
       row.appendChild(val);
       box.appendChild(row);
     });

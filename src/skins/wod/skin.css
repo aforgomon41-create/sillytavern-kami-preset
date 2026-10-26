@@ -1029,7 +1029,7 @@ html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-com
   width: 0;
   height: 0;
 }
-html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch {
   position: absolute;
   inset: 0;
   background-color: var(--kami-card-2);
@@ -1037,7 +1037,7 @@ html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-com
   border-radius: var(--kami-r-pill);
   transition: background-color var(--kami-dur-fast) var(--kami-ease), border-color var(--kami-dur-fast) var(--kami-ease);
 }
-html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-knob {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-thumb {
   position: absolute;
   left: 3px;
   top: 3px;
@@ -1047,16 +1047,16 @@ html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-com
   border-radius: 50%;
   transition: transform var(--kami-dur-fast) var(--kami-ease), background-color var(--kami-dur-fast) var(--kami-ease);
 }
-html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
 }
-html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(20px);
   background-color: var(--kami-accent);
   box-shadow: 0 0 6px var(--kami-glow);
 }
-html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="wod"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }

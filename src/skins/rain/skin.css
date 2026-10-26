@@ -1366,7 +1366,7 @@ html[data-kami-skin="rain"] .kami-number[type="number"] { -moz-appearance: textf
 html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-number,
 html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
 html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
-html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
+html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color: var(--kami-fg) !important;
   background-color: var(--kami-bg-soft) !important;
   border-bottom-width: 2px !important;
@@ -1379,7 +1379,7 @@ html[data-kami-skin="rain"] .kami-root:is([data-kami-comp="panel"],[data-kami-co
    与它同为 (0,2,2)，只有源码顺序在后才压得住，否则字会被 .kami-field 的 --kami-fg-dim 接管。 */
 html[data-kami-skin="rain"] input.kami-text,
 html[data-kami-skin="rain"] textarea.kami-textarea,
-html[data-kami-skin="rain"] select.kami-select {
+html[data-kami-skin="rain"] .kami-select {
   min-height: var(--kami-row-h);
   padding: var(--kami-pad-y) var(--kami-pad-x);
   text-align: left;
@@ -1402,7 +1402,7 @@ html[data-kami-skin="rain"] textarea.kami-textarea:focus { background-size: 100%
 /* 下拉框：抹掉浏览器默认外观，两层渐变拼一枚 V 形箭头。
    箭头和下面那条水线必须挤在同一个 background-image 里（箭头在前），
    谁单独再写一次 background-image 就会把对方整层盖掉；position / size / repeat 逐个对齐。 */
-html[data-kami-skin="rain"] select.kami-select {
+html[data-kami-skin="rain"] .kami-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--kami-pad-x) + 16px);
@@ -1416,7 +1416,7 @@ html[data-kami-skin="rain"] select.kami-select {
   cursor: pointer;
 }
 /* 焦点时只把第三层（水线）铺满，两枚箭头原样不动 */
-html[data-kami-skin="rain"] select.kami-select:focus {
+html[data-kami-skin="rain"] .kami-select:focus {
   background-size: 4px 4px, 4px 4px, 100% 2px;
   outline: none;
 }
@@ -1433,7 +1433,7 @@ html[data-kami-skin="rain"] .kami-switch-input {
   opacity: 0;
   pointer-events: none;
 }
-html[data-kami-skin="rain"] .kami-switch-track {
+html[data-kami-skin="rain"] .kami-switch {
   position: relative;
   display: block;
   width: 36px;
@@ -1444,7 +1444,7 @@ html[data-kami-skin="rain"] .kami-switch-track {
   transition: box-shadow var(--kami-dur) var(--kami-ease);
 }
 /* 槽里那条细线 */
-html[data-kami-skin="rain"] .kami-switch-track::before {
+html[data-kami-skin="rain"] .kami-switch::before {
   content: "";
   position: absolute;
   left: 5px;
@@ -1457,7 +1457,7 @@ html[data-kami-skin="rain"] .kami-switch-track::before {
   transition: opacity var(--kami-dur) var(--kami-ease);
 }
 /* 通电的那一段（从左往右长） */
-html[data-kami-skin="rain"] .kami-switch-track::after {
+html[data-kami-skin="rain"] .kami-switch::after {
   content: "";
   position: absolute;
   left: 5px;
@@ -1471,7 +1471,7 @@ html[data-kami-skin="rain"] .kami-switch-track::after {
   transform-origin: left center;
   transition: transform var(--kami-dur) var(--kami-ease-out);
 }
-html[data-kami-skin="rain"] .kami-switch-knob {
+html[data-kami-skin="rain"] .kami-switch-thumb {
   position: absolute;
   left: 3px;
   top: 2px;
@@ -1484,18 +1484,18 @@ html[data-kami-skin="rain"] .kami-switch-knob {
               background var(--kami-dur) var(--kami-ease),
               border-radius var(--kami-dur) var(--kami-ease);
 }
-html[data-kami-skin="rain"] .kami-switch-input:checked + .kami-switch-track::after { transform: scaleX(1); }
-html[data-kami-skin="rain"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="rain"] .kami-switch[data-state="checked"]::after { transform: scaleX(1); }
+html[data-kami-skin="rain"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(18px) scale(1.08);
   background: var(--kami-accent);
   border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
 }
-html[data-kami-skin="rain"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="rain"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 3px;
 }
-html[data-kami-skin="rain"] .kami-switch-input[disabled] + .kami-switch-track { opacity: .42; cursor: default; }
-html[data-kami-skin="rain"] .kami-switch-input[disabled] + .kami-switch-track .kami-switch-knob { background: transparent; box-shadow: inset 0 0 0 1px var(--kami-fg-mute); }
+html[data-kami-skin="rain"] .kami-switch[disabled] { opacity: .42; cursor: default; }
+html[data-kami-skin="rain"] .kami-switch[disabled] .kami-switch-thumb { background: transparent; box-shadow: inset 0 0 0 1px var(--kami-fg-mute); }
 
 /* ============================================================
  * 14. 标签页 / 滚动条 / 浮动层
@@ -1783,7 +1783,7 @@ html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-dot,
 html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-btn.is-done,
 html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-item.is-done { animation: none; }
 html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-chev,
-html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-switch-knob { transition-timing-function: var(--kami-ease); }
+html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-switch-thumb { transition-timing-function: var(--kami-ease); }
 html[data-kami-skin="rain"][data-kami-motion="calm"] .kami-collapse-body::after { animation: none; }
 
 html[data-kami-skin="rain"][data-kami-motion="off"] .kami-root {

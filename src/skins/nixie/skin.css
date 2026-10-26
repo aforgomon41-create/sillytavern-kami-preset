@@ -962,7 +962,7 @@ html[data-kami-skin="nixie"] .kami-number:focus-visible { border-color: var(--ka
 html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-number,
 html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
 html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
-html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
+html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color: var(--kami-accent) !important;
   background-color: var(--kami-bg-soft) !important;
   border-color: var(--kami-line-strong) !important;
@@ -974,7 +974,7 @@ html[data-kami-skin="nixie"] .kami-root:is([data-kami-comp="panel"],[data-kami-c
    (0,2,2)，只有源码顺序在后才压得住，否则字会被 .kami-field 的 --kami-fg-dim 接管。 */
 html[data-kami-skin="nixie"] input.kami-text,
 html[data-kami-skin="nixie"] textarea.kami-textarea,
-html[data-kami-skin="nixie"] select.kami-select {
+html[data-kami-skin="nixie"] .kami-select {
   min-height: var(--kami-row-h);
   padding: var(--kami-pad-y) var(--kami-pad-x);
   text-align: left;
@@ -988,7 +988,7 @@ html[data-kami-skin="nixie"] select.kami-select {
 }
 html[data-kami-skin="nixie"] textarea.kami-textarea { resize: vertical; }
 /* 下拉框：抹掉浏览器默认外观，用两层渐变拼一枚 V 形箭头；右内边距给箭头留位 */
-html[data-kami-skin="nixie"] select.kami-select {
+html[data-kami-skin="nixie"] .kami-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: calc(var(--kami-pad-x) + 16px);
@@ -1010,7 +1010,7 @@ html[data-kami-skin="nixie"] .kami-switch-input {
   opacity: 0;
   pointer-events: none;
 }
-html[data-kami-skin="nixie"] .kami-switch-track {
+html[data-kami-skin="nixie"] .kami-switch {
   position: relative;
   display: block;
   width: 46px;
@@ -1021,7 +1021,7 @@ html[data-kami-skin="nixie"] .kami-switch-track {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 236, 214, .05);
   transition: background-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
 }
-html[data-kami-skin="nixie"] .kami-switch-track::after {
+html[data-kami-skin="nixie"] .kami-switch::after {
   content: "";
   position: absolute;
   right: 4px;
@@ -1034,7 +1034,7 @@ html[data-kami-skin="nixie"] .kami-switch-track::after {
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .6);
   transition: background-image var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
 }
-html[data-kami-skin="nixie"] .kami-switch-knob {
+html[data-kami-skin="nixie"] .kami-switch-thumb {
   position: absolute;
   left: 3px;
   top: 3px;
@@ -1048,16 +1048,16 @@ html[data-kami-skin="nixie"] .kami-switch-knob {
   box-shadow: inset 0 1px 0 rgba(255, 236, 214, .2), 0 1px 2px rgba(0, 0, 0, .75);
   transition: transform var(--kami-dur) cubic-bezier(.34, 1.56, .64, 1), background-color var(--kami-dur) var(--kami-ease);
 }
-html[data-kami-skin="nixie"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="nixie"] .kami-switch[data-state="checked"] {
   background-color: #241a10;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 0 0 1px var(--kami-accent-line), inset 0 -1px 0 rgba(255, 138, 32, .4);
 }
-html[data-kami-skin="nixie"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { transform: translateX(20px); }
-html[data-kami-skin="nixie"] .kami-switch-input:checked + .kami-switch-track::after {
+html[data-kami-skin="nixie"] .kami-switch[data-state="checked"] .kami-switch-thumb { transform: translateX(20px); }
+html[data-kami-skin="nixie"] .kami-switch[data-state="checked"]::after {
   background-image: radial-gradient(circle at 50% 45%, #ffe6bc, #ff8a20 55%, rgba(255, 138, 32, .25) 100%);
   box-shadow: 0 0 4px rgba(255, 138, 32, .7), inset 0 0 0 1px rgba(255, 190, 130, .45);
 }
-html[data-kami-skin="nixie"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="nixie"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }

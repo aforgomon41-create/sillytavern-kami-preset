@@ -88,6 +88,7 @@ function makeSwitch(opts) {
     checked: !!o.checked,
     disabled: !!o.disabled,
     label: o.label,
+    attrs: o.attrs || null,
     onCheckedChange: function (v) { if (o.onChange) { o.onChange(v); } }
   });
   return {
@@ -104,12 +105,15 @@ function makeSelect(opts) {
     options: o.options || [],
     disabled: !!o.disabled,
     label: o.label,
+    attrs: o.attrs || null,
     portal: DOC.body,
     onValueChange: function (v) { if (o.onChange) { o.onChange(v); } }
   });
   return {
     el: ctl.el,
     setValue: function (v) { ctl.update({ value: v }); },
+    /* 选项是动态的话（例如皮肤列表）用这个整体替换 */
+    setOptions: function (list) { ctl.update({ options: list || [] }); },
     destroy: ctl.destroy
   };
 }

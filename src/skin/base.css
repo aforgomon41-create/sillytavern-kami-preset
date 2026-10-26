@@ -659,7 +659,7 @@ html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-com
 html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-number,
 html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
 html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
-html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
+html:not([data-kami-skin]) .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color: var(--kami-fg) !important;
   background-color: var(--kami-bg-soft) !important;
   border-color: var(--kami-line-strong) !important;
@@ -710,23 +710,23 @@ html:not([data-kami-skin]) .kami-root .kami-select {
 }
 html:not([data-kami-skin]) .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
 html:not([data-kami-skin]) .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
-html:not([data-kami-skin]) .kami-switch-track {
+html:not([data-kami-skin]) .kami-switch {
   position: relative;
   width: 38px; height: 22px;
   border-radius: var(--kami-r-pill);
   background: var(--kami-t3);
   transition: background var(--kami-dur) var(--kami-ease);
 }
-html:not([data-kami-skin]) .kami-switch-knob {
+html:not([data-kami-skin]) .kami-switch-thumb {
   position: absolute; top: 2px; left: 2px;
   width: 18px; height: 18px;
   border-radius: 50%;
   background: var(--kami-fg-dim);
   transition: transform var(--kami-dur) var(--kami-ease), background var(--kami-dur) var(--kami-ease);
 }
-html:not([data-kami-skin]) .kami-switch-input:checked + .kami-switch-track { background: var(--kami-accent-soft); box-shadow: inset 0 0 0 1px var(--kami-accent-line); }
-html:not([data-kami-skin]) .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { transform: translateX(16px); background: var(--kami-accent); }
-html:not([data-kami-skin]) .kami-switch-input:focus-visible + .kami-switch-track { outline: 2px solid var(--kami-accent); outline-offset: 2px; }
+html:not([data-kami-skin]) .kami-switch[data-state="checked"] { background: var(--kami-accent-soft); box-shadow: inset 0 0 0 1px var(--kami-accent-line); }
+html:not([data-kami-skin]) .kami-switch[data-state="checked"] .kami-switch-thumb { transform: translateX(16px); background: var(--kami-accent); }
+html:not([data-kami-skin]) .kami-switch:focus-visible { outline: 2px solid var(--kami-accent); outline-offset: 2px; }
 
 /* ---------- 标签页 ---------- */
 html:not([data-kami-skin]) .kami-tabs {

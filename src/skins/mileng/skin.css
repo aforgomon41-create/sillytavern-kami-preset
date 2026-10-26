@@ -269,7 +269,7 @@ html[data-kami-skin="mileng"] .kami-root :focus-visible {
   outline-offset: 2px;
 }
 
-html[data-kami-skin="mileng"] .kami-root .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="mileng"] .kami-root .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }
@@ -285,7 +285,7 @@ html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-
 html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-number,
 html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
 html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
-html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
+html[data-kami-skin="mileng"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color: var(--kami-fg) !important;
   background-color: var(--kami-bg-soft) !important;
   border-color: var(--kami-line-strong) !important;
@@ -297,7 +297,7 @@ html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami
 html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-number,
 html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) input.kami-text,
 html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) textarea.kami-textarea,
-html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) select.kami-select {
+html[data-kami-skin="mileng"][data-kami-scheme="light"] .kami-root:is([data-kami-comp="panel"],[data-kami-comp="dialog"]) .kami-select {
   color-scheme: light !important;
 }
 
@@ -1402,7 +1402,7 @@ html[data-kami-skin="mileng"] .kami-switch-input {
   height: 0;
 }
 
-html[data-kami-skin="mileng"] .kami-switch-track {
+html[data-kami-skin="mileng"] .kami-switch {
   position: relative;
   width: 40px;
   height: 22px;
@@ -1412,7 +1412,7 @@ html[data-kami-skin="mileng"] .kami-switch-track {
   transition: background-color var(--kami-dur) var(--kami-ease), border-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="mileng"] .kami-switch-knob {
+html[data-kami-skin="mileng"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -1423,12 +1423,12 @@ html[data-kami-skin="mileng"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease), background-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="mileng"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="mileng"] .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
 }
 
-html[data-kami-skin="mileng"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="mileng"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(18px);
   background-color: var(--kami-accent);
 }

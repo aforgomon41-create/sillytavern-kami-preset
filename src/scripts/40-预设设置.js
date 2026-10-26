@@ -1548,7 +1548,9 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       if (!t || !t.getAttribute) { return; }
       if (t.getAttribute('data-kami-var')) { applyVar(t); return; }
       if (t.getAttribute('data-kami-tagfix-custom')) { setTagFixCustom(t.value); }
-      if (t.getAttribute('data-kami-tagfix-all')) { setTagFixAll(!!t.checked); return; }
+      /* 2026-10-26：开关换成 Radix 后没有 .checked，改读 aria-checked。
+         委托在冒泡阶段跑，此时 Radix 已经把 aria-checked 更新成**新值**。 */
+      if (t.getAttribute('data-kami-tagfix-all')) { setTagFixAll(t.getAttribute('aria-checked') !== 'true'); return; }
     };
     var keydown = function (ev) {
       /* 契约 §4.4 硬规则 1：注释标记与预设面板逐属性同构 → 键盘也必须同构。
@@ -2747,7 +2749,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     tagFixAll = !!on;
     saveVars();
     log('自动标签处理 → 覆盖模式' + (tagFixAll ? '开启' : '关闭'));
-    if (tagFixEls && tagFixEls.all) { tagFixEls.all.checked = tagFixAll; }
+    if (tagFixEls && tagFixEls.all && tagFixEls.all.setChecked) { tagFixEls.all.setChecked(tagFixAll); }
     if (tagFixEls && tagFixEls.chip) { tagFixEls.chip.textContent = tagFixChipText(); }
   }
 
@@ -2931,7 +2933,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   function paintGodCmdCard() {
     var cur = readGodCmd();
     if (!godcmdEls) { return; }
-    if (godcmdEls.on) { godcmdEls.on.checked = cur.on; }
+    if (godcmdEls.on) { godcmdEls.on.setChecked ? godcmdEls.on.setChecked(cur.on) : null; }
     if (godcmdEls.chip) { godcmdEls.chip.textContent = cur.on ? GODCMD_COPY.modeOn : GODCMD_COPY.modeOff; }
     if (godcmdEls.txt) {
       if (document.activeElement !== godcmdEls.txt) { godcmdEls.txt.value = cur.text; }

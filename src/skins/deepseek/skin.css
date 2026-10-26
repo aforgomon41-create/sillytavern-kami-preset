@@ -662,7 +662,7 @@ html[data-kami-skin="deepseek"] .kami-range::-moz-range-thumb {
 html[data-kami-skin="deepseek"] .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
 html[data-kami-skin="deepseek"] .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-html[data-kami-skin="deepseek"] .kami-switch-track {
+html[data-kami-skin="deepseek"] .kami-switch {
   position: relative;
   width: 38px;
   height: 22px;
@@ -672,7 +672,7 @@ html[data-kami-skin="deepseek"] .kami-switch-track {
   transition: background-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="deepseek"] .kami-switch-knob {
+html[data-kami-skin="deepseek"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -683,18 +683,18 @@ html[data-kami-skin="deepseek"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease), background-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="deepseek"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="deepseek"] .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
   box-shadow: inset 0 0 0 1px var(--kami-accent-line);
 }
 
-html[data-kami-skin="deepseek"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="deepseek"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(16px);
   background-color: var(--kami-accent);
 }
 
-html[data-kami-skin="deepseek"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="deepseek"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }
@@ -1116,9 +1116,9 @@ html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root .kami-e
 html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root[data-kami-comp="options"] .kami-foot { position:relative;min-height:84px;padding-right:88px;flex-wrap:wrap; }
 html[data-kami-skin="deepseek"][data-kami-effects~="mascots"] .kami-root[data-kami-comp="options"] .kami-foot::after { content:"";position:absolute;right:5px;bottom:0;width:80px;height:80px;background:var(--kami-asset-peek) center bottom/contain no-repeat;pointer-events:none; }
 html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-card-title::before,html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-btn--primary::before { content:"";display:inline-block;width:23px;height:20px;background:var(--kami-asset-orca) center/contain no-repeat;vertical-align:middle;flex:none;margin-right:3px;pointer-events:none; }
-html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch-track { width:54px;height:28px; }
-html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch-knob { width:24px;height:22px;top:2px;left:2px;background-image:var(--kami-asset-orca);background-position:center;background-size:22px auto;background-repeat:no-repeat;background-color:var(--kami-bg); }
-html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { transform:translateX(24px);background-color:var(--kami-bg); }
+html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch { width:54px;height:28px; }
+html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch-thumb { width:24px;height:22px;top:2px;left:2px;background-image:var(--kami-asset-orca);background-position:center;background-size:22px auto;background-repeat:no-repeat;background-color:var(--kami-bg); }
+html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-switch[data-state="checked"] .kami-switch-thumb { transform:translateX(24px);background-color:var(--kami-bg); }
 html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-range { height:6px; }
 html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-range::-webkit-slider-thumb { width:30px;height:25px;border:0;border-radius:0;background:var(--kami-asset-orca) center/contain no-repeat;box-shadow:none; }
 html[data-kami-skin="deepseek"][data-kami-effects~="controls"] .kami-root .kami-range::-moz-range-thumb { width:30px;height:25px;border:0;border-radius:0;background:var(--kami-asset-orca) center/contain no-repeat;box-shadow:none; }

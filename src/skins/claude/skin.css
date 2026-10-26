@@ -662,7 +662,7 @@ html[data-kami-skin="claude"] .kami-range::-moz-range-thumb {
 html[data-kami-skin="claude"] .kami-switch { display: inline-flex; align-items: center; cursor: pointer; }
 html[data-kami-skin="claude"] .kami-switch-input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-html[data-kami-skin="claude"] .kami-switch-track {
+html[data-kami-skin="claude"] .kami-switch {
   position: relative;
   width: 38px;
   height: 22px;
@@ -672,7 +672,7 @@ html[data-kami-skin="claude"] .kami-switch-track {
   transition: background-color var(--kami-dur) var(--kami-ease), box-shadow var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="claude"] .kami-switch-knob {
+html[data-kami-skin="claude"] .kami-switch-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -683,18 +683,18 @@ html[data-kami-skin="claude"] .kami-switch-knob {
   transition: transform var(--kami-dur) var(--kami-ease), background-color var(--kami-dur) var(--kami-ease);
 }
 
-html[data-kami-skin="claude"] .kami-switch-input:checked + .kami-switch-track {
+html[data-kami-skin="claude"] .kami-switch[data-state="checked"] {
   background-color: var(--kami-accent-soft);
   border-color: var(--kami-accent);
   box-shadow: inset 0 0 0 1px var(--kami-accent-line);
 }
 
-html[data-kami-skin="claude"] .kami-switch-input:checked + .kami-switch-track .kami-switch-knob {
+html[data-kami-skin="claude"] .kami-switch[data-state="checked"] .kami-switch-thumb {
   transform: translateX(16px);
   background-color: var(--kami-accent);
 }
 
-html[data-kami-skin="claude"] .kami-switch-input:focus-visible + .kami-switch-track {
+html[data-kami-skin="claude"] .kami-switch:focus-visible {
   outline: 2px solid var(--kami-accent);
   outline-offset: 2px;
 }
@@ -1105,8 +1105,8 @@ html[data-kami-skin="claude"] .kami-root .kami-md { font-family:var(--kami-font-
 html[data-kami-skin="claude"] .kami-root .kami-md h1,html[data-kami-skin="claude"] .kami-root .kami-md h2,html[data-kami-skin="claude"] .kami-root .kami-md h3 { font-weight:400; }
 html[data-kami-skin="claude"] .kami-root .kami-md blockquote { border-left-color:var(--kami-claude-clay);color:var(--kami-fg); }
 html[data-kami-skin="claude"] .kami-root .kami-tab.is-on { border-bottom-color:var(--kami-claude-clay); }
-html[data-kami-skin="claude"] .kami-root .kami-dot,html[data-kami-skin="claude"] .kami-root .kami-switch-input:checked + .kami-switch-track .kami-switch-knob { background-color:var(--kami-claude-clay); }
-html[data-kami-skin="claude"] .kami-root .kami-switch-track { border-radius:20px; }
+html[data-kami-skin="claude"] .kami-root .kami-dot,html[data-kami-skin="claude"] .kami-root .kami-switch[data-state="checked"] .kami-switch-thumb { background-color:var(--kami-claude-clay); }
+html[data-kami-skin="claude"] .kami-root .kami-switch { border-radius:20px; }
 html[data-kami-skin="claude"] .kami-root .kami-btn { border-radius:8px; }/* Shared component roles: descriptions follow the selectable surface foreground. */
 html[data-kami-skin="claude"] .kami-root [data-kami-ui="choiceCard"][data-kami-card-role="choice"] > .kami-card-note { color:inherit; opacity:1; }
 html[data-kami-skin="claude"] .kami-root [data-kami-ui="field"] > .kami-card-note { color:var(--kami-fg-dim); opacity:1; }
