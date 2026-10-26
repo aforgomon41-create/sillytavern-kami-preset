@@ -763,6 +763,7 @@
 
   var panelRoot = null, panelDrop = null, panelHead = null, pane = 'skin', unsubs = [];
   var skinPickCtl = null;   /* 皮肤快速切换（Radix Select，2026-10-26） */
+  var shellRoot = null, pickSlot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var GESTURES = null;
 
   function mk(tag, cls, text) {
@@ -794,76 +795,52 @@
     panelDrop.style.pointerEvents = 'auto';
     panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
 
-    /* 头部 */
-    var head = mk('div', 'kami-head');
-    panelHead = head;
-    head.setAttribute('data-kami-drag', '1');
-    head.appendChild(mk('span', 'kami-dot'));
-    var deco = mk('span', 'kami-deco');
-    deco.setAttribute('data-kami-deco', 'd20');
-    deco.setAttribute('aria-hidden', 'true');
-    head.appendChild(deco);
-    head.appendChild(mk('span', 'kami-title', '皮肤管理'));
-    var sub = mk('span', 'kami-sub');
-    sub.setAttribute('data-kami-role', 'cur');
-    head.appendChild(sub);
-    var acts = mk('span', 'kami-actions');
-    var btnClose = mk('button', 'kami-icon-btn', '✕');
-    btnClose.setAttribute('aria-label', '关闭');
-    btnClose.setAttribute('data-kami-act', 'close');
-    acts.appendChild(btnClose);
-    head.appendChild(acts);
-    panelDrop.appendChild(head);
-
-    /* 标签页 */
-    var tabs = mk('div', 'kami-tabs');
-    tabs.setAttribute('role', 'tablist');
-    [['skin', '皮肤'], ['param', '参数'], ['fx', '特效']].forEach(function (t) {
-      var b = mk('button', 'kami-tab', t[1]);
-      b.setAttribute('role', 'tab');
-      b.setAttribute('data-kami-tab', t[0]);
-      b.setAttribute('aria-selected', t[0] === pane ? 'true' : 'false');
-      tabs.appendChild(b);
-    });
-    /* 皮肤快速切换下拉（2026-09-22 用户裁定：放在 **tab 行的最右端**）。
-       两个实现要点：
-         · `.kami-tabs` 是**横向滚动**容器（tab 多的时候要能滑），所以下拉框必须
-           `position:sticky; right:0` 贴在右端 —— 普通子元素一滑动就跟着跑没了；
-         · 用契约 §4.2 已登记的 `.kami-select`：全部皮肤都已经有它的外观与对比度规则，
-           外观归皮肤，单行与控件宽度由公共 tab-actions 插槽负责。
-       选它就等于点那张皮肤卡（都走同一个 setSkin）。 */
-    /* 2026-10-26：皮肤快速切换改用 Radix Select。data-kami-role 钩子保留在触发按钮上，
-       paintSkinPick 仍按它找元素；选项由 paintSkinPick 用 setOptions 动态填。 */
-    skinPickCtl = HOST.KamiRuntime.makeSelect({
-      value: '', options: [], label: '快速切换皮肤',
-      attrs: { 'data-kami-role': 'skin-pick' },
-      onChange: function (v) { if (v) { setSkin(v); } }
-    });
-    var pickWrap = createKamiUi(HDOC).slot('tab-actions', skinPickCtl.el);
-    tabs.appendChild(pickWrap);
-    panelDrop.appendChild(tabs);
-
-    /* 三个面板容器 */
-    ['skin', 'param', 'fx'].forEach(function (k) {
-      var body = mk('div', 'kami-body kami-scroll');
-      body.setAttribute('data-kami-pane', k);
-      if (k !== pane) { body.hidden = true; }
-      panelDrop.appendChild(body);
-    });
-
-    /* 底部 */
-    var foot = mk('div', 'kami-foot');
-    var st = mk('span', 'kami-sub');
-    st.setAttribute('data-kami-role', 'status');
-    foot.appendChild(st);
-    panelDrop.appendChild(foot);
-
-    var rz = mk('span', 'kami-resize');
-    rz.setAttribute('data-kami-act', 'resize');
-    panelDrop.appendChild(rz);
-
     panelRoot.appendChild(panelDrop);
     HDOC.body.appendChild(panelRoot);
+
+    /* ── 面板骨架交给 React 渲染（2026-10-26 迁移）──────────────────────
+       产出与原来**逐字一致**的 DOM：head / tabs（含皮肤快速切换槽位）/ 三个 pane / foot / 缩放手柄。
+       切 tab、拖拽、往 pane 里注入内容仍然是命令式 —— 它们按 data-kami-tab /
+       data-kami-drag / data-kami-pane 这些钩子查询，所以换渲染方式不影响既有逻辑。 */
+    var rt0 = HOST.KamiRuntime;
+    if (rt0 && rt0.createRoot) {
+      var h0 = rt0.React.createElement;
+      var tabDefs = [['skin', '皮肤'], ['param', '参数'], ['fx', '特效']];
+      shellRoot = rt0.createRoot(panelDrop);
+      rt0.flushSync(function () { shellRoot.render(h0(rt0.React.Fragment, null,
+        h0('div', { key: 'head', className: 'kami-head', 'data-kami-drag': '1', ref: function (n) { panelHead = n; } },
+          h0('span', { className: 'kami-dot' }),
+          h0('span', { className: 'kami-deco', 'data-kami-deco': 'd20', 'aria-hidden': 'true' }),
+          h0('span', { className: 'kami-title' }, '皮肤管理'),
+          h0('span', { className: 'kami-sub', 'data-kami-role': 'cur' }),
+          h0('span', { className: 'kami-actions' },
+            h0('button', { type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭', 'data-kami-act': 'close' }, '✕')
+          )
+        ),
+        h0('div', { key: 'tabs', className: 'kami-tabs', role: 'tablist' },
+          tabDefs.map(function (t) {
+            return h0('button', {
+              key: t[0], type: 'button', className: 'kami-tab', role: 'tab',
+              'data-kami-tab': t[0],
+              'aria-selected': t[0] === pane ? 'true' : 'false'
+            }, t[1]);
+          }).concat([
+            h0('span', { key: 'pick', className: 'kami-slot', 'data-kami-slot': 'tab-actions', ref: function (n) { pickSlot = n; } })
+          ])
+        ),
+        tabDefs.map(function (t) {
+          return h0('div', {
+            key: 'pane-' + t[0], className: 'kami-body kami-scroll',
+            'data-kami-pane': t[0], hidden: t[0] !== pane ? true : undefined
+          });
+        }),
+        h0('div', { key: 'foot', className: 'kami-foot' },
+          h0('span', { className: 'kami-sub', 'data-kami-role': 'status' })
+        ),
+        h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
+      )); });
+    }
+    if (pickSlot && skinPickCtl) { pickSlot.appendChild(skinPickCtl.el); }
 
     restoreGeometry();
     bindPanelEvents();
@@ -1789,6 +1766,7 @@
     /* 面板 DOM */
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; pickSlot = null; }
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
     panelRoot = null; panelDrop = null; panelHead = null;
     /* 按钮登记 */
