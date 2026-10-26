@@ -198,6 +198,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   var disposed = false;
   var panelRoot = null, panelDrop = null, panelHead = null;
+  var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var GESTURES = null;
   var liveData = null;              // 最近一次「读活设置 + 解析」的结果
   var view = [];                    // tab 模型（渲染用）
@@ -1418,53 +1419,40 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     panelDrop.style.pointerEvents = 'auto';
     panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
 
-    var head = mk('div', 'kami-head');
-    panelHead = head;
-    head.setAttribute('data-kami-drag', '1');
-    head.appendChild(mk('span', 'kami-dot'));
-    /* 装饰位（契约 §8）：与两个正则前端同形。皮肤声明了 decor 时，皮肤管理往这个空槽里注入装饰；
-       没声明的皮肤由结构层的 .kami-deco{display:none} 收着，一分钱不付。 */
-    var decoSlot = mk('span', 'kami-deco');
-    decoSlot.setAttribute('data-kami-deco', 'd20');
-    decoSlot.setAttribute('aria-hidden', 'true');
-    head.appendChild(decoSlot);
-    head.appendChild(mk('span', 'kami-title', '🌟 预设设置'));
-    var sub = mk('span', 'kami-sub');
-    sub.setAttribute('data-kami-role', 'src');
-    head.appendChild(sub);
-    var acts = mk('span', 'kami-actions');
-    var btnClose = mk('button', 'kami-icon-btn', '✕');
-    btnClose.setAttribute('aria-label', '关闭');
-    btnClose.setAttribute('data-kami-act', 'close');
-    acts.appendChild(btnClose);
-    head.appendChild(acts);
-    panelDrop.appendChild(head);
-
-    var tabs = mk('div', 'kami-tabs');
-    tabs.setAttribute('role', 'tablist');
-    tabs.setAttribute('data-kami-role', 'tabs');
-    /* ② 「结构」不归皮肤：触屏在 tab 行上只允许横向手势（纵向手势留给页面），
-       横向滑到头时不要让浏览器把它当成「后退」。 */
-    tabs.style.touchAction = 'pan-x';
-    tabs.style.overscrollBehaviorX = 'contain';
-    panelDrop.appendChild(tabs);
-
-    var foot = mk('div', 'kami-foot');
-    var st = mk('span', 'kami-sub');
-    st.setAttribute('data-kami-role', STATUS_ROLE);
-    foot.appendChild(st);
-    panelDrop.appendChild(foot);
-
-    /* ① 缩放把手：贴右下角（照搬 30-皮肤管理.js:530-532 的那一枚）。
-       外观由皮肤给（.kami-resize 在四套皮肤 + 兜底皮肤里都已经有规则），
-       皮肤没给规则时也还能用：光标与命中区域最重要，画不画得出来是次要的。 */
-    var rz = mk('span', 'kami-resize');
-    rz.setAttribute('data-kami-act', 'resize');
-    rz.setAttribute('aria-hidden', 'true');
-    panelDrop.appendChild(rz);
-
     panelRoot.appendChild(panelDrop);
     HDOC.body.appendChild(panelRoot);
+
+    /* ── 面板骨架交给 React（2026-10-26 迁移）──────────────────────────
+       渲染 head / 标签条空壳 / foot / 缩放手柄，结构与类名与迁移前逐字一致。
+       标签按钮与内容页仍由命令式代码动态增删（预设结构一变就要整条重建），
+       它们插在标签条与 foot 之间 —— React 只在开头画一次、之后不再重画，
+       所以两套写法可以在同一层里共存。 */
+    var rt0 = HOST.KamiRuntime;
+    if (rt0 && rt0.createRoot) {
+      var h0 = rt0.React.createElement;
+      shellRoot = rt0.createRoot(panelDrop);
+      rt0.flushSync(function () {
+        shellRoot.render(h0(rt0.React.Fragment, null,
+          h0('div', { key: 'head', className: 'kami-head', 'data-kami-drag': '1', ref: function (n) { panelHead = n; } },
+            h0('span', { className: 'kami-dot' }),
+            h0('span', { className: 'kami-deco', 'data-kami-deco': 'd20', 'aria-hidden': 'true' }),
+            h0('span', { className: 'kami-title' }, '🌟 预设设置'),
+            h0('span', { className: 'kami-sub', 'data-kami-role': 'src' }),
+            h0('span', { className: 'kami-actions' },
+              h0('button', { type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭', 'data-kami-act': 'close' }, '✕')
+            )
+          ),
+          /* 标签条只给空壳：按钮由 renderTabs 动态填，且它开头就会 textContent=''，
+             所以 React 这边不能放任何自己人的子节点，否则会被命令式代码抹掉。 */
+          h0('div', { key: 'tabs', className: 'kami-tabs', role: 'tablist', 'data-kami-role': 'tabs',
+            style: { touchAction: 'pan-x', overscrollBehaviorX: 'contain' } }),
+          h0('div', { key: 'foot', className: 'kami-foot' },
+            h0('span', { className: 'kami-sub', 'data-kami-role': STATUS_ROLE })
+          ),
+          h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
+        ));
+      });
+    }
 
     injectCss();
     restoreGeometry();
@@ -3908,6 +3896,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     /* 面板 DOM */
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
     panelRoot = null; panelDrop = null; panelHead = null; cardMap = {}; view = [];
     /* 按钮登记：__hubDefs 里自己那一份 + 中转站里的登记 */
