@@ -247,6 +247,65 @@ export function Pop(props) {
   );
 }
 
+/* ───────── 原生结构兼容控件（关键）──────────────────────────────
+ * 21 套皮肤是**按原生控件结构**写的：
+ *   · 开关：.kami-switch-input:checked + .kami-switch-track .kami-switch-knob（88 处）
+ *   · 下拉：select.kami-select（27 处，元素名限定）
+ * 直接换 Radix 的 Switch / Select 会改掉元素类型与兄弟关系，这些皮肤规则**全部失效**。
+ * 所以这里提供一层「用 React 写、渲染出原生结构」的控件：
+ *   面板可以迁到 React，皮肤一行都不用改；
+ *   等哪天 21 套皮肤都补了 Radix 版本的样式，再逐步换成上面的 Radix 组件。
+ */
+
+/* 原生开关：label.kami-switch > input.kami-switch-input + span.kami-switch-track > span.kami-switch-knob */
+export function NativeSwitch(props) {
+  return h('label', { className: 'kami-switch' },
+    h('input', {
+      className: 'kami-switch-input', type: 'checkbox',
+      checked: !!props.checked, disabled: !!props.disabled,
+      'aria-label': props.label || '开关',
+      onChange: function (ev) { if (props.onChange) { props.onChange(ev.target.checked); } }
+    }),
+    h('span', { className: 'kami-switch-track' }, h('span', { className: 'kami-switch-knob' }))
+  );
+}
+
+/* 原生下拉：select.kami-select（皮肤用元素名限定，必须保持 <select>） */
+export function NativeSelect(props) {
+  return h('select', {
+    className: 'kami-select',
+    value: props.value === undefined ? '' : props.value,
+    disabled: !!props.disabled,
+    'aria-label': props.label || '选择',
+    onChange: function (ev) { if (props.onChange) { props.onChange(ev.target.value); } }
+  }, (props.options || []).map(function (o) {
+    return h('option', { key: o.value, value: o.value }, o.label);
+  }));
+}
+
+/* 原生复选框：input.kami-checkbox + 文字（皮肤若有 .kami-checkbox 规则可直接用） */
+export function NativeCheck(props) {
+  return h('label', { className: 'kami-field' },
+    h('input', {
+      className: 'kami-checkbox', type: 'checkbox',
+      checked: !!props.checked, disabled: !!props.disabled,
+      'aria-label': props.label || '复选框',
+      onChange: function (ev) { if (props.onChange) { props.onChange(ev.target.checked); } }
+    }),
+    props.label ? h('span', null, props.label) : null
+  );
+}
+
+/* 原生命令按钮（与 .kami-btn 同款，供需要原生 button 语义的地方用） */
+export function NativeButton(props) {
+  var cls = 'kami-btn' + (props.variant === 'primary' ? ' kami-btn--primary' : '') + (props.variant === 'ghost' ? ' kami-btn--ghost' : '') + (props.active ? ' is-on' : '');
+  return h('button', {
+    type: 'button', className: cls, disabled: !!props.disabled,
+    title: props.title, 'aria-pressed': props.active ? 'true' : undefined,
+    onClick: props.onClick
+  }, props.children);
+}
+
 /* ───────── 字段行 ───────── */
 
 export function Field(props) {

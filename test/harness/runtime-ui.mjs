@@ -183,6 +183,60 @@ function qa(box, sel) { return Array.from(box.querySelectorAll(sel)); }
   ok(typeof RT.KAMI_UI_CSS === 'string' && RT.KAMI_UI_CSS.length > 1000, '⑦ 基础样式表跟着运行库下发', String(RT.KAMI_UI_CSS && RT.KAMI_UI_CSS.length) + ' 字符');
 }
 
+/* ── ⑧ 原生结构兼容控件（21 套皮肤按原生 DOM 写样式，这一组必须逐字对上） ── */
+{
+  const seen = { sw: null, sel: null, chk: null, btn: 0 };
+  const { box, root } = render(h('div', null,
+    h(RT.UI.NativeSwitch, { checked: true, label: '开关', onChange(v) { seen.sw = v; } }),
+    h(RT.UI.NativeSelect, { value: 'b', label: '下拉', options: [{ value: 'a', label: '甲' }, { value: 'b', label: '乙' }], onChange(v) { seen.sel = v; } }),
+    h(RT.UI.NativeCheck, { checked: false, label: '勾选', onChange(v) { seen.chk = v; } }),
+    h(RT.UI.NativeButton, { variant: 'primary', onClick() { seen.btn++; } }, '原生按钮')
+  ));
+
+  /* 开关：皮肤的选择器是 .kami-switch-input:checked + .kami-switch-track .kami-switch-knob，
+     所以「input 必须是 track 的前一个兄弟」这件事必须成立，否则 88 处皮肤规则全失效。 */
+  const swInput = q(box, 'input.kami-switch-input');
+  const swTrack = q(box, '.kami-switch-track');
+  const swKnob = q(box, '.kami-switch-knob');
+  eq(!!swInput, true, '⑧ 开关渲染出原生 input.kami-switch-input');
+  eq(swInput && swInput.getAttribute('type'), 'checkbox', '⑧ 开关是原生 checkbox');
+  eq(swInput && swInput.checked, true, '⑧ 开关勾选态正确');
+  eq(!!q(box, 'label.kami-switch'), true, '⑧ 开关外层是 label.kami-switch');
+  eq(!!swTrack, true, '⑧ 开关有 .kami-switch-track');
+  eq(!!swKnob, true, '⑧ 开关有 .kami-switch-knob');
+  eq(swInput && swInput.nextElementSibling === swTrack, true, '⑧ input 紧邻 track（皮肤 :checked + track 依赖这个兄弟关系）');
+  eq(swTrack && swTrack.contains(swKnob), true, '⑧ track 内含 knob');
+
+  /* 下拉：皮肤用 select.kami-select（元素名限定），必须是真 <select> */
+  const sel = q(box, 'select.kami-select');
+  eq(!!sel, true, '⑧ 下拉渲染出原生 select.kami-select');
+  eq(sel && sel.tagName, 'SELECT', '⑧ 下拉元素名是 SELECT（皮肤限定元素名）');
+  eq(qa(box, 'select.kami-select option').length, 2, '⑧ 下拉选项渲染出来');
+  eq(sel && sel.value, 'b', '⑧ 下拉当前值正确');
+
+  /* 复选框 */
+  const chk = q(box, 'input.kami-checkbox');
+  eq(!!chk, true, '⑧ 复选框渲染出原生 input.kami-checkbox');
+  eq(chk && chk.getAttribute('type'), 'checkbox', '⑧ 复选框是原生 checkbox');
+  eq(chk && chk.checked, false, '⑧ 复选框未选中态正确');
+
+  /* 事件回调真的能通 */
+  /* ⚠️ 受控组件要用 .click()：直接改 .checked 再派发 change，React 的值追踪器
+     认不出「用户操作」，合成事件不会触发（2026-10-26 写这段时踩到）。
+     .click() 会走完整的用户路径：切换 checked → 派发 input/change → React 收得到。 */
+  swInput.click();
+  eq(seen.sw, false, '⑧ 开关的 onChange 收到新值');
+  sel.value = 'a';
+  sel.dispatchEvent(new win.Event('change', { bubbles: true }));
+  eq(seen.sel, 'a', '⑧ 下拉的 onChange 收到新值');
+  chk.click();
+  eq(seen.chk, true, '⑧ 复选框的 onChange 收到新值');
+  q(box, 'button.kami-btn').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  eq(seen.btn, 1, '⑧ 原生按钮的 onClick 能触发');
+
+  root.unmount();
+}
+
 /* ── 收尾 ── */
 try { win.close(); } catch (e) { }
 console.log('');
