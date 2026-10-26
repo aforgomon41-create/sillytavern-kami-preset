@@ -220,6 +220,7 @@
 
   var disposed = false;
   var panelRoot = null, panelDrop = null, panelBody = null, panelDots = null;
+  var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var panelCounter = null, btnPrev = null, btnNext = null, btnClose = null;
   var steps = [];            // 可见的步骤模型（打开时构建）
   var cur = 0;               // 当前页下标
@@ -1830,40 +1831,72 @@
     panelDrop.setAttribute('data-kami-open', '1');
     panelRoot.appendChild(panelDrop);
 
-    var head = el('div', 'kami-head');
-    head.appendChild(el('span', 'kami-dot'));
-    head.appendChild(el('span', 'kami-title', copyOf('wizardTitle')));
-    panelCounter = el('span', 'kami-sub', '');
-    head.appendChild(panelCounter);
-    var acts = el('span', 'kami-actions');
-    btnClose = el('button', 'kami-icon-btn', '✕');
-    btnClose.type = 'button';
-    btnClose.setAttribute('aria-label', '关闭');
-    btnClose.addEventListener('click', function () { closeWizard(true); });
-    acts.appendChild(btnClose);
-    head.appendChild(acts);
-    panelDrop.appendChild(head);
-
-    panelDots = el('div', 'kami-dots');
-    panelDots.setAttribute('data-kami-role', 'dots');
-    panelDrop.appendChild(panelDots);
-
-    panelBody = el('div', 'kami-body kami-scroll');
-    panelBody.setAttribute('data-kami-role', 'page');
-    panelBody.addEventListener('change', onVarChange);   // 变量输入的统一入口（只挂这一次）
-    panelDrop.appendChild(panelBody);
-
-    var foot = el('div', 'kami-foot');
-    btnPrev = el('button', 'kami-btn kami-btn--ghost', copyOf('btnPrev'));
-    btnPrev.type = 'button';
-    btnPrev.addEventListener('click', prev);
-    foot.appendChild(btnPrev);
-    btnNext = el('button', 'kami-btn kami-btn--primary', copyOf('btnNext'));
-    btnNext.type = 'button';
-    btnNext.addEventListener('click', next);
-    foot.appendChild(btnNext);
-    panelDrop.appendChild(foot);
-
+    /* ── 面板骨架交给 React（2026-10-26 迁移）──────────────────────────
+       渲染 head / 步骤点 / 内容页 / 翻页按钮，结构与类名与迁移前一致。
+       内容页里的每一步仍由 showStep 命令式重画（每个步骤是一段独立的表单），
+       React 只在开头画一次，之后不再重画，所以两者可以共存。 */
+    var rt0 = HOST.KamiRuntime;
+    if (rt0 && rt0.createRoot) {
+      var h0 = rt0.React.createElement;
+      shellRoot = rt0.createRoot(panelDrop);
+      rt0.flushSync(function () {
+        shellRoot.render(h0(rt0.React.Fragment, null,
+          h0('div', { key: 'head', className: 'kami-head' },
+            h0('span', { className: 'kami-dot' }),
+            h0('span', { className: 'kami-title' }, copyOf('wizardTitle')),
+            h0('span', { className: 'kami-sub', ref: function (n) { panelCounter = n; } }, ''),
+            h0('span', { className: 'kami-actions' },
+              h0('button', { key: 'x', type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭',
+                ref: function (n) { btnClose = n; },
+                onClick: function () { closeWizard(true); } }, '✕')
+            )
+          ),
+          h0('div', { key: 'dots', className: 'kami-dots', 'data-kami-role': 'dots', ref: function (n) { panelDots = n; } }),
+          h0('div', { key: 'body', className: 'kami-body kami-scroll', 'data-kami-role': 'page',
+            ref: function (n) { panelBody = n; if (n) { n.addEventListener('change', onVarChange); } } }),
+          h0('div', { key: 'foot', className: 'kami-foot' },
+            h0('button', { key: 'prev', type: 'button', className: 'kami-btn kami-btn--ghost',
+              ref: function (n) { btnPrev = n; }, onClick: function () { prev(); } }, copyOf('btnPrev')),
+            h0('button', { key: 'next', type: 'button', className: 'kami-btn kami-btn--primary',
+              ref: function (n) { btnNext = n; }, onClick: function () { next(); } }, copyOf('btnNext'))
+          )
+        ));
+      });
+      try { rt0.classifyTree(panelDrop); } catch (e0) { }
+    }
+    else {
+      /* 兜底：运行库不可用时退回命令式搭建（单测沙箱就是这条路，真机不会走到）。 */
+      var head = el('div', 'kami-head');
+      head.appendChild(el('span', 'kami-dot'));
+      head.appendChild(el('span', 'kami-title', copyOf('wizardTitle')));
+      panelCounter = el('span', 'kami-sub', '');
+      head.appendChild(panelCounter);
+      var acts = el('span', 'kami-actions');
+      btnClose = el('button', 'kami-icon-btn', '✕');
+      btnClose.type = 'button';
+      btnClose.setAttribute('aria-label', '关闭');
+      btnClose.addEventListener('click', function () { closeWizard(true); });
+      acts.appendChild(btnClose);
+      head.appendChild(acts);
+      panelDrop.appendChild(head);
+      panelDots = el('div', 'kami-dots');
+      panelDots.setAttribute('data-kami-role', 'dots');
+      panelDrop.appendChild(panelDots);
+      panelBody = el('div', 'kami-body kami-scroll');
+      panelBody.setAttribute('data-kami-role', 'page');
+      panelBody.addEventListener('change', onVarChange);
+      panelDrop.appendChild(panelBody);
+      var foot = el('div', 'kami-foot');
+      btnPrev = el('button', 'kami-btn kami-btn--ghost', copyOf('btnPrev'));
+      btnPrev.type = 'button';
+      btnPrev.addEventListener('click', prev);
+      foot.appendChild(btnPrev);
+      btnNext = el('button', 'kami-btn kami-btn--primary', copyOf('btnNext'));
+      btnNext.type = 'button';
+      btnNext.addEventListener('click', next);
+      foot.appendChild(btnNext);
+      panelDrop.appendChild(foot);
+    }
     try { (HDOC.body || HDOC.documentElement).appendChild(panelRoot); } catch (e) {
       log('面板挂载失败：' + ((e && e.message) || e));
       panelRoot = null;
@@ -1898,6 +1931,7 @@
     if (panelRoot && markSeen !== false) {
       markVisit(completed ? { shown: true, completed: true } : { shown: true });
     }
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
     if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); }
     panelRoot = null; panelDrop = null; panelBody = null; panelDots = null;
     panelCounter = null; btnPrev = null; btnNext = null; btnClose = null;
