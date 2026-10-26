@@ -1,5 +1,5 @@
 /* 其他功能页复用现有标签修复、常驻指令和导出控件；状态仍由预设设置脚本持有。 */
-export function renderToolboxTab(pane) {
+export function renderToolboxTabLegacy(pane) {
     tagFixEls = null;
 
     /* ① 自动标签处理。屏幕上只留短标签；说明全部折叠进 ⓘ（用户 2026-09-30 裁定）。 */
@@ -152,10 +152,10 @@ export function renderToolboxTab(pane) {
     paintGodCmdCard();
 
     /* ② 「导出纯净正文」（用户 2026-10-05 点名放这一页） */
-    renderExportCard(pane);
+    renderExportCardLegacy(pane);
   }
 
-  function renderExportCard(pane) {
+  function renderExportCardLegacy(pane) {
     var ctx0 = stCtx();
     var canFmt = !!(ctx0 && typeof ctx0.messageFormatting === 'function');
 
@@ -290,3 +290,308 @@ export function renderToolboxTab(pane) {
     box.appendChild(body);
     pane.appendChild(box);
   }
+
+
+/* ════════════════════════════════════════════════════════════════
+ * React 版（2026-10-26 迁移）
+ * ----------------------------------------------------------------
+ * 三张折叠卡：#1 自动标签处理、#2 常驻附加指令、#3 导出纯净正文。
+ * 折叠行为由面板的点击委托（data-kami-collapse-head）负责，这里只管结构。
+ * 两张卡的状态写回函数（paintTagFixStat / paintGodCmdCard）在 40-预设设置.js，
+ * 它们按 Element 引用就地改，所以这里渲染完把 tagFixEls / godcmdEls 接上即可。
+ * 运行库不可用时退回上面的 *Legacy 实现（单测沙箱走那条）。
+ * ════════════════════════════════════════════════════════════════ */
+
+var toolboxOtherRoot = null;
+
+function otherUiRt() {
+  try { var rt = HOST.KamiRuntime; if (rt && rt.createRoot) { return rt; } } catch (e) { }
+  return null;
+}
+
+export function renderToolboxTab(pane) {
+  var rt = otherUiRt();
+  if (!rt || typeof tagFixApiReady !== 'function') { renderToolboxTabLegacy(pane); return; }
+  var h = rt.React.createElement;
+  var nodes = [
+    h(TagFixCard, { key: 'tagfix', rt: rt }),
+    h(GodCmdCard, { key: 'godcmd', rt: rt }),
+    h(ExportCard, { key: 'export', rt: rt })
+  ];
+  if (!toolboxOtherRoot) { pane.textContent = ''; toolboxOtherRoot = rt.createRoot(pane); }
+  rt.flushSync(function () {
+    toolboxOtherRoot.render(h(rt.React.Fragment, null, nodes));
+  });
+  try { rt.classifyTree(pane); } catch (e2) { }
+}
+
+/* 一张折叠卡的外壳：头（箭头 + 标题 + 可选的 ⓘ / 徽章）+ 折叠体 */
+function collapseCard(h, opts) {
+  var headKids = [h('span', { key: 'chev', className: 'kami-chev' }, '▸'),
+    h('span', { key: 't', className: 'kami-card-title' }, opts.title)];
+  if (opts.mark) { headKids.push(opts.mark); }
+  if (opts.chip) { headKids.push(opts.chip); }
+  var kids = [
+    h('div', { key: 'head', className: 'kami-card-head kami-head kami-collapse-head', 'data-kami-collapse-head': '1' }, headKids)
+  ];
+  if (opts.note) { kids.push(opts.note); }
+  kids.push(h('div', { key: 'body', className: 'kami-card-body kami-collapse-body' }, opts.body));
+  return h('div', { key: opts.key, className: 'kami-card kami-collapse', 'data-kami-open': '0' }, kids);
+}
+
+/* ⓘ 注释标记（不做翻转，翻转由面板委托负责 —— 与 40 号同一套结构） */
+function otherNoteMark(h, text, refFn) {
+  if (!text) { return null; }
+  return h('span', {
+    className: 'kami-card-note', 'data-kami-note-mark': '1',
+    role: 'button', tabindex: 0, 'aria-expanded': 'false', 'aria-label': '查看注释',
+    ref: refFn
+  }, 'ⓘ');
+}
+function otherNoteBox(h, text) {
+  if (!text) { return null; }
+  return h('div', { className: 'kami-card-note', 'data-kami-note': '1', hidden: true }, text);
+}
+
+/* ① 自动标签处理 */
+function TagFixCard(props) {
+  var rt = props.rt, h = rt.React.createElement;
+  var refs = {};
+  rt.React.useEffect(function () {
+    tagFixEls = {
+      box: refs.box, seg: refs.seg, stat: refs.stat, btn: refs.btn,
+      chip: refs.chip, custom: refs.custom, all: refs.all
+    };
+    try { paintTagFixStat(); } catch (e) { }
+  }, []);
+
+  var seg = h('div', { className: 'kami-seg', role: 'group', 'aria-label': TAGFIX_COPY.title, ref: function (n) { refs.seg = n; } },
+    TAGFIX_MODES.map(function (m) {
+      var on = m.id === tagFixMode;
+      return h('button', {
+        key: m.id, type: 'button',
+        className: 'kami-seg-item' + (on ? ' is-on' : ''),
+        'data-kami-tagfix': m.id,
+        'aria-pressed': on ? 'true' : 'false'
+      }, m.label);
+    }));
+
+  var body = [
+    h('div', { key: 'mode', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, TAGFIX_COPY.modeLabel),
+      h('span', { className: 'kami-field-value' }, seg)),
+    h('div', { key: 'modehint', className: 'kami-card-note' }, TAGFIX_COPY.modeHint),
+    h('div', { key: 'all', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, TAGFIX_COPY.allLabel),
+      h('span', { className: 'kami-field-value', ref: function (n) { mountTagFixSwitch(n, rt, refs); } })),
+    h('div', { key: 'allhint', className: 'kami-card-note' }, TAGFIX_COPY.allHint),
+    h('div', { key: 'cus', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, TAGFIX_COPY.customLabel),
+      h('span', { className: 'kami-field-value' },
+        h('input', {
+          type: 'text', className: 'kami-text',
+          'data-kami-tagfix-custom': '1',
+          placeholder: TAGFIX_COPY.customHint,
+          'aria-label': TAGFIX_COPY.customLabel,
+          defaultValue: tagFixCustom.join(' '),
+          ref: function (n) { refs.custom = n; }
+        }))),
+    h('div', { key: 'stat', className: 'kami-card-note', ref: function (n) { refs.stat = n; } },
+      TAGFIX_COPY.statLabel + '：' + TAGFIX_COPY.statNone),
+    h('div', { key: 'man', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, TAGFIX_COPY.manualLabel),
+      h('span', { className: 'kami-field-value' },
+        h('button', {
+          type: 'button', className: 'kami-btn', title: TAGFIX_COPY.manualHint,
+          'data-kami-act': 'tagfix-floor',
+          ref: function (n) { refs.btn = n; }
+        }, TAGFIX_COPY.manualBtn))),
+    tagFixApiReady() ? null : h('div', { key: 'needapi', className: 'kami-card-note' }, TAGFIX_COPY.needApi)
+  ];
+
+  return h('div', { className: 'kami-card kami-collapse', 'data-kami-open': '0', ref: function (n) { refs.box = n; } },
+    h('div', { className: 'kami-card-head kami-head kami-collapse-head', 'data-kami-collapse-head': '1' },
+      h('span', { className: 'kami-chev' }, '▸'),
+      h('span', { className: 'kami-card-title' }, TAGFIX_COPY.title),
+      otherNoteMark(h, TAGFIX_COPY.note),
+      h('span', { className: 'kami-chip', ref: function (n) { refs.chip = n; } }, tagFixChipText())),
+    otherNoteBox(h, TAGFIX_COPY.note),
+    h('div', { className: 'kami-card-body kami-collapse-body' }, body));
+}
+
+function mountTagFixSwitch(host, rt, refs) {
+  if (!host || host.__kamiSwitchMounted) { return; }
+  host.__kamiSwitchMounted = 1;
+  var ctl = rt.makeSwitch({
+    checked: !!tagFixAll, label: TAGFIX_COPY.allLabel,
+    attrs: { 'data-kami-tagfix-all': '1' }
+  });
+  host.appendChild(ctl.el);
+  refs.all = ctl;
+}
+
+/* ② 常驻附加指令 */
+function GodCmdCard(props) {
+  var rt = props.rt, h = rt.React.createElement;
+  var refs = {};
+  rt.React.useEffect(function () {
+    godcmdEls = { box: refs.box, head: refs.head, chip: refs.chip, on: refs.on, txt: refs.txt };
+    try { paintGodCmdCard(); } catch (e) { }
+  }, []);
+
+  var body = [
+    h('div', { key: 'sw', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, GODCMD_COPY.switchLabel),
+      h('span', { className: 'kami-field-value', ref: function (n) { mountGodCmdSwitch(n, rt, refs); } })),
+    h('div', { key: 'txt', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, GODCMD_COPY.textLabel),
+      h('span', { className: 'kami-field-value' },
+        h('textarea', {
+          className: 'kami-textarea',
+          'data-kami-godcmd-text': '1',
+          placeholder: GODCMD_COPY.textHint,
+          'aria-label': GODCMD_COPY.textLabel,
+          ref: function (n) {
+            refs.txt = n;
+            if (n && !n.__kamiWired) {
+              n.__kamiWired = 1;
+              n.addEventListener('input', function () { setGodCmdText(n.value); });
+              n.addEventListener('change', function () { setGodCmdText(n.value); });
+            }
+          }
+        })))
+  ];
+
+  return h('div', { className: 'kami-card kami-collapse', 'data-kami-open': '0', ref: function (n) { refs.box = n; } },
+    h('div', {
+      className: 'kami-card-head kami-head kami-collapse-head', 'data-kami-collapse-head': '1',
+      ref: function (n) { refs.head = n; }
+    },
+      h('span', { className: 'kami-chev' }, '▸'),
+      h('span', { className: 'kami-card-title' }, GODCMD_COPY.title),
+      otherNoteMark(h, GODCMD_COPY.note),
+      h('span', { className: 'kami-chip', ref: function (n) { refs.chip = n; } })),
+    otherNoteBox(h, GODCMD_COPY.note),
+    h('div', { className: 'kami-card-body kami-collapse-body' }, body));
+}
+
+function mountGodCmdSwitch(host, rt, refs) {
+  if (!host || host.__kamiSwitchMounted) { return; }
+  host.__kamiSwitchMounted = 1;
+  var ctl = rt.makeSwitch({
+    checked: false, label: GODCMD_COPY.switchLabel,
+    attrs: { 'data-kami-godcmd-on': '1' },
+    onChange: function () { toggleGodCmd(); }
+  });
+  host.appendChild(ctl.el);
+  refs.on = ctl;
+}
+
+/* ③ 导出纯净正文（有导出进度/结果状态，用 React 状态管） */
+function ExportCard(props) {
+  var rt = props.rt, h = rt.React.createElement;
+  var canFmt = false;
+  try { var c0 = stCtx(); canFmt = !!(c0 && typeof c0.messageFormatting === 'function'); } catch (e0) { }
+  var s0 = rt.React.useState('all');
+  var scope = s0[0], setScope = s0[1];
+  var s1 = rt.React.useState('');
+  var msg = s1[0], setMsg = s1[1];
+  var s2 = rt.React.useState('');
+  var kind = s2[0], setKind = s2[1];
+  var s3 = rt.React.useState(false);
+  var busy = s3[0], setBusy = s3[1];
+  var refs = {};
+
+  function say(k, text) { setKind(k || ''); setMsg(text); }
+
+  function go() {
+    if (busy) { return; }
+    var ctx = stCtx();
+    if (!ctx) { say('error', exportErrorText('NO_CTX')); return; }
+    var chat = ctx.chat || [];
+    var plan = planExport(chat,
+      refs.from ? refs.from.value : '', refs.to ? refs.to.value : '', scope === 'ai');
+    if (!plan.ok) { say('error', exportErrorText(plan.code, plan)); return; }
+    var picks = plan.picks, i = 0;
+    setBusy(true);
+    function step() {
+      var t0 = Date.now();
+      while (i < picks.length && (Date.now() - t0) < 60) {
+        picks[i].text = exportCleanOne(ctx, chat[picks[i].index], picks[i]);
+        i++;
+      }
+      say('work', EXPORT_NOTICE.working + ' ' + i + '/' + picks.length);
+      if (i < picks.length) { setTimeout(step, 0); return; }
+      var text = buildExportText(picks, scope === 'all');
+      setBusy(false);
+      if (!text) { say('error', exportErrorText('EMPTY_RESULT')); return; }
+      var name = exportFileName(plan.from, plan.to);
+      var skipped = plan.skippedSystem ? ('，跳过 ' + plan.skippedSystem + ' 条隐藏消息') : '';
+      if (plan.noContent) { skipped += '，其中 ' + plan.noContent + ' 条没有 content 块（按整条清洗）'; }
+      try { downloadTextFile(name, text); } catch (e) { say('error', '下载失败：' + ((e && e.message) || e)); return; }
+      var sizeText = text.length >= 1024 ? (Math.round(text.length / 1024) + ' KB') : (text.length + ' 字');
+      say('done', '已导出 ' + name + '（' + picks.length + ' 条' + skipped + '，' + sizeText + '）');
+      log('导出纯净正文：' + name + ' 楼层 ' + plan.from + '-' + plan.to + '/' + plan.total +
+        ' 条数 ' + picks.length + ' 字符 ' + text.length + ' 路径 ' + (canFmt ? 'messageFormatting' : '去标签兜底'));
+    }
+    step();
+  }
+
+  var scopeHintText = (scope === 'ai') ? EXPORT_NOTICE.scopeAiHint : EXPORT_NOTICE.scopeAllHint;
+  var body = [
+    h('div', { key: 'range', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, EXPORT_NOTICE.rangeLabel),
+      h('span', { className: 'kami-field-value' },
+        h('input', {
+          type: 'text', className: 'kami-number', 'data-kami-export': 'from',
+          placeholder: EXPORT_NOTICE.rangeFromHint,
+          'aria-label': EXPORT_NOTICE.rangeLabel + '（起始）',
+          ref: function (n) { refs.from = n; }
+        }),
+        h('span', { className: 'kami-field-note' }, '～'),
+        h('input', {
+          type: 'text', className: 'kami-number', 'data-kami-export': 'to',
+          placeholder: EXPORT_NOTICE.rangeToHint,
+          'aria-label': EXPORT_NOTICE.rangeLabel + '（结束）',
+          ref: function (n) { refs.to = n; }
+        }))),
+    h('div', { key: 'rangenote', className: 'kami-card-note' }, EXPORT_NOTICE.note),
+    h('div', { key: 'scope', className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, EXPORT_NOTICE.scopeLabel),
+      h('span', { className: 'kami-field-value' },
+        h('div', { className: 'kami-seg', role: 'group', 'aria-label': EXPORT_NOTICE.scopeLabel },
+          [['all', EXPORT_NOTICE.scopeAll], ['ai', EXPORT_NOTICE.scopeAi]].map(function (pair) {
+            var on = scope === pair[0];
+            return h('button', {
+              key: pair[0], type: 'button',
+              className: 'kami-seg-item' + (on ? ' is-on' : ''),
+              'data-kami-export': 'scope',
+              'data-kami-scope': pair[0],
+              'aria-pressed': on ? 'true' : 'false',
+              onClick: function () { setScope(pair[0]); }
+            }, pair[1]);
+          })))),
+    h('div', { key: 'scopehint', className: 'kami-card-note' }, scopeHintText),
+    h('div', {
+      key: 'msg', className: 'kami-card-note',
+      'data-kami-export': 'msg', 'data-kami-kind': kind
+    }, msg),
+    h('button', {
+      key: 'go', type: 'button', className: 'kami-btn kami-btn--primary',
+      'data-kami-export': 'go', disabled: busy || undefined,
+      onClick: go
+    }, EXPORT_NOTICE.btn),
+    h('div', {
+      key: 'path', className: 'kami-card-note', 'data-kami-export': 'path'
+    }, canFmt ? EXPORT_NOTICE.goodPath : EXPORT_NOTICE.badPath)
+  ];
+
+  return h('div', { className: 'kami-card kami-collapse', 'data-kami-open': '0' },
+    h('div', { className: 'kami-card-head kami-head kami-collapse-head', 'data-kami-collapse-head': '1' },
+      h('span', { className: 'kami-chev' }, '▸'),
+      h('span', { className: 'kami-card-title' }, EXPORT_NOTICE.title),
+      otherNoteMark(h, EXPORT_NOTICE.note),
+      h('span', { className: 'kami-chip' }, canFmt ? '与所见一致' : '清洗文本')),
+    otherNoteBox(h, EXPORT_NOTICE.note),
+    h('div', { className: 'kami-card-body kami-collapse-body' }, body));
+}
