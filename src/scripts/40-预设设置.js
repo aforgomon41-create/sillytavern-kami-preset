@@ -2043,9 +2043,26 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 「🧩 设置变量」tab：一张变量卡 = 卡片头（条目名 + 数字/范围 + 有注释才有的 ⓘ）+ 一个数字框。
      范围卡是两个数字框（_min / _max 一对），填反了自动交换（用户裁定）。 */
   function renderVarTab(pane, tab) {
+    var rt = reactRt();
+    if (rt && typeof ItemsGrid === 'function') {
+      var h = rt.React.createElement;
+      var nodes = [], drawnR = 0, ci;
+      for (ci = 0; ci < tab.cards.length; ci++) {
+        nodes.push(h(VarCardView, { key: 'v' + ci, rt: rt, card: tab.cards[ci] }));
+        drawnR++;
+      }
+      if (tab.own && tab.own.length) {
+        nodes.push(h(ItemsGrid, { key: 'own', items: tab.own, group: { key: tab.key + '#own', mode: null }, opts: { lock: isLockedItem } }));
+        drawnR++;
+      }
+      if (!drawnR) {
+        nodes.push(h('div', { key: 'empty', className: 'kami-empty' }, '这个层级里没有可设置的数字变量（变量的值必须是一串纯数字）。'));
+      }
+      if (renderNodesInto(pane, nodes)) { return; }
+    }
+    /* 兜底 */
     var i, drawn = 0;
     for (i = 0; i < tab.cards.length; i++) { pane.appendChild(varCardEl(tab, tab.cards[i])); drawn++; }
-    /* 裸放条目（不属任何卡片的那 2 条）照常铺网格：在别的 tab 里它们也是这么画的 */
     if (tab.own && tab.own.length) {
       pane.appendChild(itemsGrid(tab.own, { mode: null }, tab.key + '#own'));
       drawn++;
@@ -2053,6 +2070,37 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     if (!drawn) {
       pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可设置的数字变量（变量的值必须是一串纯数字）。'));
     }
+  }
+
+  /* 变量卡（React）。数字框用**非受控** defaultValue —— 变更委托直接读 .value。 */
+  function VarCardView(props) {
+    var rt = props.rt, card = props.card;
+    var h = rt.React.createElement;
+    var chips = [h('span', { key: 'k', className: 'kami-chip' }, card.kind === 'range' ? '范围' : '数字')];
+    if (card.multi) { chips.push(h('span', { key: 'm', className: 'kami-chip' }, card.label)); }
+    if (card.note) { chips.push(h(NoteMark, { key: 'mark', note: card.note })); }
+    var inputs = [];
+    for (var i = 0; i < card.vars.length; i++) {
+      var v = card.vars[i];
+      if (i > 0) { inputs.push(h('span', { key: 'd' + i, className: 'kami-card-note' }, '–')); }
+      inputs.push(h('input', {
+        key: 'i' + i, className: 'kami-number', type: 'number', min: '0', step: '1',
+        defaultValue: String(v.value),
+        'data-kami-var': v.name,
+        'data-kami-entry': card.entry || '',
+        'data-kami-old': v.value,
+        'aria-label': v.name
+      }));
+    }
+    return h('div', { className: 'kami-card', 'data-kami-card-key': card.key, 'data-kami-var-card': card.key },
+      h('div', { className: 'kami-card-head' },
+        h('span', { className: 'kami-card-title' }, card.name), chips),
+      h(NoteBox, { note: card.note }),
+      h('div', { className: 'kami-card-body' },
+        h('div', { className: 'kami-field' },
+          h('span', { className: 'kami-field-label' }, card.label),
+          h('span', { className: 'kami-field-value' }, inputs))))
+    ;
   }
 
   function varCardEl(tab, card) {
@@ -2166,58 +2214,82 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   }
 
   function renderMergeTab(pane) {
+    var rt = reactRt();
     var plan = mergeCtx ? mergeCtx.plan : null;
-    if (!plan) {
-      pane.appendChild(mk('div', 'kami-empty', '现在没有进行中的合并。'));
-      return;
+    if (rt) {
+      var h = rt.React.createElement;
+      if (!plan) {
+        if (renderNodesInto(pane, [h('div', { key: 'e', className: 'kami-empty' }, '现在没有进行中的合并。')])) { return; }
+      } else {
+        var W = mergeWords();
+        var nodes = [];
+        var headKids = [h('span', { key: 't', className: 'kami-card-title' }, W.title)];
+        if (plan.degraded) { headKids.push(h('span', { key: 'd', className: 'kami-chip' }, '旧版认不出')); }
+        nodes.push(h('div', { key: 'sum', className: 'kami-card' },
+          h('div', { className: 'kami-card-head' }, headKids),
+          h('div', { className: 'kami-card-body' },
+            '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W.lead + W.tail +
+            (plan.degraded ? '（你的旧版认不出来，所有差异都当成「两边都改过」处理，宁可少更新也不动你的东西。）' : ''))));
+        nodes.push(h('div', { key: 'bar', className: 'kami-card' },
+          h('div', { className: 'kami-card-body' },
+            h('div', { className: 'kami-field' },
+              h('span', { className: 'kami-field-label' }, '一键'),
+              h('span', { className: 'kami-field-value' },
+                h('button', { type: 'button', className: 'kami-btn', 'data-kami-act': 'merge-all-mine' }, W.allMine),
+                h('button', { type: 'button', className: 'kami-btn', 'data-kami-act': 'merge-all-next' }, W.allNext))))));
+        for (var mi = 0; mi < plan.conflicts.length; mi++) {
+          nodes.push(h(MergeCardView, { key: 'c' + mi, rt: rt, c: plan.conflicts[mi] }));
+        }
+        if (!plan.conflicts.length) {
+          nodes.push(h('div', { key: 'none', className: 'kami-empty' }, '没有需要你裁决的差异 —— 其余全部自动按口径合并。'));
+        }
+        nodes.push(h('div', { key: 'foot', className: 'kami-card' },
+          h('div', { className: 'kami-card-body' },
+            h('div', { className: 'kami-field' },
+              h('span', { className: 'kami-field-label' }, '确认'),
+              h('span', { className: 'kami-field-value' },
+                h('button', { type: 'button', className: 'kami-btn kami-btn--primary', 'data-kami-act': 'merge-apply' }, '应用并完成更新'))))));
+        if (renderNodesInto(pane, nodes)) { return; }
+      }
     }
-    /* 摘要卡：这一版从哪儿来、要裁决多少项、怎么选全说清 */
-    var W = mergeWords();
+    /* 兜底：运行库不可用 */
+    if (!plan) { pane.appendChild(mk('div', 'kami-empty', '现在没有进行中的合并。')); return; }
+    var W2 = mergeWords();
     var box = mk('div', 'kami-card');
     var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', W.title));
+    head.appendChild(mk('span', 'kami-card-title', W2.title));
     if (plan.degraded) { head.appendChild(mk('span', 'kami-chip', '旧版认不出')); }
     box.appendChild(head);
-    var body = mk('div', 'kami-card-body',
-      '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W.lead +
-      W.tail + (plan.degraded ? '（你的旧版认不出来，所有差异都当成' +
-      '「两边都改过」处理，宁可少更新也不动你的东西。）' : ''));
-    box.appendChild(body);
+    box.appendChild(mk('div', 'kami-card-body', '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W2.lead + W2.tail));
     pane.appendChild(box);
-    /* 顶部一键按钮 */
-    var bar = mk('div', 'kami-card');
-    var barBody = mk('div', 'kami-card-body');
-    var row = mk('div', 'kami-field');
-    row.appendChild(mk('span', 'kami-field-label', '一键'));
-    var vals = mk('span', 'kami-field-value');
-    var bMine = mk('button', 'kami-btn', W.allMine);
-    bMine.type = 'button'; bMine.setAttribute('data-kami-act', 'merge-all-mine');
-    var bNext = mk('button', 'kami-btn', W.allNext);
-    bNext.type = 'button'; bNext.setAttribute('data-kami-act', 'merge-all-next');
-    vals.appendChild(bMine);
-    vals.appendChild(bNext);
-    row.appendChild(vals);
-    barBody.appendChild(row);
-    bar.appendChild(barBody);
-    pane.appendChild(bar);
-    /* 待裁决清单（正文区自己滚，几十条也能滑） */
     for (var i = 0; i < plan.conflicts.length; i++) { pane.appendChild(mergeCardEl(plan.conflicts[i])); }
-    if (!plan.conflicts.length) {
-      pane.appendChild(mk('div', 'kami-empty', '没有需要你裁决的差异 —— 其余全部自动按口径合并。'));
-    }
-    /* 底部提交 */
-    var foot = mk('div', 'kami-card');
-    var footBody = mk('div', 'kami-card-body');
-    var row2 = mk('div', 'kami-field');
-    var vals2 = mk('span', 'kami-field-value');
-    var bApply = mk('button', 'kami-btn kami-btn--primary', '应用并完成更新');
-    bApply.type = 'button'; bApply.setAttribute('data-kami-act', 'merge-apply');
-    vals2.appendChild(bApply);
-    row2.appendChild(mk('span', 'kami-field-label', '确认'));
-    row2.appendChild(vals2);
-    footBody.appendChild(row2);
-    foot.appendChild(footBody);
-    pane.appendChild(foot);
+    if (!plan.conflicts.length) { pane.appendChild(mk('div', 'kami-empty', '没有需要你裁决的差异 —— 其余全部自动按口径合并。')); }
+  }
+
+  /* 一条待裁决差异（React）：卡片 + 两选分段按钮（点击仍走 data-kami-choice 委托） */
+  function MergeCardView(props) {
+    var rt = props.rt, c = props.c;
+    var h = rt.React.createElement;
+    var W = mergeWords();
+    var fs = (c.fields && c.fields.length) ? c.fields.join('、') : '';
+    var opts = [['mine', W.mine], ['next', W.next]];
+    return h('div', { className: 'kami-card', 'data-kami-conflict': c.key },
+      h('div', { className: 'kami-card-head' },
+        h('span', { className: 'kami-card-title' }, c.name || c.id),
+        h('span', { className: 'kami-chip' }, mergeKindLabel(c.kind))),
+      h('div', { className: 'kami-card-body' },
+        fs ? h('div', { className: 'kami-card-note' }, '改了：' + fs) : null,
+        h('div', { className: 'kami-seg', role: 'group', 'aria-label': c.name || c.id },
+          opts.map(function (o) {
+            var choice = (c.choice || 'mine') === o[0];
+            return h('button', {
+              key: o[0], type: 'button',
+              className: 'kami-seg-item' + (choice ? ' is-on' : ''),
+              'data-kami-choice': o[0],
+              'aria-pressed': choice ? 'true' : 'false'
+            }, o[1]);
+          }))))
+    ;
   }
 
   /* 找计划里一枚冲突项的现状（就地刷新时按 key 找） */
@@ -3008,37 +3080,213 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     }
   }
 
+  /* 一行「标签 + 值」（React 版，与命令式 aboutRow 同构） */
+  /* 「继承旧预设设置」卡（React 版，2026-10-26 迁移）
+     它有交互状态（清单开合 / 忙碌 / 结果文本 / 待确认的预设名），所以交给 React 状态管，
+     不再手工 textContent='' + appendChild。业务逻辑与命令式版逐句对应，一个字没改。 */
+  function InheritCardView(props) {
+    var rt = props.rt, up = props.up;
+    var h = rt.React.createElement, React = rt.React;
+    var stSrc = React.useState(inheritFromName || '');
+    var stAt = React.useState(inheritAtText || '');
+    var stOut = React.useState('还没用过');
+    var stMode = React.useState('idle');
+    var stInfo = React.useState({ names: [], current: '' });
+    var stWarn = React.useState('');
+    var stBusy = React.useState(false);
+    var srcName = stSrc[0], setSrcName = stSrc[1];
+    var srcAt = stAt[0], setSrcAt = stAt[1];
+    var outText = stOut[0], setOutText = stOut[1];
+    var mode = stMode[0], setMode = stMode[1];
+    var info = stInfo[0], setInfo = stInfo[1];
+    var warnName = stWarn[0], setWarnName = stWarn[1];
+    var busy = stBusy[0], setBusy = stBusy[1];
+
+    /* 把结果讲清楚：搬了哪几类、有没有需要裁决、预设选择有没有被挪走 */
+    function summarize(r, w) {
+      var rep = (r && r.report) || {};
+      var kinds = { prompts: '条目内容', prompt_order: '条目开关与顺序', extensions: '脚本设置与正则开关' };
+      var names = [];
+      for (var i = 0; i < ((w && w.changed) || []).length; i++) { names.push(kinds[w.changed[i]] || w.changed[i]); }
+      var s = INHERIT_COPY.done + '（从「' + r.oldName + '」搬来：' + (names.join('、') || '没有变化') + '；先备份成「' + r.backupName + '」）';
+      s += rep.conflicts > 0
+        ? (' ' + INHERIT_COPY.asked.replace('{n}', String(rep.conflicts)) + '（保留旧预设 ' + (rep.decidedMine || 0) + ' / 用现在这份 ' + (rep.decidedNext || 0) + '）')
+        : (' ' + INHERIT_COPY.noAsk);
+      if (r.decidedVia === 'popup' || r.decidedVia === 'popup-failed') { s += '（裁决走的是酒馆原生弹窗）'; }
+      if (w && w.sel && w.sel.checked && !w.sel.ok) { s += ' ' + INHERIT_COPY.selFailed; }
+      else if (w && w.sel && w.sel.moved && w.sel.ok) { s += ' ' + INHERIT_COPY.selMoved; }
+      return s;
+    }
+
+    function start(name) {
+      setBusy(true); setMode('idle');
+      setOutText(INHERIT_COPY.working + '（' + name + '）');
+      var p = null;
+      try { p = up.inheritFrom(name); } catch (e) { p = Promise.reject(e); }
+      Promise.resolve(p).then(function (r) {
+        setBusy(false);
+        if (!r || !r.ok) {
+          if (r && r.cancelled) { setOutText('你在裁决页里没有完成，这次什么都不会写。'); return; }
+          setOutText(INHERIT_COPY.failHead + ((r && r.msg) || '没拿到结果'));
+          return;
+        }
+        var w = applyInheritedToLive(r.merged, r.targetName);
+        if (!w.ok) { setOutText(INHERIT_COPY.failHead + w.msg); return; }
+        inheritFromName = r.oldName || '';
+        inheritAtText = nowText();
+        saveVars();
+        setSrcName(inheritFromName);
+        setSrcAt(inheritAtText);
+        setOutText(summarize(r, w));
+        toast('success', '已从「' + r.oldName + '」继承设置，立刻生效');
+      })['catch'](function (e) {
+        setBusy(false);
+        setOutText(INHERIT_COPY.failHead + ((e && e.message) || e));
+      });
+    }
+
+    function openPick() {
+      var inf = { names: [], current: '' };
+      try { inf = up.otherPresetNames() || inf; } catch (e) { }
+      setInfo(inf);
+      setMode('pick');
+    }
+
+    var srcText = srcName ? (srcName + (srcAt ? ('（' + srcAt + '）') : '')) : INHERIT_COPY.sourceNone;
+    var body = [
+      aboutRowView(h, INHERIT_COPY.sourceLabel, srcText, '', null, 'src'),
+      h('div', { key: 'sn', className: 'kami-card-note' }, INHERIT_COPY.sourceNote)
+    ];
+
+    if (!up) {
+      body.push(h('div', { key: 'no', className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, '手动导入新版之后'),
+        h('span', { className: 'kami-field-value' }, '不可用')));
+      body.push(h('div', { key: 'dg', className: 'kami-card-note' }, INHERIT_COPY.degrade));
+    } else {
+      body.push(h('div', { key: 'row', className: 'kami-field' },
+        h('span', { className: 'kami-field-label' }, '手动导入新版之后'),
+        h('span', { className: 'kami-field-value' },
+          h('button', {
+            type: 'button', className: 'kami-btn kami-btn--primary',
+            disabled: busy || undefined,
+            onClick: function () { if (mode === 'idle') { openPick(); } else { setMode('idle'); } }
+          }, '选择旧预设'))));
+
+      if (mode === 'pick') {
+        var rows = [];
+        rows.push(h('div', { key: 'hint', className: 'kami-card-note' },
+          INHERIT_COPY.pickHint + (info.current ? ('（当前这一份是「' + info.current + '」，不列在下面）') : '')));
+        var names = info.names || [];
+        if (!names.length) {
+          rows.push(h('div', { key: 'none', className: 'kami-empty' }, INHERIT_COPY.noOthers));
+        } else {
+          for (var ni = 0; ni < names.length; ni++) {
+            (function (n, idx) {
+              var kami = true;
+              try { kami = up.isKamiName(n) === true; } catch (e) { kami = true; }
+              rows.push(h('div', { key: 'n' + idx, className: 'kami-field' },
+                h('span', { className: 'kami-field-label' }, n),
+                h('span', { className: 'kami-field-value' },
+                  h('button', { type: 'button', className: 'kami-btn',
+                    onClick: function () { if (kami) { start(n); } else { setWarnName(n); setMode('warn'); } } },
+                    kami ? '继承' : '继承（非卡密）'))));
+            })(names[ni], ni);
+          }
+        }
+        rows.push(h('div', { key: 'cancel', className: 'kami-field' },
+          h('span', { className: 'kami-field-label' }, '不继承了'),
+          h('span', { className: 'kami-field-value' },
+            h('button', { type: 'button', className: 'kami-btn',
+              onClick: function () { setMode('idle'); setOutText('还没用过'); } }, '取消'))));
+        body.push(h('div', { key: 'pick', className: 'kami-card-note',
+          style: { maxHeight: '42vh', overflowY: 'auto' } }, rows));
+      }
+
+      if (mode === 'warn') {
+        body.push(h('div', { key: 'warn', className: 'kami-card-note' },
+          h('div', { key: 'w', className: 'kami-card-note' }, INHERIT_COPY.notKamiWarn),
+          h('div', { key: 'r', className: 'kami-field' },
+            h('span', { className: 'kami-field-label' }, warnName),
+            h('span', { className: 'kami-field-value' },
+              h('button', { type: 'button', className: 'kami-btn kami-btn--primary',
+                onClick: function () { start(warnName); } }, '仍然继承'),
+              h('button', { type: 'button', className: 'kami-btn',
+                onClick: function () { openPick(); } }, '换一个')))));
+      }
+    }
+
+    body.push(aboutRowView(h, '继承结果', outText, '', null, 'out'));
+
+    return h('div', { className: 'kami-card' },
+      h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, INHERIT_COPY.title)),
+      h('div', { className: 'kami-card-note' }, INHERIT_COPY.note),
+      h('div', { className: 'kami-card-body' }, body));
+  }
+
+  function aboutRowView(h, label, value, chip, valRef, key) {
+    return h('div', { key: key, className: 'kami-field' },
+      h('span', { className: 'kami-field-label' }, label),
+      h('span', { className: 'kami-field-value', ref: valRef || undefined },
+        value || '读不到',
+        chip ? h('span', { className: 'kami-chip' }, chip) : null));
+  }
+
   function renderAboutTab(pane) {
     aboutEls = null;
-    var i;
-
-    /* ① 版本信息 */
-    var box = mk('div', 'kami-card');
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', '版本信息'));
-    box.appendChild(head);
-    var body = mk('div', 'kami-card-body');
+    var rt = reactRt();
+    var api = kamiUpdateApi();
+    var snap = null;
+    try { snap = api ? api.status() : null; } catch (e) { snap = null; }
     var pv = presetVersionOf(presetNameNow());
     var rows = [
       ['酒馆版本', tavernVersionText(), ''],
       ['酒馆助手', callGlobal('getTavernHelperVersion'), ''],
       ['预设版本', pv ? (pv.date ? (pv.label + '（' + pv.date + '）') : pv.label) : '名称里认不出编号', BUILD_N ? ('构建 ' + BUILD_N) : '']
     ];
+    var repoText = '「🔄 远程更新」脚本没在运行';
+    if (snap) { repoText = (snap.repo && snap.repo.configured) ? (snap.repo.owner + '/' + snap.repo.repo) : '还没配置仓库'; }
+    if (rt) {
+      var h = rt.React.createElement;
+      var refs = { btn: null, out: null, last: null };
+      var nodes = [
+        h('div', { key: 'ver', className: 'kami-card' },
+          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '版本信息')),
+          h('div', { className: 'kami-card-body' },
+            rows.map(function (r, i) { return aboutRowView(h, r[0], r[1], r[2], null, 'r' + i); }))),
+        h('div', { key: 'upd', className: 'kami-card' },
+          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '检查更新')),
+          h('div', { className: 'kami-card-body' },
+            aboutRowView(h, '远程仓库', repoText, '', null, 'a'),
+            aboutRowView(h, '上次检查', (snap && snap.lastCheckedAt) ? snap.lastCheckedAt : '本次会话还没查过', '', function (n) { refs.last = n; }, 'b'),
+            h('div', { key: 'btnrow', className: 'kami-field' },
+              h('span', { className: 'kami-field-label' }, '手动检查'),
+              h('span', { className: 'kami-field-value' },
+                h('button', { key: 'b', type: 'button', className: 'kami-btn kami-btn--primary',
+                  'data-kami-act': 'check-update', ref: function (n) { refs.btn = n; } }, '检查更新'))),
+            aboutRowView(h, '检查结果', '还没查过', '', function (n) { refs.out = n; }, 'c'))),
+        h(InheritCardView, { key: 'inherit', rt: rt, up: api })
+      ];
+      if (renderNodesInto(pane, nodes)) {
+        aboutEls = { btn: refs.btn, out: refs.out, last: refs.last };
+        return;
+      }
+    }
+    /* 兜底：运行库不可用（单测沙箱走这条） */
+    var i;
+    var box = mk('div', 'kami-card');
+    var head = mk('div', 'kami-card-head');
+    head.appendChild(mk('span', 'kami-card-title', '版本信息'));
+    box.appendChild(head);
+    var body = mk('div', 'kami-card-body');
     for (i = 0; i < rows.length; i++) { body.appendChild(aboutRow(rows[i][0], rows[i][1], rows[i][2])); }
     box.appendChild(body);
     pane.appendChild(box);
-
-    /* ② 检查更新 */
-    var api = kamiUpdateApi();
-    var snap = null;
-    try { snap = api ? api.status() : null; } catch (e) { snap = null; }
     var box2 = mk('div', 'kami-card');
     var head2 = mk('div', 'kami-card-head');
     head2.appendChild(mk('span', 'kami-card-title', '检查更新'));
     box2.appendChild(head2);
     var body2 = mk('div', 'kami-card-body');
-    var repoText = '「🔄 远程更新」脚本没在运行';
-    if (snap) { repoText = (snap.repo && snap.repo.configured) ? (snap.repo.owner + '/' + snap.repo.repo) : '还没配置仓库'; }
     body2.appendChild(aboutRow('远程仓库', repoText, ''));
     var lastRow = aboutRow('上次检查', (snap && snap.lastCheckedAt) ? snap.lastCheckedAt : '本次会话还没查过', '');
     body2.appendChild(lastRow);
@@ -3055,14 +3303,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     body2.appendChild(outRow);
     box2.appendChild(body2);
     pane.appendChild(box2);
-
-    aboutEls = {
-      btn: btn,
-      out: outRow.querySelector('.kami-field-value'),
-      last: lastRow.querySelector('.kami-field-value')
-    };
-
-    /* ③ 继承旧预设设置（2026-09-28 用户点名） */
+    aboutEls = { btn: btn, out: outRow.querySelector('.kami-field-value'), last: lastRow.querySelector('.kami-field-value') };
     renderInheritCard(pane);
   }
 
