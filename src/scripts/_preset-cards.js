@@ -239,3 +239,139 @@ export function buildModelCard(doc, model, currentEmoji, opts) {
   box.appendChild(body);
   return box;
 }
+
+/* ════════════════════════════════════════════════════════════════
+ * React 版（2026-10-26 迁移）
+ * ----------------------------------------------------------------
+ * 上面那套「返回 DOM 节点」的构建器保留不动（还有地方在用，也作为兜底）。
+ * 这里补一套**组件版**：面板骨架迁到 React 之后，卡片也直接由 React 渲染，
+ * 不再先建 DOM 再塞进去。
+ *
+ * 运行库由面板通过 pcSetRuntime() 交进来 —— 本模块不读全局，
+ * 因为 40 与 50 各有一个 HOST，模块不该自己猜。
+ * 结构、类名、属性与上面的 DOM 版**逐项一致**（契约 §4.4 那套硬规则照旧）。
+ * ════════════════════════════════════════════════════════════════ */
+
+var PCRT = null;
+export function pcSetRuntime(rt) { PCRT = rt; return !!PCRT; }
+function pcH() { return PCRT.React.createElement; }
+export function pcHas(rt) { return !!(rt ? rt : PCRT) && !!(rt ? rt : PCRT).React; }
+
+/* ⓘ 注释角标 */
+export function NoteMark(props) {
+  if (!props || !props.note) { return null; }
+  return pcH()('span', {
+    className: 'kami-card-note',
+    'data-kami-note-mark': '1',
+    role: 'button',
+    tabindex: 0,
+    'aria-expanded': 'false',
+    'aria-label': '查看注释',
+    'data-kami-corner': props.corner || undefined
+  }, 'ⓘ');
+}
+
+/* 注释正文容器（独立 div，默认隐藏） */
+export function NoteBox(props) {
+  if (!props || !props.note) { return null; }
+  return pcH()('div', { className: 'kami-card-note', 'data-kami-note': '1', hidden: true }, props.note);
+}
+
+/* 一个条目 = 一张可点的小卡片（整卡就是开关） */
+export function ItemCard(props) {
+  var item = props.item || {};
+  var group = props.group || {};
+  var opts = props.opts || {};
+  var on = item.enabled !== false;
+  var locked = opts.lock ? !!opts.lock(item) : (item.locked === true);
+  var note = opts.noteText ? opts.noteText(item) : item.comment;
+  var name = splitNameEmoji(item.name, note ? 3 : PC_CORNERS.length);
+  var corners = note ? PC_CORNERS_NO_TR : PC_CORNERS;
+
+  var kids = [];
+  if (note) { kids.push(pcH()(NoteMark, { key: 'mark', note: note, corner: 'tr' })); }
+  for (var bi = 0; bi < name.emojis.length; bi++) {
+    kids.push(pcH()('span', {
+      key: 'e' + bi, className: 'kami-badge',
+      'data-kami-corner': corners[bi] || 'tr', 'aria-hidden': 'true'
+    }, name.emojis[bi]));
+  }
+  kids.push(pcH()('span', { key: 'head', className: 'kami-card-head' },
+    pcH()('span', { className: 'kami-item-main' }, name.rest)));
+
+  var btn = pcH()('button', {
+    key: 'btn',
+    type: 'button',
+    className: 'kami-item kami-card' + (on ? ' is-on' : ''),
+    role: 'button',
+    'aria-pressed': on ? 'true' : 'false',
+    disabled: locked || undefined,
+    'aria-disabled': locked ? 'true' : undefined,
+    'aria-label': item.name,
+    'data-kami-item': item.identifier,
+    'data-kami-card': group.key || '',
+    'data-kami-single': group.mode === '单选' ? '1' : undefined
+  }, kids);
+
+  if (!note) { return btn; }
+  return pcH()('div', { className: 'kami-item-note' }, btn, pcH()(NoteBox, { note: note }));
+}
+
+/* 一排条目卡 */
+export function ItemsGrid(props) {
+  var items = (props && props.items) || [];
+  var group = (props && props.group) || {};
+  var opts = (props && props.opts) || {};
+  return pcH()('div', { className: 'kami-grid' },
+    items.map(function (it, i) {
+      return pcH()(ItemCard, { key: it.identifier || i, item: it, group: group, opts: opts });
+    }));
+}
+
+/* 一张模型卡片：卡头是「选中这个模型」的开关，卡体是该模型名下的条目 */
+export function ModelCard(props) {
+  var model = props.model || {};
+  var opts = props.opts || {};
+  var items = model.items || [];
+  var key = opts.cardKey || model.key || '';
+  var on = model.emoji === props.currentEmoji;
+  var h = pcH();
+  return h('div', { className: 'kami-card', 'data-kami-card-key': key },
+    h('button', {
+      type: 'button',
+      className: 'kami-card-head kami-btn kami-btn--ghost' + (on ? ' is-on' : ''),
+      'data-kami-model': model.emoji,
+      'aria-pressed': on ? 'true' : 'false'
+    },
+      h('span', { className: 'kami-card-title' }, model.name),
+      h('span', { className: 'kami-chip' }, items.length + ' 条'),
+      on ? h('span', { className: 'kami-chip', 'data-kami-role': 'cur' }, '当前') : null
+    ),
+    h('div', { className: 'kami-card-body' },
+      h(ItemsGrid, { items: items, group: { key: key, mode: opts.mode || null }, opts: opts })
+    )
+  );
+}
+
+/* 一整张「条目卡片组」（预设面板的一个 tab 里那种）：
+   .kami-card > 卡头（标题 / 条数 / 单选标记 / ⓘ）+ 注释正文 + 卡体网格 */
+export function PresetCard(props) {
+  var card = props.card || {};
+  var items = card.items || [];
+  var h = pcH();
+  var chips = [h('span', { key: 'n', className: 'kami-chip' }, items.length + ' 条')];
+  if (card.mode === '单选') { chips.push(h('span', { key: 'mode', className: 'kami-chip' }, '单选')); }
+  else if (card.mode === '多选') { chips.push(h('span', { key: 'mode', className: 'kami-chip' }, '任选')); }
+  var mark = h(NoteMark, { key: 'mark', note: card.note });
+  if (mark) { chips.push(mark); }
+  return h('div', { className: 'kami-card', 'data-kami-card-key': props.cardKey },
+    h('div', { className: 'kami-card-head' },
+      h('span', { className: 'kami-card-title' }, card.name),
+      chips
+    ),
+    h(NoteBox, { note: card.note }),
+    h('div', { className: 'kami-card-body' },
+      h(ItemsGrid, { items: items, group: { key: props.cardKey, mode: card.mode }, opts: props.opts })
+    )
+  );
+}

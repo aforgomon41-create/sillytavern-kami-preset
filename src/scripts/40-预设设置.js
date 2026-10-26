@@ -1802,6 +1802,25 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     else if (right > bar.scrollLeft + bar.clientWidth) { bar.scrollLeft = right - bar.clientWidth + 4; }
   }
 
+  /* ── React 渲染（2026-10-26 迁移）──────────────────────────────
+     面板骨架已经是 React；内容页（卡片组 / 模型卡）也改成 React 渲染。
+     卡片的**状态变更与就地刷新**（toggleItem / syncItems / paintModelHeads）保持命令式 ——
+     那些行为久经考验，改写成 React 状态只会引入回归，收益为零。 */
+  function reactRt() {
+    try { var rt = HOST.KamiRuntime; if (rt && rt.createRoot) { if (typeof pcSetRuntime === 'function') { pcSetRuntime(rt); } return rt; } } catch (e) { }
+    return null;
+  }
+  function renderNodesInto(host, nodes) {
+    var rt = reactRt();
+    if (!rt) { return false; }
+    host.textContent = '';
+    var h = rt.React.createElement;
+    var root = rt.createRoot(host);
+    rt.flushSync(function () { root.render(h(rt.React.Fragment, null, nodes)); });
+    try { rt.classifyTree(host); } catch (e) { }
+    return true;
+  }
+
   function renderTab(pane, tab) {
     pane.textContent = '';
     if (tab.special === 'model') { renderModelTab(pane, tab); return; }
@@ -1809,27 +1828,56 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     if (tab.special === 'about') { renderAboutTab(pane, tab); return; }
     if (tab.special === 'merge') { renderMergeTab(pane, tab); return; }
     if (tab.special === 'err') {
+      var rtErr = reactRt();
+      if (rtErr) {
+        var hErr = rtErr.React.createElement;
+        if (renderNodesInto(pane, [hErr('div', { key: 'e', className: 'kami-empty' },
+          (tab.error || '读不到当前预设') + '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。')])) { return; }
+      }
       pane.appendChild(mk('div', 'kami-empty', (tab.error || '读不到当前预设') +
         '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
       return;
     }
-    /* 写作指导分区：额外挂一块「用户自定义文风」（用户 2026-10-02 要求预设面板也有）。
-       整块实现在共享模块 src/scripts/_custom-style-ui.js —— 这里只是"在我这块容器里挂一次"。
-       判定用的是解析器那份分区名提示（DIY_LAYER_HINT），与模块找分区用的是同一个常量。
-       ⚠️ 排在该 tab 内容的**最前面**（2026-10-03 用户点名：放最上面，不是最下面）——
-          是"这个 tab 的最前"，不是整块面板的最前：上面那几行特判（模型/变量/关于/…）
-          各有自己的 render 函数，早就 return 了，走不到这里。
-       ⚠️ 挂的是自己的 kami-cs-host 专属容器，不是 pane —— 模块的 mount 会先清空容器，
-          直接挂 pane 会把下面刚画好的卡片整片抹掉（上次的回归就是这么来的）。 */
+    /* ── React 路径 ──
+       写作指导分区要挂一块「用户自定义文风」（共享模块 _custom-style-ui.js）。
+       它的 mount 会先清空容器，所以先渲染一个专属的 .kami-cs-host，渲染完再往里挂；
+       ⚠️ 必须排在这一页内容的最前面（2026-10-03 用户点名）。 */
+    var rt = reactRt();
+    if (rt && typeof PresetCard === 'function') {
+      var h = rt.React.createElement;
+      var nodes = [];
+      var needCs = !!(tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0);
+      var csRef = null;
+      if (needCs) {
+        nodes.push(h('div', { key: 'cs', className: 'kami-cs-host', ref: function (n) { csRef = n; } }));
+      }
+      var drawnR = 0, ci;
+      for (ci = 0; ci < tab.cards.length; ci++) {
+        var cardR = tab.cards[ci], keyR = tab.key + '#' + ci;
+        cardMap[keyR] = { tabKey: tab.key, items: cardR.items };
+        nodes.push(h(PresetCard, { key: keyR, card: cardR, cardKey: keyR, opts: { lock: isLockedItem } }));
+        drawnR++;
+      }
+      if (tab.own && tab.own.length) {
+        nodes.push(h(ItemsGrid, { key: 'own', items: tab.own, group: { key: tab.key + '#own', mode: null }, opts: { lock: isLockedItem } }));
+        drawnR++;
+      }
+      if (!drawnR) {
+        nodes.push(h('div', { key: 'empty', className: 'kami-empty' }, '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
+      }
+      if (renderNodesInto(pane, nodes)) {
+        if (needCs && csRef) { mountCustomStyleBlock(pane, csRef); }
+        return;
+      }
+    }
+    /* ── 兜底：运行库不可用（单测沙箱走这条路）── */
     if (tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0) { mountCustomStyleBlock(pane); }
     var drawn = 0, i;
     for (i = 0; i < tab.cards.length; i++) { pane.appendChild(cardEl(tab, tab.cards[i], i)); drawn++; }
-    /* 不属任何卡片的裸放条目：直接铺一层网格，不套假卡片 */
     if (tab.own && tab.own.length) {
       pane.appendChild(itemsGrid(tab.own, { mode: null }, tab.key + '#own'));
       drawn++;
     }
-    /* 空态是给"卡片组"的：仍然跟着卡片组走（自定义块在上面，不顶替它） */
     if (!drawn) {
       pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
     }
@@ -1838,7 +1886,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 「用户自定义文风」在预设面板里的唯一接线段：给模块文档对象 + KamiPreset + 保存后重画。
      写入走的是本脚本自己暴露的 applyCustomStyles（同一次调用栈，不跨层互调）。 */
   var csBlock = null;
-  function mountCustomStyleBlock(pane) {
+  function mountCustomStyleBlock(pane, hostEl) {
     csBlock = customStyleBlock({
       doc: HDOC,
       api: { customStyles: readCustomStyleState, applyCustomStyles: applyCustomStyles },
@@ -1846,10 +1894,12 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       log: log,
       onSaved: function () { refresh(true); }
     });
-    /* ⚠️ 同上：mount 会先清空容器，直接挂 pane 会把这一页里预设自带的文风条目全抹掉。
-       所以必须先建一个只属于这块的容器（2026-10-03 真机回归，已修）。 */
-    var csHost = mk('div', 'kami-cs-host');
-    pane.appendChild(csHost);
+    /* ⚠️ mount 会先清空容器，直接挂 pane 会把这一页里预设自带的文风条目全抹掉。
+       所以必须有一个只属于这块的容器。
+       2026-10-26 迁移：走 React 时容器已经由 React 渲染好了（hostEl 传进来），
+       兜底路径才是这里自己建一个再 append。 */
+    var csHost = hostEl || mk('div', 'kami-cs-host');
+    if (!hostEl) { pane.appendChild(csHost); }
     csBlock.mount(csHost);
   }
 
@@ -1887,6 +1937,31 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 「🤖 模型」tab：顶部图例（不可开关）+ 一个模型一张卡片（卡片头 = 选中这个模型）。
      条目是**镜像**：同一条也留在它原本所属的卡片里（两处是同一个开关）。 */
   function renderModelTab(pane, tab) {
+    var rt = reactRt();
+    if (rt && typeof ModelCard === 'function') {
+      var h = rt.React.createElement;
+      var nodes = [];
+      if (tab.legend) {
+        nodes.push(h('div', { key: 'lg', className: 'kami-card' },
+          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '模型切换说明')),
+          h('div', { className: 'kami-card-body' }, tab.legend)));
+      }
+      var mi;
+      for (mi = 0; mi < tab.cards.length; mi++) {
+        var mc = tab.cards[mi];
+        cardMap[mc.key] = { tabKey: tab.key, items: mc.items };
+        nodes.push(h(ModelCard, {
+          key: 'm' + mi, model: mc, currentEmoji: currentModel,
+          opts: { cardKey: mc.key, lock: isLockedItem }
+        }));
+      }
+      if (!tab.cards.length) {
+        nodes.push(h('div', { key: 'empty', className: 'kami-empty' },
+          '这份预设里没有登记任何模型（📋 支持模型列表 | model 是空的）。'));
+      }
+      if (renderNodesInto(pane, nodes)) { return; }
+    }
+    /* 兜底：运行库不可用 */
     if (tab.legend) {
       var box = mk('div', 'kami-card');
       var lgHead = mk('div', 'kami-card-head');
