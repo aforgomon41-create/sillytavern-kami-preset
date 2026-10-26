@@ -2421,22 +2421,38 @@
     panelRoot.style.minHeight = '100dvh';
 
     panelDrop = el('div', 'kami-drop kami-surface');
-    /* 全屏几何**内联钉死**（2026-10-26 真机修）：
-       CSS 那边有「皮肤 / 面板几何层 / 基础组件」三层在互相抢，靠选择器打架太脆 ——
-       实测在约 608px 宽的手机上，面板几何层那套 78% 抽屉规则压住了 GUIDE_CSS 的全屏规则，
-       引导面板只占了 78% 高（下面还空一大块）。引导是全屏向导，几何由它自己说了算。
-       inset:0 + 宽高 auto 会撑满舞台；内联只输给 !important，
-       而带 !important 的尺寸规则取值与这里一致（100%），不会打架。 */
-    panelDrop.style.position = 'absolute';
-    panelDrop.style.left = '0';
-    panelDrop.style.top = '0';
-    panelDrop.style.right = '0';
-    panelDrop.style.bottom = '0';
-    panelDrop.style.width = 'auto';
-    panelDrop.style.height = 'auto';
-    panelDrop.style.maxWidth = 'none';
-    panelDrop.style.maxHeight = 'none';
-    panelDrop.style.margin = '0';
+    /* 全屏几何：**内联 + !important**（2026-10-26 第二次修，真机仍被压住）。
+       前一版用内联普通声明，真机上还是被压成 78% 的抽屉高度 ——
+       说明有 !important 规则在赢（皮肤 / 面板几何层 / 媒体查询，任意一处）。
+       内联 !important 的优先级高于一切作者样式（只输给 UA 的 !important），
+       所以这里把它钉死：舞台铺满视口，面板 inset:0 撑满舞台。
+       ⚠️ 改这里要连 GUIDE_CSS 里那两条 #id 规则一起想，别只改一边。 */
+    var pinStyle = function (el, prop, val) { try { el.style.setProperty(prop, val, 'important'); } catch (eP) { el.style[prop] = val; } };
+    /* 舞台：固定定位 + 铺满视口，高度用 dvh 兜住移动端工具栏 */
+    pinStyle(panelRoot, 'position', 'fixed');
+    pinStyle(panelRoot, 'left', '0');
+    pinStyle(panelRoot, 'top', '0');
+    pinStyle(panelRoot, 'right', '0');
+    pinStyle(panelRoot, 'bottom', '0');
+    pinStyle(panelRoot, 'width', '100%');
+    pinStyle(panelRoot, 'height', '100dvh');
+    pinStyle(panelRoot, 'min-height', '100dvh');
+    pinStyle(panelRoot, 'max-width', '100vw');
+    pinStyle(panelRoot, 'margin', '0');
+    pinStyle(panelRoot, 'z-index', String(Z));
+    /* 面板：inset:0 撑满舞台，清掉任何圆角 / 尺寸上限 */
+    pinStyle(panelDrop, 'position', 'absolute');
+    pinStyle(panelDrop, 'left', '0');
+    pinStyle(panelDrop, 'top', '0');
+    pinStyle(panelDrop, 'right', '0');
+    pinStyle(panelDrop, 'bottom', '0');
+    pinStyle(panelDrop, 'width', 'auto');
+    pinStyle(panelDrop, 'height', 'auto');
+    pinStyle(panelDrop, 'max-width', 'none');
+    pinStyle(panelDrop, 'max-height', 'none');
+    pinStyle(panelDrop, 'margin', '0');
+    pinStyle(panelDrop, 'transform', 'none');
+    pinStyle(panelDrop, 'border-radius', '0');
     panelDrop.setAttribute('data-kami-open', '1');
     panelRoot.appendChild(panelDrop);
 
