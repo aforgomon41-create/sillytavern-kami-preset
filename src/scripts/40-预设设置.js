@@ -1452,6 +1452,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
           h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
         ));
       });
+      /* 皮肤按 data-kami-ui 写规则，React 渲染的元素不会自动带，这里补上 */
+      try { rt0.classifyTree(panelDrop); } catch (e0) { }
     }
 
     injectCss();

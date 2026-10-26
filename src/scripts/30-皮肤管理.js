@@ -1234,6 +1234,7 @@
         if (pv) { card.appendChild(pv); }
       });
     } catch (e) { warn('皮肤预览骨架注入失败（不影响选择）：' + ((e && e.message) || e)); }
+    try { rt.classifyTree(box); } catch (e2) { }
   }
 
   /* 栏目小标题：只用已登记的 .kami-card-note（注释排版类），间距回落到皮肤自己的默认规则。
@@ -1500,6 +1501,7 @@
     }
     if (!fxPaneRoot) { box.textContent = ''; fxPaneRoot = rt.createRoot(box); }
     rt.flushSync(function () { fxPaneRoot.render(h(rt.React.Fragment, null, nodes)); });
+    try { rt.classifyTree(box); } catch (e) { }
   }
 
   /* ---- 状态写入 ---- */

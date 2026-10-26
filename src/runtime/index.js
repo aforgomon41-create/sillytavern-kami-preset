@@ -75,6 +75,49 @@ function createMountPoint(className) {
   };
 }
 
+/* ── data-kami-ui 标记（2026-10-26 迁移补）──────────────────────────
+ * core.js 的 classify() 会给每个元素打 data-kami-ui 标记，**皮肤是按它写规则的**
+ * （例如 `[data-kami-ui="tabs"] .kami-tab[aria-selected="true"]`、
+ *  `[data-kami-ui="empty"]`、`[data-kami-ui="field"] > .kami-card-note`）。
+ * React 渲染出来的元素不经过 classify，所以要显式带上，否则那些皮肤规则会静默失效。
+ * 用法：h('div', RT.classProps('kami-field'), ...)
+ * 映射表与 core.js 的 classify() 逐项一致，改一处要改两处。
+ */
+var KAMI_UI_OF = {
+  'kami-icon-btn': 'iconButton', 'kami-btn': 'button', 'kami-textarea': 'textarea',
+  'kami-number': 'number', 'kami-select': 'select', 'kami-text': 'text',
+  'kami-switch': 'switch', 'kami-range': 'range', 'kami-tabs': 'tabs',
+  'kami-seg': 'segmented', 'kami-empty': 'empty', 'kami-chip': 'badge',
+  'kami-field': 'field', 'kami-card': 'card'
+};
+/* 渲染完扫一遍，把 data-kami-ui 补到所有元素上（包含 root 自己）。
+   比在每个 h() 调用点手写属性省事，也不会漏 —— 漏一处就是一条皮肤规则失效。 */
+function classifyTree(root) {
+  if (!root || !root.querySelectorAll) { return root; }
+  var list = [];
+  if (root.nodeType === 1 && root.classList && root.classList.length) { list.push(root); }
+  var found = root.querySelectorAll('[class]');
+  for (var i = 0; i < found.length; i++) { list.push(found[i]); }
+  for (var j = 0; j < list.length; j++) {
+    var n = list[j];
+    if (n.hasAttribute && n.hasAttribute('data-kami-ui')) { continue; }
+    var cls = n.classList;
+    for (var k in KAMI_UI_OF) {
+      if (cls.contains(k)) { n.setAttribute('data-kami-ui', KAMI_UI_OF[k]); break; }
+    }
+  }
+  return root;
+}
+
+function classProps(name) {
+  var out = { className: name };
+  var parts = String(name || '').split(/\s+/);
+  for (var i = 0; i < parts.length; i++) {
+    if (KAMI_UI_OF[parts[i]]) { out['data-kami-ui'] = KAMI_UI_OF[parts[i]]; break; }
+  }
+  return out;
+}
+
 /* ── 面板用的控件工厂（2026-10-26）──────────────────────────────
  * 面板是命令式代码，但控件要换成 Radix。这两个工厂让调用方只改一两行：
  *   var sw = host.KamiRuntime.makeSwitch({ checked:false, onChange:fn });
@@ -138,7 +181,9 @@ var runtime = {
   createMountPoint: createMountPoint,
   createControl: createControl,
   makeSwitch: makeSwitch,
-  makeSelect: makeSelect
+  makeSelect: makeSelect,
+  classProps: classProps,
+  classifyTree: classifyTree
 };
 
 var readyApi = createReady(runtime);
