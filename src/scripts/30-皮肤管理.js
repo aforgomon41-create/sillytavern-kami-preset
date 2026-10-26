@@ -764,6 +764,7 @@
   var panelRoot = null, panelDrop = null, panelHead = null, pane = 'skin', unsubs = [];
   var skinPickCtl = null;   /* 皮肤快速切换（Radix Select，2026-10-26） */
   var shellRoot = null, pickSlot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
+  var fxPaneRoot = null;   /* 特效页的 React 根 */
   var GESTURES = null;
 
   function mk(tag, cls, text) {
@@ -1354,35 +1355,40 @@
   }
 
   /* ---- 特效页 ---- */
+  /* 特效页（React，2026-10-26 迁移）：每次重画都是重新 render 同一棵树，
+     不再手写 textContent='' + appendChild。DOM 结构与类名保持不变。 */
   function renderFxPane() {
     var box = paneEl('fx');
     if (!box) { return; }
-    box.textContent = '';
+    var rt = HOST.KamiRuntime;
+    if (!rt || !rt.createRoot) { return; }
+    var h = rt.React.createElement;
     var fx = curSkin().effects || [];
-    if (!fx.length) { box.appendChild(mk('div', 'kami-empty', '这套皮肤没有高级特效')); return; }
-    fx.forEach(function (f) {
-      var on = state.effects[f.id];
-      if (on === undefined) { on = !!f.default; }
-      var row = mk('div', 'kami-field');
-      var lab = mk('span', 'kami-field-label');
-      lab.appendChild(mk('div', null, f.label));
-      if (f.desc) {
-        /* 说明行只用已登记的 .kami-sub；行距回落到皮肤默认规则（原来内联写死 marginTop）。 */
-        lab.appendChild(mk('div', 'kami-sub', f.desc));
-      }
-      row.appendChild(lab);
-      var val = mk('span', 'kami-field-value');
-      /* 2026-10-26：特效开关改用 Radix。**故意不接 onChange** ——
-         点击由面板的 data-kami-act="fx:..." 委托统一处理（toggleEffect 会重建这一页），
-         两边都接会把开关翻两次。 */
-      var fxSw = HOST.KamiRuntime.makeSwitch({
-        checked: on, label: f.label,
-        attrs: { 'data-kami-act': 'fx:' + f.id }
+    var nodes;
+    if (!fx.length) {
+      nodes = h('div', { className: 'kami-empty', key: 'empty' }, '这套皮肤没有高级特效');
+    } else {
+      nodes = fx.map(function (f) {
+        var on = state.effects[f.id];
+        if (on === undefined) { on = !!f.default; }
+        return h('div', { key: f.id, className: 'kami-field' },
+          h('span', { className: 'kami-field-label' },
+            h('div', null, f.label),
+            f.desc ? h('div', { className: 'kami-sub' }, f.desc) : null
+          ),
+          h('span', { className: 'kami-field-value' },
+            h(rt.UI.SwitchToggle, {
+              checked: on, label: f.label,
+              /* 故意不接 onChange：点击仍由 data-kami-act="fx:..." 委托统一处理，
+                 两边都接会把开关翻两次。 */
+              attrs: { 'data-kami-act': 'fx:' + f.id }
+            })
+          )
+        );
       });
-      val.appendChild(fxSw.el);
-      row.appendChild(val);
-      box.appendChild(row);
-    });
+    }
+    if (!fxPaneRoot) { box.textContent = ''; fxPaneRoot = rt.createRoot(box); }
+    rt.flushSync(function () { fxPaneRoot.render(h(rt.React.Fragment, null, nodes)); });
   }
 
   /* ---- 状态写入 ---- */
@@ -1766,7 +1772,7 @@
     /* 面板 DOM */
     try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
     GESTURES = null;
-    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; pickSlot = null; }
+    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; pickSlot = null; fxPaneRoot = null; }
     try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
     panelRoot = null; panelDrop = null; panelHead = null;
     /* 按钮登记 */
