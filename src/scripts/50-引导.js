@@ -823,6 +823,7 @@
      这样就能一页一页迁，中间任何时刻都是可运行的状态。 */
   var bodyRoot = null;
   function reactRt() {
+    try { if (typeof pcSetRuntime === 'function') { pcSetRuntime(HOST.KamiRuntime); } } catch (e0) { }
     try { var rt = HOST.KamiRuntime; if (rt && rt.createRoot) { return rt; } } catch (e) { }
     return null;
   }
@@ -1505,6 +1506,23 @@
     csBlock.mount(csHost);
   }
 
+  /* React 路径用：把自定义文风块挂进 React 渲染出来的容器。
+     用 __kamiCsMounted 防止 ref 回调被重复触发时挂两份。 */
+  function mountCustomStyleInto(hostEl) {
+    if (!hostEl || hostEl.__kamiCsMounted) { return; }
+    hostEl.__kamiCsMounted = 1;
+    csBlock = customStyleBlock({
+      doc: HDOC,
+      api: HOST.KamiPreset || null,
+      toast: toast,
+      log: log,
+      anchorCards: csAnchorCards(),
+      onSaved: csReloadSteps
+    });
+    csBlock.mount(hostEl);
+  }
+
+
   function renderCardPage(st) {
     /* 「自定义文风」排在这一页**最前面**（2026-10-03 用户点名：放在最上面，不是最下面）。
        在 intro 与卡片组之前 —— 这一块是用户自己维护的东西，比预设自带的说明更该先看到。
@@ -1987,6 +2005,168 @@
     return nodes;
   };
 
+  /* 一张「图版卡」（向导卡片页用）：glyph + 名字 + 一句说明，整卡就是开关。
+     点击仍走 toggleCardItem（它内部会 paintGroup 就地刷新这一组按钮），
+     所以这里只需要把组容器节点传给它。 */
+  function cardItemNode(h, grp, it, locked, canWrite, gridRef) {
+    var kids = [
+      h('span', { key: 'plate', className: 'kami-guide-plate' },
+        h('span', { className: 'kami-guide-plate-glyph' }, leadingGlyph(it.name)),
+        h('span', { className: 'kami-guide-plate-name' }, stripGlyph(it.name)))
+    ];
+    if (it.desc) { kids.push(h('span', { key: 'd', className: 'kami-guide-capdesc' }, it.desc)); }
+    if (locked) { kids.push(h('span', { key: 'l', className: 'kami-guide-capdesc' }, it.models.join(' ') + ' 专用')); }
+    return h('button', {
+      key: it.identifier,
+      type: 'button',
+      className: 'kami-item kami-card' + (it.enabled ? ' is-on' : ''),
+      'data-kami-item': it.identifier,
+      'data-kami-single': grp.mode === 'once' ? '1' : undefined,
+      'aria-pressed': it.enabled ? 'true' : 'false',
+      disabled: locked || undefined,
+      onClick: function () { if (!canWrite || locked) { return; } toggleCardItem(grp, it, gridRef.el); }
+    }, kids);
+  }
+
+  /* 附在「文生图」那张卡后面的变量卡（React 版 renderAttachedVar） */
+  function attachedVarNode(h, entryId) {
+    var api = HOST.KamiPreset;
+    if (!entryId || !api || typeof api.vars !== 'function') { return null; }
+    var data = null; try { data = api.vars(); } catch (e) { }
+    var cards = (data && data.cards) || [];
+    var c = null;
+    for (var i = 0; i < cards.length; i++) { if (cards[i].entry === entryId) { c = cards[i]; break; } }
+    if (!c) { return null; }
+    var vs = c.vars || [];
+    var rows = [];
+    if (c.kind === 'range' && vs.length >= 2) {
+      rows.push(varRowNode(h, copyOf('varMin'), { name: vs[0].name, value: vs[0].value, identifier: c.entry }, 'min'));
+      rows.push(varRowNode(h, copyOf('varMax'), { name: vs[1].name, value: vs[1].value, identifier: c.entry }, 'max'));
+    } else if (vs.length) {
+      rows.push(varRowNode(h, '', { name: vs[0].name, value: vs[0].value, identifier: c.entry }, 'one'));
+    }
+    return h('div', { key: 'vc', className: 'kami-guide-grid-cards' },
+      h('div', { className: 'kami-item-note' },
+        h('div', { className: 'kami-card', 'data-kami-var-card': c.entry || '' },
+          h('span', { className: 'kami-card-head' },
+            h('span', { className: 'kami-dot' }),
+            h('span', { className: 'kami-card-title' }, stripBrackets(c.name || c.label || '')),
+            noteMarkNode(h, c.note)),
+          h('div', { className: 'kami-guide-varrow' }, rows)),
+        noteBoxNode(h, c.note)));
+  }
+
+  REACT_STEPS.card = function (h, st) {
+    var rt = reactRt();
+    var nodes = [];
+    if (st.customStyle) {
+      nodes.push(h('div', { key: 'cs', className: 'kami-cs-host', ref: function (n) { mountCustomStyleInto(n); } }));
+    }
+    if (st.intro) { nodes.push(h('p', { key: 'intro', className: 'kami-guide-lead' }, st.intro)); }
+    var api = HOST.KamiPreset;
+    var canWrite = !!(api && typeof api.setEnabled === 'function');
+    if (!canWrite) { nodes.push(h('div', { key: 'deg', className: 'kami-toast' }, copyOf('presetDegrade'))); }
+    var current = null;
+    try { current = api ? api.currentModel() : null; } catch (e) { }
+    if (!current) { current = inferredModel(); }
+    for (var g = 0; g < st.groups.length; g++) {
+      var grp = st.groups[g];
+      if (grp.intro || grp.name) {
+        nodes.push(h('div', { key: 'sec' + g, className: 'kami-guide-sec' }, h('span', {}, stripBrackets(grp.name) || '')));
+        if (grp.intro) { nodes.push(h('p', { key: 'gi' + g, className: 'kami-guide-offnote' }, grp.intro)); }
+      }
+      var gridRef = { el: null };
+      var items = [];
+      var hasT2I = false;
+      for (var i = 0; i < grp.items.length; i++) {
+        var it = grp.items[i];
+        var locked = !!(it.models && it.models.length && current && it.models.indexOf(current) < 0);
+        if (String(it.name || '').indexOf('文生图') >= 0) { hasT2I = true; }
+        items.push(cardItemNode(h, grp, it, locked, canWrite, gridRef));
+      }
+      nodes.push(h('div', {
+        key: 'grid' + g, className: 'kami-guide-grid', 'data-kami-group': String(g),
+        ref: function (n) { gridRef.el = n; }
+      }, items));
+      if (st.varCard && hasT2I) { nodes.push(attachedVarNode(h, st.varCard)); }
+    }
+    return nodes;
+  };
+
+  /* 模型页（React）。卡片结构用共享模块的 ModelCard 组件，
+     事件仍用原来那两个函数（bindModelItem / selectModel + 重刷），
+     渲染完在 ref 里接一次线 —— 行为与迁移前逐字一致。 */
+  REACT_STEPS.model = function (h, st) {
+    var rt = reactRt();
+    var nodes = [h('p', { key: 'i', className: 'kami-guide-lead' }, st.intro)];
+    var api = HOST.KamiPreset;
+    if (!api || typeof api.models !== 'function' || typeof api.selectModel !== 'function') {
+      nodes.push(h('div', { key: 'd', className: 'kami-toast' }, copyOf('presetDegrade')));
+      return nodes;
+    }
+    var data = null; try { data = api.models(); } catch (e) { }
+    if (!data || !data.cards || !data.cards.length) {
+      nodes.push(h('div', { key: 'd2', className: 'kami-toast' }, copyOf('fallbackMissing')));
+      return nodes;
+    }
+    var current = data.current || inferredModel();
+    if (data.legend) { nodes.push(h('p', { key: 'lg', className: 'kami-guide-offnote' }, data.legend)); }
+    var canWrite = typeof api.setEnabled === 'function';
+    var noteMap = st.noteMap || {};
+    var cards = [];
+    for (var i = 0; i < data.cards.length; i++) {
+      var m = data.cards[i];
+      var items = m.items || [], q;
+      for (q = 0; q < items.length; q++) { modelPageItems[items[q].identifier] = items[q]; }
+      cards.push(h(ModelCard, {
+        key: 'm' + i, model: m, currentEmoji: current,
+        opts: {
+          cardKey: 'model#' + i,
+          lock: function (it) { return isModelLocked(it, current); },
+          noteText: function (it) { return noteMap[it.identifier] || ''; }
+        }
+      }));
+    }
+    nodes.push(h('div', {
+      key: 'grid', className: 'kami-guide-grid-cards kami-guide-grid-models',
+      ref: function (n) { wireModelGrid(n, data, api, canWrite); }
+    }, cards));
+    return nodes;
+  };
+
+  /* 给 React 渲染出来的模型卡接线（只接一次） */
+  function wireModelGrid(el, data, api, canWrite) {
+    if (!el || el.__kamiWired) { return; }
+    el.__kamiWired = 1;
+    for (var mi = 0; mi < data.cards.length; mi++) {
+      var m = data.cards[mi];
+      var card = el.children[mi];
+      if (!card) { continue; }
+      var head = card.querySelector('[data-kami-model]');
+      if (head) {
+        (function (mm) {
+          head.addEventListener('click', function () {
+            try {
+              api.selectModel(mm.emoji);
+              refreshItemFlags();
+              paintModelCards();
+              paintModelItems(api);
+              log('已选模型：' + mm.emoji);
+            } catch (e) { toast('error', copyOf('applyFail')); }
+          });
+        })(m);
+      }
+      var byId = {}, items = m.items || [], q;
+      for (q = 0; q < items.length; q++) { byId[items[q].identifier] = items[q]; }
+      var btns = card.querySelectorAll('[data-kami-item]');
+      for (q = 0; q < btns.length; q++) {
+        bindModelItem(btns[q], byId[btns[q].getAttribute('data-kami-item')] || null, api, canWrite);
+      }
+    }
+  }
+
+
+
 
 
   /* ───────── 导航 ───────── */
@@ -2065,6 +2245,10 @@
         degradeNote(copyOf('fallbackMissing'));
       }
     } else {
+      /* ⚠️ 切回命令式渲染之前必须先把 React 根卸掉：
+         否则 React 还记着一批已经被 clearBody 手工删掉的节点，
+         下一次 render 会对着不存在的节点做 removeChild 而抛错（2026-10-26 踩到）。 */
+      if (bodyRoot) { try { bodyRoot.unmount(); } catch (e0) { } bodyRoot = null; }
       clearBody();
       try {
         (RENDERERS[st.kind] || renderDraft)(st);
