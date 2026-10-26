@@ -331,6 +331,14 @@
         皮肤永远最后一句话，而且不用再靠选择器堆特异性去抢。
      几何/结构两层必须留在层里：它们只是「不这么做就不能跑」的兜底，
      皮肤要改随时能改（未分层 > 分层，无需 !important）。 */
+  /* ⚠️ 几何层**不进 @layer**（2026-10-26 真机修）：
+     CSS 规定「分层里的 !important 反而压过不分层里的 !important」。
+     引导面板的全屏规则是它自己注入的（不分层 + #id + !important），
+     几何层一旦进了 kami.component，那 78% 的抽屉高度就会反过来压住引导的 100%，
+     表现是「引导面板不是全屏、只有 78% 高」。同理，分层里的普通声明也会输给
+     皮肤里不分层的普通声明（.kami-surface{position:relative} 把 absolute 顶掉，
+     于是 bottom:0 失效、抽屉悬空）。几何与结构是平台自己的事，必须留在层外。 */
+  // ^ 以上是注入顺序说明
   var LAYER_ORDER = '@layer kami.base, kami.component, kami.skin;\n';
   function wrapLayer(name, css) {
     var body = String(css || '');
@@ -343,7 +351,7 @@
     cachedSkinCss = LAYER_ORDER +
       '/* ==== base: 公共组件基础（运行库提供）==== */\n' + wrapLayer('kami.base', KAMI_UI_CSS) +
       '/* ==== struct: 结构性兜底 ==== */\n' + wrapLayer('kami.component', STRUCT_CSS) +
-      '/* ==== panel geometry: 面板几何 ==== */\n' + wrapLayer('kami.component', GEOMETRY_CSS) +
+      '/* ==== panel geometry: 面板几何（**不分层**，见下）==== */\n' + GEOMETRY_CSS +
       '/* ==== skin: ' + skin.id + '（不分层，永远压过上面三层）==== */\n' + (skin.css || '') +
       '\n/* ==== shared image assets ==== */\n' + (ASSET_POOL ? ASSET_POOL.css(skin) : '');
     return cachedSkinCss;

@@ -174,6 +174,7 @@
   /* ── 模型卡 / 条目卡的**结构**只有一份实现：src/scripts/_preset-cards.js（构建期内联）──
      🌟 预设设置面板内联的是同一份，所以向导的模型页与预设面板的模型 tab 同构
      （模型卡 = div.kami-card + 可点卡头 + 卡内条目网格），不会再各写一套（契约 §4.4）。 */
+  /* @@KAMI_PANEL_GESTURES@@ */
   /* @@KAMI_PRESET_CARDS@@ */
   /* @@KAMI_CUSTOM_STYLE_UI@@ */
 
@@ -220,6 +221,7 @@
 
   var disposed = false;
   var panelRoot = null, panelDrop = null, panelBody = null, panelDots = null;
+  var GESTURES = null;   /* 手机端手势（下拉收回 / 左右滑翻页） */
   var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
   var panelCounter = null, btnPrev = null, btnNext = null, btnClose = null;
   var steps = [];            // 可见的步骤模型（打开时构建）
@@ -2419,6 +2421,22 @@
     panelRoot.style.minHeight = '100dvh';
 
     panelDrop = el('div', 'kami-drop kami-surface');
+    /* 全屏几何**内联钉死**（2026-10-26 真机修）：
+       CSS 那边有「皮肤 / 面板几何层 / 基础组件」三层在互相抢，靠选择器打架太脆 ——
+       实测在约 608px 宽的手机上，面板几何层那套 78% 抽屉规则压住了 GUIDE_CSS 的全屏规则，
+       引导面板只占了 78% 高（下面还空一大块）。引导是全屏向导，几何由它自己说了算。
+       inset:0 + 宽高 auto 会撑满舞台；内联只输给 !important，
+       而带 !important 的尺寸规则取值与这里一致（100%），不会打架。 */
+    panelDrop.style.position = 'absolute';
+    panelDrop.style.left = '0';
+    panelDrop.style.top = '0';
+    panelDrop.style.right = '0';
+    panelDrop.style.bottom = '0';
+    panelDrop.style.width = 'auto';
+    panelDrop.style.height = 'auto';
+    panelDrop.style.maxWidth = 'none';
+    panelDrop.style.maxHeight = 'none';
+    panelDrop.style.margin = '0';
     panelDrop.setAttribute('data-kami-open', '1');
     panelRoot.appendChild(panelDrop);
 
@@ -2492,6 +2510,22 @@
       log('面板挂载失败：' + ((e && e.message) || e));
       panelRoot = null;
     }
+
+    /* 手机端手势（2026-10-26 用户点名补上）：
+       ① 标题栏往下拖 → 收回；② 内容区滚到顶后再往下拖 → 收回；③ 正文左右滑 → 上一步/下一步。
+       引导是全屏向导，没有抽屉那套拖动，所以手势是它唯一点的触摸交互。
+       共享实现与另外三个面板是同一份（_panel-gestures.js），行为一致。 */
+    if (GESTURES) { try { GESTURES.destroy(); } catch (eG) { } }
+    GESTURES = bindPanelGestures({
+      root: panelDrop,
+      handle: function () { return panelDrop ? panelDrop.querySelector('.kami-head') : null; },
+      pane: function () { return panelBody; },
+      tabs: function () { return null; },
+      /* 全屏向导也走「下拉收回」那套：它本来就是覆盖整个屏幕的一层，往下拖该能退出 */
+      isSheet: function () { return true; },
+      onClose: function () { closeWizard(true); },
+      onStep: function (dir) { if (dir > 0) { next(); } else { prev(); } }
+    });
   }
 
   function openWizard() {
@@ -2653,6 +2687,7 @@
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
     log('注销完成：面板、样式、登记、全局 API 都已收回；预设文件与酒馆设置没有被改动');
+    if (GESTURES) { try { GESTURES.destroy(); } catch (eG2) { } GESTURES = null; }
   }
 
   /* ───────── 启动 ───────── */

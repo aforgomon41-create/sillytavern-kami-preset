@@ -256,6 +256,24 @@ Defaulting to \`null\`.`}jr(vS,"getInvalidValueError");var eh={};$t(eh,{Root:()=
 .kami-root.kami-root[data-kami-container="panel"]{position:fixed;inset:0;min-height:100vh;min-height:100dvh;margin:0;pointer-events:none;}
 .kami-root.kami-root[data-kami-container="panel"]>.kami-drop{transform:none;pointer-events:auto;}
 @media(max-width:600px){.kami-root.kami-root[data-kami-container="panel"]>.kami-drop.kami-drop{left:0!important;right:0!important;top:auto!important;bottom:0!important;transform:none!important;width:100%!important;max-width:100%!important;height:80dvh!important;}}
+/* \u2500\u2500 \u8D34\u5E95\u62BD\u5C49\u7684\u51E0\u4F55\uFF1A\u53EA\u8BA4\u811A\u672C\u4E0B\u53D1\u7684 data-kami-layout="sheet"\uFF0C\u4E0D\u770B\u5A92\u4F53\u67E5\u8BE2 \u2500\u2500
+   2026-10-26 \u771F\u673A\u95EE\u9898\uFF08\u7528\u6237\u62A5\u300C\u62BD\u5C49\u548C\u5C4F\u5E55\u4E0B\u65B9\u6709\u8DDD\u79BB\u300D\uFF09\uFF0C\u4E24\u4E2A\u539F\u56E0\u53E0\u5728\u4E00\u8D77\uFF1A
+   \u2460 \u4E0A\u9762\u7684\u5A92\u4F53\u67E5\u8BE2\u6309 600px \u5199\uFF0C\u800C\u9152\u9986\u81EA\u5DF1\u7684\u5355\u680F\u65AD\u70B9\u662F 1000px \u2014\u2014
+      CSS \u5BBD\u5EA6\u5728 601\u20131000 \u4E4B\u95F4\u7684\u624B\u673A\uFF08\u5B9E\u6D4B\u90A3\u53F0\u7EA6 608px\uFF09\u4E24\u5934\u843D\u7A7A\uFF1A
+      \u76AE\u80A4\u6309 sheet \u753B\u597D\u4E86\u6293\u624B\u4E0E\u5706\u89D2\uFF0C\u5B9A\u4F4D\u5374\u8FD8\u662F\u684C\u9762\u90A3\u4E00\u5957\uFF0C\u62BD\u5C49\u5C31\u60AC\u5728\u5C4F\u5E55\u4E0A\u6CBF\u3002
+   \u2461 \u57FA\u7840\u51E0\u4F55\u5199\u5728 :where() \u91CC\uFF0C**\u7279\u5F02\u6027\u662F 0**\uFF0C\u4EFB\u4F55\u76AE\u80A4\u968F\u624B\u5199\u4E00\u6761
+      \`.kami-drop{position:relative}\` \u90FD\u80FD\u628A position:absolute \u538B\u6389\uFF1B
+      \u4E00\u65E6\u53D8\u6210 relative\uFF0Cbottom:0 \u5C31\u5B8C\u5168\u4E0D\u8D77\u4F5C\u7528\uFF08\u76F8\u5BF9\u5B9A\u4F4D\u4E0D\u5403 bottom\uFF09\u3002
+      \u4E0B\u9762\u7528 !important \u628A position \u4E00\u8D77\u9489\u6B7B\u3002
+   \u8FD9\u6761\u89C4\u5219\u4E0D\u78B0\u5F15\u5BFC\uFF1A\u5F15\u5BFC\u7684\u9762\u677F\u4E0D\u5E26 data-kami-layout\uFF0C\u5B83\u81EA\u5DF1\u58F0\u660E\u5168\u5C4F\u3002 */
+.kami-root.kami-root[data-kami-container="panel"]>.kami-drop.kami-drop[data-kami-layout="sheet"]{
+  position:absolute!important;
+  left:0!important;right:0!important;top:auto!important;bottom:0!important;
+  width:auto!important;max-width:100%!important;
+  height:80dvh!important;max-height:80dvh!important;
+  margin:0!important;transform:none!important;
+}
+
 
 .kami-root[data-kami-container="panel"] .kami-resize{position:absolute;right:0;bottom:0;width:24px;height:24px;cursor:nwse-resize;touch-action:none;}
 @media(max-width:600px){.kami-root[data-kami-container="panel"] .kami-resize{display:none;}}
