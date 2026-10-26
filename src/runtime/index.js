@@ -59,7 +59,9 @@ var runtime = {
   React: React,
   ReactDOM: ReactDOM,
   createRoot: ReactDOMClient.createRoot,
-  flushSync: ReactDOMClient.flushSync,
+  /* flushSync 在 react-dom 主包上，不在 react-dom/client 上 —— 取错了会变成 undefined，
+     调用方以为能同步刷新，实际拿到的是异步渲染（2026-10-26 写自测时踩到）。 */
+  flushSync: ReactDOM.flushSync,
   UI: UI,
   primitives: UI.primitives,
   /* 老组件核心（面板还没迁移完时用）与它的基础样式 */

@@ -128,6 +128,9 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-providers.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-results.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/toolbox-ui.mjs')], { stdio: 'inherit' });
+  /* 运行库组件层（React + Radix）：jsdom 起真 DOM、加载产物里的真 bundle，
+     把每个组件渲染一遍，钉住类名与 Radix 的可访问性角色（2026-10-26 迁移时加）。 */
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/runtime-ui.mjs')], { stdio: 'inherit' });
 } catch (e) {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');
   process.exit(1);
