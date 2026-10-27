@@ -713,12 +713,33 @@ export function uiCss(root) {
  *   （30-皮肤管理.js 第 25 行 vs 第 108 行）。写成 var x = HOST.KamiRuntime.x
  *   会在定义时就取到 undefined，后面整面板静默白屏。
  * ──────────────────────────────────────────────────────────── */
+/* 取运行库：HOST（面板脚本里定义）→ 本窗口 → 沿父窗口链往上找（2026-10-27 修）。
+ *   正则前端跑在**消息 iframe** 里：那里没有 HOST，运行库挂在酒馆主页面（父窗口）上。
+ *   原来只看 HOST 与本窗口，消息 iframe 里一律取不到 → 行动选项整块渲染不出来、
+ *   思维链的「复制」兜底与空态失效（只影响 0.93 未发布构建；0.92 是整份内联 core.js）。
+ *   父窗口跨域时访问会抛错，逐层 try 住；本窗口之外最多再往上找 4 层。 */
+const FIND_RUNTIME = [
+  'function () {',
+  '  var rt = null;',
+  '  try { rt = (typeof HOST !== \'undefined\' && HOST && HOST.KamiRuntime) || null; } catch (e) { }',
+  '  if (rt) { return rt; }',
+  '  var w = null;',
+  '  try { w = (typeof window !== \'undefined\') ? window : null; } catch (e1) { }',
+  '  for (var i = 0; w && i < 5; i++) {',
+  '    try { if (w.KamiRuntime) { return w.KamiRuntime; } } catch (e2) { }',
+  '    var up = null;',
+  '    try { up = w.parent; } catch (e3) { }',
+  '    if (!up || up === w) { break; }',
+  '    w = up;',
+  '  }',
+  '  return null;',
+  '}'
+].join(NL);
+
 const UI_SHIM = [
   '/* 组件核心由「🧩 运行库」提供，全预设只有一份（见 src/runtime/index.js）。 */',
   'function createKamiUi(doc) {',
-  '  var rt = null;',
-  '  try { rt = (typeof HOST !== \'undefined\' && HOST && HOST.KamiRuntime) || null; } catch (e) { }',
-  '  if (!rt) { try { rt = (typeof window !== \'undefined\' && window.KamiRuntime) || null; } catch (e2) { } }',
+  '  var rt = (' + FIND_RUNTIME + ')();',
   '  if (!rt || typeof rt.createKamiUi !== \'function\') {',
   '    throw new Error(\'[卡密预设] 运行库未加载：请在酒馆助手脚本列表启用「🧩 运行库」，并让它排在第一位。\');',
   '  }',
@@ -730,7 +751,7 @@ const UI_CSS_SHIM = [
   '/* 组件基础样式同样来自运行库（唯一一份，构建期算好塞进 bundle）。 */',
   'var KAMI_UI_CSS = (function () {',
   '  try {',
-  '    var rt = (typeof HOST !== \'undefined\' && HOST && HOST.KamiRuntime) || (typeof window !== \'undefined\' && window.KamiRuntime) || null;',
+  '    var rt = (' + FIND_RUNTIME + ')();',
   '    return (rt && rt.KAMI_UI_CSS) || \'\';',
   '  } catch (e) { return \'\'; }',
   '})();'

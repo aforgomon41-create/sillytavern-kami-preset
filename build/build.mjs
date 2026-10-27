@@ -148,6 +148,8 @@ try {
   /* 运行库组件层（React + Radix）：jsdom 起真 DOM、加载产物里的真 bundle，
      把每个组件渲染一遍，钉住类名与 Radix 的可访问性角色（2026-10-26 迁移时加）。 */
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/runtime-ui.mjs')], { stdio: 'inherit' });
+  /* 正则前端在消息 iframe 里要沿父窗口链取运行库（2026-10-27 修：原来取不到，行动选项整块不渲染） */
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/frontend-runtime-reach.mjs')], { stdio: 'inherit' });
 } catch (e) {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');
   process.exit(1);
