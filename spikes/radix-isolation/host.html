@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>敌意宿主页（模拟酒馆全局样式）</title>
+<style>
+  /* 模拟酒馆 / 用户自定义 CSS / 第三方插件对全局元素的强硬样式 */
+  * { font-family: "Courier New", monospace !important; }
+  button { background: rgb(255, 0, 0) !important; color: rgb(255, 0, 0) !important; font-size: 30px !important; }
+  div { border: 3px solid rgb(0, 255, 0); }
+  p { color: rgb(0, 0, 255) !important; }
+  [role="dialog"], [role="listbox"], [role="menu"] { background: rgb(0, 0, 0) !important; color: rgb(0, 0, 0) !important; }
+  body { position: fixed; top: 0; bottom: 0; left: 0; right: 0; margin: 0; }
+</style>
+</head>
+<body>
+  <div id="outside" style="height:60px">宿主页面的其他内容（点这里算点外面）</div>
+  <div id="panel-host"></div>
+  <iframe id="msg" srcdoc="<!doctype html><html><head></head><body><div id='outside-in-frame' style='height:40px'>消息 iframe 内的其他内容</div></body></html>" style="width:600px;height:420px"></iframe>
+  <script src="out/app.js"></script>
+</body>
+</html>
