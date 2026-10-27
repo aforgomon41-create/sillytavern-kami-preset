@@ -11,6 +11,7 @@
  * 用法：node build/verify-runtime.mjs <产物路径>
  */
 import { flattenScriptTrees } from './kami-doc.mjs';
+import { currentBranchTag, parseArtifactName } from './branch-tag.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -19,7 +20,8 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace
 let p = arg;
 if (!p) {
   const dir = path.join(ROOT, 'dist');
-  const files = fs.readdirSync(dir).filter(f => /^kami-v\d+\.\d+-\d+-\d{8}\.json$/.test(f))
+  const tag = currentBranchTag(ROOT);   /* 只挑当前支线的产物（main 产物不带后缀） */
+  const files = fs.readdirSync(dir).filter(f => { const a = parseArtifactName(f); return !!a && a.branch === tag; })
     .map(f => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t);
   if (!files.length) { console.log('dist 里没有产物'); process.exit(1); }
   p = path.join(dir, files[0].f);

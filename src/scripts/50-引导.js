@@ -239,7 +239,8 @@
   var identityAbort = null, identityTimer = null, storageWarned = false, scriptVisitSaved = false;
 
   function guideVersionOf(name) {
-    var match = /^kami-v(\d+\.\d+)-(\d+)-\d{8}$/.exec(String(name || ''));
+    /* 支线测试包的名字在日期后带 -<支线> 后缀（2026-10-27，见 build/branch-tag.mjs），版本与构建号照常读 */
+    var match = /^kami-v(\d+\.\d+)-(\d+)-\d{8}(?:-[a-z0-9][a-z0-9-]*)?$/i.exec(String(name || ''));
     return match ? 'v' + match[1] + '-' + match[2] : '';
   }
   function cleanVisit(value) {

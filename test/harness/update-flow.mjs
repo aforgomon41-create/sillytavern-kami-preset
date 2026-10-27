@@ -1193,4 +1193,20 @@ for(const scenario of ['backupFail','targetFail','editDuringBackup','switchDurin
   }
 }
 
+console.log('--- 支线测试包不自动更新到正式版（2026-10-27） ---');
+{
+  /* 支线产物名在日期后带 -<支线> 后缀（build/branch-tag.mjs）；仓库里有更新的正式版也不自动弹、不写入 */
+  const branchName = PN + '-1-20260921-frontend-rewrite';
+  const env = makeEnv({ code: CODE.replaceAll('@@KAMI_PRESET_NAME@@', branchName), vars: REPO_VARS,
+    localPreset: branchName, installed: [branchName], popupResult: '1' });
+  await settle();
+  const r = await env.api().check(false);
+  ok(r.action === 'branch', '支线测试包：自动检查返回 branch', r.action);
+  ok(env.slashCalls.length === 0 && env.importCalls.length === 0, '支线测试包：不弹更新窗、不写入正式版');
+  ok(env.api().status().logs.some(x => x.includes('frontend-rewrite')), '支线测试包：日志写明支线名');
+  ok(env.api().presetVersion().build === 1, '支线测试包：版本号照常解析（构建号 1）');
+  const forced = await env.api().check(true);
+  ok(forced.action !== 'branch' && env.slashCalls.length === 1, '支线测试包：手动强制检查照常可用', forced.action);
+}
+
 console.log('\n结果：' + (total - bad) + ' / ' + total + ' 通过');process.exit(bad ? 1 : 0);

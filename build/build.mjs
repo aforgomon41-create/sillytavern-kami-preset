@@ -49,6 +49,23 @@ const sha = buf => crypto.createHash('sha256').update(buf).digest('hex').slice(0
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8'));
 import { expandRegexList, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from './kami-doc.mjs';
 import { execFileSync } from 'node:child_process';
+import { currentBranchTag, parseArtifactName, artifactName, crlfWorkingFiles } from './branch-tag.mjs';
+
+/* 支线标记（2026-10-27）：不在 main 上构建时，产物名带支线后缀，见 build/branch-tag.mjs */
+const BRANCH_TAG = currentBranchTag(ROOT);
+if (BRANCH_TAG) {
+  console.log('  [支线] 当前在支线「' + BRANCH_TAG + '」上构建：产物名带 -' + BRANCH_TAG + ' 后缀、构建号单独计数；支线产物不得发版或分发给用户');
+}
+
+/* 换行符检查（2026-10-27）：仓库用 .gitattributes 钉死 LF；老检出（Windows + autocrlf）的工作区仍可能是 CRLF，
+   那样打出来的产物与别的机器不一致。只提示、不中止。 */
+{
+  const crlf = crlfWorkingFiles(ROOT);
+  if (crlf.length) {
+    console.log('  [换行] 警告：工作区有 ' + crlf.length + ' 个文本文件是 CRLF（例如 ' + crlf.slice(0, 3).join('、') + '）。' +
+      '提交干净后执行一次 `git rm -r --cached -q . && git reset --hard` 按 .gitattributes 重新检出为 LF。');
+  }
+}
 import { packSkinAssets } from './skin-assets.mjs';
 
 /* ---------- 读取源 ---------- */
@@ -281,19 +298,25 @@ for (const dir of scanDirs) {
     /* · 现行  kami-v<版本>-<构建号>-<日期>.json（2026-09-23 起：前缀由「卡密预设」改为 kami-，
             因为 GitHub Releases 会把非 ASCII 附件名直接削掉）—— 只认**当前版本**的
        · 旧命名 卡密预设0.9-52.json / 卡密预设0.9-260917-51.json（当前版本是 0.90/0.9 时才算） */
-    let m = /^(?:kami-|卡密预设)v(\d+\.\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
+    /* 支线产物（…-<日期>-<支线>.json）只和同一支线的产物一起计数（2026-10-27） */
+    const art = parseArtifactName(f);
+    if (art) {
+      if (('v' + art.major + '.' + art.minorDigits) === VER_PREFIX && art.branch === BRANCH_TAG) { N = Math.max(N, art.build); }
+      continue;
+    }
+    let m = /^卡密预设v(\d+\.\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
     if (m) {
-      if (('v' + m[1]) === VER_PREFIX) { N = Math.max(N, Number(m[2])); }
+      if (('v' + m[1]) === VER_PREFIX && !BRANCH_TAG) { N = Math.max(N, Number(m[2])); }
       continue;
     }
     m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
-    if (m && (VER_PREFIX === 'v0.90' || VER_PREFIX === 'v0.9')) { N = Math.max(N, Number(m[1])); }
+    if (m && !BRANCH_TAG && (VER_PREFIX === 'v0.90' || VER_PREFIX === 'v0.9')) { N = Math.max(N, Number(m[1])); }
   }
 }
 N += 1;
 const _d = new Date();
 const dateTag = '' + _d.getFullYear() + String(_d.getMonth() + 1).padStart(2, '0') + String(_d.getDate()).padStart(2, '0');
-const outName = `kami-v${V_MAJOR}.${V_MINOR_STR}-${N}-${dateTag}.json`;
+const outName = artifactName(V_MAJOR, V_MINOR_STR, N, dateTag, BRANCH_TAG);
 const outPath = path.join(DIST, outName);
 
 preset.name = outName.replace(/\.json$/, '');

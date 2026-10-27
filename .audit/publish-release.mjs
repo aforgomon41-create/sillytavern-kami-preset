@@ -43,6 +43,16 @@ function git(args, opts) {
   return String(r.stdout || '');
 }
 
+/* 只许在 main 上发版（2026-10-27）：远程更新把任何非草稿 Release（含预发布）都当正式版推给全体用户，
+   镜像清单也只认 @main。支线（例如前端重构）上的东西一旦发出去，就会直接把半成品推给用户。 */
+{
+  const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  if (branch !== 'main') {
+    console.error('[中止] 当前在「' + branch + '」上，发版只能在 main 上进行。支线产物不得发 Release（预发布也不行）或写入 mirror/。');
+    process.exit(1);
+  }
+}
+
 /* 1. 找产物：dist/kami-v<版本>-<N>-<日期>.json（版本号不写死：从产物名解析，
       并与根目录 version.json 核对一致 —— 免得拿旧版本的产物去发新版本号） */
 const distDir = path.join(ROOT, 'dist');

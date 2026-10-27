@@ -10,6 +10,7 @@
  * 一路发到了线上，直到用户说「所有开关都失效了」。守卫自己也要有守卫。
  */
 import { flattenScriptTrees } from '../../build/kami-doc.mjs';
+import { currentBranchTag, ARTIFACT_RE } from '../../build/branch-tag.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -30,10 +31,12 @@ if (!artifact) {
      ② **构建号每个版本会重置**：v0.91-129 的 129 比 v0.92-19 的 19 大，
         所以「按构建号取最大」会把上一代大版本的产物当成最新的。
      正解：先按版本号（0.90 < 0.91 < 0.92），再按日期，最后才按构建号。 */
-  const RE = /^kami-v(\d+)\.(\d+)-(\d+)-(\d{8})\.json$/;
+  /* 产物名可带支线后缀（…-<日期>-<支线>.json），只挑当前支线的（2026-10-27） */
+  const RE = ARTIFACT_RE;
+  const tag = currentBranchTag(root);
   const cands = fs.readdirSync(dir)
     .map((f) => ({ f, m: RE.exec(f) }))
-    .filter((x) => !!x.m)
+    .filter((x) => !!x.m && String(x.m[5] || '').toLowerCase() === tag)
     .map((x) => ({ f: x.f, major: +x.m[1], minor: +x.m[2], build: +x.m[3], date: +x.m[4] }))
     .sort((a, b) => (a.major - b.major) || (a.minor - b.minor) || (a.date - b.date) || (a.build - b.build));
   if (!cands.length) { console.error('dist 里没有产物'); process.exit(2); }

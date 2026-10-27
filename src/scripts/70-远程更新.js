@@ -354,6 +354,12 @@
     return null;
   }
 
+  /* 支线测试包的后缀：kami-v0.93-1-20261027-frontend-rewrite → 'frontend-rewrite'；正式产物返回 '' */
+  function branchTagOf(name) {
+    var m = /v\d+\.\d+-\d+-\d{8}-([a-z0-9][a-z0-9-]*)$/i.exec(cleanStr(name));
+    return m ? m[1].toLowerCase() : '';
+  }
+
   /* 版本比大小：先大版本，再小版本，最后构建号。a 比 b 新返回正数。 */
   function cmpVersion(a, b) {
     if (a.major !== b.major) { return a.major - b.major; }
@@ -933,6 +939,16 @@
         '）；本机当前版本：' +
         (localVer === null ? '没能识别' : (versionLabel(localVer) + '（取自' + verFrom + '）')) +
         '；当前预设名：' + (local.name ? ('「' + local.name + '」') : '没能识别'));
+
+      /* ⓪ 支线测试包不自动更新（2026-10-27）：支线产物名在日期后带 -<支线> 后缀（见 build/branch-tag.mjs）。
+         支线是还没进 main 的大改动，自动「更新」到正式版会把正在测的包整个换掉；
+         手动检查（force）照常可用。 */
+      var branchTag = branchTagOf(SELF_NAME);
+      if (branchTag && !force) {
+        last.action = 'branch';
+        log('这是支线「' + branchTag + '」的测试包，不自动更新到正式版（需要时请手动检查更新）');
+        return last;
+      }
 
       /* ① 先比版本：不比你新就什么都不做（绝大多数启动都是这一种） */
       var newer = (localVer === null) ? true : (cmpVersion(remote, localVer) > 0);

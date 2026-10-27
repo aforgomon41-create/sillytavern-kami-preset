@@ -21,12 +21,14 @@
  * 这个脚本按酒馆的逐字语义重放一遍，并把展开后的内联脚本拿去编译，编译不过就退出码 1。
  */
 import fs from 'node:fs';
+import { currentBranchTag, parseArtifactName } from './branch-tag.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
+const BRANCH_TAG = currentBranchTag(ROOT);
 const NL = String.fromCharCode(10);
 const FENCE = String.fromCharCode(96, 96, 96);
 
@@ -44,10 +46,13 @@ function newestPreset() {
   const verNum = (major, digits) => Number(major) + Number('0.' + digits);
   for (const f of fs.readdirSync(DIST)) {
     /* 现行 kami-v<版本>-<构建号>-<日期>.json、曾用 卡密预设v0.90-<构建号>-<日期>.json 与旧命名（0.9-52 / 0.9-260917-51）都认 */
-    let m = /^(?:kami-|卡密预设)v(\d+)\.(\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
-    if (m) { consider(verNum(m[1], m[2]), Number(m[3]), f); continue; }
+    /* 产物名可带支线后缀，只挑当前支线的（2026-10-27，见 build/branch-tag.mjs） */
+    const art = parseArtifactName(f);
+    if (art) { if (art.branch === BRANCH_TAG) { consider(verNum(art.major, art.minorDigits), art.build, f); } continue; }
+    let m = /^卡密预设v(\d+)\.(\d+)-(\d{1,4})-\d{8}\.json$/i.exec(f);
+    if (m) { if (!BRANCH_TAG) { consider(verNum(m[1], m[2]), Number(m[3]), f); } continue; }
     m = /^(?:kami-|卡密预设)0\.9-(?:\d{6}-)?(\d{1,4})\.json$/i.exec(f);
-    if (m) { consider(0.9, Number(m[1]), f); }
+    if (m && !BRANCH_TAG) { consider(0.9, Number(m[1]), f); }
   }
   return best;
 }
