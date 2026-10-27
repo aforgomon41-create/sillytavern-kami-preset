@@ -1,0 +1,16 @@
+# 换行符统一为 LF（2026-10-27）
+# 不论 Windows 上 core.autocrlf 怎么设，文本文件一律以 LF 检出与提交，
+# 保证同一份源码在不同系统上构建出逐字节相同的运行库与产物。
+* text=auto eol=lf
+
+# 二进制素材：不做任何换行转换
+*.png  binary
+*.webp binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+
+# 已发布 / 归档的产物：SHA-256 已对外公布，保持逐字节原样
+mirror/**  -text
+archive/** -text

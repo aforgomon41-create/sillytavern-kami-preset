@@ -691,12 +691,17 @@ export function expandRegexList(root, list) {
   });
 }
 
+/* 换行符统一成 LF（2026-10-27）：Windows 上 git 的 autocrlf 会把工作区检出成 CRLF，
+   读进来的 \r 会被逐行拼进令牌、再被 esbuild 打进 bundle.js，导致同一份源码在不同系统上
+   打出不同的运行库（--check 误报「过期」）。仓库已用 .gitattributes 钉死 eol=lf，这里再兜一层。 */
+const toLf = (text) => String(text).replace(/\r\n?/g, String.fromCharCode(10));
+
 export function uiCss(root) {
-  const base = fs.readFileSync(path.join(root,'src/skin/base.css'),'utf8');
+  const base = toLf(fs.readFileSync(path.join(root,'src/skin/base.css'),'utf8'));
   const match = /html:not\(\[data-kami-skin\]\) \.kami-root\s*\{([\s\S]*?)\}/.exec(base);
   if (!match) throw new Error('找不到公共默认变量');
   const tokens = match[1].split(String.fromCharCode(10)).filter(line => /^\s*--kami-/.test(line)).join(String.fromCharCode(10));
-  return fs.readFileSync(path.join(root,'src/ui/foundation.css'),'utf8').replace('/* @@KAMI_UI_DEFAULTS@@ */', () => tokens);
+  return toLf(fs.readFileSync(path.join(root,'src/ui/foundation.css'),'utf8')).replace('/* @@KAMI_UI_DEFAULTS@@ */', () => tokens);
 }
 /* ────────────────────────────────────────────────────────────
  * 组件核心与基础样式：**不再各脚本各内联一份**（2026-10-26 迁移）
