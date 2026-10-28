@@ -27,7 +27,7 @@ const HOST_STYLE: Record<string, string> = {
   'pointer-events': 'none', 'z-index': '2147482000', display: 'block', background: 'transparent', transform: 'none'
 };
 
-export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, string> = {}): Layer {
+export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, string> = {}, onRoot?: (root: ShadowRoot) => () => void): Layer {
   const old = doc.querySelector('kami-layer');
   if (old) { old.remove(); }   /* 脚本热重载：不留旧实例 */
   const host = doc.createElement('kami-layer');
@@ -45,6 +45,7 @@ export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, 
   root.append(app, portal);
   shadow.appendChild(root);
   doc.body.appendChild(host);
+  const offRoot = onRoot ? onRoot(shadow) : null;
 
   const items = new Map<string, React.ReactNode>();
   const reactRoot: Root = createRoot(app);
@@ -71,6 +72,7 @@ export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, 
       if (disposed) { return; }
       disposed = true;
       try { reactRoot.unmount(); } catch (e) { /* 已卸载 */ }
+      if (offRoot) { offRoot(); }
       detach();
       host.remove();
     }

@@ -14,6 +14,7 @@ import { validateManifest, type SkinManifest } from '../skin-engine/package';
 import { createLayer, type Layer } from '../surfaces/layer';
 import { MessageMounts, nthTag, type MessageMountOptions } from '../surfaces/messages';
 import { FALLBACK_SKIN } from './fallback-skin';
+import { Fracture } from '../fx/fracture';
 
 export const VERSION = '2.0.0-alpha.1';
 
@@ -40,6 +41,17 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
   const mounts = new Set<MessageMounts>();
   const systemDark = (): boolean => { try { return host.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return true; } };
   let composed: ComposedSkin = composeSkin(FALLBACK_SKIN, DEFAULT_SETTINGS, { systemDark: systemDark() });
+  let manifest: SkinManifest = FALLBACK_SKIN;
+  /* 动效模块：皮肤声明了 modules，且（皮肤定义了同名特效时）特效开关打开 */
+  const moduleOn = (id: string): boolean => {
+    if (!(manifest.modules || []).includes(id)) { return false; }
+    const hasToggle = (manifest.effects || []).some((f) => f.id === id);
+    return !hasToggle || composed.attrs['data-k-effects']!.split(' ').includes(id);
+  };
+  const onRoot = (root: ShadowRoot): (() => void) => {
+    const fx = new Fracture(root, { enabled: () => moduleOn('fracture'), motion: () => (composed.attrs['data-k-motion'] as 'full' | 'calm' | 'off') });
+    return () => fx.dispose();
+  };
   let revision = 0;
 
   const hub = (doc: Document = doc0): StyleHub => {
@@ -53,13 +65,14 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     hub,
     layer(doc = doc0) {
       let l = layers.get(doc);
-      if (!l || !l.host.isConnected) { l = createLayer(doc, hub(doc), composed.attrs); layers.set(doc, l); }
+      if (!l || !l.host.isConnected) { l = createLayer(doc, hub(doc), composed.attrs, onRoot); layers.set(doc, l); }
       return l;
     },
     applySkin(m, settings = {}, opts = {}) {
       const errs = validateManifest(m);
       if (errs.length) { throw new Error('皮肤清单不合法：' + errs.join('；')); }
       composed = composeSkin(m, { ...DEFAULT_SETTINGS, ...settings }, { systemDark: systemDark(), ...opts });
+      manifest = m;
       for (const h of hubs.values()) { h.setSkin(composed.css); }
       for (const l of layers.values()) { l.setAttrs(composed.attrs); }
       for (const mm of mounts) { mm.refreshAttrs(); }
@@ -71,7 +84,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     current: () => composed,
     messages(o) {
       const doc = o.doc || doc0;
-      const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs });
+      const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot });
       mounts.add(mm);
       return mm;
     },

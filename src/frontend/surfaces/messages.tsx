@@ -24,9 +24,11 @@ export interface MessageMountOptions {
   getRaw: (mesId: number) => string | undefined;
   kinds: Record<string, MountKind<any>>;
   attrs?: () => Record<string, string>;
+  /** 每个挂载点的 Shadow DOM 建好后调用（例如挂动效模块），返回清理函数 */
+  onRoot?: (root: ShadowRoot) => () => void;
 }
 
-interface Mounted { root: Root; detach: () => void; key: string }
+interface Mounted { root: Root; detach: () => void; key: string; off: (() => void) | null }
 
 /** 取原文里第 index 个 <tag>…</tag> 的内容（常用的载荷取法） */
 export function nthTag(tag: string): (raw: string, index: number) => string | undefined {
@@ -103,12 +105,13 @@ export class MessageMounts {
         <LevelProvider level="bg"><TooltipProvider>{spec.render(payload, { mesId, index })}</TooltipProvider></LevelProvider>
       </PortalProvider>
     );
-    this.mounted.set(el, { root, detach, key: mesId + ':' + kind + ':' + index });
+    this.mounted.set(el, { root, detach, key: mesId + ':' + kind + ':' + index, off: this.o.onRoot ? this.o.onRoot(shadow) : null });
     this.mounts++;
   }
 
   private unmount(el: Element, m: Mounted): void {
     try { m.root.unmount(); } catch (e) { /* 已卸载 */ }
+    if (m.off) { m.off(); }
     m.detach();
     this.mounted.delete(el);
   }

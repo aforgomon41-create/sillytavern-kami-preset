@@ -14,7 +14,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, '.cache', 'frontend');
 const common = {
   bundle: true, format: 'iife', target: ['es2019', 'chrome108', 'safari16'], jsx: 'automatic', legalComments: 'none',
-  loader: { '.css': 'text' }, define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'warning'
+  loader: { '.css': 'text', '.png': 'dataurl' }, define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'warning'
 };
 const entries = [
   { entryPoints: [path.join(ROOT, 'src/frontend/runtime/index.ts')], outfile: path.join(OUT, 'runtime.js'), minify: true },

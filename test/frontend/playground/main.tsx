@@ -6,6 +6,9 @@ import * as React from 'react';
 import { createRuntime } from '../../../src/frontend/runtime/index';
 import type { SkinManifest } from '../../../src/frontend/skin-engine/package';
 import { FALLBACK_SKIN } from '../../../src/frontend/runtime/fallback-skin';
+import suiguangJson from '../../../src/skins-next/suiguang/skin.json';
+import suiguangCss from '../../../src/skins-next/suiguang/skin.css';
+import suiguangPaper from '../../../src/skins-next/suiguang/assets/paper.png';
 import {
   Badge, Button, Card, Checkbox, ChoiceCard, CollapseCard, Dialog, Empty, Field, IconButton, IconClose, Select, Spinner,
   Panel, Surface, Switch, Tabs, TextArea, TextField, Tooltip, type Level, type Rect
@@ -14,6 +17,7 @@ import {
 /* 两套故意刁钻的测试皮肤：验证「任何种子都可读」在真实渲染里也成立 */
 const TEST_SKINS: Record<string, SkinManifest> = {
   fallback: FALLBACK_SKIN,
+  suiguang: suiguangJson as unknown as SkinManifest,
   paper: { id: 'paper', name: '粉纸浅黄（测试）', version: '0', contract: '1.0', defaultScheme: 'light',
     schemes: { light: { seeds: { neutral: '#f7d6e0', accent: '#ffe066', radius: 2, elevation: 'outline' } }, dark: { seeds: { neutral: '#3a2030', accent: '#ffe066', radius: 2, elevation: 'outline' } } } },
   abyss: { id: 'abyss', name: '近黑暗红（测试）', version: '0', contract: '1.0', defaultScheme: 'dark',
@@ -24,10 +28,11 @@ const q = new URLSearchParams(location.search);
 const rt = createRuntime(window);
 (window as unknown as { __rt: unknown }).__rt = rt;
 const skin = TEST_SKINS[q.get('skin') || 'fallback'] || FALLBACK_SKIN;
+const extra = skin.id === 'suiguang' ? { skinCss: suiguangCss, assetUrls: { paper: suiguangPaper } } : {};
 const composed = rt.applySkin(skin, {
   scheme: (q.get('scheme') as 'dark' | 'light') || skin.defaultScheme,
   density: (q.get('density') as 'cozy') || 'cozy', motion: (q.get('motion') as 'full') || 'full'
-});
+}, extra);
 (window as unknown as { __corrections: unknown }).__corrections = composed.corrections;
 
 function Controls(): React.JSX.Element {

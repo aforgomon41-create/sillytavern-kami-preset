@@ -36,10 +36,14 @@ export interface SkinManifest {
   params?: ParamDef[];
   assets?: Record<string, AssetDef>;
   ornaments?: string[];
+  /** 启用的平台动效模块（前端契约 6.5），例如 ["fracture"] */
+  modules?: string[];
   flavor?: Record<string, string>;
 }
 
 export const CONTRACT_MAJOR = 1;
+/** 平台提供的动效模块 */
+export const MODULES = ['fracture'] as const;
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 /** 参数可以绑定：种子（seed:accent）、语义令牌（token:surface-1）、皮肤自己的变量（var:--k-skin-xxx） */
@@ -90,5 +94,6 @@ export function validateManifest(m: unknown): string[] {
     if (!ID.test(k)) { e.push('素材名不合法：' + k); }
     if (!a || !/^assets\/[\w.-]+\.(png|webp)$/i.test(a.file)) { e.push('素材 ' + k + ' 只能是 assets/ 下的 png / webp'); }
   }
+  for (const mod of o.modules || []) { if (!(MODULES as readonly string[]).includes(mod)) { e.push('未知的动效模块：' + mod); } }
   return e;
 }

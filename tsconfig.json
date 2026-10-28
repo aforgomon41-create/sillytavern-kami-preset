@@ -17,10 +17,12 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": []
+    "types": [],
+    "resolveJsonModule": true
   },
   "include": [
     "src/frontend/**/*.ts",
-    "src/frontend/**/*.tsx"
+    "src/frontend/**/*.tsx",
+    "design/previews/**/*.tsx"
   ]
 }

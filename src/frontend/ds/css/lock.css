@@ -7,6 +7,8 @@
 [data-k-surface="message"] { display: block; position: relative; max-width: 100%; }
 
 [hidden] { display: none; }
+/* 能挂伪元素装饰的组件都是定位容器：皮肤的 ::before / ::after 以组件自己为基准（皮肤不能改组件的 position） */
+[data-k="card"], [data-k="button"], [data-k="icon-button"], [data-k="select"][data-k-part="trigger"], [data-k="tabs"] [data-k-part="tab"], [data-k="dialog"] [data-k-part="head"] { position: relative; }
 [data-k-ornament] { pointer-events: none; }
 
 /* 焦点环：皮肤可以换颜色（--k-focus-ring-*），但不能把它去掉 */

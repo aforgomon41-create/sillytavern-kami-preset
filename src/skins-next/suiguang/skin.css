@@ -1,0 +1,70 @@
+/* 碎光 —— 静时如纸，动时碎光。
+   静态：发丝细边、柔和的纸面层次、衬线标题；方块是贯穿的母题（印章、方形开关钮）。
+   动态：碎裂溢光由平台模块 fracture 负责（JS、对象池、只动 transform / opacity），这里只给参数和「碎裂中」的边缘状态。 */
+
+/* ───────── 动效参数（交给 fracture 模块读） ───────── */
+:host, [data-k-surface] {
+  --k-fx-size: var(--k-skin-shard, 6px);
+  --k-fx-strength: var(--k-skin-glow, .7);
+  --k-fx-glow: var(--k-accent);
+  --k-fx-spread: 22px;
+}
+/* 溢光用更亮的「发光色」：浅色档如果用深青瓷绿，在纸面上读起来像阴影而不是光 */
+[data-k-surface][data-k-scheme="light"] { --k-fx-glow: #49d3a6; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #8ff0cc; }
+
+/* ───────── 排版 ───────── */
+[data-k-surface] { letter-spacing: .01em; }
+[data-k="panel"] [data-k-part="title"], [data-k="dialog"] [data-k-part="title"], [data-k="card"] [data-k-part="title"] { letter-spacing: .04em; }
+
+/* ───────── 表面：发丝细边，层次靠底色与极淡的阴影 ───────── */
+[data-k="card"] { border-color: var(--k-divider); box-shadow: none; }
+[data-k="card"][data-role="container"] { box-shadow: 0 1px 0 var(--k-divider); }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-color: var(--k-border); }
+
+/* ───────── 按钮：略方的圆角，按下时轻压 ───────── */
+[data-k="button"] { border-radius: var(--k-r-sm); font-weight: 500; letter-spacing: .03em; transition: background-color var(--k-dur-fast) var(--k-ease), border-color var(--k-dur-fast) var(--k-ease), transform var(--k-dur-fast) var(--k-ease); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px) scale(.98); }
+[data-k="card"][data-role="choice"]:active { transform: scale(.99); }
+
+/* 碎裂进行中：边缘「碎掉」——边线暂时隐去，交给飞散的碎块与溢光 */
+[data-k][data-k-fx="active"] { border-color: transparent; }
+[data-k="card"][data-role="choice"][data-state="selected"][data-k-fx="active"] { border-color: var(--k-accent); }
+
+/* 能悬停的设备（PC）：悬停时边缘亮一线强调色；触屏不做悬停态，避免「点完还亮着」 */
+@media (hover: hover) and (pointer: fine) {
+  [data-k="button"]:not([data-variant="primary"]):not(:disabled):hover, [data-k="select"][data-k-part="trigger"]:hover, [data-k="card"][data-role="choice"]:hover {
+    box-shadow: 0 0 0 1px var(--k-focus-ring);
+  }
+}
+
+/* 触屏（手机）：更大的点按区域与间距，页签更好点 */
+@media (pointer: coarse) {
+  [data-k="tabs"] [data-k-part="tab"] { padding: var(--k-space-3) var(--k-space-4); }
+  [data-k="card"] [data-k-part="head"] { padding: var(--k-space-4); }
+  [data-k="field"] { gap: var(--k-space-3); }
+}
+
+/* ───────── 开关 / 复选框：方块母题 ───────── */
+[data-k="switch"] { border-radius: var(--k-r-sm); }
+[data-k="switch"] [data-k-part="thumb"] { border-radius: var(--k-r-xs); }
+[data-k="checkbox"] { border-radius: 2px; }
+
+/* ───────── 页签：当前页下面一条细线，两端各一个小方块 ───────── */
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom-width: 2px; }
+
+/* ───────── 印章装饰 ───────── */
+[data-k-surface][data-k-effects~="seal"] [data-k-ornament="panel-head-start"] {
+  display: inline-block; flex: none; width: 8px; height: 8px; margin-right: 2px;
+  background: var(--k-accent); box-shadow: 3px 3px 0 var(--k-accent-soft);
+}
+[data-k-surface][data-k-effects~="seal"] [data-k="card"][data-role="container"]::after {
+  content: ''; position: absolute; right: 10px; top: 10px; width: 4px; height: 4px; background: var(--k-accent); opacity: .7; pointer-events: none;
+}
+
+/* ───────── 纸纹（只在浅色档）：静态纹理，不动画 ───────── */
+[data-k-surface][data-k-scheme="light"][data-k-effects~="paper"] [data-k-level="bg"],
+[data-k-surface][data-k-scheme="light"][data-k-effects~="paper"] [data-k-level="surface-1"] {
+  background-image: var(--k-asset-paper);
+  background-size: 96px 96px;
+}

@@ -20,7 +20,8 @@ const SHOTS = process.argv.includes('--shots');
 const { server, base } = serve(ROOT);
 const BASE = base + '/test/frontend/playground/index.html';
 
-const skins = QUICK ? ['fallback'] : ['fallback', 'paper', 'abyss'];
+const ONLY = (process.argv.find((a) => a.startsWith('--skin=')) || '').slice(7);
+const skins = ONLY ? [ONLY] : QUICK ? ['fallback'] : ['suiguang', 'fallback', 'paper', 'abyss'];
 const schemes = ['dark', 'light'];
 const widths = QUICK ? [390] : [320, 390, 1440];
 const browser = await chromium.launch();
@@ -86,7 +87,7 @@ for (const skin of skins) for (const scheme of schemes) for (const w of widths) 
   if (iso.overflow > 1) { problems.push(combo + ' · 横向溢出 ' + iso.overflow + 'px'); }
   if (errors.length) { problems.push(combo + ' · 页面错误 ' + errors.join(' | ')); }
   const corr = await page.evaluate(() => window.__corrections.length);
-  if (skin === 'fallback' && corr) { problems.push(combo + ' · 兜底皮肤出现自动校正 ' + corr + ' 处'); }
+  if ((skin === 'fallback' || skin === 'suiguang') && corr) { problems.push(combo + ' · 兜底皮肤出现自动校正 ' + corr + ' 处'); }
   await page.close();
 }
 await browser.close(); server.close();

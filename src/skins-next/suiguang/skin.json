@@ -1,0 +1,123 @@
+{
+  "id": "suiguang",
+  "name": "碎光",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "静时如纸，动时碎光。暖纸与墨色两档，青瓷色点睛；按下、展开时，组件边缘碎成方块，缝隙里透出光。",
+  "author": "卡密预设",
+  "credits": "纸纹由 build/frontend/make-paper-texture.mjs 程序生成，无第三方素材。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#ebe5d8",
+        "accent": "#3b7a68",
+        "radius": 6,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, Georgia, serif"
+        }
+      },
+      "components": {
+        "badge": {
+          "tone": "accent-soft"
+        }
+      },
+      "tokens": {
+        "selected": "#dfe7dd"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#23211d",
+        "accent": "#79b8a4",
+        "radius": 6,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, Georgia, serif"
+        }
+      },
+      "components": {
+        "badge": {
+          "tone": "accent-soft"
+        }
+      },
+      "tokens": {
+        "selected": "#2f3c37"
+      }
+    }
+  },
+  "modules": [
+    "fracture"
+  ],
+  "effects": [
+    {
+      "id": "fracture",
+      "name": "碎光",
+      "description": "按下、展开、弹出时，组件边缘碎成方块飞散，缝隙里透出强调色的光。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "paper",
+      "name": "纸纹",
+      "description": "浅色档的表面铺一层很淡的宣纸纤维纹理（静态）。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "seal",
+      "name": "印章",
+      "description": "面板标题前、卡片角上的小方块标记。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "glow",
+      "name": "溢光强度",
+      "type": "number",
+      "default": 0.7,
+      "min": 0.2,
+      "max": 1,
+      "step": 0.05,
+      "bind": "var:--k-skin-glow",
+      "group": "动效"
+    },
+    {
+      "id": "shard",
+      "name": "碎块大小",
+      "type": "number",
+      "default": 6,
+      "min": 3,
+      "max": 12,
+      "step": 1,
+      "unit": "px",
+      "bind": "var:--k-skin-shard",
+      "group": "动效"
+    },
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 6,
+      "min": 0,
+      "max": 12,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "assets": {
+    "paper": {
+      "file": "assets/paper.png",
+      "alt": "宣纸纹理"
+    }
+  },
+  "ornaments": [
+    "panel-head-start",
+    "card-corner"
+  ],
+  "flavor": {}
+}
