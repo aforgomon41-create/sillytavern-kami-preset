@@ -118,12 +118,46 @@ test('样式表共享：不支持可构造样式表时退回为每个根两个 <
 
 test('外链资源：字体必须 https、字体栈必须以通用字体族结尾、外链素材必须有包内兜底', () => {
   const ok: SkinManifest = { ...base, fonts: [{ family: 'LXGW WenKai', src: ['https://cdn.example.com/wenkai.woff2'] }],
-    schemes: { dark: { seeds: { ...base.schemes.dark!.seeds, font: { heading: '"LXGW WenKai", "Songti SC", serif' } } } }, defaultScheme: 'dark',
+    schemes: { light: base.schemes.light!, dark: { seeds: { ...base.schemes.dark!.seeds, font: { heading: '"LXGW WenKai", "Songti SC", serif' } } } }, defaultScheme: 'dark',
     assets: { hero: { file: 'assets/hero.webp', url: 'https://cdn.example.com/hero.webp' } } };
   assert.deepEqual(validateManifest(ok), []);
   const bad = { ...ok, fonts: [{ family: 'X', src: ['http://insecure/x.woff2'] }], assets: { hero: { url: 'https://cdn.example.com/hero.webp' } },
-    schemes: { dark: { seeds: { ...base.schemes.dark!.seeds, font: { body: '"LXGW WenKai"' } } } } };
+    schemes: { light: base.schemes.light!, dark: { seeds: { ...base.schemes.dark!.seeds, font: { body: '"LXGW WenKai"' } } } } };
   const e = validateManifest(bad).join('\n');
   for (const k of ['src 必须是一个或多个 https', '必须以通用字体族结尾', '兜底']) { assert.ok(e.includes(k), '应报：' + k + '\n' + e); }
   assert.ok(lintSkinCss('@font-face { font-family: x; }').some((i) => i.message.includes('fonts 里声明')));
+});
+
+test('配色：必须同时有浅色与深色；额外配色要写 base 与 name', () => {
+  const onlyDark = { ...base, schemes: { dark: base.schemes.dark! } };
+  assert.ok(validateManifest(onlyDark).join().includes('必须同时有 light'));
+  const extraBad = { ...base, schemes: { ...base.schemes, reading: { seeds: { neutral: '#efe3c8', accent: '#7a4b2a' } } } };
+  const e = validateManifest(extraBad).join('\n');
+  assert.ok(e.includes('必须写 base') && e.includes('必须写 name'), e);
+  const extraOk: SkinManifest = { ...base, schemes: { ...base.schemes, reading: { base: 'light', name: '阅读', seeds: { neutral: '#efe3c8', accent: '#7a4b2a' } } } };
+  assert.deepEqual(validateManifest(extraOk), []);
+  const c = composeSkin(extraOk, { ...DEFAULT_SETTINGS, scheme: 'reading' });
+  assert.equal(c.scheme, 'reading'); assert.equal(c.mode, 'light');
+  assert.equal(c.attrs['data-k-scheme'], 'reading'); assert.equal(c.attrs['data-k-mode'], 'light');
+  assert.ok(c.css.includes('color-scheme: light'));
+});
+
+test('分设备的排版与间距：手机一套、电脑一套', () => {
+  const c = composeSkin(base, { ...DEFAULT_SETTINGS, scheme: 'dark' });
+  assert.ok(c.css.includes('--k-read-measure: 42em;'), '电脑限制行长');
+  const mobile = c.css.slice(c.css.indexOf('@media (max-width: 1000px)'));
+  assert.ok(mobile.includes('--k-read-measure: 100%;') && mobile.includes('--k-gap-section: 16px;'), '手机铺满宽度、分组间距收紧');
+});
+
+test('emoji 图标映射：键必须是 emoji，值是平台图标名或 SVG', () => {
+  assert.deepEqual(validateManifest({ ...base, icons: { '🤖': 'bot', '🐋': 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E' } }), []);
+  const e = validateManifest({ ...base, icons: { 'abc': 'bot', '🤖': 'https://x/y.svg' } }).join('\n');
+  assert.ok(e.includes('键必须是 emoji') && e.includes('必须是平台图标名'), e);
+});
+
+test('皮肤 CSS 检查：容器组件的部件必须用 > 直接子元素选择器', () => {
+  const bad = lintSkinCss('[data-k="panel"] [data-k-part="title"] { color: red; }').map((i) => i.message).join();
+  assert.ok(bad.includes('直接子元素选择器'), bad);
+  assert.deepEqual(lintSkinCss('[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: 1px; }'), []);
+  assert.deepEqual(lintSkinCss('[data-k="card"] [data-k="button"] [data-k-part="label"] { letter-spacing: 1px; }'), [], '卡片里按钮自己的部件不算泄漏');
 });

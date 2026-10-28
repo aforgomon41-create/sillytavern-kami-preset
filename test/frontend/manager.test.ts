@@ -17,7 +17,7 @@ function setup(stored: unknown = null) {
 }
 
 test('坏数据被清洗：未知皮肤落到第一个、字号缩放裁剪、坏字段回落', () => {
-  const s = sanitizeStored({ skin: 7, global: { density: 'huge', motion: 'off', fontScale: 9 }, perSkin: { a: { scheme: 'neon', effects: ['x', 3] } } }, 'alpha');
+  const s = sanitizeStored({ skin: 7, global: { density: 'huge', motion: 'off', fontScale: 9 }, perSkin: { a: { scheme: 'Neon Bad!', effects: ['x', 3] } } }, 'alpha');
   assert.equal(s.skin, 'alpha'); assert.equal(s.global.density, 'cozy'); assert.equal(s.global.motion, 'off'); assert.equal(s.global.fontScale, 1.4);
   assert.deepEqual(s.perSkin['a'], { effects: ['x'] });
   const { m } = setup({ skin: 'grokbot' });   /* 旧系统的皮肤 id */

@@ -15,12 +15,15 @@
 
 /* ───────── 排版 ───────── */
 [data-k-surface] { letter-spacing: .01em; }
-[data-k="panel"] [data-k-part="title"], [data-k="dialog"] [data-k-part="title"], [data-k="card"] [data-k-part="title"] { letter-spacing: .04em; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"], [data-k="card"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .04em; }
 
-/* ───────── 表面：发丝细边，层次靠底色与极淡的阴影 ───────── */
-[data-k="card"] { border-color: var(--k-divider); box-shadow: none; }
-[data-k="card"][data-role="container"] { box-shadow: 0 1px 0 var(--k-divider); }
-[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-color: var(--k-border); }
+/* ───────── 表面：少框线。层次靠底色差与间距，只有浮在酒馆上面的面板 / 对话框留一圈发丝线 ───────── */
+[data-k="card"] { border-color: transparent; box-shadow: none; }
+[data-k="card"][data-role="choice"] { border: 1.5px solid transparent; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border: 1.5px solid var(--k-accent); }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-color: var(--k-divider); }
+[data-k="panel"] > [data-k-part="head"], [data-k="panel"] > [data-k-part="foot"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="foot"] { border-color: transparent; }
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: transparent; }
 
 /* ───────── 按钮：略方的圆角，按下时轻压 ───────── */
 [data-k="button"] { border-radius: var(--k-r-sm); font-weight: 500; letter-spacing: .03em; transition: background-color var(--k-dur-fast) var(--k-ease), border-color var(--k-dur-fast) var(--k-ease), transform var(--k-dur-fast) var(--k-ease); }
@@ -30,6 +33,11 @@
 /* 碎裂进行中：边缘「碎掉」——边线暂时隐去，交给飞散的碎块与溢光 */
 [data-k][data-k-fx="active"] { border-color: transparent; }
 [data-k="card"][data-role="choice"][data-state="selected"][data-k-fx="active"] { border-color: var(--k-accent); }
+
+/* 选择卡在能悬停的设备上：底色微微抬一档提示可点 */
+@media (hover: hover) and (pointer: fine) {
+  [data-k="card"][data-role="choice"]:not([data-state="selected"]):hover { border-color: var(--k-divider); }
+}
 
 /* 能悬停的设备（PC）：悬停时边缘亮一线强调色；触屏不做悬停态，避免「点完还亮着」 */
 @media (hover: hover) and (pointer: fine) {
@@ -41,7 +49,7 @@
 /* 触屏（手机）：更大的点按区域与间距，页签更好点 */
 @media (pointer: coarse) {
   [data-k="tabs"] [data-k-part="tab"] { padding: var(--k-space-3) var(--k-space-4); }
-  [data-k="card"] [data-k-part="head"] { padding: var(--k-space-4); }
+  [data-k="card"] > [data-k-part="head"] { padding: var(--k-space-4); }
   [data-k="field"] { gap: var(--k-space-3); }
 }
 
@@ -68,3 +76,16 @@
   background-image: var(--k-asset-paper);
   background-size: 96px 96px;
 }
+
+/* ───────── 加载：几个小方块循环聚散（与碎光同源的皮肤语言）；动效关闭时由平台停掉循环 ───────── */
+[data-k="spinner"] { border: 0; border-radius: 0; width: 1em; height: 1em; animation: none; }
+[data-k="spinner"]::before, [data-k="spinner"]::after {
+  content: ''; position: absolute; width: 38%; height: 38%; background: currentColor;
+  animation: k-suiguang-gather 1.1s var(--k-ease) infinite;
+}
+[data-k="spinner"]::before { left: 0; top: 0; box-shadow: 0.62em 0.62em 0 currentColor; }
+[data-k="spinner"]::after { right: 0; top: 0; box-shadow: -0.62em 0.62em 0 currentColor; animation-delay: -0.55s; opacity: .55; }
+@keyframes k-suiguang-gather { 0%, 100% { transform: scale(1); } 50% { transform: scale(.45) rotate(45deg); } }
+
+/* ───────── 阅读档：更低的纸面对比、无纸纹（纸色本身就是暖的） ───────── */
+[data-k-surface][data-k-scheme="reading"] { --k-fx-glow: #e0a35c; }

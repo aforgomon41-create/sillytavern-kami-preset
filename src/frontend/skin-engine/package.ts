@@ -6,6 +6,10 @@ import type { ContrastLevel, Mode, Seeds } from './tokens';
 import type { Elevation, FontStacks } from './scales';
 
 export interface SchemeDef {
+  /** 额外配色（light / dark 之外）必填：基于哪一档推导（决定明暗与 color-scheme） */
+  base?: Mode;
+  /** 额外配色的显示名，例如「阅读」 */
+  name?: string;
   seeds: Seeds & { radius?: number; font?: FontStacks; elevation?: Elevation; contrast?: ContrastLevel };
   /** L2：直接指定语义令牌（不带 --k- 前缀） */
   tokens?: Record<string, string>;
@@ -43,8 +47,11 @@ export interface SkinManifest {
   description?: string;
   author?: string;
   credits?: string;
-  schemes: Partial<Record<Mode, SchemeDef>>;
-  defaultScheme: Mode;
+  /** 必须同时有 light 与 dark；可以再加更多（键名为配色 id，需写 base 与 name） */
+  schemes: Record<string, SchemeDef>;
+  defaultScheme: string;
+  /** emoji → 图标映射（前端契约 6.7）：值是平台图标名，或 data:image/svg+xml 的 SVG（按 currentColor 着色） */
+  icons?: Record<string, string>;
   effects?: EffectDef[];
   params?: ParamDef[];
   assets?: Record<string, AssetDef>;
@@ -77,11 +84,15 @@ export function validateManifest(m: unknown): string[] {
   if (!o.version) { e.push('缺 version'); }
   if (!o.contract || Number(String(o.contract).split('.')[0]) !== CONTRACT_MAJOR) { e.push('contract 必须是 ' + CONTRACT_MAJOR + '.x'); }
   const schemes = o.schemes || {};
-  const modes = Object.keys(schemes) as Mode[];
-  if (!modes.length) { e.push('schemes 至少要有 light 或 dark 之一'); }
+  const modes = Object.keys(schemes);
+  if (!schemes['light'] || !schemes['dark']) { e.push('schemes 必须同时有 light（浅色）与 dark（深色），可以再加更多'); }
   for (const mode of modes) {
-    if (mode !== 'light' && mode !== 'dark') { e.push('未知配色方案：' + mode); continue; }
     const sc = schemes[mode] as SchemeDef;
+    if (mode !== 'light' && mode !== 'dark') {
+      if (!ID.test(mode)) { e.push('配色 id 不合法：' + mode); continue; }
+      if (sc.base !== 'light' && sc.base !== 'dark') { e.push(mode + '：额外配色必须写 base（light 或 dark）'); }
+      if (!sc.name) { e.push(mode + '：额外配色必须写 name（显示名）'); }
+    }
     const seeds = sc && sc.seeds;
     if (!seeds) { e.push(mode + '：缺 seeds'); continue; }
     for (const k of ['neutral', 'accent'] as const) { if (!seeds[k] || !HEX.test(seeds[k])) { e.push(mode + '.seeds.' + k + ' 必须是十六进制颜色'); } }
@@ -115,6 +126,10 @@ export function validateManifest(m: unknown): string[] {
     if (!ID.test(k)) { e.push('素材名不合法：' + k); }
     if (!a || !/^assets\/[\w.-]+\.(png|webp)$/i.test(a.file)) { e.push('素材 ' + k + ' 必须有 assets/ 下的 png / webp（外链失效时的兜底）'); }
     if (a && a.url !== undefined && !HTTPS.test(a.url)) { e.push('素材 ' + k + ' 的外链必须是 https 地址'); }
+  }
+  for (const [emo, v] of Object.entries(o.icons || {})) {
+    if (!/\p{Extended_Pictographic}/u.test(emo)) { e.push('icons 的键必须是 emoji：' + emo); }
+    if (typeof v !== 'string' || !(/^[a-z][a-z0-9-]*$/.test(v) || /^data:image\/svg\+xml[;,]/i.test(v))) { e.push('icons[' + emo + '] 必须是平台图标名或 data:image/svg+xml'); }
   }
   for (const f of o.fonts || []) {
     if (!f || !f.family || /["'\\;{}]/.test(f.family)) { e.push('外链字体的 family 不合法：' + (f && f.family)); }

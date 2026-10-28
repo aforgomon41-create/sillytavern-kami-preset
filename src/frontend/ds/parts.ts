@@ -30,6 +30,13 @@ export const COMPONENTS = {
   tooltip: { parts: ['content', 'arrow'], variants: {}, states: ['delayed-open', 'instant-open', 'closed'] },
   badge: { parts: [], variants: { tone: ['neutral', 'accent', 'danger', 'warning', 'success', 'info'] }, states: [] },
   empty: { parts: ['icon', 'title', 'description', 'actions'], variants: {}, states: [] },
+  'setting-section': { parts: ['head', 'title', 'badge', 'aside', 'body'], variants: {}, states: [] },
+  'setting-row': { parts: ['text', 'label', 'description', 'info', 'control'], variants: {}, states: [] },
+  'choice-grid': { parts: [], variants: {}, states: [] },
+  nav: { parts: ['item', 'icon', 'label', 'meta', 'chevron'], variants: { layout: ['sidebar', 'list'] }, states: ['active'] },
+  segmented: { parts: ['item'], variants: { size: ['sm', 'md'] }, states: ['on', 'off'] },
+  popover: { parts: ['content'], variants: {}, states: ['open', 'closed'] },
+  toast: { parts: ['message', 'action', 'close'], variants: {}, states: [] },
   spinner: { parts: [], variants: { size: ['sm', 'md'] }, states: [] }
 } as const satisfies Record<string, ComponentSpec>;
 

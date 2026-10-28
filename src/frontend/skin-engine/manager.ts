@@ -17,7 +17,7 @@ export interface StoredSettings {
   version: 1;
   skin: string;
   global: { density: Density; motion: Motion; fontScale: number };
-  perSkin: Record<string, { scheme?: Mode | 'auto'; effects?: string[]; params?: Record<string, string | number> }>;
+  perSkin: Record<string, { scheme?: string; effects?: string[]; params?: Record<string, string | number> }>;
 }
 
 export interface SettingsStore { load(): unknown; save(s: StoredSettings): void }
@@ -50,7 +50,7 @@ export function sanitizeStored(raw: unknown, fallbackSkin: string): StoredSettin
   for (const [id, v] of Object.entries(o.perSkin && typeof o.perSkin === 'object' ? o.perSkin : {})) {
     if (!v || typeof v !== 'object') { continue; }
     const e: StoredSettings['perSkin'][string] = {};
-    if (v.scheme === 'light' || v.scheme === 'dark' || v.scheme === 'auto') { e.scheme = v.scheme; }
+    if (typeof v.scheme === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(v.scheme)) { e.scheme = v.scheme; }
     if (Array.isArray(v.effects)) { e.effects = v.effects.filter((x): x is string => typeof x === 'string'); }
     if (v.params && typeof v.params === 'object') {
       e.params = {};
@@ -86,7 +86,7 @@ export class SkinManager {
   get settings(): StoredSettings { return this.state; }
   get current(): SkinEntry { return this.skins.get(this.state.skin) as SkinEntry; }
 
-  private effectiveScheme(): Mode | 'auto' { return this.state.perSkin[this.state.skin]?.scheme ?? 'auto'; }
+  private effectiveScheme(): string { return this.state.perSkin[this.state.skin]?.scheme ?? 'auto'; }
 
   /** 合成当前设置交给运行库 */
   apply(): void {
@@ -109,7 +109,7 @@ export class SkinManager {
   }
 
   select(id: string): void { if (this.skins.has(id) && id !== this.state.skin) { this.change((s) => { s.skin = id; }); } }
-  setScheme(scheme: Mode | 'auto'): void { this.change((s) => { (s.perSkin[s.skin] ||= {}).scheme = scheme; }); }
+  setScheme(scheme: string): void { this.change((s) => { (s.perSkin[s.skin] ||= {}).scheme = scheme; }); }
   setGlobal(patch: Partial<StoredSettings['global']>): void { this.change((s) => { s.global = sanitizeStored({ ...s, global: { ...s.global, ...patch } }, s.skin).global; }); }
   setEffect(id: string, on: boolean): void {
     this.change((s) => {

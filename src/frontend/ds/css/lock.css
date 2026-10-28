@@ -8,7 +8,7 @@
 
 [hidden] { display: none; }
 /* 能挂伪元素装饰的组件都是定位容器：皮肤的 ::before / ::after 以组件自己为基准（皮肤不能改组件的 position） */
-[data-k="card"], [data-k="button"], [data-k="icon-button"], [data-k="select"][data-k-part="trigger"], [data-k="tabs"] [data-k-part="tab"], [data-k="dialog"] [data-k-part="head"] { position: relative; }
+[data-k="card"], [data-k="button"], [data-k="icon-button"], [data-k="select"][data-k-part="trigger"], [data-k="tabs"] [data-k-part="tab"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"], [data-k="spinner"] { position: relative; }
 [data-k-ornament] { pointer-events: none; }
 
 /* 焦点环：皮肤可以换颜色（--k-focus-ring-*），但不能把它去掉 */
@@ -32,8 +32,8 @@
 }
 [data-k="dialog"][data-k-part="content"][data-size="sm"] { width: min(calc(100vw - 24px), 400px); }
 [data-k="dialog"][data-k-part="content"][data-size="lg"] { width: min(calc(100vw - 24px), 820px); }
-[data-k="dialog"] [data-k-part="head"], [data-k="dialog"] [data-k-part="foot"] { flex: none; }
-[data-k="dialog"] [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+[data-k="dialog"][data-k-part="content"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="foot"] { flex: none; }
+[data-k="dialog"][data-k-part="content"] > [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 /* 窄屏（与酒馆单栏断点一致）：触控目标不小于 40px */
 @media (max-width: 1000px) {
@@ -57,10 +57,23 @@
   transform: translateY(var(--k-sheet-drag, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 [data-k="panel"][data-layout="sheet"]:not([data-dragging]) { transition: transform var(--k-dur) var(--k-ease-out); }
-[data-k="panel"] [data-k-part="head"] { flex: none; display: flex; align-items: center; position: relative; touch-action: none; user-select: none; }
-[data-k="panel"][data-layout="floating"] [data-k-part="head"] { cursor: move; }
-[data-k="panel"] [data-k-part="title"] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-k="panel"] [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-[data-k="panel"] [data-k-part="foot"] { flex: none; }
-[data-k="panel"] [data-k-part="resize"] { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; }
-[data-k="panel"] [data-k-part="grip"] { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); }
+[data-k="panel"] > [data-k-part="head"] { flex: none; display: flex; align-items: center; position: relative; touch-action: none; user-select: none; }
+[data-k="panel"][data-layout="floating"] > [data-k-part="head"] { cursor: move; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-k="panel"] > [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+[data-k="panel"] > [data-k-part="foot"] { flex: none; }
+[data-k="panel"] > [data-k-part="resize"] { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="grip"] { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); }
+
+/* 提示条：贴在所在面板 / 渲染面的底部居中，不挡正文滚动以外的东西 */
+[data-k="toast"] { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2; max-width: calc(100% - 24px); }
+
+/* 设置布局：一律允许收缩，长说明换行而不是撑宽 */
+[data-k="setting-section"] { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+[data-k="setting-section"] > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; }
+[data-k="setting-section"] > [data-k-part="body"] { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+[data-k="setting-row"] { display: flex; align-items: center; min-width: 0; }
+[data-k="setting-row"] > [data-k-part="text"] { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+[data-k="setting-row"] > [data-k-part="control"], [data-k="setting-row"] > [data-k-part="info"] { flex: none; }
+[data-k="choice-grid"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--k-grid-min, 140px), 100%), 1fr)); min-width: 0; }
+[data-k="segmented"] { min-width: 0; }

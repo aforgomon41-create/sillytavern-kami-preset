@@ -6,7 +6,7 @@
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { LevelProvider, PortalProvider, TooltipProvider } from '../ds';
+import { IconMapProvider, LevelProvider, PortalProvider, TooltipProvider } from '../ds';
 import type { StyleHub } from '../skin-engine/sheets';
 
 export interface Layer {
@@ -19,6 +19,8 @@ export interface Layer {
   close(id: string): void;
   ids(): string[];
   setAttrs(attrs: Record<string, string>): void;
+  /** 皮肤变了（例如图标映射）：整层重画 */
+  refresh(): void;
   dispose(): void;
 }
 
@@ -27,7 +29,7 @@ const HOST_STYLE: Record<string, string> = {
   'pointer-events': 'none', 'z-index': '2147482000', display: 'block', background: 'transparent', transform: 'none'
 };
 
-export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, string> = {}, onRoot?: (root: ShadowRoot) => () => void): Layer {
+export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, string> = {}, onRoot?: (root: ShadowRoot) => () => void, icons: () => Record<string, string> = () => ({})): Layer {
   const old = doc.querySelector('kami-layer');
   if (old) { old.remove(); }   /* 脚本热重载：不留旧实例 */
   const host = doc.createElement('kami-layer');
@@ -52,9 +54,11 @@ export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, 
   const paint = (): void => {
     flushSync(() => reactRoot.render(
       <PortalProvider container={portal}>
-        <LevelProvider level="bg">
-          <TooltipProvider>{Array.from(items.entries()).map(([id, n]) => <React.Fragment key={id}>{n}</React.Fragment>)}</TooltipProvider>
-        </LevelProvider>
+        <IconMapProvider value={icons()}>
+          <LevelProvider level="bg">
+            <TooltipProvider>{Array.from(items.entries()).map(([id, n]) => <React.Fragment key={id}>{n}</React.Fragment>)}</TooltipProvider>
+          </LevelProvider>
+        </IconMapProvider>
       </PortalProvider>
     ));
   };
@@ -68,6 +72,7 @@ export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, 
     close(id) { if (!disposed && items.delete(id)) { paint(); } },
     ids: () => Array.from(items.keys()),
     setAttrs,
+    refresh() { if (!disposed) { paint(); } },
     dispose() {
       if (disposed) { return; }
       disposed = true;

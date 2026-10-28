@@ -1,0 +1,619 @@
+[
+ {
+  "emoji": "🔻",
+  "count": 13,
+  "examples": [
+   "🧩 设置变量🔻",
+   "🪓 神秘咒语🔻",
+   "📌 任务设置🔻"
+  ]
+ },
+ {
+  "emoji": "🔺",
+  "count": 13,
+  "examples": [
+   "🧩 设置变量🔺",
+   "🪓 神秘咒语🔺",
+   "📌 任务设置🔺"
+  ]
+ },
+ {
+  "emoji": "⚔️",
+  "count": 9,
+  "examples": [
+   "⚔️ [难度设定] 选一",
+   "⚔️ N?-拟真推理",
+   "⚔️ N1-为所欲为"
+  ]
+ },
+ {
+  "emoji": "🚫",
+  "count": 9,
+  "examples": [
+   "🚫 [各种防止] 任选",
+   "🚫 防全知",
+   "🚫 防绝望"
+  ]
+ },
+ {
+  "emoji": "🧩",
+  "count": 7,
+  "examples": [
+   "🧩 设置变量🔻",
+   "🧩 清空变量",
+   "🧩 标签格式"
+  ]
+ },
+ {
+  "emoji": "🐱",
+  "count": 7,
+  "examples": [
+   "🐱 Gemini随机数",
+   "🐱 Gemini抗输入审(非必要不开)",
+   "🐱 听话！Gemini(非必要不开)"
+  ]
+ },
+ {
+  "emoji": "📌",
+  "count": 6,
+  "examples": [
+   "📌 任务设置🔻",
+   "📌 模型任务",
+   "📌 身份权限"
+  ]
+ },
+ {
+  "emoji": "🔞",
+  "count": 6,
+  "examples": [
+   "🔞 NSFW基础",
+   "🔞 [NSFW文风] 选一",
+   "🔞 擦边"
+  ]
+ },
+ {
+  "emoji": "🍺",
+  "count": 6,
+  "examples": [
+   "🍺 World Info (before)",
+   "🍺 Persona Description",
+   "🍺 Char Description"
+  ]
+ },
+ {
+  "emoji": "🗣️",
+  "count": 5,
+  "examples": [
+   "🗣️ [语言文字] 选一",
+   "🗣️ 简体中文",
+   "🗣️ 繁體中文"
+  ]
+ },
+ {
+  "emoji": "👁️",
+  "count": 5,
+  "examples": [
+   "👁️ [叙事视角] 选一",
+   "👁️ 限知第三人称",
+   "👁️ 全知第三人称"
+  ]
+ },
+ {
+  "emoji": "🎯",
+  "count": 5,
+  "examples": [
+   "🎯 [叙事焦点] 选一",
+   "🎯 主角独奏",
+   "🎯 主配角平衡"
+  ]
+ },
+ {
+  "emoji": "💬",
+  "count": 5,
+  "examples": [
+   "💬 [角色对白] 选一",
+   "💬 依据人设",
+   "💬 少说话"
+  ]
+ },
+ {
+  "emoji": "💤",
+  "count": 4,
+  "examples": [
+   "🐋 DS/GLM 💤",
+   "💤 GLM中文语言锚",
+   " 🐋 DS/GLM底部破限 💤"
+  ]
+ },
+ {
+  "emoji": "🏃‍♂️",
+  "count": 4,
+  "examples": [
+   "🏃🏻‍♂️ [剧情推进] 选一",
+   "🏃🏻‍♂️ 快速推进",
+   "🏃🏻‍♂️ 详略得当"
+  ]
+ },
+ {
+  "emoji": "🎮",
+  "count": 4,
+  "examples": [
+   "🎮 [创作权限] 选一",
+   "🎮 严禁抢话",
+   "🎮 适当抢话"
+  ]
+ },
+ {
+  "emoji": "🔊",
+  "count": 4,
+  "examples": [
+   "🔊 [转述程度] 选一",
+   "🔊 严禁转述",
+   "🔊 适当转述"
+  ]
+ },
+ {
+  "emoji": "💭",
+  "count": 4,
+  "examples": [
+   "💭 [心理描写] 选一",
+   "💭 依据人设",
+   "💭 冰山理论"
+  ]
+ },
+ {
+  "emoji": "❌",
+  "count": 4,
+  "examples": [
+   "❌ 不开",
+   "❌ 不开",
+   "❌ 不开"
+  ]
+ },
+ {
+  "emoji": "🪓",
+  "count": 3,
+  "examples": [
+   "🪓 神秘咒语🔻",
+   "🪓 神秘咒语🔺",
+   "🪓 [底部破限] 选一"
+  ]
+ },
+ {
+  "emoji": "🐋",
+  "count": 3,
+  "examples": [
+   "🐋 DS/GLM 💤",
+   " 🐋 DS/GLM底部破限 💤",
+   "🐋 DeepSeek强强"
+  ]
+ },
+ {
+  "emoji": "💕",
+  "count": 3,
+  "examples": [
+   "💕 [色色选项] 任选",
+   "💕 温柔色色",
+   "💕 多轮次色色"
+  ]
+ },
+ {
+  "emoji": "⚙️",
+  "count": 3,
+  "examples": [
+   "⚙️ [杂项要求] 任选",
+   "⚙️ 疯狂创意",
+   "⚙️ 尾部仿出戏"
+  ]
+ },
+ {
+  "emoji": "🎛",
+  "count": 3,
+  "examples": [
+   "🎛 运行模式🔻",
+   "🎛 [运行模式] 选一",
+   "🎛 运行模式🔺"
+  ]
+ },
+ {
+  "emoji": "‼️",
+  "count": 2,
+  "examples": [
+   "‼️免责声明/开源许可‼️(不开)",
+   "‼️免责声明/开源许可‼️(不开)"
+  ]
+ },
+ {
+  "emoji": "📖",
+  "count": 2,
+  "examples": [
+   "📖 创作要求🔻",
+   "📖 创作要求🔺"
+  ]
+ },
+ {
+  "emoji": "😀",
+  "count": 2,
+  "examples": [
+   "😀 角色塑造🔻",
+   "😀 角色塑造🔺"
+  ]
+ },
+ {
+  "emoji": "📝",
+  "count": 2,
+  "examples": [
+   "📝 写作指导🔻",
+   "📝 写作指导🔺"
+  ]
+ },
+ {
+  "emoji": "🌐",
+  "count": 2,
+  "examples": [
+   "🌐 通用网文",
+   "🌐 网络搜索"
+  ]
+ },
+ {
+  "emoji": "🎭",
+  "count": 2,
+  "examples": [
+   "🎭 幽默轻小说",
+   "🎭 角色生成"
+  ]
+ },
+ {
+  "emoji": "🧪",
+  "count": 2,
+  "examples": [
+   "🧪 额外任务🔻",
+   "🧪 额外任务🔺"
+  ]
+ },
+ {
+  "emoji": "🧠",
+  "count": 2,
+  "examples": [
+   " 🧠 推理选项🔻",
+   "🧠 推理选项🔺"
+  ]
+ },
+ {
+  "emoji": "🔧",
+  "count": 2,
+  "examples": [
+   "🔧 [推理工具] 任选",
+   "🔧 [特殊底部] 任选"
+  ]
+ },
+ {
+  "emoji": "📋",
+  "count": 1,
+  "examples": [
+   "📋 支持模型列表 | model"
+  ]
+ },
+ {
+  "emoji": "🤖",
+  "count": 1,
+  "examples": [
+   "🤖 [模型类型] 选一"
+  ]
+ },
+ {
+  "emoji": "🌒",
+  "count": 1,
+  "examples": [
+   "🌒 KIMI(占位)"
+  ]
+ },
+ {
+  "emoji": "✒️",
+  "count": 1,
+  "examples": [
+   "✒️ [文风优化] 任选"
+  ]
+ },
+ {
+  "emoji": "💀",
+  "count": 1,
+  "examples": [
+   "💀 反死人文风(Gemini可不开)"
+  ]
+ },
+ {
+  "emoji": "🔄",
+  "count": 1,
+  "examples": [
+   "🔄 写作节奏优化"
+  ]
+ },
+ {
+  "emoji": "🖊️",
+  "count": 1,
+  "examples": [
+   "🖊️ [写作文风] 选一"
+  ]
+ },
+ {
+  "emoji": "🌊",
+  "count": 1,
+  "examples": [
+   "🌊 流畅行文"
+  ]
+ },
+ {
+  "emoji": "😄",
+  "count": 1,
+  "examples": [
+   "😄 搞笑网文"
+  ]
+ },
+ {
+  "emoji": "🎆",
+  "count": 1,
+  "examples": [
+   "🎆 细腻网文"
+  ]
+ },
+ {
+  "emoji": "🎬",
+  "count": 1,
+  "examples": [
+   "🎬 电影化叙事"
+  ]
+ },
+ {
+  "emoji": "🗿",
+  "count": 1,
+  "examples": [
+   "🗿 海明威"
+  ]
+ },
+ {
+  "emoji": "😘",
+  "count": 1,
+  "examples": [
+   "😘 萌系轻小说"
+  ]
+ },
+ {
+  "emoji": "😔",
+  "count": 1,
+  "examples": [
+   "😔 细腻轻小说"
+  ]
+ },
+ {
+  "emoji": "🪔",
+  "count": 1,
+  "examples": [
+   "🪔 古风言情"
+  ]
+ },
+ {
+  "emoji": "🌌",
+  "count": 1,
+  "examples": [
+   "🌌 刘慈欣"
+  ]
+ },
+ {
+  "emoji": "🔪",
+  "count": 1,
+  "examples": [
+   "🔪 古龙武侠"
+  ]
+ },
+ {
+  "emoji": "👊",
+  "count": 1,
+  "examples": [
+   "👊🏻 金庸武侠"
+  ]
+ },
+ {
+  "emoji": "💗",
+  "count": 1,
+  "examples": [
+   "💗 柚子社gal"
+  ]
+ },
+ {
+  "emoji": "😭",
+  "count": 1,
+  "examples": [
+   "😭 Key社gal"
+  ]
+ },
+ {
+  "emoji": "🔫",
+  "count": 1,
+  "examples": [
+   "🔫 Nitro gal"
+  ]
+ },
+ {
+  "emoji": "🦇",
+  "count": 1,
+  "examples": [
+   "🦇 爱伦坡"
+  ]
+ },
+ {
+  "emoji": "🐙",
+  "count": 1,
+  "examples": [
+   "🐙 洛夫克拉夫特"
+  ]
+ },
+ {
+  "emoji": "📕",
+  "count": 1,
+  "examples": [
+   "📕 古典章回体"
+  ]
+ },
+ {
+  "emoji": "👻",
+  "count": 1,
+  "examples": [
+   "👻 古典志怪聊斋"
+  ]
+ },
+ {
+  "emoji": "😏",
+  "count": 1,
+  "examples": [
+   "😏 古典世情讽刺"
+  ]
+ },
+ {
+  "emoji": "🌺",
+  "count": 1,
+  "examples": [
+   "🌺 古典风花雪月"
+  ]
+ },
+ {
+  "emoji": "🔝",
+  "count": 1,
+  "examples": [
+   " 🔝 [头部任务] 任选"
+  ]
+ },
+ {
+  "emoji": "🔛",
+  "count": 1,
+  "examples": [
+   " 🔛 [正文任务] 任选"
+  ]
+ },
+ {
+  "emoji": "🎥",
+  "count": 1,
+  "examples": [
+   "🎥 HTML美化"
+  ]
+ },
+ {
+  "emoji": "🎨",
+  "count": 1,
+  "examples": [
+   "🎨 文生图"
+  ]
+ },
+ {
+  "emoji": "🔚",
+  "count": 1,
+  "examples": [
+   " 🔚 [尾部任务] 任选"
+  ]
+ },
+ {
+  "emoji": "🧱",
+  "count": 1,
+  "examples": [
+   "🧱 摘要(小总结)"
+  ]
+ },
+ {
+  "emoji": "🔠",
+  "count": 1,
+  "examples": [
+   "🔠 行动选项"
+  ]
+ },
+ {
+  "emoji": "👥",
+  "count": 1,
+  "examples": [
+   "👥 角色存档"
+  ]
+ },
+ {
+  "emoji": "🗂️",
+  "count": 1,
+  "examples": [
+   "🗂️ 最近用户输入"
+  ]
+ },
+ {
+  "emoji": "💫",
+  "count": 1,
+  "examples": [
+   "💫 全新剧情"
+  ]
+ },
+ {
+  "emoji": "☑️",
+  "count": 1,
+  "examples": [
+   "☑️ 逻辑校验"
+  ]
+ },
+ {
+  "emoji": "🥊",
+  "count": 1,
+  "examples": [
+   "🥊 NPC战斗决策"
+  ]
+ },
+ {
+  "emoji": "📚",
+  "count": 1,
+  "examples": [
+   "📚 翻阅世界书"
+  ]
+ },
+ {
+  "emoji": "📜",
+  "count": 1,
+  "examples": [
+   "📜 腹稿优化(容易雷霆大思考)"
+  ]
+ },
+ {
+  "emoji": "🔀",
+  "count": 1,
+  "examples": [
+   "🔀 [增强随机] 选一"
+  ]
+ },
+ {
+  "emoji": "🔮",
+  "count": 1,
+  "examples": [
+   "🔮 塔罗牌"
+  ]
+ },
+ {
+  "emoji": "☯️",
+  "count": 1,
+  "examples": [
+   "☯️ 易经八卦"
+  ]
+ },
+ {
+  "emoji": "🤔",
+  "count": 1,
+  "examples": [
+   "🤔 [推理格式] 选一"
+  ]
+ },
+ {
+  "emoji": "♿",
+  "count": 1,
+  "examples": [
+   "♿ [卡思维链] 选一"
+  ]
+ },
+ {
+  "emoji": "🎲",
+  "count": 1,
+  "examples": [
+   "🎲 剧情游玩"
+  ]
+ }
+]

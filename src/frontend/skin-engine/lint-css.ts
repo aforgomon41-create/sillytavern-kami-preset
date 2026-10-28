@@ -15,6 +15,8 @@ const KNOWN_K = new Set(Object.keys(COMPONENTS));
 const KNOWN_PART = new Set(Object.values(COMPONENTS).flatMap((c) => [...c.parts]));
 const KNOWN_ORN = new Set<string>(ORNAMENTS);
 const KNOWN_LEVEL = new Set<string>(LEVELS);
+/* 容器组件之后、在遇到下一个组件之前，没经过 > 就碰到了部件 → 后代选择器泄漏 */
+const LEAK = /\[data-k=["']?(panel|dialog|card|setting-section|setting-row)["']?\](?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*\s+(?:(?!\[data-k=)[^>])*?\[data-k-part/;
 const HOOK_VALUE = /\[(data-k(?:-part|-ornament|-level)?)\s*[~|^$*]?=\s*["']?([\w-]+)["']?\s*\]/g;
 
 export interface LintIssue { line: number; message: string }
@@ -51,6 +53,9 @@ export function lintSkinCss(css: string): LintIssue[] {
     if (insideKeyframes(r)) { return; }
     for (const sel of r.selectors) {
       if (!HOOK.test(sel)) { issues.push({ line: at(r), message: '选择器必须从公开钩子出发（[data-k…] 或 :host）：' + sel.trim() }); }
+      /* 容器组件（面板、对话框、卡片、设置分组 / 设置行）的部件必须用直接子元素选择器 >：
+         写成后代选择器会误伤嵌套在里面的其他组件的同名部件（旧系统 .kami-card 的老问题） */
+      if (LEAK.test(sel)) { issues.push({ line: at(r), message: '容器组件的部件请用 > 直接子元素选择器（后代选择器会误伤嵌套组件的同名部件）：' + sel.trim() }); }
       /* 钩子必须在部件清单里登记过：写错名字的规则会静默失效 */
       let m: RegExpExecArray | null;
       HOOK_VALUE.lastIndex = 0;

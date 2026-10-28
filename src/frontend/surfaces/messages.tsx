@@ -6,7 +6,7 @@
  */
 import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { LevelProvider, PortalProvider, TooltipProvider } from '../ds';
+import { IconMapProvider, LevelProvider, PortalProvider, TooltipProvider } from '../ds';
 import type { StyleHub } from '../skin-engine/sheets';
 
 export interface MountKind<P = unknown> {
@@ -26,9 +26,10 @@ export interface MessageMountOptions {
   attrs?: () => Record<string, string>;
   /** 每个挂载点的 Shadow DOM 建好后调用（例如挂动效模块），返回清理函数 */
   onRoot?: (root: ShadowRoot) => () => void;
+  icons?: () => Record<string, string>;
 }
 
-interface Mounted { root: Root; detach: () => void; key: string; off: (() => void) | null }
+interface Mounted { root: Root; detach: () => void; key: string; off: (() => void) | null; paint: () => void }
 
 /** 取原文里第 index 个 <tag>…</tag> 的内容（常用的载荷取法） */
 export function nthTag(tag: string): (raw: string, index: number) => string | undefined {
@@ -100,12 +101,15 @@ export class MessageMounts {
     surface.append(app, portal);
     shadow.appendChild(surface);
     const root = createRoot(app);
-    root.render(
+    const paint = (): void => root.render(
       <PortalProvider container={portal}>
-        <LevelProvider level="bg"><TooltipProvider>{spec.render(payload, { mesId, index })}</TooltipProvider></LevelProvider>
+        <IconMapProvider value={this.o.icons ? this.o.icons() : {}}>
+          <LevelProvider level="bg"><TooltipProvider>{spec.render(payload, { mesId, index })}</TooltipProvider></LevelProvider>
+        </IconMapProvider>
       </PortalProvider>
     );
-    this.mounted.set(el, { root, detach, key: mesId + ':' + kind + ':' + index, off: this.o.onRoot ? this.o.onRoot(shadow) : null });
+    paint();
+    this.mounted.set(el, { root, detach, key: mesId + ':' + kind + ':' + index, off: this.o.onRoot ? this.o.onRoot(shadow) : null, paint });
     this.mounts++;
   }
 
@@ -119,9 +123,10 @@ export class MessageMounts {
   /** 皮肤属性变化时同步到所有挂载点的渲染面根 */
   refreshAttrs(): void {
     const a = this.o.attrs ? this.o.attrs() : {};
-    for (const el of this.mounted.keys()) {
+    for (const [el, m] of this.mounted) {
       const s = el.shadowRoot && el.shadowRoot.querySelector('[data-k-surface]');
       if (s) { for (const [n, v] of Object.entries(a)) { s.setAttribute(n, v); } }
+      m.paint();   /* 图标映射等随皮肤变化的上下文 */
     }
   }
 

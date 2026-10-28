@@ -36,6 +36,26 @@ const FONT_STEPS: Record<string, number> = { xs: 0.75, sm: 0.875, md: 1, lg: 1.1
 const px = (n: number): string => (Math.round(n * 100) / 100) + 'px';
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 
+/**
+ * 分设备的排版与间距（前端契约 5.7）：电脑与手机的最佳排版不同，不是简单缩放。
+ * · 阅读：电脑限制行长（约 40 字）、行高 1.8、段距大一些；手机铺满宽度、行高 1.75、段距收紧、字号略大
+ * · 间距：电脑分组之间更舒展；手机屏幕小，分组间距收紧，但点按区域更大（k.lock 保证 ≥ 40px）
+ * 皮肤要改，在 skin.css 里覆盖这些变量即可（也可以放进 @media (max-width: 1000px) 只改手机）。
+ */
+export function resolveDeviceScales(device: 'desktop' | 'mobile', fontScale: number): Record<string, string> {
+  const scale = clamp(fontScale || 1, 0.8, 1.4);
+  if (device === 'mobile') {
+    return {
+      'read-size': px(16.5 * scale), 'read-lh': '1.75', 'read-measure': '100%', 'read-para': '0.75em',
+      'gap-section': '16px', 'gap-group': '12px', 'gap-item': '8px', 'pad-panel': '16px', 'pad-card': '14px'
+    };
+  }
+  return {
+    'read-size': px(16 * scale), 'read-lh': '1.8', 'read-measure': '42em', 'read-para': '0.9em',
+    'gap-section': '28px', 'gap-group': '16px', 'gap-item': '10px', 'pad-panel': '24px', 'pad-card': '16px'
+  };
+}
+
 export function resolveScales(s: ScaleInput): Record<string, string> {
   const t: Record<string, string> = {};
   const r = clamp(s.radius ?? 8, 0, 32);

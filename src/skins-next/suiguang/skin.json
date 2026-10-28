@@ -1,9 +1,9 @@
 {
   "id": "suiguang",
   "name": "碎光",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "contract": "1.0",
-  "description": "静时如纸，动时碎光。暖纸与墨色两档，青瓷色点睛；按下、展开时，组件边缘碎成方块，缝隙里透出光。",
+  "description": "静时如纸，动时碎光。宣纸 / 墨 / 阅读三档，青瓷色点睛；打开时碎块聚合成边，关闭时碎散，按下时局部碎裂，缝隙里透出光。",
   "author": "卡密预设",
   "credits": "纸纹由 build/frontend/make-paper-texture.mjs 程序生成，无第三方素材。",
   "defaultScheme": "light",
@@ -16,7 +16,11 @@
         "elevation": "shadow",
         "font": {
           "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, Georgia, serif"
-        }
+        },
+        "danger": "#b5523d",
+        "warning": "#a87a2a",
+        "success": "#4f7f50",
+        "info": "#456c88"
       },
       "components": {
         "badge": {
@@ -35,7 +39,11 @@
         "elevation": "shadow",
         "font": {
           "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, Georgia, serif"
-        }
+        },
+        "danger": "#e08a74",
+        "warning": "#d9b06a",
+        "success": "#8fbf8b",
+        "info": "#8fb1c9"
       },
       "components": {
         "badge": {
@@ -44,6 +52,31 @@
       },
       "tokens": {
         "selected": "#2f3c37"
+      }
+    },
+    "reading": {
+      "base": "light",
+      "name": "阅读",
+      "seeds": {
+        "neutral": "#ecdfc3",
+        "accent": "#7a5230",
+        "radius": 6,
+        "elevation": "flat",
+        "danger": "#a24a35",
+        "warning": "#8f6a24",
+        "success": "#4f7348",
+        "info": "#4a6478",
+        "font": {
+          "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, Georgia, serif"
+        }
+      },
+      "tokens": {
+        "selected": "#e3d3b2"
+      },
+      "components": {
+        "badge": {
+          "tone": "accent-soft"
+        }
       }
     }
   },
@@ -119,5 +152,87 @@
     "panel-head-start",
     "card-corner"
   ],
-  "flavor": {}
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
 }

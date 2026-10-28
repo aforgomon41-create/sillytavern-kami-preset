@@ -4,11 +4,12 @@
  * 前端契约第 3、5、6、7 节。
  */
 import { resolveScheme, toCssDeclarations, type Correction, type Mode, type Seeds } from './tokens';
-import { resolveScales, type Density, type Motion } from './scales';
+import { resolveDeviceScales, resolveScales, type Density, type Motion } from './scales';
 import type { SkinManifest } from './package';
 
 export interface SkinSettings {
-  scheme: Mode | 'auto';
+  /** 'auto' 跟随系统（在 light / dark 之间选），或某个配色 id */
+  scheme: string;
   density: Density;
   motion: Motion;
   fontScale: number;
@@ -20,6 +21,9 @@ export interface SkinSettings {
 export const DEFAULT_SETTINGS: SkinSettings = { scheme: 'auto', density: 'cozy', motion: 'full', fontScale: 1 };
 
 export interface ComposedSkin {
+  /** 实际用的配色 id（light / dark / 额外配色） */
+  scheme: string;
+  /** 明暗（额外配色取它的 base） */
   mode: Mode;
   /** 令牌层 + 皮肤层（含层叠顺序声明之外的部分；顺序声明在设计系统的静态样式表开头） */
   css: string;
@@ -37,14 +41,15 @@ export interface ComposeOptions {
   systemDark?: boolean;
 }
 
-function pickMode(m: SkinManifest, s: SkinSettings, systemDark: boolean): Mode {
-  const want: Mode = s.scheme === 'auto' ? (systemDark ? 'dark' : 'light') : s.scheme;
-  return m.schemes[want] ? want : m.defaultScheme;
+function pickScheme(m: SkinManifest, s: SkinSettings, systemDark: boolean): string {
+  const want = s.scheme === 'auto' ? (systemDark ? 'dark' : 'light') : s.scheme;
+  return m.schemes[want] ? want : (m.schemes[m.defaultScheme] ? m.defaultScheme : 'light');
 }
 
 export function composeSkin(m: SkinManifest, settings: SkinSettings, opts: ComposeOptions = {}): ComposedSkin {
-  const mode = pickMode(m, settings, !!opts.systemDark);
-  const def = m.schemes[mode];
+  const scheme = pickScheme(m, settings, !!opts.systemDark);
+  const def = m.schemes[scheme];
+  const mode: Mode = scheme === 'light' || scheme === 'dark' ? scheme : (def && def.base) || 'light';
   if (!def) { throw new Error('皮肤 ' + m.id + ' 没有可用的配色方案'); }
   const seeds: Seeds & { radius?: number } = { ...def.seeds };
   const tokens: Record<string, string> = { ...(def.tokens || {}) };
@@ -79,15 +84,18 @@ export function composeSkin(m: SkinManifest, settings: SkinSettings, opts: Compo
   const varLines = Object.entries(skinVars).map(([k, v]) => k + ': ' + v + ';');
 
   const tokenBlock = [toCssDeclarations(colors.tokens), toCssDeclarations(scales), ...pairLines, ...assetLines, ...varLines].join('\n');
-  const css = '@layer k.tokens {\n:host, [data-k-surface] {\n' + tokenBlock + '\ncolor-scheme: ' + mode + ';\n}\n}\n' +
+  const mobile = toCssDeclarations(resolveDeviceScales('mobile', settings.fontScale));
+  const css = '@layer k.tokens {\n:host, [data-k-surface] {\n' + tokenBlock + '\n' + toCssDeclarations(resolveDeviceScales('desktop', settings.fontScale)) + '\ncolor-scheme: ' + mode + ';\n}\n' +
+    /* 手机（与酒馆单栏断点一致）：阅读排版与间距换一套，不是简单缩放 */
+    '@media (max-width: 1000px) {\n:host, [data-k-surface] {\n' + mobile + '\n}\n}\n}\n' +
     (opts.skinCss ? '@layer k.skin {\n' + opts.skinCss + '\n}\n' : '');
 
   const effects = settings.effects ?? (m.effects || []).filter((f) => f.default).map((f) => f.id);
   const known = new Set((m.effects || []).map((f) => f.id));
   return {
-    mode, css, corrections: colors.corrections,
+    scheme, mode, css, corrections: colors.corrections,
     attrs: {
-      'data-k-skin': m.id, 'data-k-scheme': mode, 'data-k-density': settings.density, 'data-k-motion': settings.motion,
+      'data-k-skin': m.id, 'data-k-scheme': scheme, 'data-k-mode': mode, 'data-k-density': settings.density, 'data-k-motion': settings.motion,
       'data-k-effects': effects.filter((x) => known.has(x)).join(' ')
     }
   };

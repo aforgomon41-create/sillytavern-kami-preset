@@ -50,6 +50,12 @@ for (const id of ids) {
       for (const x of c.corrections) { fail(mode + ' 方案需要自动校正：' + x.token + ' 对 ' + x.against + ' 只有 ' + x.before + '（要 ' + x.required + '），' + x.from + ' → 建议 ' + x.to); }
     } catch (e) { fail(mode + ' 方案合成失败：' + e.message); }
   }
+  /* 提示（不拦）：预设条目名里的 emoji 还有哪些没映射到图标 */
+  const emojiList = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/frontend/ds/icons/preset-emojis.json'), 'utf8')).map((x) => x.emoji);
+  const norm = (e) => e.replace(/\uFE0F/g, '');
+  const mapped = new Set(Object.keys(manifest.icons || {}).map(norm));
+  const missing = emojiList.filter((e) => !mapped.has(norm(e)));
+  if (missing.length) { console.log('[内置皮肤] 提示：' + id + ' 还有 ' + missing.length + ' 个预设 emoji 没映射图标（照常显示 emoji）：' + missing.join(' ')); }
   skins.push({ manifest, css, assetUrls });
 }
 if (total > TOTAL_MAX) { problems.push('全部内置皮肤素材超过总预算（' + Math.round(total / 1024) + 'KB > 1200KB）'); }
