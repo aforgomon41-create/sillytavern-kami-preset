@@ -21,7 +21,7 @@ const out = fs.mkdtempSync(path.join(ROOT, '.cache', 'ts-tests-'));
 const built = [];
 for (const f of files) {
   const o = path.join(out, path.basename(f).replace(/\.ts$/, '.mjs'));
-  await esbuild.build({ entryPoints: [f], bundle: true, platform: 'node', format: 'esm', target: 'node18', packages: 'external', outfile: o, logLevel: 'silent', sourcemap: 'inline' });
+  await esbuild.build({ entryPoints: [f], bundle: true, platform: 'node', format: 'esm', target: 'node18', packages: 'external', loader: { '.css': 'text' }, jsx: 'automatic', outfile: o, logLevel: 'silent', sourcemap: 'inline' });
   built.push(o);
 }
 const r = spawnSync(process.execPath, ['--test', ...built], { stdio: 'inherit' });

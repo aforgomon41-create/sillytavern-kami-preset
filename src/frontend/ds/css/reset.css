@@ -1,0 +1,12 @@
+/* k.reset：根重置。:host { all: initial } 切断从酒馆页面继承下来的字体、颜色等属性 */
+:host { all: initial; }
+*, *::before, *::after { box-sizing: border-box; }
+[data-k-surface] {
+  font-family: var(--k-font-body); font-size: var(--k-fs-md); line-height: var(--k-lh); font-weight: var(--k-fw);
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+}
+button, input, select, textarea { font: inherit; color: inherit; margin: 0; letter-spacing: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote, pre { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+img, svg { display: block; max-width: 100%; }

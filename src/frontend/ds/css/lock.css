@@ -1,0 +1,48 @@
+/* k.lock：结构不变量。最后一层，皮肤的普通声明压不过它（皮肤也禁 !important）。前端契约第 3 节。 */
+
+/* 渲染面根：宿主浮层整层不拦点击，只有里面的面板 / 弹层接收操作 */
+[data-k-surface="layer"] { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+[data-k-surface="layer"] > *, [data-k-portal] > * { pointer-events: auto; }
+[data-k-portal] { position: absolute; inset: 0; pointer-events: none; }
+[data-k-surface="message"] { display: block; position: relative; max-width: 100%; }
+
+[hidden] { display: none; }
+[data-k-ornament] { pointer-events: none; }
+
+/* 焦点环：皮肤可以换颜色（--k-focus-ring-*），但不能把它去掉 */
+:focus-visible { outline: 2px solid var(--k-focus-ring); outline-offset: 2px; }
+
+/* 页签：单行，超出横向滚动；等分模式也保持单行 */
+/* 带内部滚动的组件，根元素必须允许收缩：放在网格 / 弹性布局里时，默认最小宽度 = 内容宽度，会把父容器撑宽 */
+[data-k="tabs"], [data-k="field"], [data-k="card"], [data-k="select"][data-k-part="trigger"] { min-width: 0; max-width: 100%; }
+[data-k="tabs"] [data-k-part="list"] { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+[data-k="tabs"] [data-k-part="tab"] { flex: none; white-space: nowrap; }
+[data-k="tabs"][data-mode="fit"] [data-k-part="tab"] { flex: 1 1 0; min-width: max-content; }
+
+/* 下拉弹层的视口内部滚动 */
+[data-k="select"] [data-k-part="viewport"] { overflow-y: auto; }
+
+/* 对话框：遮罩铺满，内容居中；长内容只在正文滚动，头尾始终可见 */
+[data-k="dialog"][data-k-part="overlay"] { position: fixed; inset: 0; background: var(--k-scrim); }
+[data-k="dialog"][data-k-part="content"] {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; width: min(calc(100vw - 24px), 560px); max-height: min(calc(100dvh - 24px), 85vh); overflow: hidden;
+}
+[data-k="dialog"][data-k-part="content"][data-size="sm"] { width: min(calc(100vw - 24px), 400px); }
+[data-k="dialog"][data-k-part="content"][data-size="lg"] { width: min(calc(100vw - 24px), 820px); }
+[data-k="dialog"] [data-k-part="head"], [data-k="dialog"] [data-k-part="foot"] { flex: none; }
+[data-k="dialog"] [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* 窄屏（与酒馆单栏断点一致）：触控目标不小于 40px */
+@media (max-width: 1000px) {
+  [data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"] [data-k-part="input"] { min-height: 40px; }
+  [data-k="icon-button"] { min-width: 40px; min-height: 40px; }
+}
+
+/* 动效关闭与系统减少动态效果：停掉循环与过渡 */
+[data-k-motion="off"] *, [data-k-motion="off"] *::before, [data-k-motion="off"] *::after {
+  animation-duration: 0s; animation-iteration-count: 1; transition-duration: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0s; animation-iteration-count: 1; transition-duration: 0s; scroll-behavior: auto; }
+}

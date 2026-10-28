@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新前端展示台</title>
+<style>
+  /* 敌意宿主：模拟酒馆与用户自定义 CSS 的强硬全局样式，验证 Shadow DOM 隔离 */
+  * { font-family: "Courier New", monospace !important; }
+  button { background: rgb(255, 0, 0) !important; color: rgb(255, 0, 0) !important; font-size: 30px !important; }
+  div { border: 3px solid rgb(0, 255, 0); }
+  body { margin: 0; background: #808080; }
+</style>
+</head>
+<body>
+  <p id="host-text">宿主页面的内容</p>
+  <script src="/.cache/frontend/playground.js"></script>
+</body>
+</html>

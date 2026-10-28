@@ -1,0 +1,8 @@
+/* k.base：排版默认值。表面上下文（data-k-level）的变量映射由 styles.ts 按层级生成后拼在这里后面 */
+[data-k-surface] { color: var(--k-on); }
+a { color: var(--k-link); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+::selection { background: var(--k-selected); color: var(--k-on-selected); }
+code, kbd, pre { font-family: var(--k-font-mono); font-size: .92em; }
+strong, b { font-weight: var(--k-fw-strong); }
+h1, h2, h3, h4 { font-family: var(--k-font-heading); font-weight: var(--k-fw-strong); line-height: var(--k-lh-tight); }

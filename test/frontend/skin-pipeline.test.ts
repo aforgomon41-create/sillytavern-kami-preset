@@ -72,7 +72,7 @@ test('皮肤 CSS 检查：合规的写法通过', () => {
   const ok = `
 [data-k="button"][data-variant="primary"] { border-radius: var(--k-r-pill); box-shadow: var(--k-shadow-2); }
 [data-k="card"]::before { position: absolute; inset: 0; background-image: var(--k-asset-grain); pointer-events: none; }
-[data-k-ornament="panel-head-left"] { position: absolute; left: 8px; }
+[data-k-ornament="panel-head-start"] { position: absolute; left: 8px; }
 :host([data-k-effects~="glow"]) [data-k="button"] { filter: drop-shadow(0 0 4px var(--k-accent)); }
 @media (max-width: 600px) { [data-k="tabs"] [data-k-part="tab"] { padding: 0 8px; } }
 @keyframes k-skin-pulse { from { opacity: .6; } to { opacity: 1; } }
@@ -89,9 +89,11 @@ test('皮肤 CSS 检查：逐项拦截', () => {
 [data-k="card"] { position: fixed; }
 [data-k="panel"] { transform: translateX(10px); }
 [data-k="badge"] { background: url(https://evil.example/x.png); }
-@font-face { font-family: x; src: url(data:font/woff2;base64,AA); }`;
+@font-face { font-family: x; src: url(data:font/woff2;base64,AA); }
+[data-k="buton"] { color: red; }
+[data-k="card"] [data-k-part="tittle"] { color: red; }`;
   const msgs = lintSkinCss(bad).map((i) => i.message).join('\n');
-  for (const k of ['@import', '@layer', '公开钩子', '!important', '结构属性 position', '不许 transform', 'url() 只允许', '@font-face']) {
+  for (const k of ['@import', '@layer', '公开钩子', '!important', '结构属性 position', '不许 transform', 'url() 只允许', '@font-face', '[data-k="buton"]', '[data-k-part="tittle"]']) {
     assert.ok(msgs.includes(k), '应拦截：' + k + '\n' + msgs);
   }
 });

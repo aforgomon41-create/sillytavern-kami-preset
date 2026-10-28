@@ -4,11 +4,18 @@
  * 规则：
  *   · 禁止 !important、@import、@font-face、@layer（引擎会自动包进 k.skin）、@namespace、@charset
  *   · url() 只允许 data: 的 SVG / PNG / WebP；素材走 var(--k-asset-*)；禁止 expression / behavior / -moz-binding
- *   · 每条选择器必须从公开钩子出发：[data-k…]、:host（部件、组件、装饰槽、渲染面根）
+ *   · 每条选择器必须从公开钩子出发：[data-k…]、:host（部件、组件、装饰槽、渲染面根），且钩子名必须在部件清单（ds/parts.ts）里登记过
  *   · 结构属性（position / inset / top… / z-index / display / overflow / pointer-events / visibility / float / contain）
  *     只能写在装饰槽 [data-k-ornament…] 或 ::before / ::after 上；渲染面与面板类组件不许 transform
  */
 import postcss, { type AtRule, type Declaration, type Rule } from 'postcss';
+import { COMPONENTS, LEVELS, ORNAMENTS } from '../ds/parts';
+
+const KNOWN_K = new Set(Object.keys(COMPONENTS));
+const KNOWN_PART = new Set(Object.values(COMPONENTS).flatMap((c) => [...c.parts]));
+const KNOWN_ORN = new Set<string>(ORNAMENTS);
+const KNOWN_LEVEL = new Set<string>(LEVELS);
+const HOOK_VALUE = /\[(data-k(?:-part|-ornament|-level)?)\s*[~|^$*]?=\s*["']?([\w-]+)["']?\s*\]/g;
 
 export interface LintIssue { line: number; message: string }
 
@@ -44,6 +51,14 @@ export function lintSkinCss(css: string): LintIssue[] {
     if (insideKeyframes(r)) { return; }
     for (const sel of r.selectors) {
       if (!HOOK.test(sel)) { issues.push({ line: at(r), message: '选择器必须从公开钩子出发（[data-k…] 或 :host）：' + sel.trim() }); }
+      /* 钩子必须在部件清单里登记过：写错名字的规则会静默失效 */
+      let m: RegExpExecArray | null;
+      HOOK_VALUE.lastIndex = 0;
+      while ((m = HOOK_VALUE.exec(sel))) {
+        const [attr, val] = [m[1], m[2] || ''];
+        const known = attr === 'data-k' ? KNOWN_K : attr === 'data-k-part' ? KNOWN_PART : attr === 'data-k-ornament' ? KNOWN_ORN : KNOWN_LEVEL;
+        if (!known.has(val)) { issues.push({ line: at(r), message: '部件清单里没有这个钩子：[' + attr + '="' + val + '"]' }); }
+      }
     }
   });
 

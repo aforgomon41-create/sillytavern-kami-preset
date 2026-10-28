@@ -8,7 +8,9 @@
     "build": "node build/build.mjs",
     "build:runtime": "node build/build-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json && tsc -p test/frontend/tsconfig.json",
-    "test:frontend": "node build/run-ts-tests.mjs"
+    "test:frontend": "node build/run-ts-tests.mjs",
+    "build:frontend": "node build/frontend-build.mjs",
+    "audit:frontend": "node build/frontend-build.mjs && node test/frontend/browser/ds-audit.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
@@ -33,6 +35,8 @@
   "devDependencies": {
     "@types/jsdom": "^30.0.0",
     "@types/node": "^24.19.2",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "esbuild": "^0.24.2",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.32",
