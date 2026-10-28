@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "node build/build.mjs",
-    "build:runtime": "node build/build-runtime.mjs"
+    "build:runtime": "node build/build-runtime.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/frontend/tsconfig.json",
+    "test:frontend": "node build/run-ts-tests.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
@@ -29,7 +31,9 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "esbuild": "^0.24.2",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "typescript": "^5.9.3"
   }
 }

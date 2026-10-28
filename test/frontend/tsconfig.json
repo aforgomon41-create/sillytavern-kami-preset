@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "../../src/frontend/**/*.ts",
+    "../../src/frontend/**/*.tsx",
+    "./**/*.ts"
+  ]
+}

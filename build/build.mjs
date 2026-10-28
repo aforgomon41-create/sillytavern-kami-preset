@@ -150,6 +150,11 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/runtime-ui.mjs')], { stdio: 'inherit' });
   /* 正则前端在消息 iframe 里要沿父窗口链取运行库（2026-10-27 修：原来取不到，行动选项整块不渲染） */
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/frontend-runtime-reach.mjs')], { stdio: 'inherit' });
+  /* 新前端（frontend-rewrite）：TypeScript 类型检查 + 单测（令牌引擎等） */
+  const TSC = path.join(ROOT, 'node_modules/typescript/bin/tsc');
+  execFileSync(process.execPath, [TSC, '-p', path.join(ROOT, 'tsconfig.json')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [TSC, '-p', path.join(ROOT, 'test/frontend/tsconfig.json')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'build/run-ts-tests.mjs')], { stdio: 'inherit' });
 } catch (e) {
   console.error('  [中止] 脚本回归检查失败，先修复再构建。');
   process.exit(1);
