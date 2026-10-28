@@ -17,6 +17,17 @@
 | `install-preset.mjs <预设JSON>` | 按用户在界面里导入的流程装预设：切到对话补全 → 上传 → 确认酒馆与酒馆助手的弹窗（覆盖 / 启用内嵌正则 / 启用内嵌脚本）→ 重新打开核对运行库、皮肤、按钮与脚本日志 |
 | `reload-check.mjs [次数]` | 反复刷新，统计脚本启动失败（例如「运行库未加载」）的频率 |
 | `open-toolbox.mjs` | 关掉自动弹出的引导，打开工具箱面板，核对面板与页签并截图 |
+| `chat.mjs "<话>" [--html] [--shot 文件]` | 和默认角色 Seraphina 聊一句（自动选角色、自动连接接口），等回复渲染完，打印最后一条消息的原文、原生思维链、iframe 与 `.kami-root` 数量 |
+| `mount-probe.mjs` | 消息挂载验证：给 `[data-kami-mount]` 挂 Shadow DOM，触发重载聊天与单条重绘，核对自动重挂 |
+
+## 假模型接口
+
+`node test/mock-llm/server.mjs`（默认 `http://127.0.0.1:8787/v1`，OpenAI 兼容，支持流式与原生思维链）。酒馆里选「对话补全 → 自定义（OpenAI 兼容）」，
+地址填上面那个、模型 `kami-mock`（本机测试酒馆已配好，并打开了「自动连接」）。
+
+- 默认回复模仿卡密预设的输出格式：思维链 + 正文 + 行动选项。
+- 在消息里写 `[mock:<场景>]` 换场景：`native`（原生思维链）、`plain`、`long`、`mount-probe`。
+- 测试脚本可 `POST /__mock/next` 精确排队下一条回复（`content`、`reasoning`、`chunk`、`delayMs`），`GET /__mock/requests` 核对酒馆实际发出的提示词。
 
 环境变量：`ST_URL`（默认 `http://127.0.0.1:8000/`）、`ST_ROOT`（默认 `/workspace/st-test`，截图与设置文件位置）、`ST_SETTINGS`（设置文件路径）。
 
@@ -27,6 +38,7 @@
   没点「确认」脚本就不会跑，症状是页面上一个卡密脚本都没有。`install-preset.mjs` 关掉页面后会把预设名补进 `script.enabled.presets` 再重新打开。
 - 按标签固定检出的酒馆助手不在分支上，酒馆的扩展自动更新会报 500；`setup.sh` 已把它的 `auto_update` 关掉。
 - 本机沙箱经代理上网：用 `curl` 访问本机酒馆要加 `--noproxy '*'`，否则拿到的是代理返回的 403。
+- **导入后要确认两道闸门**：酒馆助手脚本放行（`tavern_helper.script.enabled.presets`）与预设正则放行（`preset_allowed_regex.openai`）。确认窗点了也可能因为酒馆延迟保存没落盘；`install-preset.mjs` 会把两者都补上。症状分别是「一个卡密脚本都没有」和「行动选项 JSON 原样显示、正文没套壳」。
 - 酒馆默认接口是 AI Horde，启动时去查它的在线状态，没外网会报两个 500，与预设无关；切到对话补全后就不再查。
 
 ## 已用它抓到的问题

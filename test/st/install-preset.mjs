@@ -57,6 +57,11 @@ await page.close();
   const sc = st.extension_settings.tavern_helper.script;
   if (!sc.enabled.presets.includes(name)) { sc.enabled.presets.push(name); console.log('放行名单里没有「' + name + '」，已补上'); }
   if (!sc.popuped.presets.includes(name)) { sc.popuped.presets.push(name); }
+  /* 第二道闸门：预设内嵌正则的放行名单（酒馆的确认窗点了也可能因为延迟保存没落盘） */
+  const ext = st.extension_settings;
+  if (!ext.preset_allowed_regex || Array.isArray(ext.preset_allowed_regex)) { ext.preset_allowed_regex = {}; }
+  if (!Array.isArray(ext.preset_allowed_regex.openai)) { ext.preset_allowed_regex.openai = []; }
+  if (!ext.preset_allowed_regex.openai.includes(name)) { ext.preset_allowed_regex.openai.push(name); console.log('正则放行名单里没有「' + name + '」，已补上'); }
   st.oai_settings.preset_settings_openai = name;
   fs.writeFileSync(f, JSON.stringify(st, null, 4));
 }
