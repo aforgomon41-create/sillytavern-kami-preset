@@ -16,7 +16,7 @@ const KNOWN_PART = new Set(Object.values(COMPONENTS).flatMap((c) => [...c.parts]
 const KNOWN_ORN = new Set<string>(ORNAMENTS);
 const KNOWN_LEVEL = new Set<string>(LEVELS);
 /* 容器组件之后、在遇到下一个组件之前，没经过 > 就碰到了部件 → 后代选择器泄漏 */
-const LEAK = /\[data-k=["']?(panel|dialog|card|setting-section|setting-row)["']?\](?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*\s+(?:(?!\[data-k=)[^>])*?\[data-k-part/;
+const LEAK = /\[data-k=["']?(panel|dialog|card|setting-section|setting-row|msg-body|msg-think|msg-search|msg-options)["']?\](?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*\s+(?:(?!\[data-k=)[^>])*?\[data-k-part/;
 const HOOK_VALUE = /\[(data-k(?:-part|-ornament|-level)?)\s*[~|^$*]?=\s*["']?([\w-]+)["']?\s*\]/g;
 
 export interface LintIssue { line: number; message: string }

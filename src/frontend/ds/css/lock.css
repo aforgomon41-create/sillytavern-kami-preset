@@ -13,6 +13,8 @@
 
 /* 焦点环：皮肤可以换颜色（--k-focus-ring-*），但不能把它去掉 */
 :focus-visible { outline: 2px solid var(--k-focus-ring); outline-offset: 2px; }
+/* 页签条是横向滚动容器，外扩的焦点环会被裁掉一半 → 页签的焦点环画在里面 */
+[data-k="tabs"] [data-k-part="tab"]:focus-visible { outline-offset: -2px; }
 
 /* 页签：单行，超出横向滚动；等分模式也保持单行 */
 /* 带内部滚动的组件，根元素必须允许收缩：放在网格 / 弹性布局里时，默认最小宽度 = 内容宽度，会把父容器撑宽 */
@@ -67,6 +69,9 @@
 
 /* 提示条：贴在所在面板 / 渲染面的底部居中，不挡正文滚动以外的东西 */
 [data-k="toast"] { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2; max-width: calc(100% - 24px); }
+/* 提示条始终一行：消息过长时省略，操作与关闭不换行（手机上不再叠成两三行挡住内容） */
+[data-k="toast"] > [data-k-part="message"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-k="toast"] > [data-k-part="action"], [data-k="toast"] > [data-k-part="close"] { flex: none; white-space: nowrap; }
 
 /* 设置布局：一律允许收缩，长说明换行而不是撑宽 */
 [data-k="setting-section"] { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
@@ -87,3 +92,7 @@
 
 /* 吸顶的页签条：和所在表面同色的底，盖住滚上来的内容 */
 [data-k="tabs"][data-sticky] > [data-k-part="list"] { position: sticky; top: 0; z-index: 2; background-color: var(--k-here); box-shadow: 0 -32px 0 0 var(--k-here); }
+
+/* 消息前端：四个前端同一条对齐轴（受正文行长约束，电脑上选项不会比正文宽）；内部一律允许收缩 */
+[data-k="msg-view"] { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--k-read-measure); min-width: 0; }
+[data-k="msg-view"] > * { min-width: 0; }

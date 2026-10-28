@@ -31,8 +31,10 @@ export function auditInPage(scopeSel) {
   const desc = (el) => { const parts = []; let n = el; for (let i = 0; i < 4 && n && n.getAttribute; i++) { parts.unshift((n.getAttribute('data-k') ? '[' + n.getAttribute('data-k') + ']' : n.tagName.toLowerCase()) + (n.getAttribute('data-k-part') ? '.' + n.getAttribute('data-k-part') : '')); n = up(n); } return parts.join(' > '); };
   const skip = (el) => el.closest('[data-k-ornament], [aria-hidden="true"], [disabled], [data-disabled], [aria-disabled="true"]');
   const visible = (el) => { const cs = getComputedStyle(el); const r = el.getBoundingClientRect(); return cs.visibility !== 'hidden' && cs.display !== 'none' && r.width > 0 && r.height > 0; };
-  const sr = document.querySelector('kami-layer').shadowRoot;
-  const scope = scopeSel ? sr.querySelectorAll(scopeSel) : [sr];
+  /* scopeSel === '@mounts'：审计聊天区里所有消息挂载点（每个都是独立的 Shadow DOM） */
+  const scope = scopeSel === '@mounts'
+    ? [...document.querySelectorAll('[data-kami-mount]')].map((m) => m.shadowRoot).filter(Boolean)
+    : (() => { const sr = document.querySelector('kami-layer').shadowRoot; return scopeSel ? sr.querySelectorAll(scopeSel) : [sr]; })();
   const failures = []; let checked = 0;
   const check = (el, fgColor, min, what) => {
     const bg = effectiveBg(el); const fg = parse(fgColor);

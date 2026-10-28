@@ -9,7 +9,9 @@
 
 | `node test/frontend/browser/panel.mjs` | 面板交互：宽屏拖动 / 夹回 / 缩放 / 方向键 / 窗口变小收回 / Esc，窄屏贴底抽屉的回弹与下拉关闭 |
 
-| `node test/frontend/browser/touch.mjs` | 手机触屏：滑过按钮不触发碎光、点按才触发；页签内容区左右滑动切换、页签条横滑与竖向滚动不误翻页（需先打包预览） |
+| `node test/frontend/browser/touch.mjs` | 手机触屏：滑过按钮不触发碎光、点按才触发；页签内容区左右滑动切换、翻页时页签条跟随、页签条横滑与竖向滚动不误翻页；选择卡无勾选框、标题不出界不压 i 按钮、条目名所有 emoji 换图标；抽屉从标题栏 / 内容区（滚到顶）下拉收回（需先打包预览） |
+
+| `node test/frontend/browser/message.mjs` | 消息前端（电脑 / 手机）：正文排版（两字缩进、注释与标记不显示、各行内部件）、思维链默认收起显示字数与排版 / 原文、搜索资料、只有最新回复有选项、填入接在已有内容后、发送触发流式（逐步排版、光标、结束出选项）、碎光三档实际渲染对比度、不溢出、宿主样式隔离（需先打包预览） |
 
 展示台：`node build/frontend-build.mjs` 后用任意静态服务器打开 `test/frontend/playground/index.html?skin=fallback|paper|abyss&scheme=dark|light`。
 `paper`（粉纸浅黄）与 `abyss`（近黑暗红）是故意配得刁钻的测试皮肤，用来证明「任何种子都可读」在真实渲染里也成立。

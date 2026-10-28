@@ -38,7 +38,13 @@ export const COMPONENTS = {
   'info-button': { parts: [], variants: {}, states: [] },
   popover: { parts: ['content'], variants: {}, states: ['open', 'closed'] },
   toast: { parts: ['message', 'action', 'close'], variants: {}, states: [] },
-  spinner: { parts: [], variants: { size: ['sm', 'md'] }, states: [] }
+  spinner: { parts: [], variants: { size: ['sm', 'md'] }, states: [] },
+  /* 消息前端（前端重构-消息前端方案；2026-10-28 用户拍板 A–F）。四个前端共用对齐轴与间距节奏，框不框由皮肤决定 */
+  'msg-view': { parts: [], variants: {}, states: ['streaming'] },
+  'msg-body': { parts: ['text', 'para', 'narration', 'dialogue', 'quote', 'thought', 'name', 'keyword', 'term', 'scene-break', 'caret', 'raw', 'tools'], variants: { view: ['rendered', 'raw'] }, states: ['streaming'] },
+  'msg-think': { parts: ['head', 'icon', 'title', 'count', 'chevron', 'body', 'markdown', 'raw', 'tools'], variants: { view: ['rendered', 'raw'] }, states: ['open', 'closed', 'streaming'] },
+  'msg-search': { parts: ['head', 'icon', 'title', 'sites', 'chevron', 'body', 'scope', 'facts', 'fact', 'ref', 'sources', 'source', 'status'], variants: {}, states: ['open', 'closed', 'streaming'] },
+  'msg-options': { parts: ['head', 'title', 'count', 'mode', 'list', 'item', 'type', 'label', 'text', 'pending'], variants: { mode: ['fill', 'send'] }, states: ['streaming'] }
 } as const satisfies Record<string, ComponentSpec>;
 
 export type ComponentName = keyof typeof COMPONENTS;

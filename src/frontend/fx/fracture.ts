@@ -25,10 +25,12 @@ const MAX_ACTIVE = 4;
 const TAP_SLOP = 10;
 
 /** 触发：按下这些组件 */
-const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"]';
+const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"], [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const TAB_SEL = '[data-k="tabs"] [data-k-part="tab"]:not([data-disabled])';
 /** 触发：这些元素的 data-state 变化（展开 / 收起、弹出） */
 const STATE_SEL = '[data-k="card"][data-role="collapse"], [data-k="dialog"][data-k-part="content"], [data-k="select"][data-k-part="content"], [data-k="panel"]';
+/** 只在 data-state 变化（用户展开 / 收起）时触发、出现时不触发的：消息里的边注。消息一屏几十条，挂载时全都聚合一遍太吵 */
+const STATE_CHANGE_SEL = STATE_SEL + ', [data-k="msg-think"], [data-k="msg-search"]';
 
 export type BurstKind = 'local' | 'assemble' | 'shatter';
 
@@ -139,7 +141,7 @@ export class Fracture {
       if (m.type === 'attributes') {
         const el = m.target as Element;
         const now = el.getAttribute('data-state');
-        if (el.matches && el.matches(STATE_SEL) && m.oldValue !== now) { this.burst(el, now === 'closed' ? 'shatter' : 'assemble'); }
+        if (el.matches && el.matches(STATE_CHANGE_SEL) && m.oldValue !== now) { this.burst(el, now === 'closed' ? 'shatter' : 'assemble'); }
       } else {
         m.addedNodes.forEach((n) => {
           if (n.nodeType !== 1) { return; }

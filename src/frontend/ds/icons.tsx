@@ -9,3 +9,5 @@ export const IconChevronDown = (p: P): React.JSX.Element => <svg {...base} {...p
 export const IconChevronRight = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M9 6l6 6-6 6" /></svg>;
 export const IconClose = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>;
 export const IconMinus = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M6 12h12" /></svg>;
+export const IconCopy = (p: P): React.JSX.Element => <svg {...base} {...p}><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>;
+export const IconCode = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M8 7l-5 5 5 5M16 7l5 5-5 5" /></svg>;

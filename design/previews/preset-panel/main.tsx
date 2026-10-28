@@ -139,16 +139,21 @@ function currentChips(st: State): Array<{ key: string; text: string }> {
 
 function Overview({ st, act, compact }: { st: State; act: Act; compact: boolean }): React.JSX.Element {
   const chips = currentChips(st);
+  /* 电脑上全铺开太密（十几个标签成一面墙）：先显示前 CHIP_LIMIT 个，其余点「全部」展开；手机是一行横滑，全显示 */
+  const CHIP_LIMIT = 6;
+  const [allChips, setAllChips] = React.useState(false);
+  const shownChips = compact || allChips ? chips : chips.slice(0, CHIP_LIMIT);
   const mt = TABS.find((t) => t.kind === 'model');
   const vars = TABS.flatMap((t) => t.vars || []);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>
-      <SettingSection title="当前生效" badge={<Badge>{chips.length} 项</Badge>}>
+      <SettingSection title="当前生效" badge={<Badge>{chips.length} 项</Badge>}
+        aside={!compact && chips.length > CHIP_LIMIT ? <Button variant="ghost" size="sm" onClick={() => setAllChips(!allChips)}>{allChips ? '收起' : '全部 ' + chips.length + ' 项'}</Button> : undefined}>
         {/* 手机：压成一行横向滑动（不触发翻页）；电脑：换行铺开 */}
         <div data-k-swipe="off" style={compact
           ? { display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4, scrollbarWidth: 'none' }
           : { display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {chips.map((c) => <span key={c.key} style={{ flex: 'none' }}><Badge tone="accent">{c.text}</Badge></span>)}
+          {shownChips.map((c) => <span key={c.key} style={{ flex: 'none' }}><Badge tone="accent">{c.text}</Badge></span>)}
         </div>
       </SettingSection>
       <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)' }}>

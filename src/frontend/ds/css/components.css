@@ -215,3 +215,93 @@
   font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; font-size: 14px; line-height: 1;
 }
 [data-k="info-button"]:hover, [data-k="info-button"][data-state="open"] { background: var(--k-control-hover); color: var(--k-on-control); border-color: var(--k-on-control); }
+
+/* ───────── 消息前端（正文 / 思维链 / 搜索资料 / 行动选项）─────────
+   平台只给结构与节奏：同一条对齐轴、同一套间距；框不框、线怎么画由皮肤决定（前端重构-消息前端方案 第三节）。
+   一律用 > 逐级写到部件：这些前端里嵌着按钮、分段按钮等别的组件，后代选择器会误伤它们的同名部件（例如 item / icon）。 */
+[data-k="msg-view"] { gap: var(--k-gap-group); padding: var(--k-pad-card); border-radius: var(--k-r-lg); }
+
+/* 正文：阅读令牌；段首两字缩进（电脑、手机一样，用户拍板 C）；段距。text 里只有行内排版，没有别的组件 */
+[data-k="msg-body"] > [data-k-part="text"] { font-size: var(--k-read-size); line-height: var(--k-read-lh); }
+[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="para"] { text-indent: 2em; margin: 0 0 var(--k-read-para); }
+[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="para"]:last-child { margin-bottom: 0; }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="dialogue"] { font-weight: 500; }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="quote"] { color: var(--k-on-muted); font-weight: var(--k-fw); }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="thought"] { font-style: italic; color: var(--k-on-muted); }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="name"] { font-weight: var(--k-fw-strong); }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="keyword"] { font-weight: 700; }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="term"] { text-decoration: underline; text-decoration-color: var(--k-divider); text-underline-offset: .28em; }
+[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="scene-break"] { width: 30%; margin: 1.4em auto; border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="caret"] { display: inline-block; width: .55em; height: .55em; margin-left: .25em; vertical-align: .05em; background: var(--k-accent); text-indent: 0; animation: k-msg-caret 1s steps(2, jump-none) infinite; }
+@keyframes k-msg-caret { 0% { opacity: 1; } 100% { opacity: .15; } }
+[data-k="msg-body"] > [data-k-part="raw"], [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="raw"] {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--k-font-mono); font-size: var(--k-fs-sm); line-height: 1.7;
+}
+[data-k="msg-body"] > [data-k-part="tools"] { display: flex; justify-content: flex-end; gap: var(--k-space-1); margin-top: var(--k-space-1); color: var(--k-on-muted); }
+/* 电脑：工具平时隐去，悬停在正文上（或键盘聚焦到工具）时淡入；触屏一直显示，但很淡 */
+@media (hover: hover) and (pointer: fine) {
+  [data-k="msg-body"] > [data-k-part="tools"] { opacity: 0; transition: opacity var(--k-dur) var(--k-ease); }
+  [data-k="msg-body"]:hover > [data-k-part="tools"], [data-k="msg-body"] > [data-k-part="tools"]:focus-within { opacity: 1; }
+}
+@media (hover: none) { [data-k="msg-body"] > [data-k-part="tools"] { opacity: .7; } }
+
+/* 思维链 / 搜索资料：边注，收起时只是一行摘要 */
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] {
+  display: flex; align-items: center; gap: var(--k-space-2); width: 100%; min-height: 32px; padding: var(--k-space-1) 0;
+  color: var(--k-on-muted); font-size: var(--k-fs-sm); text-align: left; cursor: pointer;
+}
+[data-k="msg-search"] > [data-k-part="head"]:disabled { cursor: default; }
+[data-k="msg-think"] > [data-k-part="head"]:hover, [data-k="msg-search"] > [data-k-part="head"]:not(:disabled):hover { color: var(--k-on); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="icon"] { display: inline-flex; flex: none; width: 1.15em; height: 1.15em; align-items: center; justify-content: center; }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > :is([data-k-part="title"], [data-k-part="count"]) { flex: none; white-space: nowrap; }
+[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="count"] { font-variant-numeric: tabular-nums; }
+[data-k="msg-search"] > [data-k-part="head"] > [data-k-part="sites"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-on-muted); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="chevron"] { display: inline-flex; flex: none; transition: transform var(--k-dur) var(--k-ease); }
+:is([data-k="msg-think"], [data-k="msg-search"])[data-state="open"] > [data-k-part="head"] > [data-k-part="chevron"] { transform: rotate(180deg); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="body"] { padding: var(--k-space-2) 0 var(--k-space-2) var(--k-space-4); color: var(--k-on-muted); font-size: var(--k-fs-sm); line-height: 1.75; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="tools"] { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-space-2); margin-top: var(--k-space-2); }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > * { margin: 0 0 .6em; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > :last-child { margin-bottom: 0; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] :is(ul, ol) { padding-left: 1.4em; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] ul { list-style: disc; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] ol { list-style: decimal; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] :is(h4, h5, h6) { font-size: 1em; color: var(--k-on); }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] strong { color: var(--k-on); }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] code { font-family: var(--k-font-mono); font-size: .92em; }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] pre { overflow-x: auto; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-sm); background: var(--k-sunken); color: var(--k-on-sunken); }
+[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="scope"] { margin: 0 0 var(--k-space-2); color: var(--k-on-muted); }
+[data-k="msg-search"] > [data-k-part="body"] > div > :is([data-k-part="facts"], [data-k-part="sources"]) { margin: 0 0 var(--k-space-3); padding-left: 1.6em; }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] { list-style: disc; }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] { list-style: decimal; }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] { margin-bottom: var(--k-space-1); }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] > [data-k-part="ref"] { margin-left: 2px; color: var(--k-link); font-size: .75em; }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] { font-size: var(--k-fs-xs); }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > a { color: var(--k-link); text-underline-offset: 2px; }
+[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > span { color: var(--k-on-muted); }
+
+/* 行动选项：轻量列表，按下时才有存在感 */
+[data-k="msg-options"] > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); margin-bottom: var(--k-space-2); font-size: var(--k-fs-sm); }
+[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="title"] { font-weight: var(--k-fw-strong); }
+[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="count"] { color: var(--k-on-muted); }
+[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="mode"] { margin-left: auto; }
+[data-k="msg-options"] > [data-k-part="list"] { display: grid; gap: var(--k-space-1); margin: 0; padding: 0; list-style: none; }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--k-space-2); row-gap: 2px; align-items: baseline;
+  width: 100%; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-md); color: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--k-dur-fast) var(--k-ease);
+}
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:hover { background: var(--k-control-hover); color: var(--k-on-control); }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="type"] { grid-row: 1; font-size: var(--k-fs-xs); }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="label"] { grid-column: 2; font-weight: var(--k-fw-strong); }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="text"] {
+  grid-column: 2; color: var(--k-on-muted); font-size: var(--k-fs-sm);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden;
+}
+/* 电脑：悬停 / 键盘聚焦时展开完整内容；手机：两行 */
+@media (hover: hover) and (pointer: fine) {
+  [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:is(:hover, :focus-visible) > [data-k-part="text"] { -webkit-line-clamp: unset; display: block; }
+}
+@media (pointer: coarse) { [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="text"] { -webkit-line-clamp: 2; } }
+[data-k="msg-options"] > [data-k-part="pending"] { display: flex; align-items: center; gap: var(--k-space-2); margin: 0; color: var(--k-on-muted); font-size: var(--k-fs-sm); }

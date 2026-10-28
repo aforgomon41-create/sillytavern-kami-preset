@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>消息前端 · 预览</title>
+<style>
+  /* 模拟酒馆聊天页（结构照酒馆 1.18：#chat > .mes[mesid] > .mes_block > .mes_text）。
+     敌意样式照样带着（全局 button / p / em / q 样式），验证 Shadow DOM 隔离 */
+  html, body { margin: 0; height: 100%; }
+  body { background: #2b2b2e; color: #dcdcd2; font-family: "Courier New", monospace; font-size: 15px; display: flex; flex-direction: column; }
+  button { background: rgb(255, 0, 0) !important; color: yellow !important; }
+  p { margin: 2em 0 !important; color: magenta; }
+  em { color: lime; font-size: 22px; }
+  #top { flex: none; height: 44px; border-bottom: 1px solid #444; display: flex; align-items: center; padding: 0 12px; gap: 8px; opacity: .8; }
+  #top-tools { margin-left: auto; position: relative; }
+  #chat { flex: 1 1 auto; overflow-y: auto; padding: 12px 10px 24px; }
+  .mes { display: flex; gap: 10px; padding: 12px 8px; border-bottom: 1px solid #3a3a3e; }
+  .avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #555; }
+  .mes[is_user="true"] .avatar { background: #4a5d6e; }
+  .mes_block { flex: 1 1 auto; min-width: 0; }
+  .ch_name { font-weight: bold; margin-bottom: 6px; opacity: .85; }
+  .mes_text { line-height: 1.6; }
+  #form { flex: none; display: flex; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #444; background: #232326; }
+  #send_textarea { flex: 1 1 auto; min-height: 40px; max-height: 30vh; resize: vertical; background: #1b1b1d; color: #ddd; border: 1px solid #555; border-radius: 6px; padding: 8px; font: inherit; }
+  #send_but { flex: none; width: 56px; border-radius: 6px; border: 0; }
+</style>
+</head>
+<body>
+  <div id="top">（模拟酒馆）<span id="top-tools"></span></div>
+  <div id="chat"></div>
+  <form id="form" onsubmit="return false"><textarea id="send_textarea" placeholder="输入消息……（行动选项「填入」会接在这里已有内容的后面）"></textarea><button id="send_but" type="submit">发送</button></form>
+  <script src="./preview.js"></script>
+</body>
+</html>

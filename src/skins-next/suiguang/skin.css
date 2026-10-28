@@ -89,3 +89,25 @@
 
 /* ───────── 阅读档：更低的纸面对比、无纸纹（纸色本身就是暖的） ───────── */
 [data-k-surface][data-k-scheme="reading"] { --k-fx-glow: #e0a35c; }
+
+/* ───────── 消息前端：正文无框；边注一条左侧细线 + 次要色；选项是无框列表（前端重构-消息前端方案 第三节）───────── */
+/* 底：一张很淡的纸（浅色档有纸纹），不描边；与酒馆背景拉开即可 */
+[data-k="msg-view"] { box-shadow: 0 1px 0 var(--k-divider); }
+/* 正文用衬线：读长文更有纸感；对白略重、引号退后；心理描写用楷体（系统没有楷体时退回衬线） */
+[data-k="msg-body"] > [data-k-part="text"] { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, Georgia, serif; letter-spacing: .02em; }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="thought"] { font-style: normal; font-family: "Kaiti SC", STKaiti, KaiTi, "楷体", "AR PL UKai CN", "Noto Serif CJK SC", serif; }
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="term"] { text-decoration-color: var(--k-accent); text-decoration-thickness: 1px; text-decoration-style: dotted; }
+/* 场景转换：一枚小方块（印章母题）代替横线 */
+[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="scene-break"] { width: 6px; height: 6px; border: 0; background: var(--k-accent); opacity: .55; transform: rotate(45deg); }
+/* 流式光标：方块，和碎光同源 */
+[data-k="msg-body"] > [data-k-part="text"] [data-k-part="caret"] { border-radius: 1px; box-shadow: 0 0 6px var(--k-fx-glow); }
+
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="body"] { border-left: 1.5px solid var(--k-divider); }
+[data-k="msg-think"][data-streaming] > [data-k-part="head"] { color: var(--k-on); }
+
+[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .06em; }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid transparent; }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:active { transform: scale(.995); }
+@media (hover: hover) and (pointer: fine) {
+  [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:hover { box-shadow: 0 0 0 1px var(--k-focus-ring); }
+}
