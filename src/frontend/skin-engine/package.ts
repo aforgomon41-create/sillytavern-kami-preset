@@ -1,0 +1,94 @@
+/**
+ * 皮肤包清单（skin.json）的类型与校验。前端契约第 6 节。
+ * 校验只看结构与取值范围；颜色是否达标由令牌引擎负责，CSS 是否合规由 lint-css 负责。
+ */
+import type { ContrastLevel, Mode, Seeds } from './tokens';
+import type { Elevation, FontStacks } from './scales';
+
+export interface SchemeDef {
+  seeds: Seeds & { radius?: number; font?: FontStacks; elevation?: Elevation; contrast?: ContrastLevel };
+  /** L2：直接指定语义令牌（不带 --k- 前缀） */
+  tokens?: Record<string, string>;
+  /** L2：按对改组件配色，例如 { button: { tone: 'accent-soft' } } */
+  components?: Record<string, { tone: string }>;
+}
+
+export interface EffectDef { id: string; name: string; description?: string; group?: string; default: boolean }
+
+export type ParamDef =
+  | { id: string; name: string; type: 'color'; default: string; bind: string; group?: string }
+  | { id: string; name: string; type: 'number'; default: number; min: number; max: number; step?: number; unit?: string; bind: string; group?: string }
+  | { id: string; name: string; type: 'enum'; default: string; options: Array<{ value: string; name: string }>; bind: string; group?: string };
+
+export interface AssetDef { file: string; alt?: string }
+
+export interface SkinManifest {
+  id: string;
+  name: string;
+  version: string;
+  contract: string;
+  description?: string;
+  author?: string;
+  credits?: string;
+  schemes: Partial<Record<Mode, SchemeDef>>;
+  defaultScheme: Mode;
+  effects?: EffectDef[];
+  params?: ParamDef[];
+  assets?: Record<string, AssetDef>;
+  ornaments?: string[];
+  flavor?: Record<string, string>;
+}
+
+export const CONTRACT_MAJOR = 1;
+const ID = /^[a-z][a-z0-9-]{1,31}$/;
+const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+/** 参数可以绑定：种子（seed:accent）、语义令牌（token:surface-1）、皮肤自己的变量（var:--k-skin-xxx） */
+const BIND = /^(seed:(neutral|accent|danger|warning|success|info|radius)|token:[a-z0-9-]+|var:--k-skin-[a-z0-9-]+)$/;
+
+/** 校验清单；返回错误列表（空数组 = 通过） */
+export function validateManifest(m: unknown): string[] {
+  const e: string[] = [];
+  const o = m as Partial<SkinManifest> | null;
+  if (!o || typeof o !== 'object') { return ['清单不是对象']; }
+  if (!o.id || !ID.test(o.id)) { e.push('id 必须是小写字母开头的 2~32 位字母、数字、连字符'); }
+  if (!o.name) { e.push('缺 name'); }
+  if (!o.version) { e.push('缺 version'); }
+  if (!o.contract || Number(String(o.contract).split('.')[0]) !== CONTRACT_MAJOR) { e.push('contract 必须是 ' + CONTRACT_MAJOR + '.x'); }
+  const schemes = o.schemes || {};
+  const modes = Object.keys(schemes) as Mode[];
+  if (!modes.length) { e.push('schemes 至少要有 light 或 dark 之一'); }
+  for (const mode of modes) {
+    if (mode !== 'light' && mode !== 'dark') { e.push('未知配色方案：' + mode); continue; }
+    const sc = schemes[mode] as SchemeDef;
+    const seeds = sc && sc.seeds;
+    if (!seeds) { e.push(mode + '：缺 seeds'); continue; }
+    for (const k of ['neutral', 'accent'] as const) { if (!seeds[k] || !HEX.test(seeds[k])) { e.push(mode + '.seeds.' + k + ' 必须是十六进制颜色'); } }
+    for (const k of ['danger', 'warning', 'success', 'info'] as const) { if (seeds[k] !== undefined && !HEX.test(seeds[k] as string)) { e.push(mode + '.seeds.' + k + ' 必须是十六进制颜色'); } }
+    if (seeds.radius !== undefined && !(seeds.radius >= 0 && seeds.radius <= 32)) { e.push(mode + '.seeds.radius 必须在 0~32'); }
+    if (seeds.elevation !== undefined && !['flat', 'shadow', 'glow', 'outline'].includes(seeds.elevation)) { e.push(mode + '.seeds.elevation 取值不对'); }
+    if (seeds.contrast !== undefined && !['standard', 'high'].includes(seeds.contrast)) { e.push(mode + '.seeds.contrast 取值不对'); }
+    for (const [k, v] of Object.entries(sc.tokens || {})) { if (!HEX.test(v)) { e.push(mode + '.tokens.' + k + ' 必须是十六进制颜色'); } }
+  }
+  if (!o.defaultScheme || !modes.includes(o.defaultScheme)) { e.push('defaultScheme 必须是已提供的配色方案之一'); }
+  const ids = new Set<string>();
+  for (const f of o.effects || []) {
+    if (!f.id || !ID.test(f.id)) { e.push('特效 id 不合法：' + f.id); }
+    if (ids.has(f.id)) { e.push('特效 / 参数 id 重复：' + f.id); }
+    ids.add(f.id);
+    if (!f.name) { e.push('特效 ' + f.id + ' 缺 name'); }
+  }
+  for (const p of o.params || []) {
+    if (!p.id || !ID.test(p.id)) { e.push('参数 id 不合法：' + p.id); }
+    if (ids.has(p.id)) { e.push('特效 / 参数 id 重复：' + p.id); }
+    ids.add(p.id);
+    if (!BIND.test(p.bind || '')) { e.push('参数 ' + p.id + ' 的 bind 不合法：' + p.bind); }
+    if (p.type === 'color' && !HEX.test(p.default)) { e.push('参数 ' + p.id + ' 的默认值必须是十六进制颜色'); }
+    if (p.type === 'number' && !(p.min <= p.default && p.default <= p.max)) { e.push('参数 ' + p.id + ' 的默认值不在范围内'); }
+    if (p.type === 'enum' && !(p.options || []).some((x) => x.value === p.default)) { e.push('参数 ' + p.id + ' 的默认值不在选项里'); }
+  }
+  for (const [k, a] of Object.entries(o.assets || {})) {
+    if (!ID.test(k)) { e.push('素材名不合法：' + k); }
+    if (!a || !/^assets\/[\w.-]+\.(png|webp)$/i.test(a.file)) { e.push('素材 ' + k + ' 只能是 assets/ 下的 png / webp'); }
+  }
+  return e;
+}

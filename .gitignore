@@ -15,3 +15,6 @@ node_modules/
 
 # 技术验证的构建输出
 spikes/**/out/
+
+# 新前端构建输出
+.cache/
