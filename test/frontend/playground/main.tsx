@@ -8,7 +8,7 @@ import type { SkinManifest } from '../../../src/frontend/skin-engine/package';
 import { FALLBACK_SKIN } from '../../../src/frontend/runtime/fallback-skin';
 import {
   Badge, Button, Card, Checkbox, ChoiceCard, CollapseCard, Dialog, Empty, Field, IconButton, IconClose, Select, Spinner,
-  Surface, Switch, Tabs, TextArea, TextField, Tooltip, type Level
+  Panel, Surface, Switch, Tabs, TextArea, TextField, Tooltip, type Level, type Rect
 } from '../../../src/frontend/ds';
 
 /* 两套故意刁钻的测试皮肤：验证「任何种子都可读」在真实渲染里也成立 */
@@ -87,16 +87,24 @@ function Section({ level, title }: { level: Level; title: string }): React.JSX.E
 
 function App(): React.JSX.Element {
   const [dlg, setDlg] = React.useState(q.get('dialog') === '1');
+  const [panel, setPanel] = React.useState(q.get('panel') === '1');
+  const w = window as unknown as { __panelClosed: number; __geom: Rect | null };
   return (
     <div data-testid="gallery" style={{ position: 'absolute', inset: 0, overflow: 'auto', pointerEvents: 'auto' }}>
       <Surface level="bg" style={{ padding: 16, display: 'grid', gap: 16, minHeight: '100%' }}>
         <h1>新前端展示台 · {skin.name} · {composed.mode}</h1>
-        <Button variant="primary" onClick={() => setDlg(true)} data-testid="open-dialog">打开对话框</Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="primary" onClick={() => setDlg(true)} data-testid="open-dialog">打开对话框</Button>
+          <Button onClick={() => setPanel(true)} data-testid="open-panel">打开面板</Button>
+        </div>
         <Section level="bg" title="画布（bg）" />
         <Section level="surface-1" title="表面一（surface-1）" />
         <Section level="sunken" title="凹陷（sunken）" />
         <Section level="inverse" title="反色（inverse）" />
       </Surface>
+      {panel ? <Panel title="面板标题（很长的标题会省略）" onClose={() => { setPanel(false); w.__panelClosed = (w.__panelClosed || 0) + 1; }}
+        onGeometryChange={(g) => { w.__geom = g; }} actions={<Button size="sm" variant="ghost" data-testid="panel-action">操作</Button>}
+        footer={<><Button>取消</Button><Button variant="primary">保存</Button></>}><Controls /></Panel> : null}
       <Dialog open={dlg} onOpenChange={setDlg} title="对话框标题" description="对话框的说明文字"
         footer={<><Button onClick={() => setDlg(false)}>取消</Button><Button variant="primary" onClick={() => setDlg(false)}>确定</Button></>}>
         <Controls />

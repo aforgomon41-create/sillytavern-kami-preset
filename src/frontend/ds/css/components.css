@@ -152,3 +152,16 @@
 [data-k="empty"] [data-k-part="description"] { color: var(--k-on-muted); max-width: 32em; }
 [data-k="spinner"] { display: inline-block; width: 1em; height: 1em; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: k-spin .8s linear infinite; }
 @keyframes k-spin { to { transform: rotate(360deg); } }
+
+/* ───────── 面板 ───────── */
+[data-k="panel"] { border: var(--k-border-w) solid var(--k-divider); box-shadow: var(--k-shadow-3); }
+[data-k="panel"][data-layout="floating"] { border-radius: var(--k-r-xl); }
+[data-k="panel"][data-layout="sheet"] { border-radius: var(--k-r-xl) var(--k-r-xl) 0 0; border-bottom: 0; }
+[data-k="panel"] [data-k-part="head"] { gap: var(--k-space-2); padding: var(--k-space-3) var(--k-space-3) var(--k-space-3) var(--k-space-5); border-bottom: var(--k-border-w) solid var(--k-divider); }
+[data-k="panel"][data-layout="sheet"] [data-k-part="head"] { padding-top: var(--k-space-5); }
+[data-k="panel"] [data-k-part="title"] { font-size: var(--k-fs-lg); }
+[data-k="panel"] [data-k-part="actions"] { display: flex; gap: var(--k-space-1); }
+[data-k="panel"] [data-k-part="body"] { padding: var(--k-space-4) var(--k-space-5); }
+[data-k="panel"] [data-k-part="foot"] { display: flex; flex-wrap: wrap; gap: var(--k-space-2); justify-content: flex-end; padding: var(--k-space-3) var(--k-space-5); border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k="panel"] [data-k-part="grip"] { width: 40px; height: 4px; border-radius: var(--k-r-pill); background: var(--k-border); }
+[data-k="panel"] [data-k-part="resize"]::after { content: ''; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 2px solid var(--k-border); border-bottom: 2px solid var(--k-border); }

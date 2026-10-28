@@ -46,3 +46,19 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0s; animation-iteration-count: 1; transition-duration: 0s; scroll-behavior: auto; }
 }
+
+/* 面板：宽屏浮动窗的位置与尺寸由组件写进 --k-panel-*（已夹进视口）；窄屏贴底抽屉 */
+[data-k="panel"] { position: fixed; display: flex; flex-direction: column; overflow: hidden; outline: none; }
+[data-k="panel"][data-layout="floating"] { left: var(--k-panel-x); top: var(--k-panel-y); width: var(--k-panel-w); height: var(--k-panel-h); }
+[data-k="panel"][data-layout="sheet"] {
+  left: 0; right: 0; bottom: 0; width: 100%; height: min(85dvh, calc(100dvh - 24px)); max-height: 100dvh;
+  transform: translateY(var(--k-sheet-drag, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[data-k="panel"][data-layout="sheet"]:not([data-dragging]) { transition: transform var(--k-dur) var(--k-ease-out); }
+[data-k="panel"] [data-k-part="head"] { flex: none; display: flex; align-items: center; position: relative; touch-action: none; user-select: none; }
+[data-k="panel"][data-layout="floating"] [data-k-part="head"] { cursor: move; }
+[data-k="panel"] [data-k-part="title"] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-k="panel"] [data-k-part="body"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+[data-k="panel"] [data-k-part="foot"] { flex: none; }
+[data-k="panel"] [data-k-part="resize"] { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; }
+[data-k="panel"] [data-k-part="grip"] { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); }

@@ -26,6 +26,7 @@ export const COMPONENTS = {
   field: { parts: ['label', 'control', 'hint', 'error'], variants: { layout: ['stack', 'inline'] }, states: ['invalid', 'disabled'] },
   card: { parts: ['head', 'title', 'meta', 'body', 'foot', 'indicator'], variants: { role: ['container', 'choice', 'collapse'] }, states: ['selected', 'open', 'closed', 'disabled'] },
   dialog: { parts: ['overlay', 'content', 'head', 'title', 'description', 'body', 'foot', 'close'], variants: { size: ['sm', 'md', 'lg'] }, states: ['open', 'closed'] },
+  panel: { parts: ['head', 'grip', 'title', 'actions', 'close', 'body', 'foot', 'resize'], variants: { layout: ['floating', 'sheet'] }, states: ['dragging'] },
   tooltip: { parts: ['content', 'arrow'], variants: {}, states: ['delayed-open', 'instant-open', 'closed'] },
   badge: { parts: [], variants: { tone: ['neutral', 'accent', 'danger', 'warning', 'success', 'info'] }, states: [] },
   empty: { parts: ['icon', 'title', 'description', 'actions'], variants: {}, states: [] },
