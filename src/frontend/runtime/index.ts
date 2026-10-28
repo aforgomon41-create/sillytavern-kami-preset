@@ -15,6 +15,7 @@ import { createLayer, type Layer } from '../surfaces/layer';
 import { MessageMounts, nthTag, type MessageMountOptions } from '../surfaces/messages';
 import { FALLBACK_SKIN } from './fallback-skin';
 import { Fracture } from '../fx/fracture';
+import { loadFonts, probeImage, type LoadState } from './remote';
 
 export const VERSION = '2.0.0-alpha.1';
 
@@ -27,7 +28,10 @@ export interface Runtime {
   /** 宿主浮层（每个文档一个） */
   layer(doc?: Document): Layer;
   /** 应用皮肤：合成样式、写渲染面属性、广播 kami:skin-changed */
+  /** 应用皮肤：合成样式、写渲染面属性、广播 kami:skin-changed。外链字体与外链图片在后台加载，不阻塞（6.6） */
   applySkin(m: SkinManifest, settings?: Partial<SkinSettings>, opts?: ComposeOptions): ComposedSkin;
+  /** 当前皮肤外链资源的加载结果（测试与排障用） */
+  remote(): Promise<{ fonts: Record<string, LoadState>; assets: Record<string, 'remote' | 'fallback'> }>;
   current(): ComposedSkin;
   messages(o: Omit<MessageMountOptions, 'hub' | 'doc' | 'attrs'> & { doc?: Document }): MessageMounts;
   engine: { resolveScheme: typeof resolveScheme; auditScheme: typeof auditScheme; validateManifest: typeof validateManifest; composeSkin: typeof composeSkin; nthTag: typeof nthTag };
@@ -53,6 +57,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     return () => fx.dispose();
   };
   let revision = 0;
+  let remoteStatus: Promise<{ fonts: Record<string, LoadState>; assets: Record<string, 'remote' | 'fallback'> }> = Promise.resolve({ fonts: {}, assets: {} });
 
   const hub = (doc: Document = doc0): StyleHub => {
     let h = hubs.get(doc);
@@ -73,6 +78,21 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       if (errs.length) { throw new Error('皮肤清单不合法：' + errs.join('；')); }
       composed = composeSkin(m, { ...DEFAULT_SETTINGS, ...settings }, { systemDark: systemDark(), ...opts });
       manifest = m;
+      /* 外链资源：字体后台注册；图片先用包内兜底（opts.assetUrls），外链能加载再换上去 */
+      const rev = revision + 1;
+      const fontsP = loadFonts(doc0, m.fonts || []);
+      const remoteAssets = Object.entries(m.assets || {}).filter(([, a]) => !!a.url) as Array<[string, { url: string }]>;
+      const assetsP = Promise.all(remoteAssets.map(async ([name, a]) => [name, (await probeImage(doc0, a.url)) ? 'remote' : 'fallback'] as const)).then((xs) => {
+        const ok = xs.filter(([, v]) => v === 'remote');
+        if (ok.length && revision === rev) {   /* 期间没有换过皮肤，才把外链图换上去 */
+          const urls = { ...(opts.assetUrls || {}) };
+          for (const [name] of ok) { urls[name] = (m.assets as Record<string, { url: string }>)[name]!.url; }
+          composed = composeSkin(m, { ...DEFAULT_SETTINGS, ...settings }, { systemDark: systemDark(), ...opts, assetUrls: urls });
+          for (const h of hubs.values()) { h.setSkin(composed.css); }
+        }
+        return Object.fromEntries(xs) as Record<string, 'remote' | 'fallback'>;
+      });
+      remoteStatus = Promise.all([fontsP, assetsP]).then(([fonts, assets]) => ({ fonts, assets }));
       for (const h of hubs.values()) { h.setSkin(composed.css); }
       for (const l of layers.values()) { l.setAttrs(composed.attrs); }
       for (const mm of mounts) { mm.refreshAttrs(); }
@@ -82,6 +102,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       return composed;
     },
     current: () => composed,
+    remote: () => remoteStatus,
     messages(o) {
       const doc = o.doc || doc0;
       const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot });

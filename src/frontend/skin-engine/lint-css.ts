@@ -44,7 +44,7 @@ export function lintSkinCss(css: string): LintIssue[] {
 
   root.walkAtRules((a: AtRule) => {
     const name = a.name.toLowerCase().replace(/^-\w+-/, '');
-    if (!ALLOWED_AT.has(name)) { issues.push({ line: at(a), message: '不允许 @' + a.name + (name === 'layer' ? '（引擎会自动包进 k.skin）' : '') }); }
+    if (!ALLOWED_AT.has(name)) { issues.push({ line: at(a), message: '不允许 @' + a.name + (name === 'layer' ? '（引擎会自动包进 k.skin）' : name === 'font-face' ? '（Shadow DOM 里不生效；外链字体请在 skin.json 的 fonts 里声明，平台负责加载与兜底）' : '') }); }
   });
 
   root.walkRules((r: Rule) => {
@@ -69,7 +69,7 @@ export function lintSkinCss(css: string): LintIssue[] {
     let m: RegExpExecArray | null;
     URL_RE.lastIndex = 0;
     while ((m = URL_RE.exec(d.value))) {
-      if (!SAFE_DATA.test((m[2] || '').trim())) { issues.push({ line: at(d), message: 'url() 只允许 data: 图片；素材请用 var(--k-asset-名字)：' + (m[2] || '').slice(0, 60) }); }
+      if (!SAFE_DATA.test((m[2] || '').trim())) { issues.push({ line: at(d), message: 'url() 只允许 data: 图片；素材（包括外链图片）请在 skin.json 的 assets 里声明、用 var(--k-asset-名字)，平台负责兜底：' + (m[2] || '').slice(0, 60) }); }
     }
     if (insideKeyframes(d)) { return; }
     const rule = d.parent as Rule | undefined;

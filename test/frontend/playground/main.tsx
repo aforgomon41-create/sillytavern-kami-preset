@@ -6,6 +6,7 @@ import * as React from 'react';
 import { createRuntime } from '../../../src/frontend/runtime/index';
 import type { SkinManifest } from '../../../src/frontend/skin-engine/package';
 import { FALLBACK_SKIN } from '../../../src/frontend/runtime/fallback-skin';
+import * as remote from '../../../src/frontend/runtime/remote';
 import suiguangJson from '../../../src/skins-next/suiguang/skin.json';
 import suiguangCss from '../../../src/skins-next/suiguang/skin.css';
 import suiguangPaper from '../../../src/skins-next/suiguang/assets/paper.png';
@@ -27,6 +28,7 @@ const TEST_SKINS: Record<string, SkinManifest> = {
 const q = new URLSearchParams(location.search);
 const rt = createRuntime(window);
 (window as unknown as { __rt: unknown }).__rt = rt;
+(window as unknown as { __kamiRemoteForTest: unknown }).__kamiRemoteForTest = remote;
 const skin = TEST_SKINS[q.get('skin') || 'fallback'] || FALLBACK_SKIN;
 const extra = skin.id === 'suiguang' ? { skinCss: suiguangCss, assetUrls: { paper: suiguangPaper } } : {};
 const composed = rt.applySkin(skin, {

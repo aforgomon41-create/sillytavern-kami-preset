@@ -115,3 +115,15 @@ test('样式表共享：不支持可构造样式表时退回为每个根两个 <
   assert.equal(ra.querySelectorAll('style').length, 0);
   assert.equal(hub.size, 1);
 });
+
+test('外链资源：字体必须 https、字体栈必须以通用字体族结尾、外链素材必须有包内兜底', () => {
+  const ok: SkinManifest = { ...base, fonts: [{ family: 'LXGW WenKai', src: ['https://cdn.example.com/wenkai.woff2'] }],
+    schemes: { dark: { seeds: { ...base.schemes.dark!.seeds, font: { heading: '"LXGW WenKai", "Songti SC", serif' } } } }, defaultScheme: 'dark',
+    assets: { hero: { file: 'assets/hero.webp', url: 'https://cdn.example.com/hero.webp' } } };
+  assert.deepEqual(validateManifest(ok), []);
+  const bad = { ...ok, fonts: [{ family: 'X', src: ['http://insecure/x.woff2'] }], assets: { hero: { url: 'https://cdn.example.com/hero.webp' } },
+    schemes: { dark: { seeds: { ...base.schemes.dark!.seeds, font: { body: '"LXGW WenKai"' } } } } };
+  const e = validateManifest(bad).join('\n');
+  for (const k of ['src 必须是一个或多个 https', '必须以通用字体族结尾', '兜底']) { assert.ok(e.includes(k), '应报：' + k + '\n' + e); }
+  assert.ok(lintSkinCss('@font-face { font-family: x; }').some((i) => i.message.includes('fonts 里声明')));
+});
