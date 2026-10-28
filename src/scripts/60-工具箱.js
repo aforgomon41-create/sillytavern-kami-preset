@@ -2765,5 +2765,36 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     }));
   }
 
-  try { boot(); } catch (e) { console.error('[压缩] 启动失败', e); }
+  /* 等「🧩 运行库」就绪再启动（2026-10-27 修）：
+     各脚本跑在各自的 iframe 里、并行加载，「运行库排第一位」不保证它先执行完。
+     boot() 里的 initToolboxServices() 一上来就要用组件核心，原来同步调用 → 实测真实酒馆里每次刷新都抛
+     「运行库未加载」，后面的登记按钮、卸载清理都没执行：工具箱按钮不出现，压缩与搜索整个不可用。
+     运行库自带的 ready() 挂在它自己身上，没加载时取不到，所以这里听它注册完广播的 kami-runtime-ready，
+     再加轮询兜底；20 秒还没有就给人话报错（用户把运行库关了）。 */
+  function whenRuntimeReady(fn) {
+    var settled = false, poll = null, started = Date.now();
+    function hostRuntime() { try { return HOST.KamiRuntime || null; } catch (e) { return null; } }
+    function stopWaiting() {
+      settled = true;
+      if (poll) { clearInterval(poll); poll = null; }
+      try { HOST.document.removeEventListener('kami-runtime-ready', onReady); } catch (e) { }
+    }
+    function onReady() { if (settled || disposed) { return; } stopWaiting(); fn(); }
+    if (hostRuntime()) { fn(); return; }
+    log('等待「🧩 运行库」加载……');
+    try { HOST.document.addEventListener('kami-runtime-ready', onReady); } catch (e) { }
+    poll = setInterval(function () {
+      if (settled) { return; }
+      if (disposed) { stopWaiting(); return; }
+      if (hostRuntime()) { onReady(); return; }
+      if (Date.now() - started > 20000) {
+        stopWaiting();
+        console.error('[压缩] 启动失败：等了 20 秒仍没有「🧩 运行库」。请在酒馆助手脚本列表启用它，并让它排在第一位。');
+      }
+    }, 100);
+  }
+
+  whenRuntimeReady(function () {
+    try { boot(); } catch (e) { console.error('[压缩] 启动失败', e); }
+  });
 })();
