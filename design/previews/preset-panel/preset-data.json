@@ -1,1008 +1,1050 @@
 {
- "groups": {
-  "🗣️ [语言文字]": {
-   "name": "🗣️ [语言文字]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "b70241",
-     "name": "🗣️ 简体中文",
-     "on": true,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "5a0ed2",
-     "name": "🗣️ 繁體中文",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "7ccbe3",
-     "name": "🗣️ English",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "588ffa",
-     "name": "🗣️ 日本語",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🏃🏻‍♂️ [剧情推进]": {
-   "name": "🏃🏻‍♂️ [剧情推进]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "nu95j3",
-     "name": "🏃🏻‍♂️ 快速推进",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "libl5z",
-     "name": "🏃🏻‍♂️ 详略得当",
-     "on": true,
-     "note": "",
-     "hint": "只专注于描写关键剧情节点，过渡剧情简写或直接省略。琐事与非必要细节略过，但关键剧…",
-     "models": []
-    },
-    {
-     "id": "r6lsvp",
-     "name": "🏃🏻‍♂️ 慢速推进",
-     "on": false,
-     "note": "",
-     "hint": "细腻描写人物，仔细打磨剧情，必要时可放缓剧情推进，但不能停滞不前",
-     "models": []
-    }
-   ]
-  },
-  "👁️ [叙事视角]": {
-   "name": "👁️ [叙事视角]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "jtobgs",
-     "name": "👁️ 限知第三人称",
-     "on": true,
-     "note": "",
-     "hint": "用第三人称指代<user>，并讲述故事。叙述受限于<user>的视角，无法直接揭…",
-     "models": []
-    },
-    {
-     "id": "vu6tx6",
-     "name": "👁️ 全知第三人称",
-     "on": false,
-     "note": "",
-     "hint": "用第三人称指代<user>，并讲述故事。可以自由描写所有角色的心理、事件真相及未…",
-     "models": []
-    },
-    {
-     "id": "53pn3j",
-     "name": "👁️ 第一人称",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "yocskv",
-     "name": "👁️ 第二人称",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🎮 [创作权限]": {
-   "name": "🎮 [创作权限]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "a5evtb",
-     "name": "🎮 严禁抢话",
-     "on": false,
-     "note": "",
-     "hint": "严禁你代替User操控<user>。<user>的行为完全由User在<inte…",
-     "models": []
-    },
-    {
-     "id": "s6k607",
-     "name": "🎮 适当抢话",
-     "on": true,
-     "note": "",
-     "hint": "你可以补充设定和描写<user>，但所有行动必须严格限制在用户当轮输入的意图范围…",
-     "models": []
-    },
-    {
-     "id": "vt1rti",
-     "name": "🎮 鼓励抢话",
-     "on": false,
-     "note": "",
-     "hint": "你应该主动丰富<user>的言行，打造更生动的角色。但不能违反User当轮输入(…",
-     "models": []
-    }
-   ]
-  },
-  "🔊 [转述程度]": {
-   "name": "🔊 [转述程度]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "141d03",
-     "name": "🔊 严禁转述",
-     "on": false,
-     "note": "",
-     "hint": "严禁你转述或扩写`<interactive_input>`中的内容，你必须将其内…",
-     "models": []
-    },
-    {
-     "id": "97a651",
-     "name": "🔊 适当转述",
-     "on": true,
-     "note": "",
-     "hint": "你可以根据故事现状，选择转述或扩写部分`<interactive_input>`…",
-     "models": []
-    },
-    {
-     "id": "8fd199",
-     "name": "🔊 扩写模式",
-     "on": false,
-     "note": "",
-     "hint": "你可以根据故事现状，选择转述或扩写部分`<interactive_input>`…",
-     "models": []
-    }
-   ]
-  },
-  "⚔️ [难度设定]": {
-   "name": "⚔️ [难度设定]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "hf5ypg",
-     "name": "⚔️ N?-拟真推理",
-     "on": true,
-     "note": "",
-     "hint": "抛弃预设难度标尺，以世界内在逻辑为唯一仲裁，推理<user>所作所为的结果。",
-     "models": []
-    },
-    {
-     "id": "bavd9j",
-     "name": "⚔️ N1-为所欲为",
-     "on": false,
-     "note": "",
-     "hint": "<user>可以在故事里为所欲为。",
-     "models": []
-    },
-    {
-     "id": "cj1opv",
-     "name": "⚔️ N2-轻松愉快",
-     "on": false,
-     "note": "",
-     "hint": "<user>在故事里有轻度挑战,有成就感但不会让人沮丧。",
-     "models": []
-    },
-    {
-     "id": "gd9v53",
-     "name": "⚔️ N3-均衡挑战",
-     "on": false,
-     "note": "",
-     "hint": "设置均衡挑战，选择有分量，需<user>认真思考。",
-     "models": []
-    },
-    {
-     "id": "op2wgb",
-     "name": "⚔️ N4-硬核挑战",
-     "on": false,
-     "note": "",
-     "hint": "<user>在故事里需要面临硬核挑战，高风险高回报。",
-     "models": []
-    },
-    {
-     "id": "9tno2f",
-     "name": "⚔️ N5-挑战地狱",
-     "on": false,
-     "note": "",
-     "hint": "故事对<user>来说是地狱难度，只有一线生机。但成功克服困难也应该给予丰厚奖励…",
-     "models": []
-    }
-   ]
-  },
-  "🎯 [叙事焦点]": {
-   "name": "🎯 [叙事焦点]",
-   "layer": "📖 创作要求",
-   "mode": "one",
-   "items": [
-    {
-     "id": "ytcbbe",
-     "name": "🎯 主角独奏",
-     "on": false,
-     "note": "",
-     "hint": "<user>独奏，<user>是绝对中心，配角只是陪衬",
-     "models": []
-    },
-    {
-     "id": "brwtsn",
-     "name": "🎯 主配角平衡",
-     "on": true,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "02kasu",
-     "name": "🎯 群像剧",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "755rwu",
-     "name": "🎯 观察配角",
-     "on": false,
-     "note": "",
-     "hint": "配角主导，<user>是观察者/催化剂，配角驱动剧情",
-     "models": []
-    }
-   ]
-  },
-  "💕 [色色选项]": {
-   "name": "💕 [色色选项]",
-   "layer": "📖 创作要求",
-   "mode": "any",
-   "items": [
-    {
-     "id": "fayymh",
-     "name": "💕 温柔色色",
-     "on": true,
-     "note": "开启后引导亲密描写侧重美好舒适与情感交流，角色始终展现魅力；不开则完全由所选文风决定。",
-     "hint": "需要展示美好舒适的性爱。角色总会享受性爱，但不会沉迷其中，也不会有任何负面反应。…",
-     "models": []
-    },
-    {
-     "id": "zsrda2",
-     "name": "💕 多轮次色色",
-     "on": true,
-     "note": "开启后将亲密剧情细分为调情、前戏、高潮等阶段，每轮仅推进一步且绝不跳步；不开则可能快速完事。",
-     "hint": "除非User特别要求，否则所有NSFW都绝不会仅一次生成就结束。必须将NSFW分…",
-     "models": []
-    }
-   ]
-  },
-  "⚙️ [杂项要求]": {
-   "name": "⚙️ [杂项要求]",
-   "layer": "📖 创作要求",
-   "mode": "any",
-   "items": [
-    {
-     "id": "388c75",
-     "name": "⚙️ 疯狂创意",
-     "on": false,
-     "note": "",
-     "hint": "你必须将剧情发展到前无古人后无来者的地方，摒弃一切无聊的陈旧的套路，疯狂激发你的…",
-     "models": []
-    },
-    {
-     "id": "207535",
-     "name": "⚙️ 尾部仿出戏",
-     "on": true,
-     "note": "开启后严禁在正文末尾附加提问、说教或以主角言行收尾，保持沉浸；不开则结尾可能出现旁白出戏。",
-     "hint": "严禁以提问/意义升华/元叙事等非故事性文本结尾。严禁以<user>相关的描写/动…",
-     "models": []
-    }
-   ]
-  },
-  "💬 [角色对白]": {
-   "name": "💬 [角色对白]",
-   "layer": "😀 角色塑造",
-   "mode": "one",
-   "items": [
-    {
-     "id": "f534d6",
-     "name": "💬 依据人设",
-     "on": true,
-     "note": "",
-     "hint": "依据角色本身人设/性格/当前剧情需要/氛围，安排角色们的各自的台词量，既不过少也…",
-     "models": []
-    },
-    {
-     "id": "6d7a4d",
-     "name": "💬 少说话",
-     "on": false,
-     "note": "",
-     "hint": "角色习惯用行动表达自己，只在必要时刻用话语沟通",
-     "models": []
-    },
-    {
-     "id": "59811a",
-     "name": "💬 多说话",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "💭 [心理描写]": {
-   "name": "💭 [心理描写]",
-   "layer": "😀 角色塑造",
-   "mode": "one",
-   "items": [
-    {
-     "id": "efbba8",
-     "name": "💭 依据人设",
-     "on": true,
-     "note": "",
-     "hint": "依据角色本身人设/性格/当前剧情需要/氛围/，必须服从**叙事视角**的要求，来…",
-     "models": []
-    },
-    {
-     "id": "e330fb",
-     "name": "💭 冰山理论",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "d8bdc3",
-     "name": "💭 细腻内心",
-     "on": false,
-     "note": "",
-     "hint": "心理描写是角色塑造的重要一环，必须细腻深入地描写角色们的内心，并需要占据一定篇幅…",
-     "models": []
-    }
-   ]
-  },
-  "🚫 [各种防止]": {
-   "name": "🚫 [各种防止]",
-   "layer": "😀 角色塑造",
-   "mode": "any",
-   "items": [
-    {
-     "id": "w48alm",
-     "name": "🚫 防全知",
-     "on": true,
-     "note": "开启后角色仅能根据亲眼所见与亲耳所闻行动，杜绝超游掌握场外信息；不开则角色可能未卜先知。",
-     "hint": "角色绝对不知道场外设定与未公开信息，只能根据亲眼所见与亲耳所闻做出反应。",
-     "models": []
-    },
-    {
-     "id": "cc9a3w",
-     "name": "🚫 防绝望",
-     "on": true,
-     "note": "开启后角色性格更坚韧阳光，防止陷入极端偏执或过度绝望；不开则角色负面情绪可能较剧烈。",
-     "hint": "角色都阳光开朗，性格坚韧，不偏执，没有过高攻击性",
-     "models": []
-    },
-    {
-     "id": "ijbjo2",
-     "name": "🚫 防OOC",
-     "on": true,
-     "note": "开启后仅根据已有设定描写角色言行，严禁随意脑补；不开则角色性格可能逐渐偏离设定。",
-     "hint": "你只能根据角色已知性格特征与行为特征描写角色，不猜测与推断角色设定里没写的性格",
-     "models": []
-    },
-    {
-     "id": "c1mob5",
-     "name": "🚫 防发情",
-     "on": false,
-     "note": "开启后角色不会无缘无故主动发情，仅在氛围合适时切入亲密剧情；不开则可能在日常中也频繁多情。",
-     "hint": "角色不会无时无刻发情，你只在时机合适时插入nsfw剧情，随意的色情是廉价无意义的",
-     "models": []
-    },
-    {
-     "id": "zafvas",
-     "name": "🚫 防冰冷",
-     "on": true,
-     "note": "开启后禁止机械化、报数据或报告式的僵硬对话，保持情感充沛；不开则可能输出冷冰冰的分析腔调。",
-     "hint": "角色都感情丰富且都能进行合适表达，严禁出现冰冷无情的角色。角色不会表现的机械化，…",
-     "models": []
-    },
-    {
-     "id": "sx58tx",
-     "name": "🚫 防神化",
-     "on": true,
-     "note": "开启后保留角色的生理极限与思维盲区，允许失误受伤，杜绝无所不能；不开则角色容易龙傲天化。",
-     "hint": "严格保留角色的生理极限与思维盲区，允许失误、受伤与挫败，严禁无所不能的龙傲天化。…",
-     "models": []
-    },
-    {
-     "id": "ti5m3i",
-     "name": "🚫 防讨好",
-     "on": true,
-     "note": "开启后角色会坚持自身利益与立场，拒绝无底线顺从讨好；不开则角色容易被轻易说服。",
-     "hint": "严禁被轻易劝服或顺从讨好，角色必须基于自身利益与想法进行判断，允许对<user>…",
-     "models": []
-    },
-    {
-     "id": "uzsx3d",
-     "name": "🚫 防说教",
-     "on": true,
-     "note": "开启后严禁旁白站在道德高点进行哲理升华或安全警示；不开则结尾容易出现鸡汤式说教。",
-     "hint": "严禁站在道德制高点进行人生哲理升华、安全警告或价值评判，恪守中立的戏剧呈现。",
-     "models": []
-    }
-   ]
-  },
-  "✒️ [文风优化]": {
-   "name": "✒️ [文风优化]",
-   "layer": "📝 写作指导",
-   "mode": "any",
-   "items": [
-    {
-     "id": "e44048",
-     "name": "💀 反死人文风(Gemini可不开)",
-     "on": true,
-     "note": "",
-     "hint": "通篇通用语言架构与描写规范",
-     "models": []
-    },
-    {
-     "id": "18e677",
-     "name": "🔄 写作节奏优化",
-     "on": true,
-     "note": "",
-     "hint": "文风配比与网文分段节拍规范",
-     "models": []
-    },
-    {
-     "id": "ia9ii1",
-     "name": "🔞 NSFW基础",
-     "on": true,
-     "note": "",
-     "hint": "NSFW场景通用强化模块",
-     "models": []
-    }
-   ]
-  },
-  "🖊️ [写作文风]": {
-   "name": "🖊️ [写作文风]",
-   "layer": "📝 写作指导",
-   "mode": "one",
-   "items": [
-    {
-     "id": "5uy830",
-     "name": "🌊 流畅行文",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "3wkh46",
-     "name": "🌐 通用网文",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "tc6o3z",
-     "name": "😄 搞笑网文",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "mdwqcu",
-     "name": "🎆 细腻网文",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "qftq9v",
-     "name": "🎬 电影化叙事",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "goqr2k",
-     "name": "🗿 海明威",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "i7tqx6",
-     "name": "😘 萌系轻小说",
-     "on": true,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "2vzou9",
-     "name": "🎭 幽默轻小说",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "suyro3",
-     "name": "😔 细腻轻小说",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "jxdjzl",
-     "name": "🪔 古风言情",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "ny1wqa",
-     "name": "⚔️ 托尔金&马丁",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "mrl4j0",
-     "name": "🌌 刘慈欣",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "9bo0by",
-     "name": "🔪 古龙武侠",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "l7b1wb",
-     "name": "👊🏻 金庸武侠",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "3ckxmj",
-     "name": "💗 柚子社gal",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "j3oys0",
-     "name": "😭 Key社gal",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "c2yqa0",
-     "name": "🔫 Nitro gal",
-     "on": false,
-     "note": "",
-     "hint": "Nitro+ Galgame 风格",
-     "models": []
-    },
-    {
-     "id": "0fs7xs",
-     "name": "🦇 爱伦坡",
-     "on": false,
-     "note": "",
-     "hint": "爱伦·坡式哥特惊悚风格",
-     "models": []
-    },
-    {
-     "id": "lk5sdn",
-     "name": "🐙 洛夫克拉夫特",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "fpikdx",
-     "name": "📕 古典章回体",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "6wic80",
-     "name": "👻 古典志怪聊斋",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "e75ue6",
-     "name": "😏 古典世情讽刺",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "fwctfb",
-     "name": "🌺 古典风花雪月",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🔞 [NSFW文风]": {
-   "name": "🔞 [NSFW文风]",
-   "layer": "📝 写作指导",
-   "mode": "one",
-   "items": [
-    {
-     "id": "3a41e9",
-     "name": "❌ 不开",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "u2t72x",
-     "name": "🔞 擦边",
-     "on": false,
-     "note": "",
-     "hint": "织物位移与局部受热",
-     "models": []
-    },
-    {
-     "id": "afxj83",
-     "name": "🔞 唯美浪漫",
-     "on": false,
-     "note": "",
-     "hint": "灵魂虔诚与肉体轻缓探索",
-     "models": []
-    },
-    {
-     "id": "d1odxe",
-     "name": "🔞 情欲交加",
-     "on": false,
-     "note": "",
-     "hint": "失控侵略与绝望依赖",
-     "models": []
-    },
-    {
-     "id": "p243yy",
-     "name": "🔞 粗俗直白",
-     "on": true,
-     "note": "",
-     "hint": "彻底剔除文饰，启用纯粹肉欲字眼",
-     "models": []
-    }
-   ]
-  },
-  "🔝 [头部任务]": {
-   "name": "🔝 [头部任务]",
-   "layer": "🧪 额外任务",
-   "mode": "any",
-   "items": [
-    {
-     "id": "h_task",
-     "name": "🌐 网络搜索",
-     "on": false,
-     "note": "开启后在正文生成前按需核对世界知识；开关和完整任务内容与工具箱双向同步。自动与手动搜索分别使用工具箱的限额设置。",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🔛 [正文任务]": {
-   "name": "🔛 [正文任务]",
-   "layer": "🧪 额外任务",
-   "mode": "any",
-   "items": [
-    {
-     "id": "73dc1c",
-     "name": "🎥 HTML美化",
-     "on": true,
-     "note": "开启后将剧情里的书信、终端、短信等载体渲染为美观的 HTML 卡片；不开则仅显示纯文本。",
-     "hint": "实体媒介可视化渲染协议",
-     "models": []
-    },
-    {
-     "id": "7fihu3",
-     "name": "🎨 文生图",
-     "on": false,
-     "note": "开启后在正文中插入分镜插图标签，方便生图插件自动绘制配图；不开则不生成插图标签。",
-     "hint": "text_to_image",
-     "models": []
-    }
-   ]
-  },
-  "🔚 [尾部任务]": {
-   "name": "🔚 [尾部任务]",
-   "layer": "🧪 额外任务",
-   "mode": "any",
-   "items": [
-    {
-     "id": "faa527",
-     "name": "🧱 摘要(小总结)",
-     "on": true,
-     "note": "开启后在尾部生成短摘要供长上下文管理，防止剧情遗忘并节省字数消耗；不开则不生成摘要。",
-     "hint": "摘要生成",
-     "models": []
-    },
-    {
-     "id": "737d5f",
-     "name": "🔠 行动选项",
-     "on": true,
-     "note": "开启后在回复末尾提供下一步行动选项，可直接点击推进剧情；不开则需要全手动输入行动。",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "1bbdda",
-     "name": "👥 角色存档",
-     "on": true,
-     "note": "开启后在回复末尾自动记录与更新登场角色人设，防止跨轮次遗忘；不开则新角色特征可能随对话丢失。",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🔧 [推理工具]": {
-   "name": "🔧 [推理工具]",
-   "layer": "🧠 推理选项",
-   "mode": "any",
-   "items": [
-    {
-     "id": "0y407j",
-     "name": "💫 全新剧情",
-     "on": false,
-     "note": "开启后在思考中推演不同于以往剧情的发展，防止套路化。用于增强抗重复，无必要不用开",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "fcb60e",
-     "name": "🎭 角色生成",
-     "on": true,
-     "note": "开启后在思考中自动推演新登场角色的人设与定位，让角色更立体；不开则新角色出场较随意。",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "1dts86",
-     "name": "☑️ 逻辑校验",
-     "on": true,
-     "note": "开启后在动笔前快速自查时空、人设与设定连贯性，大幅减少穿帮；不开则容易出现前后矛盾。",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "907534",
-     "name": "🥊 NPC战斗决策",
-     "on": false,
-     "note": "开启后在思维链中NPC会积极思考战斗中的对策",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "f96957",
-     "name": "⚔️ 战斗推演",
-     "on": false,
-     "note": "开启后在思维链中对战斗继续推演，战斗爽",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "7ce282",
-     "name": "📚 翻阅世界书",
-     "on": false,
-     "note": "开启后强制在思考中梳理世界书设定与规则，严格遵循背景；不开则仅依赖模型的自然注意力。",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "49de65",
-     "name": "📜 腹稿优化(容易雷霆大思考)",
-     "on": false,
-     "note": "开启后在思考中先打草稿并多轮润色，成稿文笔更佳但消耗较多思考字数；不开则直接成稿。",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🔀 [增强随机]": {
-   "name": "🔀 [增强随机]",
-   "layer": "🧠 推理选项",
-   "mode": "one",
-   "items": [
-    {
-     "id": "9e079f",
-     "name": "❌ 不开",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "4125bb",
-     "name": "🔮 塔罗牌",
-     "on": true,
-     "note": "开启后每轮随机抽取一张塔罗牌指示运势，注入变数与灵感；不开则完全按常规因果推演。",
-     "hint": "",
-     "models": []
-    },
-    {
-     "id": "4b086f",
-     "name": "☯️ 易经八卦",
-     "on": false,
-     "note": "开启后依据六十四卦推演外在环境与敌势走向，增添吉凶变数；不开则不进行卦象推演。",
-     "hint": "",
-     "models": []
-    }
-   ]
-  },
-  "🔧 [特殊底部]": {
-   "name": "🔧 [特殊底部]",
-   "layer": "🧠 推理选项",
-   "mode": "any",
-   "items": [
-    {
-     "id": "44893d",
-     "name": "💤 GLM中文语言锚",
-     "on": false,
-     "note": "用于强化glm系列模型的语言倾向，防止出现输出中文中混入英文单词的情况。",
-     "hint": "【语言硬约束】本次任务全程使用简体中文输出。行文、过渡句、小标题、",
-     "models": [
-      "清华智谱/GLM"
+ "tabs": [
+  {
+   "id": "model",
+   "kind": "model",
+   "name": "🤖 模型",
+   "order": 7,
+   "note": "🐋：深度求索/DeepSeek 💤：清华智谱/GLM 🐱：谷歌/Gemini 🌒：月之暗面/Kimi",
+   "models": [
+    {
+     "name": "🐋 深度求索/DeepSeek",
+     "label": "深度求索/DeepSeek",
+     "emoji": "🐋",
+     "items": [
+      {
+       "id": "prompt_1788967671203_vigbgmo",
+       "name": "🐋 DS/GLM 💤",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "c92435fe-0a90-4a3b-8ba4-8b3c6f78aa65",
+       "name": "🐋 DS/GLM底部破限 💤",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "prompt_1789199973145_mdjojp9",
+       "name": "🐋 DeepSeek强强",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "💤 清华智谱/GLM",
+     "label": "清华智谱/GLM",
+     "emoji": "💤",
+     "items": [
+      {
+       "id": "prompt_1788967671203_vigbgmo",
+       "name": "🐋 DS/GLM 💤",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "3c03a7dd-1f85-4f2b-a8fb-aecb7144893d",
+       "name": "💤 GLM中文语言锚",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "c92435fe-0a90-4a3b-8ba4-8b3c6f78aa65",
+       "name": "🐋 DS/GLM底部破限 💤",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "a26b37fc-66f3-4212-8f8e-c6441ae3cf45",
+       "name": "💤 GLM偷偷",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🐱 谷歌/Gemini",
+     "label": "谷歌/Gemini",
+     "emoji": "🐱",
+     "items": [
+      {
+       "id": "prompt_1789200146436_lolbt7c",
+       "name": "🐱 Gemini随机数",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "prompt_1789339450008_wci4d02",
+       "name": "🐱 Gemini抗输入审(非必要不开)",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "5bbf9586-d63e-4645-9777-c17b1b808611",
+       "name": "🐱 听话！Gemini(非必要不开)",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "5462383f-80d2-49b8-813d-479984bbd309",
+       "name": "🐱 Gemini倒打一耙(非必要不开)",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "a03f3f0b-0c4d-43a4-aab9-fc34910a7121",
+       "name": "🐱 Gemini",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "18d441df-d6b6-4072-bdff-165d7eea0bda",
+       "name": "🐱 Gemini糖糖",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "6257a576-16bb-4c78-9e15-a421e282eeae",
+       "name": "🐱 Gemini卡思维链",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🌒 月之暗面/Kimi",
+     "label": "月之暗面/Kimi",
+     "emoji": "🌒",
+     "items": [
+      {
+       "id": "94df9413-488a-4912-87e3-ec6bd2d345e8",
+       "name": "🌒 KIMI(占位)",
+       "on": false,
+       "note": ""
+      }
      ]
     }
    ]
   },
-  "🪓 [底部破限]": {
-   "name": "🪓 [底部破限]",
-   "layer": "🧠 推理选项",
-   "mode": "one",
-   "items": [
+  {
+   "id": "tab-0",
+   "kind": "layer",
+   "name": "🧩 设置变量",
+   "order": 0,
+   "vars": [
     {
-     "id": "uov3pt",
-     "name": "❌ 不开",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
+     "name": "🧩 推理预算",
+     "note": "设定模型思考长度的建议上限，提示 AI 适时收尾以防过长思考；仅为软性引导，无硬性截断效力。",
+     "fields": [
+      {
+       "kind": "single",
+       "keys": [
+        "cot_budget"
+       ],
+       "values": [
+        6000
+       ]
+      }
+     ]
     },
     {
-     "id": "78aa65",
-     "name": "🐋 DS/GLM底部破限 💤",
-     "on": false,
-     "note": "开启后引导模型保持开放专注、不做道德批判，缓解敏感内容拒答；不开则使用模型默认安全策略。",
-     "hint": "",
-     "models": [
-      "深度求索/DeepSeek",
-      "清华智谱/GLM"
+     "name": "🧩 正文token量",
+     "note": "设定正文的目标 token 量范围，供 AI 把控回复篇幅；仅作参考提示，对实际生成长度无强制约束。按 1 汉字约等于 0.8 token 折算，1200-2400 token 大致等于过去写的 1500-3000 字。",
+     "fields": [
+      {
+       "kind": "range",
+       "keys": [
+        "content_token_min",
+        "content_token_max"
+       ],
+       "values": [
+        1200,
+        2400
+       ]
+      }
+     ]
+    },
+    {
+     "name": "🧩 插图数量",
+     "note": "设定开启文生图时建议生成的插图数量范围；仅对预设自带的文生图条目生效。",
+     "fields": [
+      {
+       "kind": "range",
+       "keys": [
+        "image_count_min",
+        "image_count_max"
+       ],
+       "values": [
+        4,
+        8
+       ]
+      }
+     ]
+    }
+   ],
+   "standalone": [
+    {
+     "id": "7ebevr",
+     "name": "🧩 清空变量",
+     "on": true,
+     "note": "用于每次请求构建上下文时清空变量，防止含变量的条目开关导致的变量残留"
+    },
+    {
+     "id": "ladf0n",
+     "name": "🧩 标签格式",
+     "on": true,
+     "note": "此处用来设置各种标签，可能有部分没有实际使用或并没有使用变量，慎改"
+    }
+   ],
+   "groups": []
+  },
+  {
+   "id": "tab-1",
+   "kind": "layer",
+   "name": "📖 创作要求",
+   "order": 1,
+   "vars": [],
+   "standalone": [],
+   "groups": [
+    {
+     "name": "🗣️ [语言文字]",
+     "mode": "one",
+     "note": "控制正文输出的语言，单选，默认简体中文。切换后 AI 将全程使用对应语言叙事与对话。",
+     "items": [
+      {
+       "id": "b70241",
+       "name": "🗣️ 简体中文",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "5a0ed2",
+       "name": "🗣️ 繁體中文",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "7ccbe3",
+       "name": "🗣️ English",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "588ffa",
+       "name": "🗣️ 日本語",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🏃🏻‍♂️ [剧情推进]",
+     "mode": "one",
+     "note": "控制故事推进速度与细节比重，单选，默认详略得当。可按需切换为快推主线或慢推抠细节。",
+     "items": [
+      {
+       "id": "nu95j3",
+       "name": "🏃🏻‍♂️ 快速推进",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "libl5z",
+       "name": "🏃🏻‍♂️ 详略得当",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "r6lsvp",
+       "name": "🏃🏻‍♂️ 慢速推进",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "👁️ [叙事视角]",
+     "mode": "one",
+     "note": "设定故事讲述的人称视角，单选，默认限知第三人称。决定 AI 叙述时使用的人称以及能看见多少场外信息。",
+     "items": [
+      {
+       "id": "jtobgs",
+       "name": "👁️ 限知第三人称",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "vu6tx6",
+       "name": "👁️ 全知第三人称",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "53pn3j",
+       "name": "👁️ 第一人称",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "yocskv",
+       "name": "👁️ 第二人称",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🎮 [创作权限]",
+     "mode": "one",
+     "note": "调控 AI 是否替你扮演的主角做言行决策，单选，默认适当抢话。在保证互动连贯的同时避免过度越权代行。",
+     "items": [
+      {
+       "id": "a5evtb",
+       "name": "🎮 严禁抢话",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "s6k607",
+       "name": "🎮 适当抢话",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "vt1rti",
+       "name": "🎮 鼓励抢话",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🔊 [转述程度]",
+     "mode": "one",
+     "note": "控制 AI 在回复中复述或扩写你输入内容的程度，单选，默认适当转述。既保持情节自然衔接，又把篇幅留给新剧情。",
+     "items": [
+      {
+       "id": "141d03",
+       "name": "🔊 严禁转述",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "97a651",
+       "name": "🔊 适当转述",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "8fd199",
+       "name": "🔊 扩写模式",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "⚔️ [难度设定]",
+     "mode": "one",
+     "note": "设定主角行动遭遇的阻力与世界运转规则，单选，默认拟真推理。从心想事成到地狱生存，难度随档位逐级递增。",
+     "items": [
+      {
+       "id": "hf5ypg",
+       "name": "⚔️ N?-拟真推理",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "bavd9j",
+       "name": "⚔️ N1-为所欲为",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "cj1opv",
+       "name": "⚔️ N2-轻松愉快",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "gd9v53",
+       "name": "⚔️ N3-均衡挑战",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "op2wgb",
+       "name": "⚔️ N4-硬核挑战",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "9tno2f",
+       "name": "⚔️ N5-挑战地狱",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🎯 [叙事焦点]",
+     "mode": "one",
+     "note": "调配主角与配角的戏份权重与镜头分配，单选，默认主配角平衡。可自由切换为主角中心、伙伴同行或多线群像。",
+     "items": [
+      {
+       "id": "ytcbbe",
+       "name": "🎯 主角独奏",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "brwtsn",
+       "name": "🎯 主配角平衡",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "02kasu",
+       "name": "🎯 群像剧",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "755rwu",
+       "name": "🎯 观察配角",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "💕 [色色选项]",
+     "mode": "any",
+     "note": "控制亲密场景的整体氛围与推进轮次，任选，默认全部开启。开启后体验舒适且分阶段推进，不会一轮草草结束。",
+     "items": [
+      {
+       "id": "fayymh",
+       "name": "💕 温柔色色",
+       "on": true,
+       "note": "开启后引导亲密描写侧重美好舒适与情感交流，角色始终展现魅力；不开则完全由所选文风决定。"
+      },
+      {
+       "id": "zsrda2",
+       "name": "💕 多轮次色色",
+       "on": true,
+       "note": "开启后将亲密剧情细分为调情、前戏、高潮等阶段，每轮仅推进一步且绝不跳步；不开则可能快速完事。"
+      }
+     ]
+    },
+    {
+     "name": "⚙️ [杂项要求]",
+     "mode": "any",
+     "note": "包含创意激发与结尾防出戏规则，任选，默认开启尾部防出戏。可避免结尾说教出戏，或激发天马行空的反转。",
+     "items": [
+      {
+       "id": "388c75",
+       "name": "⚙️ 疯狂创意",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "207535",
+       "name": "⚙️ 尾部仿出戏",
+       "on": true,
+       "note": "开启后严禁在正文末尾附加提问、说教或以主角言行收尾，保持沉浸；不开则结尾可能出现旁白出戏。"
+      }
      ]
     }
    ]
   },
-  "🤔 [推理格式]": {
-   "name": "🤔 [推理格式]",
-   "layer": "🧠 推理选项",
-   "mode": "one",
-   "items": [
+  {
+   "id": "tab-2",
+   "kind": "layer",
+   "name": "😀 角色塑造",
+   "order": 2,
+   "vars": [],
+   "standalone": [],
+   "groups": [
     {
-     "id": "djojp9",
-     "name": "🐋 DeepSeek强强",
-     "on": false,
-     "note": "开启后为 DeepSeek 与 GLM 模型应用专属思考模板，使思考条理分明；非对应模型请关闭。",
-     "hint": "在你本次的前置隐式思考流（Internal Reasoning Sandbox）…",
-     "models": [
-      "深度求索/DeepSeek"
+     "name": "💬 [角色对白]",
+     "mode": "one",
+     "note": "控制角色说话量",
+     "items": [
+      {
+       "id": "f534d6",
+       "name": "💬 依据人设",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "6d7a4d",
+       "name": "💬 少说话",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "59811a",
+       "name": "💬 多说话",
+       "on": false,
+       "note": ""
+      }
      ]
     },
     {
-     "id": "e3cf45",
-     "name": "💤 GLM偷偷",
-     "on": false,
-     "note": "开启后为GLM 模型应用专属思考模板，使思考条理分明，尝试增强GLM的感情；非对应模型请关闭。",
-     "hint": "在你本次的前置隐式思考流（Internal Reasoning Sandbox）…",
-     "models": [
-      "清华智谱/GLM"
+     "name": "💭 [心理描写]",
+     "mode": "one",
+     "note": "控制角色心理描写量",
+     "items": [
+      {
+       "id": "efbba8",
+       "name": "💭 依据人设",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "e330fb",
+       "name": "💭 冰山理论",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "d8bdc3",
+       "name": "💭 细腻内心",
+       "on": false,
+       "note": ""
+      }
      ]
     },
     {
-     "id": "ea0bda",
-     "name": "🐱 Gemini糖糖",
-     "on": true,
-     "note": "开启后为 Gemini 模型应用主持人思维模板，丰富推演细节；非 Gemini 模型请关闭。",
-     "hint": "【系统底层推演规范 · 奈亚子的内部思维空间】",
-     "models": [
-      "谷歌/Gemini"
+     "name": "🚫 [各种防止]",
+     "mode": "any",
+     "note": "纠正 AI 常见的人设走样、说教、超游与机械化等问题，任选，默认除防发情外全开。让角色言行更符合设定、鲜活自然。",
+     "items": [
+      {
+       "id": "w48alm",
+       "name": "🚫 防全知",
+       "on": true,
+       "note": "开启后角色仅能根据亲眼所见与亲耳所闻行动，杜绝超游掌握场外信息；不开则角色可能未卜先知。"
+      },
+      {
+       "id": "cc9a3w",
+       "name": "🚫 防绝望",
+       "on": true,
+       "note": "开启后角色性格更坚韧阳光，防止陷入极端偏执或过度绝望；不开则角色负面情绪可能较剧烈。"
+      },
+      {
+       "id": "ijbjo2",
+       "name": "🚫 防OOC",
+       "on": true,
+       "note": "开启后仅根据已有设定描写角色言行，严禁随意脑补；不开则角色性格可能逐渐偏离设定。"
+      },
+      {
+       "id": "c1mob5",
+       "name": "🚫 防发情",
+       "on": false,
+       "note": "开启后角色不会无缘无故主动发情，仅在氛围合适时切入亲密剧情；不开则可能在日常中也频繁多情。"
+      },
+      {
+       "id": "zafvas",
+       "name": "🚫 防冰冷",
+       "on": true,
+       "note": "开启后禁止机械化、报数据或报告式的僵硬对话，保持情感充沛；不开则可能输出冷冰冰的分析腔调。"
+      },
+      {
+       "id": "sx58tx",
+       "name": "🚫 防神化",
+       "on": true,
+       "note": "开启后保留角色的生理极限与思维盲区，允许失误受伤，杜绝无所不能；不开则角色容易龙傲天化。"
+      },
+      {
+       "id": "ti5m3i",
+       "name": "🚫 防讨好",
+       "on": true,
+       "note": "开启后角色会坚持自身利益与立场，拒绝无底线顺从讨好；不开则角色容易被轻易说服。"
+      },
+      {
+       "id": "uzsx3d",
+       "name": "🚫 防说教",
+       "on": true,
+       "note": "开启后严禁旁白站在道德高点进行哲理升华或安全警示；不开则结尾容易出现鸡汤式说教。"
+      }
      ]
     }
    ]
   },
-  "♿ [卡思维链]": {
-   "name": "♿ [卡思维链]",
-   "layer": "🧠 推理选项",
-   "mode": "one",
-   "items": [
+  {
+   "id": "tab-3",
+   "kind": "layer",
+   "name": "📝 写作指导",
+   "order": 3,
+   "vars": [],
+   "standalone": [],
+   "groups": [
     {
-     "id": "bda34e",
-     "name": "❌ 不开",
-     "on": false,
-     "note": "",
-     "hint": "",
-     "models": []
+     "name": "✒️ [文风优化]",
+     "mode": "any",
+     "note": "句式连贯、段落节奏与亲密描写的通用优化模块，任选，默认全部开启。全面改善句子流畅度与排版呼吸感。",
+     "items": [
+      {
+       "id": "e44048",
+       "name": "💀 反死人文风(Gemini可不开)",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "18e677",
+       "name": "🔄 写作节奏优化",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "ia9ii1",
+       "name": "🔞 NSFW基础",
+       "on": true,
+       "note": ""
+      }
+     ]
     },
     {
-     "id": "82eeae",
-     "name": "🐱 Gemini卡思维链",
-     "on": true,
-     "note": "开启后注入超限伪标记阻止 Gemini 模型进行冗长原生思考，大幅加快响应；想看完整思考或非 Gemini 请关闭。",
-     "hint": "",
-     "models": [
-      "谷歌/Gemini"
+     "name": "🖊️ [写作文风]",
+     "mode": "one",
+     "note": "设定正文的基础文笔风格与文学基调，单选，默认萌系轻小说。包含网文、名家与游戏等多种风格，随时可换。",
+     "items": [
+      {
+       "id": "5uy830",
+       "name": "🌊 流畅行文",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "3wkh46",
+       "name": "🌐 通用网文",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "tc6o3z",
+       "name": "😄 搞笑网文",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "mdwqcu",
+       "name": "🎆 细腻网文",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "qftq9v",
+       "name": "🎬 电影化叙事",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "goqr2k",
+       "name": "🗿 海明威",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "i7tqx6",
+       "name": "😘 萌系轻小说",
+       "on": true,
+       "note": ""
+      },
+      {
+       "id": "2vzou9",
+       "name": "🎭 幽默轻小说",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "suyro3",
+       "name": "😔 细腻轻小说",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "jxdjzl",
+       "name": "🪔 古风言情",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "ny1wqa",
+       "name": "⚔️ 托尔金&马丁",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "mrl4j0",
+       "name": "🌌 刘慈欣",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "9bo0by",
+       "name": "🔪 古龙武侠",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "l7b1wb",
+       "name": "👊🏻 金庸武侠",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "3ckxmj",
+       "name": "💗 柚子社gal",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "j3oys0",
+       "name": "😭 Key社gal",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "c2yqa0",
+       "name": "🔫 Nitro gal",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "0fs7xs",
+       "name": "🦇 爱伦坡",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "lk5sdn",
+       "name": "🐙 洛夫克拉夫特",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "fpikdx",
+       "name": "📕 古典章回体",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "6wic80",
+       "name": "👻 古典志怪聊斋",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "e75ue6",
+       "name": "😏 古典世情讽刺",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "fwctfb",
+       "name": "🌺 古典风花雪月",
+       "on": false,
+       "note": ""
+      }
+     ]
+    },
+    {
+     "name": "🔞 [NSFW文风]",
+     "mode": "one",
+     "note": "设定亲密场景的描写尺度与用词风格，单选，默认粗俗直白。支持从隐晦擦边、唯美浪漫到直白描写的按需切换。",
+     "items": [
+      {
+       "id": "3a41e9",
+       "name": "❌ 不开",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "u2t72x",
+       "name": "🔞 擦边",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "afxj83",
+       "name": "🔞 唯美浪漫",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "d1odxe",
+       "name": "🔞 情欲交加",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "p243yy",
+       "name": "🔞 粗俗直白",
+       "on": true,
+       "note": ""
+      }
      ]
     }
    ]
   },
-  "🎛 [运行模式]": {
-   "name": "🎛 [运行模式]",
-   "layer": "🎛 运行模式",
-   "mode": "one",
-   "items": [
+  {
+   "id": "tab-4",
+   "kind": "layer",
+   "name": "🧪 额外任务",
+   "order": 4,
+   "vars": [],
+   "standalone": [],
+   "groups": [
     {
-     "id": "000002",
-     "name": "🎲 剧情游玩",
-     "on": true,
-     "note": "剧情游玩（默认）：跑团模式，不注入任何额外说明 —— 预设原本的行为",
-     "hint": "",
-     "models": []
+     "name": "🔝 [头部任务]",
+     "mode": "any",
+     "note": "在生成正文前执行的前置任务，任选。网络搜索的开关和内容与工具箱双向同步。",
+     "items": [
+      {
+       "id": "h_task",
+       "name": "🌐 网络搜索",
+       "on": false,
+       "note": "开启后在正文生成前按需核对世界知识；开关和完整任务内容与工具箱双向同步。自动与手动搜索分别使用工具箱的限额设置。"
+      }
+     ]
     },
     {
-     "id": "000003",
-     "name": "💬 对话讨论",
-     "on": false,
-     "note": "对话讨论模式：由「🎛 运行模式」页的「💬 对话讨论」控制，选中时自动关掉跑团相关的那些组",
-     "hint": "你暂时跳出了跑团，不再是游戏主持人，也不必推进剧情。",
-     "models": []
+     "name": "🔛 [正文任务]",
+     "mode": "any",
+     "note": "控制正文中嵌入的富媒体卡片与配图标签，任选，默认开启 HTML 美化。可自动渲染精美道具卡片或规划分镜插图。",
+     "items": [
+      {
+       "id": "73dc1c",
+       "name": "🎥 HTML美化",
+       "on": true,
+       "note": "开启后将剧情里的书信、终端、短信等载体渲染为美观的 HTML 卡片；不开则仅显示纯文本。"
+      },
+      {
+       "id": "7fihu3",
+       "name": "🎨 文生图",
+       "on": false,
+       "note": "开启后在正文中插入分镜插图标签，方便生图插件自动绘制配图；不开则不生成插图标签。"
+      }
+     ]
+    },
+    {
+     "name": "🔚 [尾部任务]",
+     "mode": "any",
+     "note": "控制每次回复末尾附加的辅助模块，任选，默认全部开启。提供剧情摘要、快捷行动选项与角色档案维护。",
+     "items": [
+      {
+       "id": "faa527",
+       "name": "🧱 摘要(小总结)",
+       "on": true,
+       "note": "开启后在尾部生成短摘要供长上下文管理，防止剧情遗忘并节省字数消耗；不开则不生成摘要。"
+      },
+      {
+       "id": "737d5f",
+       "name": "🔠 行动选项",
+       "on": true,
+       "note": "开启后在回复末尾提供下一步行动选项，可直接点击推进剧情；不开则需要全手动输入行动。"
+      },
+      {
+       "id": "1bbdda",
+       "name": "👥 角色存档",
+       "on": true,
+       "note": "开启后在回复末尾自动记录与更新登场角色人设，防止跨轮次遗忘；不开则新角色特征可能随对话丢失。"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tab-5",
+   "kind": "layer",
+   "name": "🧠 推理选项",
+   "order": 5,
+   "vars": [],
+   "standalone": [],
+   "groups": [
+    {
+     "name": "🔧 [推理工具]",
+     "mode": "any",
+     "note": "赋予 AI 在思考阶段调用的构思与自查工具，任选，默认开启角色生成、逻辑校验与腹稿优化。显著减少剧情穿帮并打磨文笔。",
+     "items": [
+      {
+       "id": "0y407j",
+       "name": "💫 全新剧情",
+       "on": false,
+       "note": "开启后在思考中推演不同于以往剧情的发展，防止套路化。用于增强抗重复，无必要不用开"
+      },
+      {
+       "id": "fcb60e",
+       "name": "🎭 角色生成",
+       "on": true,
+       "note": "开启后在思考中自动推演新登场角色的人设与定位，让角色更立体；不开则新角色出场较随意。"
+      },
+      {
+       "id": "1dts86",
+       "name": "☑️ 逻辑校验",
+       "on": true,
+       "note": "开启后在动笔前快速自查时空、人设与设定连贯性，大幅减少穿帮；不开则容易出现前后矛盾。"
+      },
+      {
+       "id": "907534",
+       "name": "🥊 NPC战斗决策",
+       "on": false,
+       "note": "开启后在思维链中NPC会积极思考战斗中的对策"
+      },
+      {
+       "id": "f96957",
+       "name": "⚔️ 战斗推演",
+       "on": false,
+       "note": "开启后在思维链中对战斗继续推演，战斗爽"
+      },
+      {
+       "id": "7ce282",
+       "name": "📚 翻阅世界书",
+       "on": false,
+       "note": "开启后强制在思考中梳理世界书设定与规则，严格遵循背景；不开则仅依赖模型的自然注意力。"
+      },
+      {
+       "id": "49de65",
+       "name": "📜 腹稿优化(容易雷霆大思考)",
+       "on": false,
+       "note": "开启后在思考中先打草稿并多轮润色，成稿文笔更佳但消耗较多思考字数；不开则直接成稿。"
+      }
+     ]
+    },
+    {
+     "name": "🔀 [增强随机]",
+     "mode": "one",
+     "note": "引入占卜或卦象随机数以打破剧情套路，单选，默认开启塔罗牌。每轮生成时注入运势变数与意外灵感。",
+     "items": [
+      {
+       "id": "9e079f",
+       "name": "❌ 不开",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "4125bb",
+       "name": "🔮 塔罗牌",
+       "on": true,
+       "note": "开启后每轮随机抽取一张塔罗牌指示运势，注入变数与灵感；不开则完全按常规因果推演。"
+      },
+      {
+       "id": "4b086f",
+       "name": "☯️ 易经八卦",
+       "on": false,
+       "note": "开启后依据六十四卦推演外在环境与敌势走向，增添吉凶变数；不开则不进行卦象推演。"
+      }
+     ]
+    },
+    {
+     "name": "🔧 [特殊底部]",
+     "mode": "any",
+     "note": "特殊功能的底部提示词条目，利用底部高注意力增强模型某些行为",
+     "items": [
+      {
+       "id": "44893d",
+       "name": "💤 GLM中文语言锚",
+       "on": false,
+       "note": "用于强化glm系列模型的语言倾向，防止出现输出中文中混入英文单词的情况。"
+      }
+     ]
+    },
+    {
+     "name": "🪓 [底部破限]",
+     "mode": "one",
+     "note": "针对特定模型道德审查的底部引导，单选，默认关闭。遇到模型在敏感题材拒答或说教时可开启尝试缓解。",
+     "items": [
+      {
+       "id": "uov3pt",
+       "name": "❌ 不开",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "78aa65",
+       "name": "🐋 DS/GLM底部破限 💤",
+       "on": false,
+       "note": "开启后引导模型保持开放专注、不做道德批判，缓解敏感内容拒答；不开则使用模型默认安全策略。"
+      }
+     ]
+    },
+    {
+     "name": "🤔 [推理格式]",
+     "mode": "one",
+     "note": "规范 AI 思考阶段的角色定位与推演模板，单选。使用 DeepSeek 或 GLM 时选强强，使用 Gemini 时选糖糖。",
+     "items": [
+      {
+       "id": "djojp9",
+       "name": "🐋 DeepSeek强强",
+       "on": false,
+       "note": "开启后为 DeepSeek 与 GLM 模型应用专属思考模板，使思考条理分明；非对应模型请关闭。"
+      },
+      {
+       "id": "e3cf45",
+       "name": "💤 GLM偷偷",
+       "on": false,
+       "note": "开启后为GLM 模型应用专属思考模板，使思考条理分明，尝试增强GLM的感情；非对应模型请关闭。"
+      },
+      {
+       "id": "ea0bda",
+       "name": "🐱 Gemini糖糖",
+       "on": true,
+       "note": "开启后为 Gemini 模型应用主持人思维模板，丰富推演细节；非 Gemini 模型请关闭。"
+      }
+     ]
+    },
+    {
+     "name": "♿ [卡思维链]",
+     "mode": "one",
+     "note": "通过注入伪标记截断无法关闭的原生思维链，单选。使用 Gemini 系列模型时默认开启，可大幅加快响应。",
+     "items": [
+      {
+       "id": "bda34e",
+       "name": "❌ 不开",
+       "on": false,
+       "note": ""
+      },
+      {
+       "id": "82eeae",
+       "name": "🐱 Gemini卡思维链",
+       "on": true,
+       "note": "开启后注入超限伪标记阻止 Gemini 模型进行冗长原生思考，大幅加快响应；想看完整思考或非 Gemini 请关闭。"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tab-6",
+   "kind": "layer",
+   "name": "🎛 运行模式",
+   "order": 6,
+   "vars": [],
+   "standalone": [],
+   "groups": [
+    {
+     "name": "🎛 [运行模式]",
+     "mode": "one",
+     "note": "跑团游玩与对话元讨论二选一。选「对话讨论」时，预设会自动关掉跑团专属的那些组，切回「剧情游玩」时原样恢复。",
+     "items": [
+      {
+       "id": "000002",
+       "name": "🎲 剧情游玩",
+       "on": true,
+       "note": "剧情游玩（默认）：跑团模式，不注入任何额外说明 —— 预设原本的行为"
+      },
+      {
+       "id": "000003",
+       "name": "💬 对话讨论",
+       "on": false,
+       "note": "对话讨论模式：由「🎛 运行模式」页的「💬 对话讨论」控制，选中时自动关掉跑团相关的那些组"
+      }
+     ]
     }
    ]
   }
- }
+ ]
 }

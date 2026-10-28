@@ -18,7 +18,8 @@ function contextFor(level: string): string {
     on: 'on-' + level, 'on-muted': 'on-' + level + '-muted', 'on-subtle': 'on-' + level + '-subtle',
     border: 'border-' + level, divider: 'divider-' + level, link: 'link-' + level, 'focus-ring': 'focus-ring-' + level
   };
-  return CONTEXT_VARS.map((v) => '--k-' + v + ': var(--k-' + map[v] + ');').join(' ');
+  /* --k-here：本层的底色（吸顶的页签条等需要和所在表面同色的元素用） */
+  return CONTEXT_VARS.map((v) => '--k-' + v + ': var(--k-' + map[v] + ');').join(' ') + ' --k-here: var(--k-' + level + ');';
 }
 
 /** 渲染面根默认按画布（bg）配对；每个 data-k-level 元素铺自己的底色并把上下文指向本层 */

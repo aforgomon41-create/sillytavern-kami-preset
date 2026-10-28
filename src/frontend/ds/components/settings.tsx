@@ -32,7 +32,7 @@ export function SettingRow({ label, description, info, control }: { label: React
   );
 }
 
-/** 选择网格：按可用宽度自动分列（每列不小于 min，窄屏自动变少列） */
-export function ChoiceGrid({ min = 140, children }: { min?: number; children: React.ReactNode }): React.JSX.Element {
-  return <div {...k('choice-grid')} style={{ '--k-grid-min': min + 'px' } as React.CSSProperties}>{children}</div>;
+/** 选择网格：按可用宽度自动分列。每列最小宽度默认按设备给（电脑 170px、手机 140px，见 k.components），给了 min 就用 min */
+export function ChoiceGrid({ min, children }: { min?: number; children: React.ReactNode }): React.JSX.Element {
+  return <div {...k('choice-grid')} style={min ? ({ '--k-grid-min': min + 'px' } as React.CSSProperties) : undefined}>{children}</div>;
 }

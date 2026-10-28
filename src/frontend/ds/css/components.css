@@ -120,13 +120,21 @@
 [data-k="card"] > [data-k-part="head"] + [data-k-part="body"] { padding-top: 0; }
 [data-k="card"] > [data-k-part="body"]:first-child { padding-top: var(--k-space-4); }
 [data-k="card"] > [data-k-part="foot"] { display: flex; flex-wrap: wrap; gap: var(--k-space-2); justify-content: flex-end; padding: 0 var(--k-space-4) var(--k-space-4); }
-/* 选择卡：选中时整对换成「选中」配对，并加粗边线 + 勾（不只靠颜色） */
-[data-k="card"][data-role="choice"] { cursor: pointer; text-align: left; width: 100%; }
+/* 选择卡：根是容器，「选择」按钮覆盖整张卡；选中时整对换成「选中」配对，并加粗边线 + 勾（不只靠颜色） */
+[data-k="card"][data-role="choice"] { width: 100%; }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] { display: block; width: 100%; height: 100%; text-align: left; color: inherit; border-radius: inherit; cursor: pointer; }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] { display: flex; align-items: center; gap: var(--k-space-2); padding: var(--k-space-3) var(--k-space-4); }
+[data-k="card"][data-role="choice"][data-has-info] > [data-k-part="select"] > [data-k-part="head"] { padding-right: calc(var(--k-space-4) + 26px); }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="title"] { font-weight: var(--k-fw-strong); min-width: 0; overflow-wrap: break-word; word-break: normal; line-break: strict; }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="meta"] { margin-left: auto; color: var(--k-on-muted); font-size: var(--k-fs-sm); }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="body"] { display: block; padding: 0 var(--k-space-4) var(--k-space-3); }
 [data-k="card"][data-role="choice"]:hover { border-color: var(--k-border); }
 [data-k="card"][data-role="choice"][data-state="selected"] { background: var(--k-selected); color: var(--k-on-selected); border: 2px solid var(--k-accent); }
-[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-part="head"] > [data-k-part="meta"] { color: var(--k-on-selected); }
-[data-k="card"][data-role="choice"] > [data-k-part="head"] > [data-k-part="indicator"] { flex: none; width: 1.1em; height: 1.1em; opacity: 0; }
-[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-part="head"] > [data-k-part="indicator"] { opacity: 1; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="meta"] { color: var(--k-on-selected); }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="indicator"] { flex: none; width: 1.1em; height: 1.1em; opacity: 0; }
+[data-k="card"][data-role="choice"][data-multi] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="indicator"] { opacity: 1; border: 1.5px solid var(--k-border); border-radius: 3px; color: transparent; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="indicator"] { opacity: 1; color: inherit; border-color: transparent; }
+[data-k="card"][data-role="choice"] > [data-k-part="select"]:disabled { opacity: .5; cursor: not-allowed; }
 [data-k="card"][data-role="collapse"] > [data-k-part="head"] { width: 100%; cursor: pointer; }
 [data-k="card"][data-role="collapse"] > [data-k-part="head"] > [data-k-part="indicator"] { flex: none; width: 1em; height: 1em; transition: transform var(--k-dur) var(--k-ease); }
 [data-k="card"][data-role="collapse"][data-state="open"] > [data-k-part="head"] > [data-k-part="indicator"] { transform: rotate(90deg); }
@@ -199,4 +207,13 @@
 [data-k="setting-section"] > [data-k-part="body"] { gap: var(--k-gap-item); }
 [data-k="setting-row"] { gap: var(--k-space-3); min-height: 40px; }
 [data-k="setting-row"] > [data-k-part="text"] > [data-k-part="description"] { color: var(--k-on-muted); font-size: var(--k-fs-sm); }
-[data-k="choice-grid"] { gap: var(--k-space-2); }
+[data-k="choice-grid"] { gap: var(--k-space-2); --k-grid-min: 170px; }
+@media (max-width: 1000px) { [data-k="choice-grid"] { --k-grid-min: 140px; } }
+
+/* ───────── 说明按钮（i）：醒目的小圆钮，用本表面的链接色；悬停时整对换成控件配对 ───────── */
+[data-k="info-button"] {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 1.5px solid var(--k-link); color: var(--k-link); background: transparent;
+  font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; font-size: 14px; line-height: 1;
+}
+[data-k="info-button"]:hover, [data-k="info-button"][data-state="open"] { background: var(--k-control-hover); color: var(--k-on-control); border-color: var(--k-on-control); }

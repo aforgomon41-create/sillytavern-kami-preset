@@ -9,6 +9,8 @@
 
 | `node test/frontend/browser/panel.mjs` | 面板交互：宽屏拖动 / 夹回 / 缩放 / 方向键 / 窗口变小收回 / Esc，窄屏贴底抽屉的回弹与下拉关闭 |
 
+| `node test/frontend/browser/touch.mjs` | 手机触屏：滑过按钮不触发碎光、点按才触发；页签内容区左右滑动切换、页签条横滑与竖向滚动不误翻页（需先打包预览） |
+
 展示台：`node build/frontend-build.mjs` 后用任意静态服务器打开 `test/frontend/playground/index.html?skin=fallback|paper|abyss&scheme=dark|light`。
 `paper`（粉纸浅黄）与 `abyss`（近黑暗红）是故意配得刁钻的测试皮肤，用来证明「任何种子都可读」在真实渲染里也成立。
 

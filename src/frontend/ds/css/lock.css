@@ -75,5 +75,15 @@
 [data-k="setting-row"] { display: flex; align-items: center; min-width: 0; }
 [data-k="setting-row"] > [data-k-part="text"] { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
 [data-k="setting-row"] > [data-k-part="control"], [data-k="setting-row"] > [data-k-part="info"] { flex: none; }
-[data-k="choice-grid"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--k-grid-min, 140px), 100%), 1fr)); min-width: 0; }
+[data-k="choice-grid"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--k-grid-min, 160px), 100%), 1fr)); min-width: 0; }
 [data-k="segmented"] { min-width: 0; }
+
+/* 选择卡右上角的说明按钮；说明按钮的点按区域向外扩到 40px（手机上好点） */
+[data-k="card"][data-role="choice"] > [data-k-part="info"] { position: absolute; top: 8px; right: 8px; z-index: 1; }
+[data-k="info-button"] { position: relative; flex: none; }
+[data-k="info-button"]::before { content: ''; position: absolute; inset: -8px; }
+/* 页签内容区：上下滚动交给浏览器，左右滑动交给页签组件翻页 */
+[data-k="tabs"] > [data-k-part="panels"][data-swipe] { touch-action: pan-y; }
+
+/* 吸顶的页签条：和所在表面同色的底，盖住滚上来的内容 */
+[data-k="tabs"][data-sticky] > [data-k-part="list"] { position: sticky; top: 0; z-index: 2; background-color: var(--k-here); box-shadow: 0 -32px 0 0 var(--k-here); }

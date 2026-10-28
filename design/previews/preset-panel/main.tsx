@@ -1,6 +1,7 @@
 /**
- * 「预设设置」面板重设计预览（皮肤：碎光）。数据来自真实预设（build/frontend/preview-preset-data.mjs）。
- * PC：左侧导航 + 右侧内容两栏；手机：列表 → 详情逐层进入。改动直接生效，底部给「撤销」。
+ * 「预设设置」面板重设计预览（皮肤：碎光）第二版。
+ * 页签与内容**完全由解析预设本体得来**（build/frontend/preview-preset-data.mjs），这里只按「类型」渲染，不认任何分类名。
+ * PC：左侧导航 + 右侧内容；手机：页签（左右滑动切换）。说明默认不显示，点 i 才出现。改动直接生效，底部给「撤销」。
  * 只是预览：开关不会写回预设。
  */
 import * as React from 'react';
@@ -11,7 +12,7 @@ import skinCss from '../../../src/skins-next/suiguang/skin.css';
 import paperUrl from '../../../src/skins-next/suiguang/assets/paper.png';
 import data from './preset-data.json';
 import {
-  Badge, Button, ChoiceCard, ChoiceGrid, EntryLabel, Field, InfoPopover, NavList, Panel, Segmented, Select, SettingRow, SettingSection, Switch, Toast, splitLeadingEmoji, type NavItem
+  Badge, Button, ChoiceCard, ChoiceGrid, EntryLabel, InfoPopover, NavList, Panel, SettingSection, Tabs, TextField, Toast, splitLeadingEmoji, type NavItem
 } from '../../../src/frontend/ds';
 
 const manifest = manifestJson as unknown as SkinManifest;
@@ -19,25 +20,18 @@ const rt = createRuntime(window);
 const q = new URLSearchParams(location.search);
 rt.applySkin(manifest, { scheme: q.get('scheme') || 'auto', density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss, assetUrls: { paper: paperUrl } });
 
-interface Item { id: string; name: string; on: boolean; note: string; hint: string }
-interface Group { name: string; mode: 'one' | 'any'; items: Item[] }
-const GROUPS = (data as unknown as { groups: Record<string, Group> }).groups;
+interface Item { id: string; name: string; on: boolean; note: string }
+interface Group { name: string; mode: 'one' | 'any'; note: string; items: Item[] }
+interface VarField { kind: 'single' | 'range'; keys: string[]; values: number[] }
+interface VarCard { name: string; note: string; fields: VarField[] }
+interface Model { name: string; label: string; emoji: string; items: Item[] }
+interface Tab { id: string; kind: 'model' | 'layer'; name: string; note?: string; models?: Model[]; vars?: VarCard[]; standalone?: Item[]; groups?: Group[] }
+const TABS: Tab[] = (data as unknown as { tabs: Tab[] }).tabs;
+const ABOUT: Tab = { id: 'about', kind: 'layer', name: '关于' };   /* 平台固定的页签，不来自预设 */
 
-interface Section { id: string; name: string; icon: string; groups?: string[]; blurb?: string }
-const SECTIONS: Section[] = [
-  { id: 'overview', name: '概览', icon: 'sparkles' },
-  { id: 'narrative', name: '叙事', icon: 'book', groups: ['🗣️ [语言文字]', '🏃🏻‍♂️ [剧情推进]', '👁️ [叙事视角]', '🎯 [叙事焦点]', '🔊 [转述程度]', '🎮 [创作权限]', '⚔️ [难度设定]', '⚙️ [杂项要求]'] },
-  { id: 'character', name: '角色', icon: 'drama', groups: ['💬 [角色对白]', '💭 [心理描写]', '🚫 [各种防止]'] },
-  { id: 'style', name: '文风', icon: 'feather', groups: ['🖊️ [写作文风]', '✒️ [文风优化]', '🔞 [NSFW文风]', '💕 [色色选项]'] },
-  { id: 'tasks', name: '功能任务', icon: 'layers', groups: ['🔝 [头部任务]', '🔛 [正文任务]', '🔚 [尾部任务]'] },
-  { id: 'reasoning', name: '推理', icon: 'brain', groups: ['🔧 [推理工具]', '🔀 [增强随机]', '🤔 [推理格式]', '♿ [卡思维链]', '🔧 [特殊底部]', '🪓 [底部破限]'] },
-  { id: 'advanced', name: '高级', icon: 'sliders', blurb: '模型专属条目与变量（推理预算、正文 token 量、插图数量）放在这里；平时不用动。' },
-  { id: 'about', name: '关于', icon: 'info', blurb: '版本信息、检查更新、从旧预设继承设置。' }
-];
+const plain = (name: string): string => splitLeadingEmoji(name).text.replace(/[[\]]/g, '').trim();
+const groupLabel = (name: string): string => name.replace(/[[\]]/g, '');
 
-const plain = (name: string): string => splitLeadingEmoji(name).text.replace(/^\[|\]$/g, '').replace(/\[|\]/g, '').trim();
-
-/** 用媒体查询判断手机布局（与面板贴底抽屉同一个断点） */
 function useCompact(): boolean {
   const mq = '(max-width: 1000px)';
   const [c, setC] = React.useState(() => matchMedia(mq).matches);
@@ -45,135 +39,146 @@ function useCompact(): boolean {
   return c;
 }
 
-type State = Record<string, Record<string, boolean>>;
-const initial = (): State => Object.fromEntries(Object.values(GROUPS).map((g) => [g.name, Object.fromEntries(g.items.map((i) => [i.id, i.on]))]));
-
-function summaryOf(st: State, gname: string): string {
-  const g = GROUPS[gname]; if (!g) { return ''; }
-  const on = g.items.filter((i) => st[gname]?.[i.id]);
-  if (g.mode === 'one') { return on[0] ? plain(on[0].name) : '未选'; }
-  return on.length ? '已开 ' + on.length + ' 项' : '都没开';
+/** 状态：条目 id → 开关；变量 key → 数值；当前模型 */
+interface State { on: Record<string, boolean>; vars: Record<string, number>; model: string }
+function initial(): State {
+  const on: Record<string, boolean> = {}, vars: Record<string, number> = {};
+  let model = '';
+  for (const t of TABS) {
+    for (const g of t.groups || []) { for (const i of g.items) { on[i.id] = i.on; } }
+    for (const i of t.standalone || []) { on[i.id] = i.on; }
+    for (const v of t.vars || []) { for (const f of v.fields) { f.keys.forEach((k, n) => { vars[k] = f.values[n] as number; }); } }
+    if (t.models) {
+      for (const m of t.models) { for (const i of m.items) { on[i.id] = i.on; } }
+      /* 当前模型：开着的专属条目最多的那个 */
+      const best = [...t.models].sort((a, b) => b.items.filter((i) => i.on).length - a.items.filter((i) => i.on).length)[0];
+      model = best ? best.name : '';
+    }
+  }
+  return { on, vars, model };
 }
 
-function GroupView({ g, st, set }: { g: Group; st: State; set: (gname: string, id: string, v: boolean) => void }): React.JSX.Element {
+const info = (label: string, note: string | undefined): React.ReactNode =>
+  note ? <InfoPopover label={'关于「' + label + '」'}><p style={{ whiteSpace: 'pre-wrap' }}>{note}</p></InfoPopover> : undefined;
+
+type Act = { toggle: (g: Group | null, item: Item) => void; setVar: (k: string, v: number) => void; setModel: (m: Model) => void };
+
+function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): React.JSX.Element {
   const [all, setAll] = React.useState(false);
-  const title = <EntryLabel name={g.name.replace(/\[|\]/g, '')} />;
-  const badge = <Badge>{g.mode === 'one' ? '单选' : '多选'}</Badge>;
-  const shortNames = g.items.every((i) => plain(i.name).length <= 6);
-  if (g.mode === 'one' && g.items.length <= 4 && shortNames) {
-    const cur = g.items.find((i) => st[g.name]?.[i.id]);
-    return (
-      <SettingSection title={title} badge={badge}>
-        <Segmented label={plain(g.name)} value={cur ? cur.id : ''} onValueChange={(v) => set(g.name, v, true)}
-          options={g.items.map((i) => ({ value: i.id, label: <EntryLabel name={i.name} /> }))} />
-        {cur && (cur.note || cur.hint) ? <p style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{cur.note || cur.hint}</p> : null}
-      </SettingSection>
-    );
-  }
-  if (g.mode === 'one') {
-    const LIMIT = 8;
-    const shown = all ? g.items : g.items.slice(0, LIMIT);
-    return (
-      <SettingSection title={title} badge={badge}
-        aside={g.items.length > LIMIT ? <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>{all ? '收起' : '展开全部 ' + g.items.length + ' 种'}</Button> : undefined}>
-        <ChoiceGrid min={150}>
-          {shown.map((i) => (
-            <ChoiceCard key={i.id} title={<EntryLabel name={i.name} />} selected={!!st[g.name]?.[i.id]} onSelect={() => set(g.name, i.id, true)}>
-              {i.note || i.hint ? <span style={{ fontSize: 'var(--k-fs-xs)' }}>{(i.note || i.hint).slice(0, 30)}</span> : undefined}
-            </ChoiceCard>
-          ))}
-        </ChoiceGrid>
-      </SettingSection>
-    );
-  }
+  const LIMIT = 8;
+  const shown = all ? g.items : g.items.slice(0, LIMIT);
   return (
-    <SettingSection title={title} badge={badge}>
-      {g.items.map((i) => (
-        <SettingRow key={i.id} label={<EntryLabel name={i.name} />} description={i.note || i.hint || undefined}
-          info={i.note && i.note.length > 40 ? <InfoPopover label={'关于「' + plain(i.name) + '」'}><p>{i.note}</p></InfoPopover> : undefined}
-          control={<Switch checked={!!st[g.name]?.[i.id]} onCheckedChange={(v) => set(g.name, i.id, v)} aria-label={plain(i.name)} />} />
-      ))}
+    <SettingSection title={<EntryLabel name={groupLabel(g.name)} />} badge={<Badge>{g.mode === 'one' ? '单选' : '多选'}</Badge>}
+      aside={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+        {g.items.length > LIMIT ? <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>{all ? '收起' : '全部 ' + g.items.length + ' 项'}</Button> : null}
+        {info(plain(g.name), g.note)}
+      </span>}>
+      <ChoiceGrid>
+        {shown.map((i) => <ChoiceCard key={i.id} multi={g.mode === 'any'} title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]}
+          onSelect={() => act.toggle(g, i)} info={info(plain(i.name), i.note)} />)}
+      </ChoiceGrid>
     </SettingSection>
   );
 }
 
-function Overview({ st, set }: { st: State; set: (gname: string, id: string, v: boolean) => void }): React.JSX.Element {
-  const chips = ['🗣️ [语言文字]', '👁️ [叙事视角]', '🏃🏻‍♂️ [剧情推进]', '🖊️ [写作文风]', '🔞 [NSFW文风]'].map((n) => ({ n, v: summaryOf(st, n) }));
-  const style = GROUPS['🖊️ [写作文风]']!;
-  const curStyle = style.items.find((i) => st[style.name]?.[i.id]);
+function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Element {
+  if (t.id === 'about') { return <p style={{ color: 'var(--k-on-muted)' }}>版本信息、检查更新、从旧预设继承设置（平台固定页签，预览里省略）。</p>; }
+  const cols = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' } as const;
+  if (t.kind === 'model') {
+    const cur = (t.models || []).find((m) => m.name === st.model);
+    return (
+      <div style={cols}>
+        <SettingSection title="使用的模型" badge={<Badge>单选</Badge>} aside={info('模型切换', t.note)}>
+          <ChoiceGrid>
+            {(t.models || []).map((m) => <ChoiceCard key={m.name} title={<EntryLabel name={m.name} />} selected={m.name === st.model} onSelect={() => act.setModel(m)} />)}
+          </ChoiceGrid>
+        </SettingSection>
+        {cur ? (
+          <SettingSection title={<EntryLabel name={cur.emoji + ' ' + cur.label + ' 专属条目'} />} badge={<Badge>多选</Badge>}>
+            <ChoiceGrid>
+              {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
+            </ChoiceGrid>
+          </SettingSection>
+        ) : null}
+      </div>
+    );
+  }
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>
-      <SettingSection title="当前生效">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{chips.map((c) => <Badge key={c.n} tone="accent">{plain(c.n)} · {c.v}</Badge>)}</div>
-      </SettingSection>
-      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)' }}>
-        <h3 style={{ fontSize: 'var(--k-fs-md)' }}>常用</h3>
-        <GroupView g={GROUPS['🗣️ [语言文字]']!} st={st} set={set} />
-        <GroupView g={GROUPS['👁️ [叙事视角]']!} st={st} set={set} />
-        <Field label="写作文风" layout="inline" hint="23 种文风，在「文风」里可以看全部">
-          <Select aria-label="写作文风" {...(curStyle ? { value: curStyle.id } : {})} placeholder="未选" onValueChange={(v) => set(style.name, v, true)}
-            options={style.items.map((i) => ({ value: i.id, label: plain(i.name) }))} />
-        </Field>
-      </section>
+    <div style={cols}>
+      {(t.vars || []).map((v) => (
+        <SettingSection key={v.name} title={<EntryLabel name={v.name} />} aside={info(plain(v.name), v.note)}>
+          {v.fields.map((f) => (
+            <div key={f.keys.join()} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {f.keys.map((k, n) => (
+                <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {f.kind === 'range' ? <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{n === 0 ? '最少' : '最多'}</span> : null}
+                  <span style={{ width: 120 }}><TextField type="number" inputMode="numeric" value={String(st.vars[k] ?? '')} onChange={(e) => act.setVar(k, Number(e.target.value))} aria-label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
+                  {f.kind === 'range' && n === 0 ? <span aria-hidden="true">–</span> : null}
+                </label>
+              ))}
+            </div>
+          ))}
+        </SettingSection>
+      ))}
+      {(t.standalone || []).length ? (
+        <SettingSection title="其他条目" badge={<Badge>多选</Badge>}>
+          <ChoiceGrid>
+            {(t.standalone || []).map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
+          </ChoiceGrid>
+        </SettingSection>
+      ) : null}
+      {(t.groups || []).map((g) => <GroupCards key={g.name} g={g} st={st} act={act} />)}
     </div>
   );
-}
-
-function SectionBody({ s, st, set }: { s: Section; st: State; set: (gname: string, id: string, v: boolean) => void }): React.JSX.Element {
-  if (s.id === 'overview') { return <Overview st={st} set={set} />; }
-  if (!s.groups) { return <p style={{ color: 'var(--k-on-muted)' }}>{s.blurb}（预览里省略）</p>; }
-  return <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>{s.groups.filter((n) => GROUPS[n]).map((n) => <GroupView key={n} g={GROUPS[n]!} st={st} set={set} />)}</div>;
 }
 
 function App(): React.JSX.Element {
   const compact = useCompact();
   const [st, setSt] = React.useState<State>(initial);
-  const [cur, setCur] = React.useState('overview');
-  const [detail, setDetail] = React.useState<string | null>(null);   /* 手机：正在看哪一节 */
-  const [mode, setMode] = React.useState('play');
+  const [cur, setCur] = React.useState(TABS[0]!.id);
   const [toast, setToast] = React.useState<{ msg: string; undo: State } | null>(null);
   const [open, setOpen] = React.useState(true);
   const timer = React.useRef<number>(0);
-  const set = (gname: string, id: string, v: boolean): void => {
-    const g = GROUPS[gname]!;
+  const commit = (next: (s: State) => State, msg: string): void => {
     setSt((prev) => {
-      const next = { ...prev, [gname]: { ...prev[gname] } };
-      if (g.mode === 'one') { for (const i of g.items) { next[gname]![i.id] = i.id === id; } } else { next[gname]![id] = v; }
-      const item = g.items.find((i) => i.id === id)!;
-      setToast({ msg: (g.mode === 'one' ? '已切换为「' : (v ? '已开启「' : '已关闭「')) + plain(item.name) + '」', undo: prev });
+      setToast({ msg, undo: prev });
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setToast(null), 5000);
-      return next;
+      return next(prev);
     });
   };
-  const navItems: NavItem[] = SECTIONS.map((s) => ({
-    id: s.id, label: s.name, icon: s.icon,
-    meta: s.groups ? (s.id === 'narrative' ? summaryOf(st, '👁️ [叙事视角]') : s.id === 'style' ? summaryOf(st, '🖊️ [写作文风]') : s.groups.reduce((n, g) => n + (GROUPS[g]?.items.filter((i) => st[g]?.[i.id]).length || 0), 0) + ' 项开启') : undefined
-  }));
-  const section = SECTIONS.find((s) => s.id === (compact ? detail : cur))!;
-  const header = <Segmented label="运行模式" size="sm" value={mode} onValueChange={setMode} options={[{ value: 'play', label: '剧情游玩' }, { value: 'talk', label: '对话讨论' }]} />;
-
+  const act: Act = {
+    toggle: (g, item) => commit((s) => {
+      const on = { ...s.on };
+      if (g && g.mode === 'one') { for (const i of g.items) { on[i.id] = i.id === item.id; } } else { on[item.id] = !on[item.id]; }
+      return { ...s, on };
+    }, (g && g.mode === 'one' ? '已切换为「' : (st.on[item.id] ? '已关闭「' : '已开启「')) + plain(item.name) + '」'),
+    setVar: (k, v) => setSt((s) => ({ ...s, vars: { ...s.vars, [k]: v } })),
+    setModel: (m) => commit((s) => {
+      const on = { ...s.on };
+      const t = TABS.find((x) => x.kind === 'model')!;
+      for (const mm of t.models || []) { for (const i of mm.items) { on[i.id] = false; } }
+      for (const i of m.items) { on[i.id] = true; }
+      return { ...s, model: m.name, on };
+    }, '已切换到「' + m.label + '」')
+  };
+  const all = [...TABS, ABOUT];
+  const label = (t: Tab): string => plain(t.name);
+  /* 来自预设的页签用 emoji → 图标映射；平台固定的「关于」直接用图标 */
+  const navItems: NavItem[] = all.map((t) => (t.id === 'about' ? { id: t.id, label: '关于', icon: 'info' } : { id: t.id, label: <EntryLabel name={t.name} /> }));
   if (!open) { return <div style={{ position: 'fixed', left: 16, bottom: 16, pointerEvents: 'auto' }}><Button variant="primary" onClick={() => setOpen(true)}>重新打开预设设置</Button></div>; }
+  const tab = all.find((t) => t.id === cur)!;
   return (
-    <Panel title={compact && detail ? section.name : '预设设置'} onClose={() => setOpen(false)} defaultSize={{ w: 900, h: 760 }} actions={header}>
+    <Panel title="预设设置" onClose={() => setOpen(false)} defaultSize={{ w: 920, h: 780 }}>
       {compact ? (
-        detail ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)' }}>
-            <div><Button variant="ghost" size="sm" onClick={() => setDetail(null)}>‹ 返回</Button></div>
-            <SectionBody s={section} st={st} set={set} />
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>
-            <Overview st={st} set={set} />
-            <NavList layout="list" label="分类" items={navItems.filter((n) => n.id !== 'overview')} onSelect={(id) => setDetail(id)} />
-          </div>
-        )
+        <Tabs label="预设分类" swipe sticky value={cur} onValueChange={setCur}
+          items={all.map((t) => ({ value: t.id, label: t.id === 'about' ? '关于' : <EntryLabel name={t.name} />, content: <TabBody t={t} st={st} act={act} /> }))} />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '200px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
-          <div style={{ position: 'sticky', top: 0 }}><NavList layout="sidebar" label="分类" items={navItems} current={cur} onSelect={setCur} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '190px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
+          <div style={{ position: 'sticky', top: 0 }}><NavList layout="sidebar" label="预设分类" items={navItems} current={cur} onSelect={setCur} /></div>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: 'var(--k-fs-xl)', marginBottom: 'var(--k-gap-group)' }}>{section.name}</h2>
-            <SectionBody s={section} st={st} set={set} />
+            <h2 style={{ fontSize: 'var(--k-fs-xl)', marginBottom: 'var(--k-gap-group)' }}>{label(tab)}</h2>
+            <TabBody t={tab} st={st} act={act} />
           </div>
         </div>
       )}

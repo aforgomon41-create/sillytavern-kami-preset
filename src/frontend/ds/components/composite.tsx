@@ -18,16 +18,41 @@ import { IconButton } from './controls';
 
 export interface TabItem { value: string; label: React.ReactNode; content: React.ReactNode; disabled?: boolean }
 
-export function Tabs({ items, value, defaultValue, onValueChange, mode = 'scroll', label }: {
+export function Tabs({ items, value, defaultValue, onValueChange, mode = 'scroll', label, swipe = false, sticky = false }: {
   items: TabItem[]; value?: string; defaultValue?: string; onValueChange?: (v: string) => void; mode?: 'scroll' | 'fit'; label: string;
+  /** 手机上在内容区左右滑动切换页签 */
+  swipe?: boolean;
+  /** 页签条吸顶（放在可滚动的面板里时用） */
+  sticky?: boolean;
 }): React.JSX.Element {
-  const ctl = value !== undefined ? { value } : { defaultValue: defaultValue ?? items[0]?.value ?? '' };
+  const [inner, setInner] = React.useState(defaultValue ?? items[0]?.value ?? '');
+  const cur = value ?? inner;
+  const change = (v: string): void => { if (value === undefined) { setInner(v); } if (onValueChange) { onValueChange(v); } };
+  const start = React.useRef<{ x: number; y: number; t: number; id: number } | null>(null);
+  const enabled = items.filter((i) => !i.disabled);
+  const onDown = (e: React.PointerEvent): void => {
+    const t = e.target as Element;
+    /* 从页签条、输入控件、可横向滚动的区域开始的手势不算翻页 */
+    if (!swipe || e.pointerType !== 'touch' || t.closest('[data-k-part="list"], input, textarea, select, [role="slider"], [data-k-swipe="off"]')) { start.current = null; return; }
+    start.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+  };
+  const onUp = (e: React.PointerEvent): void => {
+    const s0 = start.current; start.current = null;
+    if (!s0 || s0.id !== e.pointerId) { return; }
+    const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || performance.now() - s0.t > 800) { return; }
+    const i = enabled.findIndex((it) => it.value === cur);
+    const next = enabled[i + (dx < 0 ? 1 : -1)];
+    if (next) { change(next.value); }
+  };
   return (
-    <RTabs.Root {...k('tabs', { mode })} {...ctl} {...(onValueChange ? { onValueChange } : {})}>
+    <RTabs.Root {...k('tabs', { mode })} data-sticky={sticky ? '' : undefined} value={cur} onValueChange={change}>
       <RTabs.List {...part('list')} aria-label={label}>
         {items.map((it) => <RTabs.Trigger key={it.value} value={it.value} disabled={!!it.disabled} {...part('tab')}>{it.label}</RTabs.Trigger>)}
       </RTabs.List>
-      {items.map((it) => <RTabs.Content key={it.value} value={it.value} {...part('panel')}>{it.content}</RTabs.Content>)}
+      <div {...part('panels')} data-swipe={swipe ? '' : undefined} onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
+        {items.map((it) => <RTabs.Content key={it.value} value={it.value} {...part('panel')}>{it.content}</RTabs.Content>)}
+      </div>
     </RTabs.Root>
   );
 }
@@ -84,21 +109,29 @@ export function Card({ title, meta, footer, children }: CardBase): React.JSX.Ele
   );
 }
 
-/** 选择卡：整张卡是一个可按的按钮，选中时整对换成「选中」配对，并有边线与勾（不只靠颜色） */
-export function ChoiceCard({ title, meta, children, selected, onSelect, disabled }: CardBase & { selected: boolean; onSelect: () => void; disabled?: boolean }): React.JSX.Element {
+/**
+ * 选择卡：单选与多选同一种样式（用户 2026-10-28 要求统一）。
+ * 结构：卡片根是容器，里面是覆盖整张卡的「选择」按钮，右上角是独立的说明按钮（按钮里不能嵌按钮）。
+ * 选中时整对换成「选中」配对，并有边线与勾（不只靠颜色）。多选时语义是 checkbox，单选时是 radio。
+ */
+export function ChoiceCard({ title, meta, children, selected, onSelect, disabled, multi, info }: CardBase & {
+  selected: boolean; onSelect: () => void; disabled?: boolean; multi?: boolean; info?: React.ReactNode;
+}): React.JSX.Element {
   const lv = nextLevel(useLevel());
   return (
-    <button type="button" {...k('card', { role: 'choice' })} data-k-level={lv} data-state={selected ? 'selected' : undefined}
-      aria-pressed={selected} disabled={!!disabled} onClick={onSelect}>
+    <div {...k('card', { role: 'choice' })} data-k-level={lv} data-state={selected ? 'selected' : undefined} data-multi={multi ? '' : undefined} data-has-info={info ? '' : undefined}>
       <LevelProvider level={lv}>
-        <span {...part('head')}>
-          <span {...part('indicator')}><IconCheck /></span>
-          {title ? <span {...part('title')}>{title}</span> : null}
-          {meta ? <span {...part('meta')}>{meta}</span> : null}
-        </span>
-        {children !== undefined ? <span {...part('body')}>{children}</span> : null}
+        <button type="button" {...part('select')} role={multi ? 'checkbox' : 'radio'} aria-checked={selected} disabled={!!disabled} onClick={onSelect}>
+          <span {...part('head')}>
+            <span {...part('indicator')}><IconCheck /></span>
+            {title ? <span {...part('title')}>{title}</span> : null}
+            {meta ? <span {...part('meta')}>{meta}</span> : null}
+          </span>
+          {children !== undefined ? <span {...part('body')}>{children}</span> : null}
+        </button>
+        {info ? <span {...part('info')}>{info}</span> : null}
       </LevelProvider>
-    </button>
+    </div>
   );
 }
 

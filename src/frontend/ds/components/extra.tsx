@@ -27,7 +27,7 @@ export function InfoPopover({ label = '说明', children, trigger }: { label?: s
   return (
     <RPopover.Root>
       <RPopover.Trigger asChild>
-        {trigger ?? <button type="button" {...k('icon-button', { size: 'sm', variant: 'ghost' })} aria-label={label} title={label}><span {...part('icon')} style={{ fontStyle: 'normal', fontWeight: 600 }}>i</span></button>}
+        {trigger ?? <button type="button" {...k('info-button')} aria-label={label} title={label}>i</button>}
       </RPopover.Trigger>
       <RPopover.Portal container={portal}>
         <RPopover.Content {...k('popover')} {...part('content')} data-k-level="surface-1" sideOffset={6} collisionPadding={10}>

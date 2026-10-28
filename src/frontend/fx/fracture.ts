@@ -21,6 +21,8 @@
 const POOL = 72;
 const MAX_BURST = 28;
 const MAX_ACTIVE = 4;
+/** 触屏判定为「点击」的最大移动距离（px） */
+const TAP_SLOP = 10;
 
 /** 触发：按下这些组件 */
 const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"]';
@@ -81,20 +83,44 @@ export class Fracture {
     this.freeGlows = this.glows.slice();
     root.appendChild(this.layer);
     root.addEventListener('pointerdown', this.onDown, { capture: true, passive: true } as AddEventListenerOptions);
+    root.addEventListener('pointerup', this.onUp, { capture: true, passive: true } as AddEventListenerOptions);
+    root.addEventListener('pointercancel', this.onCancel, { capture: true, passive: true } as AddEventListenerOptions);
     root.addEventListener('keydown', this.onKey, true);
     this.mo = new win.MutationObserver(this.onMutations);
     this.mo.observe(root, { subtree: true, attributes: true, attributeFilter: ['data-state'], attributeOldValue: true, childList: true });
   }
 
+  /* 触屏：按下时只记下来，抬起时才判定。手指移动超过 TAP_SLOP、按太久、或浏览器判定为滚动（pointercancel）都不算点击——
+     用户只是在滑动面板，碰到按钮不应该碎（用户 2026-10-28 反馈）。鼠标 / 触控笔仍然按下即触发，保持跟手。 */
+  private pending: { id: number; x: number; y: number; t: number; target: Element } | null = null;
+  private readonly onCancel = (): void => { this.pending = null; };
+  private readonly onUp = (e: Event): void => {
+    const pe = e as PointerEvent;
+    const p = this.pending;
+    this.pending = null;
+    if (!p || p.id !== pe.pointerId) { return; }
+    if (Math.hypot(pe.clientX - p.x, pe.clientY - p.y) > TAP_SLOP || performance.now() - p.t > 600) { return; }
+    this.trigger(p.target, pe.clientX, pe.clientY);
+  };
+
   private readonly onDown = (e: Event): void => {
     const pe = e as PointerEvent;
     if (pe.button !== undefined && pe.button !== 0) { return; }
-    const t = (pe.composedPath()[0] as Element | undefined);
+    if (pe.pointerType === 'touch') {
+      const t0 = pe.composedPath()[0] as Element | undefined;
+      this.pending = t0 && typeof t0.closest === 'function' ? { id: pe.pointerId, x: pe.clientX, y: pe.clientY, t: performance.now(), target: t0 } : null;
+      return;
+    }
+    this.trigger(pe.composedPath()[0] as Element | undefined, pe.clientX, pe.clientY);
+  };
+
+  private trigger(t: Element | undefined, x: number, y: number): void {
     if (!t || !t.closest) { return; }
+    if (t.closest('[data-k-part="info"], [data-k="popover"]')) { return; }   /* 点说明按钮不算按下卡片 */
     const tab = t.closest(TAB_SEL);
     if (tab) { this.sweep(tab); return; }
     const el = t.closest(PRESS_SEL);
-    if (el) { this.burst(el, 'local', pe.clientX, pe.clientY); this.haptic(); }
+    if (el) { this.burst(el, 'local', x, y); this.haptic(); }
   };
 
   private readonly onKey = (e: Event): void => {
@@ -250,6 +276,8 @@ export class Fracture {
     if (this.disposed) { return; }
     this.disposed = true;
     this.root.removeEventListener('pointerdown', this.onDown, true);
+    this.root.removeEventListener('pointerup', this.onUp, true);
+    this.root.removeEventListener('pointercancel', this.onCancel, true);
     this.root.removeEventListener('keydown', this.onKey, true);
     this.mo.disconnect();
     this.layer.getAnimations({ subtree: true }).forEach((a) => a.cancel());
