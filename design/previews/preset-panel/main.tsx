@@ -2,7 +2,8 @@
  * 「预设设置」面板重设计预览（皮肤：碎光）第三版：第一版的信息架构（概览 + 当前生效 + 常用 + 带摘要的导航）+ 用户 8 条修改。
  * 数据**完全由解析预设本体得来**（build/frontend/preview-preset-data.mjs），这里只按「类型」渲染，不认任何分类名：
  *   概览里的「常用」= 模型页 + 所有变量卡（按类型找出来）；「当前生效」= 每个单选组的当前选项 + 当前模型。
- * PC：左侧导航（带当前状态摘要）+ 右侧内容；手机：页签（概览在第一个，左右滑动切换），「当前生效」压成一行横向滑动。
+ * PC：左侧导航 + 右侧内容；手机：页签（概览在第一个，左右滑动切换），「当前生效」压成一行横向滑动。
+ * 当前模型显示在面板标题栏（第四版，用户 2026-10-28 要求；导航不再显示「N 项开启」）。
  * 只是预览：开关不会写回预设。
  */
 import * as React from 'react';
@@ -13,7 +14,7 @@ import skinCss from '../../../src/skins-next/suiguang/skin.css';
 import paperUrl from '../../../src/skins-next/suiguang/assets/paper.png';
 import data from './preset-data.json';
 import {
-  Badge, Button, ChoiceCard, ChoiceGrid, EntryLabel, InfoPopover, NavList, Panel, SettingSection, Tabs, TextField, Toast, splitLeadingEmoji, type NavItem
+  Badge, Button, ChoiceCard, ChoiceGrid, EmojiIcon, EntryLabel, InfoPopover, NavList, Panel, SettingSection, Tabs, TextField, Toast, stripEmoji, type NavItem
 } from '../../../src/frontend/ds';
 
 const manifest = manifestJson as unknown as SkinManifest;
@@ -30,7 +31,7 @@ interface Tab { id: string; kind: 'model' | 'layer'; name: string; note?: string
 const TABS: Tab[] = (data as unknown as { tabs: Tab[] }).tabs;
 const ABOUT: Tab = { id: 'about', kind: 'layer', name: '关于' };   /* 平台固定的页签，不来自预设 */
 
-const plain = (name: string): string => splitLeadingEmoji(name).text.replace(/[[\]]/g, '').trim();
+const plain = (name: string): string => stripEmoji(name).replace(/[[\]]/g, '').trim();
 const groupLabel = (name: string): string => name.replace(/[[\]]/g, '');
 
 function useCompact(): boolean {
@@ -211,21 +212,21 @@ function App(): React.JSX.Element {
   const OVERVIEW: Tab = { id: 'overview', kind: 'layer', name: '概览' };   /* 平台固定的页签 */
   const all = [OVERVIEW, ...TABS, ABOUT];
   const label = (t: Tab): string => plain(t.name);
-  /* 导航摘要：模型页显示当前模型，其余显示开着几项（都由解析结果算出） */
-  const metaOf = (t: Tab): string | undefined => {
-    if (t.kind === 'model') { const m = (t.models || []).find((x) => x.name === st.model); return m ? m.label.split('/').pop() : undefined; }
-    const ids = [...(t.groups || []).flatMap((g) => g.items), ...(t.standalone || [])].map((i) => i.id);
-    if (!ids.length) { return t.vars && t.vars.length ? t.vars.length + ' 个变量' : undefined; }
-    return ids.filter((id) => st.on[id]).length + ' 项开启';
-  };
   /* 来自预设的页签用 emoji → 图标映射；平台固定的「关于」直接用图标 */
   const navItems: NavItem[] = all.map((t) => (t.id === 'about' ? { id: t.id, label: '关于', icon: 'info' }
     : t.id === 'overview' ? { id: t.id, label: '概览', icon: 'sparkles' }
-    : { id: t.id, label: <EntryLabel name={t.name} />, meta: metaOf(t) }));
+    : { id: t.id, label: <EntryLabel name={t.name} /> }));
   if (!open) { return <div style={{ position: 'fixed', left: 16, bottom: 16, pointerEvents: 'auto' }}><Button variant="primary" onClick={() => setOpen(true)}>重新打开预设设置</Button></div>; }
   const tab = all.find((t) => t.id === cur)!;
+  const model = (TABS.find((t) => t.kind === 'model')?.models || []).find((m) => m.name === st.model);
+  /* 标题栏：当前模型（图标 + 简称），手机上也放得下 */
+  const modelBadge = model ? (
+    <span title={'当前模型：' + model.label}><Badge tone="accent">
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><EmojiIcon emoji={model.emoji} size="1em" />{model.label.split('/').pop()}</span>
+    </Badge></span>
+  ) : null;
   return (
-    <Panel title="预设设置" onClose={() => setOpen(false)} defaultSize={{ w: 920, h: 780 }}>
+    <Panel title="预设设置" actions={modelBadge} onClose={() => setOpen(false)} defaultSize={{ w: 920, h: 780 }}>
       {compact ? (
         <Tabs label="预设分类" swipe sticky value={cur} onValueChange={setCur}
           items={all.map((t) => ({ value: t.id, label: t.id === 'about' ? '关于' : t.id === 'overview' ? '概览' : <EntryLabel name={t.name} />, content: t.id === 'overview' ? <Overview st={st} act={act} compact /> : <TabBody t={t} st={st} act={act} /> }))} />

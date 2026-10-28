@@ -44,3 +44,11 @@ export const Surface = React.forwardRef<HTMLDivElement, DivProps & { level?: Lev
     </div>
   );
 });
+
+/**
+ * 页签翻页的宿主：面板（Panel）提供，里面开了 swipe 的页签把「翻一页」登记进来，
+ * 由面板统一的触屏手势调用（与下拉收回共用一套方向判定，见 ds/gestures.ts）。不在面板里时为 null。
+ */
+export type SwipeStep = (dir: 1 | -1) => void;
+export const SwipeHostContext = React.createContext<React.MutableRefObject<SwipeStep | null> | null>(null);
+export const useSwipeHost = (): React.MutableRefObject<SwipeStep | null> | null => React.useContext(SwipeHostContext);

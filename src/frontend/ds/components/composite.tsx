@@ -11,7 +11,8 @@ import * as RTooltip from '@radix-ui/react-tooltip';
 import * as RCollapsible from '@radix-ui/react-collapsible';
 import { k, part } from '../hooks';
 import { IconCheck, IconChevronDown, IconChevronRight, IconClose } from '../icons';
-import { LevelProvider, nextLevel, useLevel, usePortal } from './context';
+import { bindPanelGestures } from '../gestures';
+import { LevelProvider, nextLevel, useLevel, usePortal, useSwipeHost, type SwipeStep } from './context';
 import { IconButton } from './controls';
 
 /* ───────── 页签 ───────── */
@@ -20,7 +21,7 @@ export interface TabItem { value: string; label: React.ReactNode; content: React
 
 export function Tabs({ items, value, defaultValue, onValueChange, mode = 'scroll', label, swipe = false, sticky = false }: {
   items: TabItem[]; value?: string; defaultValue?: string; onValueChange?: (v: string) => void; mode?: 'scroll' | 'fit'; label: string;
-  /** 手机上在内容区左右滑动切换页签 */
+  /** 手机上在内容区左右滑动切换页签（手势由所在面板统一处理；不在面板里时自己绑定） */
   swipe?: boolean;
   /** 页签条吸顶（放在可滚动的面板里时用） */
   sticky?: boolean;
@@ -28,29 +29,60 @@ export function Tabs({ items, value, defaultValue, onValueChange, mode = 'scroll
   const [inner, setInner] = React.useState(defaultValue ?? items[0]?.value ?? '');
   const cur = value ?? inner;
   const change = (v: string): void => { if (value === undefined) { setInner(v); } if (onValueChange) { onValueChange(v); } };
-  const start = React.useRef<{ x: number; y: number; t: number; id: number } | null>(null);
-  const enabled = items.filter((i) => !i.disabled);
-  const onDown = (e: React.PointerEvent): void => {
-    const t = e.target as Element;
-    /* 从页签条、输入控件、可横向滚动的区域开始的手势不算翻页 */
-    if (!swipe || e.pointerType !== 'touch' || t.closest('[data-k-part="list"], input, textarea, select, [role="slider"], [data-k-swipe="off"]')) { start.current = null; return; }
-    start.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
-  };
-  const onUp = (e: React.PointerEvent): void => {
-    const s0 = start.current; start.current = null;
-    if (!s0 || s0.id !== e.pointerId) { return; }
-    const dx = e.clientX - s0.x, dy = e.clientY - s0.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || performance.now() - s0.t > 800) { return; }
-    const i = enabled.findIndex((it) => it.value === cur);
-    const next = enabled[i + (dx < 0 ? 1 : -1)];
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const panelsRef = React.useRef<HTMLDivElement>(null);
+  const host = useSwipeHost();
+
+  /* 翻一页：按画出来的顺序，到头就停（不循环，免得滑一下跳回开头） */
+  const stepRef = React.useRef<SwipeStep>(() => undefined);
+  stepRef.current = (dir) => {
+    const enabled = items.filter((i) => !i.disabled);
+    const next = enabled[enabled.findIndex((it) => it.value === cur) + dir];
     if (next) { change(next.value); }
   };
+  React.useEffect(() => {
+    if (!swipe) { return undefined; }
+    const step: SwipeStep = (dir) => stepRef.current(dir);
+    if (host) { host.current = step; return () => { if (host.current === step) { host.current = null; } }; }
+    const el = panelsRef.current;
+    if (!el) { return undefined; }
+    return bindPanelGestures({ root: el, handle: () => null, pane: () => el, isSheet: () => false, onClose: () => undefined, onDrag: () => undefined, step: () => step });
+  }, [swipe, host]);
+
+  /* 当前页签放不下时滚进视野（滑动翻页之后页签条跟着走）；只在真的看不见时才动，
+     否则用户自己滚出来的位置会被一把拉回去（旧版 scrollTabIntoView 的教训） */
+  React.useLayoutEffect(() => {
+    const bar = listRef.current;
+    if (!bar || bar.scrollWidth - bar.clientWidth <= 1) { return; }
+    const btn = bar.querySelector<HTMLElement>('[data-k-part="tab"][data-state="active"]');
+    if (!btn) { return; }
+    const left = btn.getBoundingClientRect().left - bar.getBoundingClientRect().left + bar.scrollLeft, right = left + btn.offsetWidth;
+    const pad = 24;
+    if (left < bar.scrollLeft) { bar.scrollTo({ left: Math.max(0, left - pad), behavior: 'smooth' }); }
+    else if (right > bar.scrollLeft + bar.clientWidth) { bar.scrollTo({ left: right - bar.clientWidth + pad, behavior: 'smooth' }); }
+  }, [cur]);
+
+  /* 电脑：纵向滚轮在页签条上转成横向滚动；滚不动时把滚轮还给页面 */
+  React.useEffect(() => {
+    const bar = listRef.current;
+    if (!bar) { return undefined; }
+    const on = (ev: WheelEvent): void => {
+      if (bar.scrollWidth - bar.clientWidth <= 1) { return; }
+      const d = ev.deltaX !== 0 && Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY;
+      const before = bar.scrollLeft;
+      bar.scrollLeft = before + d;
+      if (bar.scrollLeft !== before && ev.cancelable) { ev.preventDefault(); }
+    };
+    bar.addEventListener('wheel', on, { passive: false });
+    return () => bar.removeEventListener('wheel', on);
+  }, []);
+
   return (
     <RTabs.Root {...k('tabs', { mode })} data-sticky={sticky ? '' : undefined} value={cur} onValueChange={change}>
-      <RTabs.List {...part('list')} aria-label={label}>
+      <RTabs.List ref={listRef} {...part('list')} aria-label={label}>
         {items.map((it) => <RTabs.Trigger key={it.value} value={it.value} disabled={!!it.disabled} {...part('tab')}>{it.label}</RTabs.Trigger>)}
       </RTabs.List>
-      <div {...part('panels')} data-swipe={swipe ? '' : undefined} onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
+      <div ref={panelsRef} {...part('panels')} data-swipe={swipe ? '' : undefined}>
         {items.map((it) => <RTabs.Content key={it.value} value={it.value} {...part('panel')}>{it.content}</RTabs.Content>)}
       </div>
     </RTabs.Root>
@@ -112,7 +144,8 @@ export function Card({ title, meta, footer, children }: CardBase): React.JSX.Ele
 /**
  * 选择卡：单选与多选同一种样式（用户 2026-10-28 要求统一）。
  * 结构：卡片根是容器，里面是覆盖整张卡的「选择」按钮，右上角是独立的说明按钮（按钮里不能嵌按钮）。
- * 选中时整对换成「选中」配对，并有边线与勾（不只靠颜色）。多选时语义是 checkbox，单选时是 radio。
+ * 选中时整对换成「选中」配对，并加粗强调色边线（不只靠颜色）。不画勾选框 / 勾：选中高亮已经够清楚，
+ * 勾选框在手机窄卡片里还会挤占标题宽度（用户 2026-10-28 要求去掉）。多选时语义是 checkbox，单选时是 radio。
  */
 export function ChoiceCard({ title, meta, children, selected, onSelect, disabled, multi, info }: CardBase & {
   selected: boolean; onSelect: () => void; disabled?: boolean; multi?: boolean; info?: React.ReactNode;
@@ -123,7 +156,6 @@ export function ChoiceCard({ title, meta, children, selected, onSelect, disabled
       <LevelProvider level={lv}>
         <button type="button" {...part('select')} role={multi ? 'checkbox' : 'radio'} aria-checked={selected} disabled={!!disabled} onClick={onSelect}>
           <span {...part('head')}>
-            <span {...part('indicator')}><IconCheck /></span>
             {title ? <span {...part('title')}>{title}</span> : null}
             {meta ? <span {...part('meta')}>{meta}</span> : null}
           </span>

@@ -1,5 +1,6 @@
 /**
- * 面板（非模态）：宽屏浮动窗（标题栏拖动、右下角缩放、方向键缩放、视口变化自动收回），窄屏贴底抽屉（顶部把手下拉关闭）。
+ * 面板（非模态）：宽屏浮动窗（标题栏拖动、右下角缩放、方向键缩放、视口变化自动收回），窄屏贴底抽屉。
+ * 抽屉的触屏手势（标题栏下拉 / 内容滚到顶再下拉收回、内容区左右滑翻页签）见 ../gestures.ts。
  * Esc 关闭；几何由使用方保存（onGeometryChange），组件只负责计算与夹取。
  * ⚠️ 不用 setPointerCapture（交接 §五第 20 条：它会吃掉后续 click 的目标）；拖动在窗口上监听，移动超过 4px 才算开始。
  */
@@ -7,7 +8,8 @@ import * as React from 'react';
 import { k, ornament, part } from '../hooks';
 import { IconClose } from '../icons';
 import { centered, clampRect, isSheet, sheetShouldClose, type Rect, type Size } from '../geometry';
-import { LevelProvider, usePortal } from './context';
+import { bindPanelGestures } from '../gestures';
+import { LevelProvider, SwipeHostContext, usePortal, type SwipeStep } from './context';
 import { IconButton } from './controls';
 
 export interface PanelProps {
@@ -48,7 +50,30 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
   const sheet = isSheet(vp.w);
   const titleId = React.useId();
   const [rect, setRect] = React.useState<Rect>(() => geometry ? clampRect(geometry, vp, minSize) : centered(defaultSize, vp, minSize));
-  const [sheetDrag, setSheetDrag] = React.useState(0);
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  const headRef = React.useRef<HTMLDivElement>(null);
+  const swipeStep = React.useRef<SwipeStep | null>(null);
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
+  const sheetRef = React.useRef(sheet);
+  sheetRef.current = sheet;
+  /* 下拉位移直接写样式（每次 touchmove 都走 React 状态会让整块面板重渲染） */
+  const setSheetDrag = React.useCallback((dy: number): void => {
+    const el = ref.current;
+    if (!el) { return; }
+    el.style.setProperty('--k-sheet-drag', dy + 'px');
+    if (dy > 0) { el.setAttribute('data-dragging', ''); } else { el.removeAttribute('data-dragging'); }
+  }, []);
+
+  /* 触屏手势：整套挂在面板根上，卸载时解绑 */
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) { return undefined; }
+    return bindPanelGestures({
+      root: el, handle: () => headRef.current, pane: () => bodyRef.current, isSheet: () => sheetRef.current,
+      onClose: () => closeRef.current(), onDrag: setSheetDrag, step: () => swipeStep.current
+    });
+  }, [setSheetDrag]);
 
   /* 视口变化：收回可见范围 */
   React.useEffect(() => { setRect((r) => clampRect(r, vp, minSize)); }, [vp.w, vp.h]);
@@ -80,6 +105,7 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
   const onHeadDown = (e: React.PointerEvent): void => {
     if ((e.target as HTMLElement).closest('button, a, input, select, textarea, [role="tab"]')) { return; }
     if (sheet) {
+      if (e.pointerType === 'touch') { return; }   /* 触屏下拉交给 bindPanelGestures */
       track(e, (_dx, dy) => setSheetDrag(Math.max(0, dy)), (_dx, dy, v) => {
         const h = ref.current?.getBoundingClientRect().height ?? vp.h;
         setSheetDrag(0);
@@ -109,14 +135,14 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
   };
 
   const style = (sheet
-    ? { '--k-sheet-drag': sheetDrag + 'px' }
+    ? {}
     : { '--k-panel-x': rect.x + 'px', '--k-panel-y': rect.y + 'px', '--k-panel-w': rect.w + 'px', '--k-panel-h': rect.h + 'px' }) as unknown as React.CSSProperties;
 
   return (
     <div ref={ref} {...k('panel')} data-layout={sheet ? 'sheet' : 'floating'} data-k-level="surface-1" role="dialog" aria-modal="false"
-      aria-labelledby={titleId} tabIndex={-1} style={style} onKeyDown={onKeyDown} data-dragging={sheetDrag > 0 ? '' : undefined}>
+      aria-labelledby={titleId} tabIndex={-1} style={style} onKeyDown={onKeyDown}>
       <LevelProvider level="surface-1">
-        <div {...part('head')} onPointerDown={onHeadDown}>
+        <div ref={headRef} {...part('head')} onPointerDown={onHeadDown}>
           {sheet ? <span {...part('grip')} aria-hidden="true" /> : null}
           <span {...ornament('panel-head-start')} />
           <h2 {...part('title')} id={titleId}>{title}</h2>
@@ -124,7 +150,7 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
           <span {...ornament('panel-head-end')} />
           <IconButton label={closeLabel} variant="ghost" onClick={onClose} {...part('close')}><IconClose /></IconButton>
         </div>
-        <div {...part('body')}>{children}</div>
+        <div ref={bodyRef} {...part('body')}><SwipeHostContext.Provider value={swipeStep}>{children}</SwipeHostContext.Provider></div>
         {footer ? <div {...part('foot')}>{footer}</div> : null}
         {sheet ? null : <div {...part('resize')} role="separator" aria-orientation="vertical" aria-label="调整大小（方向键）" tabIndex={0} onPointerDown={onResizeDown} onKeyDown={onResizeKey} />}
       </LevelProvider>

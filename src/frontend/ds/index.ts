@@ -14,3 +14,4 @@ export { COMPONENTS, LEVELS, ORNAMENTS, partsManifest } from './parts';
 export type { ComponentName, Level, OrnamentName } from './parts';
 export { k, part, ornament } from './hooks';
 export { DS_CSS, LAYER_ORDER, surfaceContextCss } from './styles';
+export * from './gestures';
