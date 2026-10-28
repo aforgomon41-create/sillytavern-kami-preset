@@ -294,6 +294,17 @@ export function panelGesturesSource(root) {
  * ──────────────────────────────────────────────────────────── */
 export const RUNTIME_MARK = '/* @@KAMI_RUNTIME@@ */';
 
+/* 新前端运行库（frontend-rewrite 支线）：.cache/frontend/runtime.js，由 build/frontend-build.mjs 生成（build.mjs 会先跑它） */
+const RUNTIME_NEXT_MARK = '/* @@KAMI_RUNTIME_NEXT@@ */';
+export function expandRuntimeNext(root, code) {
+  if (code.indexOf(RUNTIME_NEXT_MARK) < 0) { return code; }
+  const p = path.join(root, '.cache', 'frontend', 'runtime.js');
+  if (!fs.existsSync(p)) { throw new Error('找不到新前端运行库 .cache/frontend/runtime.js —— 先运行 node build/frontend-build.mjs'); }
+  const src = fs.readFileSync(p, 'utf8');
+  if (src.length < 10000) { throw new Error('新前端运行库只有 ' + src.length + ' 字节，太小了'); }
+  return code.replace(RUNTIME_NEXT_MARK, () => src);
+}
+
 export function expandRuntime(root, code) {
   if (code.indexOf(RUNTIME_MARK) < 0) { return code; }
   const bundlePath = path.join(root, 'src', 'runtime', 'bundle.js');

@@ -31,3 +31,7 @@ for (const e of entries) {
   }
 }
 if (watch) { console.log('[新前端] 监听中……'); }
+else {
+  const { execFileSync } = await import('node:child_process');
+  execFileSync(process.execPath, [path.join(ROOT, 'build/frontend/pack-skins.mjs')], { stdio: 'inherit' });
+}

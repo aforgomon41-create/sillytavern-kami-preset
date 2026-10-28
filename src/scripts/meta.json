@@ -16,6 +16,22 @@
     }
   },
   {
+    "file": "02-新前端运行库.js",
+    "name": "🧪 新前端运行库 v2（支线测试）",
+    "id": "467c7ce9-1432-52ea-a334-1b15ced8ad4b",
+    "enabled": true,
+    "info": "🧪 前端重构支线（frontend-rewrite）的新运行库：React 18 + Radix + 设计系统 + 皮肤引擎。\\n\\n只出现在支线测试包里，正式版不包含。目前还没有功能用它，开着也不会改变任何界面；新界面逐个迁过来后会替换旧的「🧩 运行库」。",
+    "button": {
+      "enabled": false,
+      "buttons": []
+    },
+    "data": {},
+    "export_with": {
+      "data": true,
+      "button": true
+    }
+  },
+  {
     "file": "00-mvu初始化测试.js",
     "name": "🚧 制作中 · MVU 初始化",
     "id": "cbfe29c2-b963-4d48-99d7-74f6ebc038a2",
