@@ -45,7 +45,11 @@ export function EntryLabel({ name }: { name: string }): React.JSX.Element {
   return (
     <span data-k-part="label" title={name} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45em', minWidth: 0 }}>
       {emoji ? <EmojiIcon emoji={emoji} /> : null}
-      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{text}</span>
+      {/* 中文词不在字中间断开（keep-all），「深度求索/DeepSeek」这类别名在斜杠后可断；
+          不用 overflow-wrap:anywhere——它把最小内容宽度压成一个字，弹性布局里会被挤成一字一行 */}
+      <span style={{ minWidth: 0, wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+        {text.split('/').map((seg, n) => <React.Fragment key={n}>{n ? <>/<wbr /></> : null}{seg}</React.Fragment>)}
+      </span>
     </span>
   );
 }

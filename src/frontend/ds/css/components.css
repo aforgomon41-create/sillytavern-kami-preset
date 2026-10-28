@@ -125,7 +125,7 @@
 [data-k="card"][data-role="choice"] > [data-k-part="select"] { display: block; width: 100%; height: 100%; text-align: left; color: inherit; border-radius: inherit; cursor: pointer; }
 [data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] { display: flex; align-items: center; gap: var(--k-space-2); padding: var(--k-space-3) var(--k-space-4); }
 [data-k="card"][data-role="choice"][data-has-info] > [data-k-part="select"] > [data-k-part="head"] { padding-right: calc(var(--k-space-4) + 26px); }
-[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="title"] { font-weight: var(--k-fw-strong); min-width: 0; overflow-wrap: break-word; word-break: normal; line-break: strict; }
+[data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="title"] { font-weight: var(--k-fw-strong); min-width: 0; overflow-wrap: break-word; word-break: keep-all; }
 [data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="head"] > [data-k-part="meta"] { margin-left: auto; color: var(--k-on-muted); font-size: var(--k-fs-sm); }
 [data-k="card"][data-role="choice"] > [data-k-part="select"] > [data-k-part="body"] { display: block; padding: 0 var(--k-space-4) var(--k-space-3); }
 [data-k="card"][data-role="choice"]:hover { border-color: var(--k-border); }

@@ -59,6 +59,16 @@ const list = await page.locator('kami-layer [data-k="tabs"] > [data-k-part="list
 await touchPath(Array.from({ length: 8 }, (_, i) => [320 - i * 30, list.y + list.height / 2]));
 await page.waitForTimeout(300);
 ok((await active()) === t0, '在页签条上横滑（滚动页签条）不翻页');
+/* 概览页「当前生效」那一行可横向滚动（data-k-swipe="off"）：在它上面横滑只滚这一行 */
+const chips = page.locator('kami-layer [data-k-swipe="off"]').first();
+if (await chips.count()) {
+  const cb = await chips.boundingBox();
+  const sl0 = await chips.evaluate((el) => el.scrollLeft);
+  await touchPath(Array.from({ length: 8 }, (_, i) => [320 - i * 30, cb.y + cb.height / 2]));
+  await page.waitForTimeout(400);
+  ok((await active()) === t0, '在「当前生效」行上横滑不翻页');
+  ok((await chips.evaluate((el) => el.scrollLeft)) > sl0, '……而是滚动这一行');
+}
 await touchPath(Array.from({ length: 8 }, (_, i) => [200, y + 200 - i * 25]));
 await page.waitForTimeout(300);
 ok((await active()) === t0, '竖向滑动（滚内容）不翻页');

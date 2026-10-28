@@ -1,7 +1,8 @@
 /**
- * 「预设设置」面板重设计预览（皮肤：碎光）第二版。
- * 页签与内容**完全由解析预设本体得来**（build/frontend/preview-preset-data.mjs），这里只按「类型」渲染，不认任何分类名。
- * PC：左侧导航 + 右侧内容；手机：页签（左右滑动切换）。说明默认不显示，点 i 才出现。改动直接生效，底部给「撤销」。
+ * 「预设设置」面板重设计预览（皮肤：碎光）第三版：第一版的信息架构（概览 + 当前生效 + 常用 + 带摘要的导航）+ 用户 8 条修改。
+ * 数据**完全由解析预设本体得来**（build/frontend/preview-preset-data.mjs），这里只按「类型」渲染，不认任何分类名：
+ *   概览里的「常用」= 模型页 + 所有变量卡（按类型找出来）；「当前生效」= 每个单选组的当前选项 + 当前模型。
+ * PC：左侧导航（带当前状态摘要）+ 右侧内容；手机：页签（概览在第一个，左右滑动切换），「当前生效」压成一行横向滑动。
  * 只是预览：开关不会写回预设。
  */
 import * as React from 'react';
@@ -81,45 +82,90 @@ function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): React.JS
   );
 }
 
+function ModelPicker({ t, st, act, withItems }: { t: Tab; st: State; act: Act; withItems: boolean }): React.JSX.Element {
+  const cur = (t.models || []).find((m) => m.name === st.model);
+  return (
+    <>
+      <SettingSection title={<EntryLabel name={t.name} />} badge={<Badge>单选</Badge>} aside={info('模型切换', t.note)}>
+        <ChoiceGrid>
+          {(t.models || []).map((m) => <ChoiceCard key={m.name} title={<EntryLabel name={m.name} />} selected={m.name === st.model} onSelect={() => act.setModel(m)} />)}
+        </ChoiceGrid>
+      </SettingSection>
+      {withItems && cur ? (
+        <SettingSection title={<EntryLabel name={cur.emoji + ' ' + cur.label + ' 专属条目'} />} badge={<Badge>多选</Badge>}>
+          <ChoiceGrid>
+            {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
+          </ChoiceGrid>
+        </SettingSection>
+      ) : null}
+    </>
+  );
+}
+
+function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): React.JSX.Element {
+  return (
+    <SettingSection title={<EntryLabel name={v.name} />} aside={info(plain(v.name), v.note)}>
+      {v.fields.map((f) => (
+        <div key={f.keys.join()} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {f.keys.map((k, n) => (
+            <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {f.kind === 'range' ? <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{n === 0 ? '最少' : '最多'}</span> : null}
+              <span style={{ width: 112 }}><TextField type="number" inputMode="numeric" value={String(st.vars[k] ?? '')} onChange={(e) => act.setVar(k, Number(e.target.value))} aria-label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
+              {f.kind === 'range' && n === 0 ? <span aria-hidden="true">–</span> : null}
+            </label>
+          ))}
+        </div>
+      ))}
+    </SettingSection>
+  );
+}
+
+/** 「当前生效」：每个单选组的当前选项 + 当前模型（全部由解析结果算出） */
+function currentChips(st: State): Array<{ key: string; text: string }> {
+  const out: Array<{ key: string; text: string }> = [];
+  const mt = TABS.find((t) => t.kind === 'model');
+  const m = mt && (mt.models || []).find((x) => x.name === st.model);
+  if (m) { out.push({ key: 'model', text: '模型 · ' + m.label }); }
+  for (const t of TABS) {
+    for (const g of t.groups || []) {
+      if (g.mode !== 'one') { continue; }
+      const on = g.items.find((i) => st.on[i.id]);
+      out.push({ key: g.name, text: plain(g.name) + ' · ' + (on ? plain(on.name) : '未选') });
+    }
+  }
+  return out;
+}
+
+function Overview({ st, act, compact }: { st: State; act: Act; compact: boolean }): React.JSX.Element {
+  const chips = currentChips(st);
+  const mt = TABS.find((t) => t.kind === 'model');
+  const vars = TABS.flatMap((t) => t.vars || []);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>
+      <SettingSection title="当前生效" badge={<Badge>{chips.length} 项</Badge>}>
+        {/* 手机：压成一行横向滑动（不触发翻页）；电脑：换行铺开 */}
+        <div data-k-swipe="off" style={compact
+          ? { display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4, scrollbarWidth: 'none' }
+          : { display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {chips.map((c) => <span key={c.key} style={{ flex: 'none' }}><Badge tone="accent">{c.text}</Badge></span>)}
+        </div>
+      </SettingSection>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)' }}>
+        <h3 style={{ fontSize: 'var(--k-fs-lg)' }}>常用</h3>
+        {mt ? <ModelPicker t={mt} st={st} act={act} withItems={false} /> : null}
+        {vars.map((v) => <VarFields key={v.name} v={v} st={st} act={act} />)}
+      </section>
+    </div>
+  );
+}
+
 function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Element {
   if (t.id === 'about') { return <p style={{ color: 'var(--k-on-muted)' }}>版本信息、检查更新、从旧预设继承设置（平台固定页签，预览里省略）。</p>; }
   const cols = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' } as const;
-  if (t.kind === 'model') {
-    const cur = (t.models || []).find((m) => m.name === st.model);
-    return (
-      <div style={cols}>
-        <SettingSection title="使用的模型" badge={<Badge>单选</Badge>} aside={info('模型切换', t.note)}>
-          <ChoiceGrid>
-            {(t.models || []).map((m) => <ChoiceCard key={m.name} title={<EntryLabel name={m.name} />} selected={m.name === st.model} onSelect={() => act.setModel(m)} />)}
-          </ChoiceGrid>
-        </SettingSection>
-        {cur ? (
-          <SettingSection title={<EntryLabel name={cur.emoji + ' ' + cur.label + ' 专属条目'} />} badge={<Badge>多选</Badge>}>
-            <ChoiceGrid>
-              {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
-            </ChoiceGrid>
-          </SettingSection>
-        ) : null}
-      </div>
-    );
-  }
+  if (t.kind === 'model') { return <div style={cols}><ModelPicker t={t} st={st} act={act} withItems /></div>; }
   return (
     <div style={cols}>
-      {(t.vars || []).map((v) => (
-        <SettingSection key={v.name} title={<EntryLabel name={v.name} />} aside={info(plain(v.name), v.note)}>
-          {v.fields.map((f) => (
-            <div key={f.keys.join()} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {f.keys.map((k, n) => (
-                <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  {f.kind === 'range' ? <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{n === 0 ? '最少' : '最多'}</span> : null}
-                  <span style={{ width: 120 }}><TextField type="number" inputMode="numeric" value={String(st.vars[k] ?? '')} onChange={(e) => act.setVar(k, Number(e.target.value))} aria-label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
-                  {f.kind === 'range' && n === 0 ? <span aria-hidden="true">–</span> : null}
-                </label>
-              ))}
-            </div>
-          ))}
-        </SettingSection>
-      ))}
+      {(t.vars || []).map((v) => <VarFields key={v.name} v={v} st={st} act={act} />)}
       {(t.standalone || []).length ? (
         <SettingSection title="其他条目" badge={<Badge>多选</Badge>}>
           <ChoiceGrid>
@@ -135,7 +181,7 @@ function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Ele
 function App(): React.JSX.Element {
   const compact = useCompact();
   const [st, setSt] = React.useState<State>(initial);
-  const [cur, setCur] = React.useState(TABS[0]!.id);
+  const [cur, setCur] = React.useState('overview');
   const [toast, setToast] = React.useState<{ msg: string; undo: State } | null>(null);
   const [open, setOpen] = React.useState(true);
   const timer = React.useRef<number>(0);
@@ -162,23 +208,33 @@ function App(): React.JSX.Element {
       return { ...s, model: m.name, on };
     }, '已切换到「' + m.label + '」')
   };
-  const all = [...TABS, ABOUT];
+  const OVERVIEW: Tab = { id: 'overview', kind: 'layer', name: '概览' };   /* 平台固定的页签 */
+  const all = [OVERVIEW, ...TABS, ABOUT];
   const label = (t: Tab): string => plain(t.name);
+  /* 导航摘要：模型页显示当前模型，其余显示开着几项（都由解析结果算出） */
+  const metaOf = (t: Tab): string | undefined => {
+    if (t.kind === 'model') { const m = (t.models || []).find((x) => x.name === st.model); return m ? m.label.split('/').pop() : undefined; }
+    const ids = [...(t.groups || []).flatMap((g) => g.items), ...(t.standalone || [])].map((i) => i.id);
+    if (!ids.length) { return t.vars && t.vars.length ? t.vars.length + ' 个变量' : undefined; }
+    return ids.filter((id) => st.on[id]).length + ' 项开启';
+  };
   /* 来自预设的页签用 emoji → 图标映射；平台固定的「关于」直接用图标 */
-  const navItems: NavItem[] = all.map((t) => (t.id === 'about' ? { id: t.id, label: '关于', icon: 'info' } : { id: t.id, label: <EntryLabel name={t.name} /> }));
+  const navItems: NavItem[] = all.map((t) => (t.id === 'about' ? { id: t.id, label: '关于', icon: 'info' }
+    : t.id === 'overview' ? { id: t.id, label: '概览', icon: 'sparkles' }
+    : { id: t.id, label: <EntryLabel name={t.name} />, meta: metaOf(t) }));
   if (!open) { return <div style={{ position: 'fixed', left: 16, bottom: 16, pointerEvents: 'auto' }}><Button variant="primary" onClick={() => setOpen(true)}>重新打开预设设置</Button></div>; }
   const tab = all.find((t) => t.id === cur)!;
   return (
     <Panel title="预设设置" onClose={() => setOpen(false)} defaultSize={{ w: 920, h: 780 }}>
       {compact ? (
         <Tabs label="预设分类" swipe sticky value={cur} onValueChange={setCur}
-          items={all.map((t) => ({ value: t.id, label: t.id === 'about' ? '关于' : <EntryLabel name={t.name} />, content: <TabBody t={t} st={st} act={act} /> }))} />
+          items={all.map((t) => ({ value: t.id, label: t.id === 'about' ? '关于' : t.id === 'overview' ? '概览' : <EntryLabel name={t.name} />, content: t.id === 'overview' ? <Overview st={st} act={act} compact /> : <TabBody t={t} st={st} act={act} /> }))} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '190px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
           <div style={{ position: 'sticky', top: 0 }}><NavList layout="sidebar" label="预设分类" items={navItems} current={cur} onSelect={setCur} /></div>
           <div style={{ minWidth: 0 }}>
             <h2 style={{ fontSize: 'var(--k-fs-xl)', marginBottom: 'var(--k-gap-group)' }}>{label(tab)}</h2>
-            <TabBody t={tab} st={st} act={act} />
+            {tab.id === 'overview' ? <Overview st={st} act={act} compact={false} /> : <TabBody t={tab} st={st} act={act} />}
           </div>
         </div>
       )}
