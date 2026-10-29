@@ -136,6 +136,12 @@
 [data-k="card"][data-role="collapse"] > [data-k-part="head"] { width: 100%; cursor: pointer; }
 [data-k="card"][data-role="collapse"] > [data-k-part="head"] > [data-k-part="indicator"] { flex: none; width: 1em; height: 1em; transition: transform var(--k-dur) var(--k-ease); }
 [data-k="card"][data-role="collapse"][data-state="open"] > [data-k-part="head"] > [data-k-part="indicator"] { transform: rotate(90deg); }
+/* 折叠卡的展开 / 收起：内容高度从 0 长到自然高度（Radix 量好放在 --radix-collapsible-content-height），收起反过来；
+   Radix 会等收起动画播完才卸载内容。碎光的「沿线铺开 / 收拢」见 fx/fracture.ts */
+[data-k="card"][data-role="collapse"] > [data-k-part="body"][data-state="open"] { animation: k-fold-open var(--k-dur-slow) var(--k-ease-out); }
+[data-k="card"][data-role="collapse"] > [data-k-part="body"][data-state="closed"] { animation: k-fold-close var(--k-dur-slow) var(--k-ease-out); }
+@keyframes k-fold-open { from { height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; } to { height: var(--radix-collapsible-content-height); opacity: 1; } }
+@keyframes k-fold-close { from { height: var(--radix-collapsible-content-height); opacity: 1; } to { height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; } }
 
 /* ───────── 对话框 ───────── */
 [data-k="dialog"][data-k-part="content"] { border-radius: var(--k-r-xl); box-shadow: var(--k-shadow-3); border: var(--k-border-w) solid var(--k-divider); }
@@ -234,7 +240,7 @@
 [data-k="msg-body"] > [data-k-part="text"] > [data-k-part="scene-break"] { width: 30%; margin: 1.4em auto; border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
 [data-k="msg-body"] > [data-k-part="text"] [data-k-part="caret"] { display: inline-block; width: .55em; height: .55em; margin-left: .25em; vertical-align: .05em; background: var(--k-accent); text-indent: 0; animation: k-msg-caret 1s steps(2, jump-none) infinite; }
 @keyframes k-msg-caret { 0% { opacity: 1; } 100% { opacity: .15; } }
-[data-k="msg-body"] > [data-k-part="raw"], [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="raw"] {
+[data-k="msg-body"] > [data-k-part="raw"], [data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="raw"] {
   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--k-font-mono); font-size: var(--k-fs-sm); line-height: 1.7;
 }
 /* 正文头部：左边字数，右边工具（看原文 / 复制）。电脑上工具平时隐去，悬停在正文上（或键盘聚焦到工具）时淡入；触屏一直显示，但很淡 */
@@ -263,27 +269,30 @@
 :is([data-k="msg-think"], [data-k="msg-search"])[data-state="open"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="chevron"] { transform: rotate(180deg); }
 /* 工具：放不下时整组换到第二行靠右，不挤压「奈亚子思考了 N 字」 */
 [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="tools"] { display: flex; flex: none; align-items: center; gap: var(--k-space-1); margin-left: auto; }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="body"] { padding: var(--k-space-2) 0 var(--k-space-2) var(--k-space-4); color: var(--k-on-muted); font-size: var(--k-fs-sm); line-height: 1.75; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > * { margin: 0 0 .6em; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > :last-child { margin-bottom: 0; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] :is(ul, ol) { padding-left: 1.4em; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] ul { list-style: disc; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] ol { list-style: decimal; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] :is(h4, h5, h6) { font-size: 1em; color: var(--k-on); }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] strong { color: var(--k-on); }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] code { font-family: var(--k-font-mono); font-size: .92em; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] pre { overflow-x: auto; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-sm); background: var(--k-sunken); color: var(--k-on-sunken); }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="scope"] { margin: 0 0 var(--k-space-2); color: var(--k-on-muted); }
-[data-k="msg-search"] > [data-k-part="body"] > div > :is([data-k-part="facts"], [data-k-part="sources"]) { margin: 0 0 var(--k-space-3); padding-left: 1.6em; }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] { list-style: disc; }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] { list-style: decimal; }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] { margin-bottom: var(--k-space-1); }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] > [data-k-part="ref"] { margin-left: 2px; color: var(--k-link); font-size: .75em; }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] { font-size: var(--k-fs-xs); }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > a { color: var(--k-link); text-underline-offset: 2px; }
-[data-k="msg-search"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > span { color: var(--k-on-muted); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] { padding: 0 0 0 var(--k-space-4); color: var(--k-on-muted); font-size: var(--k-fs-sm); line-height: 1.75; }
+/* 上下留白用首末子元素的外边距（折叠时被一起收进 0 高度里；内边距收不掉） */
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] > :first-child { margin-top: var(--k-space-2); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] > :last-child { margin-bottom: var(--k-space-2); }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] > * { margin: 0 0 .6em; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] > :last-child { margin-bottom: 0; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] :is(ul, ol) { padding-left: 1.4em; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] ul { list-style: disc; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] ol { list-style: decimal; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] :is(h4, h5, h6) { font-size: 1em; color: var(--k-on); }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] strong { color: var(--k-on); }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] code { font-family: var(--k-font-mono); font-size: .92em; }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] pre { overflow-x: auto; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-sm); background: var(--k-sunken); color: var(--k-on-sunken); }
+[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="scope"] { margin: 0 0 var(--k-space-2); color: var(--k-on-muted); }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > :is([data-k-part="facts"], [data-k-part="sources"]) { margin: 0 0 var(--k-space-3); padding-left: 1.6em; }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] { list-style: disc; }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] { list-style: decimal; }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] { margin-bottom: var(--k-space-1); }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] > [data-k-part="ref"] { margin-left: 2px; color: var(--k-link); font-size: .75em; }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] { font-size: var(--k-fs-xs); }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > a { color: var(--k-link); text-underline-offset: 2px; }
+[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > span { color: var(--k-on-muted); }
 
 /* 行动选项：轻量列表，按下时才有存在感 */
 [data-k="msg-options"] > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); margin-bottom: var(--k-space-2); font-size: var(--k-fs-sm); }

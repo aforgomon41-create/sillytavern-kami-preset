@@ -4,6 +4,8 @@
  *   · 关闭 / 收起：边**碎散**（shatter）
  *   · 按下：只在按下点附近**局部**碎裂（local）；手机上同时轻震一下（支持时）
  *   · 切换页签：一道光沿底边**扫过**（sweep），不碎
+ *   · 折叠 / 展开（思维链、搜索资料、折叠卡）：沿内容区左边那条线**铺开 / 收拢**（fold）——展开时碎块从头部往下一路落成一条线、
+ *     光跟着往下走；收起时从底部往上碎回头部。头部本身不碎（用户 2026-10-28：原来四周一圈碎，看起来像按按钮，不像展开）
  *   · 高频操作（打字、滚动、拖滑杆）不触发
  * ------------------------------------------------------------------
  * 皮肤只声明启用（skin.json → modules: ["fracture"]，并由特效开关 fracture 控制），参数用 CSS 变量调：
@@ -28,9 +30,9 @@ const TAP_SLOP = 10;
 const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"], [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const TAB_SEL = '[data-k="tabs"] [data-k-part="tab"]:not([data-disabled])';
 /** 触发：这些元素的 data-state 变化（展开 / 收起、弹出） */
-const STATE_SEL = '[data-k="card"][data-role="collapse"], [data-k="dialog"][data-k-part="content"], [data-k="select"][data-k-part="content"], [data-k="panel"]';
-/** 只在 data-state 变化（用户展开 / 收起）时触发、出现时不触发的：消息里的边注。消息一屏几十条，挂载时全都聚合一遍太吵 */
-const STATE_CHANGE_SEL = STATE_SEL + ', [data-k="msg-think"], [data-k="msg-search"]';
+const STATE_SEL = '[data-k="dialog"][data-k-part="content"], [data-k="select"][data-k-part="content"], [data-k="panel"]';
+/** 折叠类：data-state 在 open / closed 之间变化时沿内容区左边铺开 / 收拢（出现时不触发：消息一屏几十条，挂载时全动一遍太吵） */
+const FOLD_SEL = '[data-k="card"][data-role="collapse"], [data-k="msg-think"], [data-k="msg-search"]';
 
 export type BurstKind = 'local' | 'assemble' | 'shatter';
 
@@ -141,7 +143,9 @@ export class Fracture {
       if (m.type === 'attributes') {
         const el = m.target as Element;
         const now = el.getAttribute('data-state');
-        if (el.matches && el.matches(STATE_CHANGE_SEL) && m.oldValue !== now) { this.burst(el, now === 'closed' ? 'shatter' : 'assemble'); }
+        if (!el.matches || m.oldValue === now) { continue; }
+        if (el.matches(FOLD_SEL)) { if ((now === 'open' || now === 'closed') && (m.oldValue === 'open' || m.oldValue === 'closed')) { this.fold(el, now === 'open'); } continue; }
+        if (el.matches(STATE_SEL)) { this.burst(el, now === 'closed' ? 'shatter' : 'assemble'); }
       } else {
         m.addedNodes.forEach((n) => {
           if (n.nodeType !== 1) { return; }
@@ -182,6 +186,70 @@ export class Fracture {
       { transform: tr + ' scaleX(1)', opacity: 0 }
     ], { duration: motion === 'calm' ? 260 : 420, easing: 'cubic-bezier(.2,.7,.3,1)' });
     a.onfinish = a.oncancel = (): void => { gs.display = 'none'; gs.background = ''; gs.height = ''; this.freeGlows.push(g); this.active = this.active.filter((x) => x !== b); };
+  }
+
+  /**
+   * 折叠 / 展开：沿内容区左边那条竖线。展开时一道光从头部往下长到内容底部，碎块按从上到下的顺序从外侧落到线上再淡去；
+   * 收起时反过来，光从底部缩回头部，碎块从下往上离开线飞散。内容区的高度动画由组件 CSS 负责，这里只画光与碎块。
+   */
+  fold(el: Element, open: boolean): void {
+    if (this.disposed || !this.o.enabled()) { return; }
+    const motion = this.reduce ? 'off' : this.o.motion();
+    if (motion === 'off' || this.active.length >= MAX_ACTIVE) { return; }
+    const head = el.querySelector(':scope > [data-k-part="head"]');
+    const body = el.querySelector(':scope > [data-k-part="fold"] > [data-k-part="body"]') || el.querySelector(':scope > [data-k-part="body"]');
+    const er = el.getBoundingClientRect();
+    if (er.width < 4 || er.bottom < 0 || er.top > innerHeight) { return; }
+    const top = head ? head.getBoundingClientRect().bottom : er.top;
+    /* 线的长度：展开时是内容的自然高度（此刻高度动画刚开始，量 scrollHeight）；收起时是当前高度 */
+    const len = Math.max(24, Math.min(innerHeight * 1.2, body ? (open ? (body as HTMLElement).scrollHeight : body.getBoundingClientRect().height) : er.bottom - top));
+    const bs = body ? getComputedStyle(body) : null;
+    const x = body ? body.getBoundingClientRect().left + (bs && parseFloat(bs.borderLeftWidth) > 0 ? parseFloat(bs.borderLeftWidth) / 2 : Math.min(12, parseFloat(bs!.paddingLeft) / 2 || 0)) : er.left;
+    const cs = getComputedStyle(el);
+    const num = (v: string, d: number): number => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+    const size = Math.max(3, num(cs.getPropertyValue('--k-fx-size'), 6)) * (this.coarse ? 1.4 : 1);
+    const glow = cs.getPropertyValue('--k-fx-glow').trim() || cs.getPropertyValue('--k-accent').trim() || '#7aa2f7';
+    const strength = Math.min(1, Math.max(0, num(cs.getPropertyValue('--k-fx-strength'), 0.7)));
+    const spread = num(cs.getPropertyValue('--k-fx-spread'), 18) * (this.coarse ? 0.7 : 1);
+    const dur = motion === 'calm' ? 300 : 480;
+    const b: Burst = { done: 0 };
+    let total = 1;
+    this.active.push(b);
+    const finish = (): void => { b.done++; if (b.done >= total) { this.active = this.active.filter((q) => q !== b); } };
+
+    /* 光：2px 宽的竖线，从头部往下长（展开）/ 往上缩（收起），最后淡去 */
+    const g = this.freeGlows.pop() as HTMLElement;
+    const gs = g.style;
+    gs.display = 'block'; gs.width = '2px'; gs.height = len + 'px'; gs.borderRadius = '2px'; gs.background = glow;
+    gs.boxShadow = '0 0 ' + Math.round(8 + 10 * strength) + 'px ' + Math.round(1 + 2 * strength) + 'px ' + glow; gs.transformOrigin = '50% 0';
+    const at = 'translate(' + (x - 1) + 'px,' + top + 'px)';
+    const ga = g.animate(open
+      ? [{ transform: at + ' scaleY(0)', opacity: strength }, { transform: at + ' scaleY(1)', opacity: strength, offset: 0.7 }, { transform: at + ' scaleY(1)', opacity: 0 }]
+      : [{ transform: at + ' scaleY(1)', opacity: strength }, { transform: at + ' scaleY(0)', opacity: strength * 0.6, offset: 0.8 }, { transform: at + ' scaleY(0)', opacity: 0 }],
+    { duration: dur, easing: 'cubic-bezier(.3,.6,.3,1)' });
+    ga.onfinish = ga.oncancel = (): void => { gs.display = 'none'; gs.background = ''; gs.height = ''; gs.transformOrigin = ''; this.freeGlows.push(g); finish(); };
+    if (motion === 'calm') { return; }
+
+    /* 碎块：沿线按长度均匀取点；从上到下（收起时从下到上）依次出场 */
+    const want = Math.min(Math.round(MAX_BURST * (this.coarse ? 0.6 : 0.85)), Math.max(6, Math.round(len / (size * 2.2))), this.free.length) | 0;
+    for (let i = 0; i < want; i++) {
+      const t = (i + Math.random() * 0.5) / want;
+      const py = top + t * len;
+      const d = this.free.pop() as HTMLElement;
+      const sz = size * (0.6 + Math.random() * 0.6);
+      const ds = d.style;
+      ds.display = 'block'; ds.width = sz + 'px'; ds.height = sz + 'px'; ds.background = glow;
+      ds.boxShadow = '0 0 ' + Math.round(5 + 8 * strength) + 'px ' + glow; ds.willChange = 'transform, opacity';
+      const on = 'translate(' + (x - sz / 2) + 'px,' + (py - sz / 2) + 'px)';
+      /* 离线的位置：往线的外侧（左）和上方偏一点，像从纸边上落下来 / 被掀起来 */
+      const off = 'translate(' + (x - sz / 2 - spread * (0.4 + Math.random() * 0.8)) + 'px,' + (py - sz / 2 - spread * (0.3 + Math.random() * 0.6)) + 'px) rotate(' + ((Math.random() - 0.5) * 120) + 'deg) scale(.4)';
+      const frames = open
+        ? [{ transform: off, opacity: 0 }, { transform: on + ' rotate(0deg) scale(1)', opacity: 1, offset: 0.55 }, { transform: on + ' rotate(0deg) scale(1)', opacity: 0 }]
+        : [{ transform: on + ' rotate(0deg) scale(1)', opacity: 1 }, { transform: on + ' rotate(0deg) scale(1)', opacity: 1, offset: 0.2 }, { transform: off, opacity: 0 }];
+      const a = d.animate(frames, { duration: 360 + Math.random() * 120, delay: (open ? t : 1 - t) * dur * 0.6, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'backwards' });
+      total++;
+      a.onfinish = a.oncancel = (): void => { ds.display = 'none'; ds.willChange = 'auto'; this.free.push(d); finish(); };
+    }
   }
 
   /** 在元素四周爆裂。local：只碎按下点附近；assemble：碎块从外侧聚合成边；shatter：整圈碎散 */

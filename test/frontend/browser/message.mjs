@@ -55,12 +55,28 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   ok(!body.comment && !body.nameTag, '步骤注释与 <n> 标记不显示');
   ok(body.parts.length === 0, '对白 / 引号 / 心理 / 角色名 / 关键词 / 专有名词 / 场景转换都有部件', body.parts);
   /* ② 思维链 */
-  const think0 = await inMount(page, -1, (r) => { const t = r.querySelector('[data-k="msg-think"]'); return { state: t.getAttribute('data-state'), head: t.querySelector(':scope > [data-k-part="head"]').textContent, tools: !!t.querySelector(':scope > [data-k-part="head"] > [data-k-part="tools"]'), body: !!t.querySelector(':scope > [data-k-part="body"]') }; });
-  ok(think0.state === 'closed' && !think0.body, '思维链默认收起');
+  const think0 = await inMount(page, -1, (r) => { const t = r.querySelector('[data-k="msg-think"]'); return { state: t.getAttribute('data-state'), head: t.querySelector(':scope > [data-k-part="head"]').textContent, tools: !!t.querySelector(':scope > [data-k-part="head"] > [data-k-part="tools"]'), fold: (() => { const f = t.querySelector(':scope > [data-k-part="fold"]'); return f ? { h: f.getBoundingClientRect().height, inert: f.hasAttribute('inert'), vis: getComputedStyle(f).visibility } : null; })() }; });
+  ok(think0.state === 'closed' && think0.fold && think0.fold.h < 1 && think0.fold.inert && think0.fold.vis === 'hidden', '思维链默认收起（内容收成 0 高、不可聚焦）', think0.fold);
   ok(/^奈亚子思考了\s*\d+\s*字/.test(think0.head.trim()), '收起时显示「奈亚子思考了 N 字」', think0.head);
   ok(!think0.tools, '收起时头部不显示工具');
+  /* 展开时的碎光：沿内容区左边的一条竖线（2px 宽的光），不是包住整块的光框 */
+  const fx = await inMount(page, -1, (r) => {
+    const t = r.querySelector('[data-k="msg-think"]');
+    t.scrollIntoView({ block: 'center' });   /* 预览会把聊天区滚到底，思维链可能在画面外（画面外不放特效） */
+    t.querySelector(':scope > [data-k-part="head"] > [data-k-part="toggle"]').click();
+    return new Promise((res) => setTimeout(() => {
+      const layer = r.querySelector('[data-k-fx-layer]');
+      const glows = [...layer.querySelectorAll('b')].filter((g) => g.style.display === 'block').map((g) => ({ w: parseFloat(g.style.width), h: parseFloat(g.style.height) }));
+      const shards = [...layer.querySelectorAll('i')].filter((d) => d.style.display === 'block').length;
+      const w = t.getBoundingClientRect().width;
+      const fh = t.querySelector(':scope > [data-k-part="fold"]').getBoundingClientRect().height;
+      res({ glows, shards, boxGlow: glows.some((g) => g.w > w * 0.5), midHeight: fh });
+    }, 120));
+  });
+  ok(fx.glows.some((g) => g.w === 2 && g.h > 20) && !fx.boxGlow && fx.shards > 0, '展开：碎光沿内容区左边的线铺开（不是一圈光框）', fx);
+  ok(fx.midHeight > 0, '展开：内容高度在动画中长出来', fx.midHeight);
+  await page.waitForTimeout(500);
   const think1 = await inMount(page, -1, (r) => {
-    r.querySelector('[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"]').click();
     return new Promise((res) => setTimeout(() => {
       const t = r.querySelector('[data-k="msg-think"]');
       const md = t.querySelector('[data-k-part="markdown"]');

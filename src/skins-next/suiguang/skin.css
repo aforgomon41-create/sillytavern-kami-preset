@@ -102,7 +102,7 @@
 /* 流式光标：方块，和碎光同源 */
 [data-k="msg-body"] > [data-k-part="text"] [data-k-part="caret"] { border-radius: 1px; box-shadow: 0 0 6px var(--k-fx-glow); }
 
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="body"] { border-left: 1.5px solid var(--k-divider); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] { border-left: 1.5px solid var(--k-divider); }
 [data-k="msg-think"][data-streaming] > [data-k-part="head"] > [data-k-part="toggle"] { color: var(--k-on); }
 
 [data-k="msg-options"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .06em; }

@@ -85,6 +85,18 @@ export function MsgBody({ text, streaming }: { text: string; streaming: boolean 
   );
 }
 
+/**
+ * 折叠外壳：内容一直在 DOM 里，收起 / 展开靠 CSS 的行高过渡（0fr ↔ 1fr），收起也有动画；
+ * 收起时 inert（不可聚焦、读屏跳过）。碎光的「沿线铺开 / 收拢」由 fx/fracture.ts 监听 data-state 来画。
+ */
+function Fold({ open, id, children }: { open: boolean; id: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div {...part('fold')} data-state={open ? 'open' : 'closed'} {...(open ? {} : { inert: '' as unknown as boolean, 'aria-hidden': true })}>
+      <div {...part('body')} id={id}>{children}</div>
+    </div>
+  );
+}
+
 /* ───────── 思维链 ───────── */
 
 export function MsgThink({ text, streaming, thinker = '奈亚子' }: { text: string; streaming: boolean; thinker?: string }): React.JSX.Element {
@@ -110,11 +122,9 @@ export function MsgThink({ text, streaming, thinker = '奈亚子' }: { text: str
           </span>
         ) : null}
       </div>
-      {open ? (
-        <div {...part('body')} id={id}>
-          {raw ? <pre {...part('raw')}>{text}</pre> : <div {...part('markdown')}><Markdown text={text} /></div>}
-        </div>
-      ) : null}
+      <Fold open={open} id={id}>
+        {raw ? <pre {...part('raw')}>{text}</pre> : <div {...part('markdown')}><Markdown text={text} /></div>}
+      </Fold>
     </section>
   );
 }
@@ -137,8 +147,7 @@ export function MsgSearch({ records, pending }: { records: SearchRecord[]; pendi
         {records.length ? <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span> : null}
       </button>
       </div>
-      {open ? (
-        <div {...part('body')} id={id}>
+      <Fold open={open} id={id}>
           {records.map((r, ri) => {
             const num = new Map(r.sources.map((s, i) => [s.id, i + 1]));
             return (
@@ -157,8 +166,7 @@ export function MsgSearch({ records, pending }: { records: SearchRecord[]; pendi
               </div>
             );
           })}
-        </div>
-      ) : null}
+      </Fold>
     </section>
   );
 }
