@@ -3,7 +3,7 @@
  * 数据结构是解析预设本体得来的（build/frontend/preview-preset-data.mjs），组件只按「类型」渲染，不认任何分类名。
  */
 import * as React from 'react';
-import { Badge, Button, ChoiceCard, ChoiceGrid, EntryLabel, InfoPopover, SettingSection, TextField, stripEmoji } from '../ds';
+import { Badge, Button, ChoiceCard, ChoiceGrid, Dialog, EntryLabel, Field, InfoPopover, Select, SettingSection, TextArea, TextField, stripEmoji } from '../ds';
 
 export interface Item { id: string; name: string; on: boolean; note: string }
 export interface Group { name: string; mode: 'one' | 'any'; note: string; items: Item[] }
@@ -91,6 +91,69 @@ export function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): 
           ))}
         </div>
       ))}
+    </SettingSection>
+  );
+}
+
+/* ───────── 自定义文风（预设设置「写作指导」页与引导共用；旧版 _custom-style-ui.js 的功能与文案） ─────────
+ * 规矩照旧：改动先攒着（待保存 / 待删除），点「保存」才一次写进预设；保存前可以撤销单条。
+ * 分组只能选「写作指导」里已有的组；组是单选时提示「同组只能开启一条」。 */
+export interface CustomStyle { id: string; name: string; group: string; content: string; status: 'saved' | 'pending' | 'doomed' }
+
+export function CustomStyles({ groups, initial: init, copy: C, onSave }: {
+  groups: Group[]; initial: CustomStyle[]; copy: Record<string, string>; onSave: (list: CustomStyle[]) => void;
+}): React.JSX.Element {
+  const [list, setList] = React.useState<CustomStyle[]>(init);
+  const [edit, setEdit] = React.useState<CustomStyle | null>(null);
+  const dirty = list.some((s) => s.status !== 'saved');
+  const g = (name: string): Group | undefined => groups.find((x) => x.name === name);
+  const modeTag = (name: string): string => (g(name)?.mode === 'one' ? C['modeSingle']! : C['modeAny']!);
+  return (
+    <SettingSection title={C['sectionTitle']} badge={dirty ? <Badge tone="warning">{C['unsaved']}</Badge> : <Badge>{list.filter((s) => s.status !== 'doomed').length} 条</Badge>}
+      aside={<span style={{ display: 'inline-flex', gap: 8 }}>
+        <Button size="sm" onClick={() => setEdit({ id: 'n' + Date.now(), name: '', group: groups[0]?.name || '', content: '', status: 'pending' })}>{C['addBtn']}</Button>
+        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => { const next = list.filter((s) => s.status !== 'doomed').map((s) => ({ ...s, status: 'saved' as const })); setList(next); onSave(next); }}>{C['saveBtn']}</Button>
+      </span>}>
+      <p style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{C['intro']}</p>
+      {list.length ? (
+        <div style={{ display: 'grid', gap: 'var(--k-space-2)' }}>
+          {list.map((s) => (
+            <div key={s.id} data-k-level="surface-2" style={{ display: 'grid', gap: 4, padding: 'var(--k-space-3)', borderRadius: 'var(--k-r-md)', opacity: s.status === 'doomed' ? 0.75 : 1 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                <strong style={{ textDecoration: s.status === 'doomed' ? 'line-through' : 'none' }}>{s.name}</strong>
+                <Badge>{groupLabel(s.group)} · {modeTag(s.group)}</Badge>
+                {s.status === 'pending' ? <Badge tone="info">{C['pendingTag']}</Badge> : s.status === 'doomed' ? <Badge tone="danger">{C['doomedTag']}</Badge> : null}
+                {!g(s.group) ? <Badge tone="warning">{C['orphanTag']}</Badge> : null}
+                <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
+                  {s.status === 'doomed'
+                    ? <Button size="sm" variant="ghost" onClick={() => setList(list.map((x) => (x.id === s.id ? { ...x, status: 'saved' } : x)))}>{C['undoBtn']}</Button>
+                    : <>
+                      <Button size="sm" variant="ghost" onClick={() => setEdit(s)}>{C['editBtn']}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setList(s.status === 'pending' && !init.some((x) => x.id === s.id) ? list.filter((x) => x.id !== s.id) : list.map((x) => (x.id === s.id ? { ...x, status: 'doomed' } : x)))}>{C['delBtn']}</Button>
+                    </>}
+                </span>
+              </div>
+              <p style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)', overflowWrap: 'anywhere' }}>{s.content}</p>
+            </div>
+          ))}
+        </div>
+      ) : <p style={{ color: 'var(--k-on-muted)' }}>{C['empty']}</p>}
+      <Dialog open={!!edit} onOpenChange={(o) => { if (!o) { setEdit(null); } }} title={edit && list.some((x) => x.id === edit.id) ? (C["editBtn"] || "") + "：" + edit.name : (C["addBtn"] || "") + (C["sectionTitle"] || "")} size="md"
+        footer={<><Button variant="ghost" onClick={() => setEdit(null)}>{C['cancelBtn']}</Button>
+          <Button variant="primary" disabled={!edit || !edit.name.trim()} onClick={() => {
+            const e = edit!; const item = { ...e, name: e.name.trim(), status: 'pending' as const };
+            setList(list.some((x) => x.id === e.id) ? list.map((x) => (x.id === e.id ? item : x)) : [...list, item]); setEdit(null);
+          }}>{C['okBtn']}</Button></>}>
+        {edit ? (
+          <div style={{ display: 'grid', gap: 'var(--k-gap-group)' }}>
+            <Field label={C['nameLabel']}><TextField placeholder={C['namePlaceholder']} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
+            <Field label={C['groupLabel']} hint={g(edit.group)?.mode === 'one' ? C['modeNoteSingle'] : C['modeNoteAny']}>
+              <Select options={groups.map((x) => ({ value: x.name, label: groupLabel(x.name) + ' · ' + (x.mode === 'one' ? C['modeSingle'] : C['modeAny']) }))} value={edit.group} onValueChange={(v) => setEdit({ ...edit, group: v })} />
+            </Field>
+            <Field label={C['contentLabel']}><TextArea rows={6} placeholder={C['contentPlaceholder']} value={edit.content} onChange={(e) => setEdit({ ...edit, content: e.target.value })} /></Field>
+          </div>
+        ) : null}
+      </Dialog>
     </SettingSection>
   );
 }

@@ -25,3 +25,25 @@ declare module '*/_search-providers.js' {
   export interface WebSearchProvider { id: string; label: string; url: string; note: string; secret?: string; localKey?: boolean; endpoint?: boolean; endpointKey?: string; keyUrl?: string }
   export function webSearchProviders(): WebSearchProvider[];
 }
+
+/** 远程更新进度的纯状态机（src/scripts/_update-progress.js）：工具箱「更新」页的进度弹窗直接用它，阶段与文案只有一份 */
+declare module '*/_update-progress.js' {
+  export interface UpdateProgress { stage: string; status: 'running' | 'failed' | 'done'; received: number; total: number | null; attempts: number; running: boolean }
+  export interface UpdateView { stage: string; status: string; stageText: string; detail: string; percent: number | null; indeterminate: boolean; bytesText: string; canRetry: boolean; canClose: boolean; title: string; error: string; attempts: number; retryText: string }
+  export const UPDATE_COPY: Record<string, string>;
+  export const UPDATE_STAGES: Array<{ id: string; copy: string }>;
+  export function newProgress(now?: number): UpdateProgress;
+  export function beginProgress(p: UpdateProgress, now?: number): boolean;
+  export function enterStage(p: UpdateProgress, id: string, now?: number): boolean;
+  export function setTotal(p: UpdateProgress, total: number, source?: string): boolean;
+  export function addBytes(p: UpdateProgress, n: number): number;
+  export function failProgress(p: UpdateProgress, err: string, now?: number): UpdateProgress;
+  export function doneProgress(p: UpdateProgress, v: string, now?: number): UpdateProgress;
+  export function viewOf(p: UpdateProgress): UpdateView;
+}
+
+
+/** 自定义文风的文案（src/scripts/_custom-style-ui.js 的 CUSTOM_STYLE_COPY，唯一真相；新面板只读它的文案） */
+declare module '*/_custom-style-ui.js' {
+  export const CUSTOM_STYLE_COPY: Record<string, string>;
+}

@@ -17,7 +17,7 @@ import G from '../../copy/guide-copy.json';
 import data from '../preset-panel/preset-data.json';
 import guideData from './guide-data.json';
 import { Markdown } from '../../../src/frontend/message/markdown';
-import { SkinChoices } from '../../../src/frontend/panels/skin-panel';
+import { SkinChoices } from '../../../src/frontend/panels/display-panel';
 import { GroupCards, ModelPicker, VarFields, initial, plain, type Act, type State, type Tab } from '../../../src/frontend/panels/preset-parts';
 import { Badge, Button, ChoiceCard, ChoiceGrid, NavList, Panel, SettingRow, SettingSection, Switch, Toast } from '../../../src/frontend/ds';
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { withRadixPatches } from './radix-patches.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-for (const name of ['suiguang', 'preset-panel', 'message', 'skin-panel', 'toolbox', 'guide']) {
+for (const name of ['suiguang', 'preset-panel', 'message', 'display-panel', 'toolbox', 'guide']) {
   const dir = path.join(ROOT, 'design/previews', name);
   const r = await esbuild.build(withRadixPatches({
     entryPoints: [path.join(dir, 'main.tsx')], outfile: path.join(dir, 'preview.js'), bundle: true, format: 'iife', minify: true,

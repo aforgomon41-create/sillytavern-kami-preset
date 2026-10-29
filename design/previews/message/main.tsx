@@ -212,7 +212,10 @@ function Reply({ mesId }: { mesId: number }): React.JSX.Element | null {
   React.useSyncExternalStore(subscribe, () => version);
   const m = chat[mesId];
   if (!m) { return null; }
-  return <MessageView raw={m.mes} streaming={m.streaming} latest={mesId === latestAi()} mode={mode} onMode={setMode} onPick={pick} />;
+  /* 「行动选项默认」和显示面板 / 旧前端同一个键：'1' = 收起 */
+  let optionsOpen = true;
+  try { optionsOpen = localStorage.getItem('kami.options.folded') !== '1'; } catch (e) { /* 无痕 */ }
+  return <MessageView raw={m.mes} streaming={m.streaming} latest={mesId === latestAi()} mode={mode} onMode={setMode} onPick={pick} optionsOpen={optionsOpen} />;
 }
 
 rt.messages({

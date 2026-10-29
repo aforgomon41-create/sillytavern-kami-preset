@@ -27,7 +27,7 @@ const inMount = (page, n, fn, arg) => page.evaluate(([n, src, arg]) => {
   const r = ms[n < 0 ? ms.length + n : n].shadowRoot;
   return (0, eval)('(' + src + ')')(r, arg);
 }, [n, fn.toString(), arg]);
-const ITEM = '[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]';
+const ITEM = '[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
 
 for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 900 } }], ['手机 390', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }]]) {
   console.log('\n── ' + label);
@@ -163,6 +163,18 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   const end = await inMount(page, -1, (r, sel) => ({ caret: !!r.querySelector('[data-k-part="caret"]'), opts: r.querySelectorAll(sel).length, mode: r.querySelector('[data-k="msg-options"]').getAttribute('data-mode') }), ITEM);
   ok(!end.caret && end.opts === 6, '生成结束：光标消失、出现选项', end);
   ok(end.mode === 'send', '选项模式在新回复上保持（发送）', end.mode);
+  /* 行动选项可折叠；默认状态跟显示面板的设置（localStorage kami.options.folded） */
+  const optFold = async () => inMount(page, -1, (r) => { const o = r.querySelector('[data-k="msg-options"]'); if (!o) { return null; } const f = o.querySelector(':scope > [data-k-part="fold"]'); return { state: o.getAttribute('data-state'), h: f ? f.getBoundingClientRect().height : -1, inert: f ? f.hasAttribute('inert') : null }; });
+  const o0 = await optFold();
+  await inMount(page, -1, (r) => r.querySelector('[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="toggle"]').click());
+  await page.waitForTimeout(700);
+  const o1 = await optFold();
+  ok(o0 && o0.state === 'open' && o0.h > 20 && o1.state === 'closed' && o1.h < 1 && o1.inert, '行动选项：点头部收起（0 高、不可聚焦），默认展开', { o0, o1 });
+  await page.evaluate(() => localStorage.setItem('kami.options.folded', '1'));
+  await page.reload(); await page.waitForTimeout(900);
+  const o2 = await optFold();
+  ok(o2 && o2.state === 'closed', '设置「行动选项默认收起」后新渲染的选项是收起的', o2);
+  await page.evaluate(() => localStorage.removeItem('kami.options.folded'));
   ok(errors.length === 0, '没有页面错误', errors);
   await ctx.close();
 }

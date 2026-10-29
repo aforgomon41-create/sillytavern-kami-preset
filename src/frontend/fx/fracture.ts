@@ -27,12 +27,12 @@ const MAX_ACTIVE = 4;
 const TAP_SLOP = 10;
 
 /** 触发：按下这些组件 */
-const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"], [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]';
+const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"], [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const TAB_SEL = '[data-k="tabs"] [data-k-part="tab"]:not([data-disabled])';
 /** 触发：这些元素的 data-state 变化（展开 / 收起、弹出） */
 const STATE_SEL = '[data-k="dialog"][data-k-part="content"], [data-k="select"][data-k-part="content"], [data-k="panel"]';
 /** 折叠类：data-state 在 open / closed 之间变化时沿内容区左边铺开 / 收拢（出现时不触发：消息一屏几十条，挂载时全动一遍太吵） */
-const FOLD_SEL = '[data-k="card"][data-role="collapse"], [data-k="msg-think"], [data-k="msg-search"]';
+const FOLD_SEL = '[data-k="card"][data-role="collapse"], [data-k="msg-think"], [data-k="msg-search"], [data-k="msg-options"]';
 
 export type BurstKind = 'local' | 'assemble' | 'shatter';
 
@@ -197,7 +197,7 @@ export class Fracture {
     const motion = this.reduce ? 'off' : this.o.motion();
     if (motion === 'off' || this.active.length >= MAX_ACTIVE) { return; }
     const head = el.querySelector(':scope > [data-k-part="head"]');
-    const body = el.querySelector(':scope > [data-k-part="fold"] > [data-k-part="body"]') || el.querySelector(':scope > [data-k-part="body"]');
+    const body = el.querySelector(':scope > [data-k-part="fold"] > [data-k-part="body"]') || el.querySelector(':scope > [data-k-part="fold"]') || el.querySelector(':scope > [data-k-part="body"]');
     const er = el.getBoundingClientRect();
     if (er.width < 4 || er.bottom < 0 || er.top > innerHeight) { return; }
     const top = head ? head.getBoundingClientRect().bottom : er.top;

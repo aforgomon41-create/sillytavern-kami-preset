@@ -16,7 +16,8 @@ import data from './preset-data.json';
 import {
   Badge, Button, ChoiceCard, ChoiceGrid, EmojiIcon, EntryLabel, NavList, Panel, SettingSection, Tabs, Toast, type NavItem
 } from '../../../src/frontend/ds';
-import { GroupCards, ModelPicker, VarFields, info, initial, plain, type Act, type State, type Tab } from '../../../src/frontend/panels/preset-parts';
+import { CustomStyles, GroupCards, ModelPicker, VarFields, info, initial, plain, type Act, type State, type Tab } from '../../../src/frontend/panels/preset-parts';
+import { CUSTOM_STYLE_COPY } from '../../../src/scripts/_custom-style-ui.js';
 
 const manifest = manifestJson as unknown as SkinManifest;
 const rt = createRuntime(window);
@@ -24,7 +25,6 @@ const q = new URLSearchParams(location.search);
 rt.applySkin(manifest, { scheme: q.get('scheme') || 'auto', density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss, assetUrls: { paper: paperUrl } });
 
 const TABS: Tab[] = (data as unknown as { tabs: Tab[] }).tabs;
-const ABOUT: Tab = { id: 'about', kind: 'layer', name: '关于' };   /* 平台固定的页签，不来自预设 */
 
 function useCompact(): boolean {
   const mq = '(max-width: 1000px)';
@@ -78,7 +78,6 @@ function Overview({ st, act, compact }: { st: State; act: Act; compact: boolean 
 }
 
 function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Element {
-  if (t.id === 'about') { return <p style={{ color: 'var(--k-on-muted)' }}>版本信息、检查更新、从旧预设继承设置（平台固定页签，预览里省略）。</p>; }
   const cols = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' } as const;
   if (t.kind === 'model') { return <div style={cols}><ModelPicker t={t} st={st} act={act} withItems /></div>; }
   return (
@@ -92,6 +91,11 @@ function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Ele
         </SettingSection>
       ) : null}
       {(t.groups || []).map((g) => <GroupCards key={g.name} g={g} st={st} act={act} />)}
+      {/* 自定义文风挂在「写作指导」页（旧版也是锚在写作指导分区；按页名找） */}
+      {/写作指导/.test(t.name) && (t.groups || []).length ? (
+        <CustomStyles groups={t.groups!} copy={CUSTOM_STYLE_COPY} onSave={() => undefined}
+          initial={[{ id: 's1', name: '冷硬派', group: t.groups![1]?.name || t.groups![0]!.name, content: '短句，少形容词；情绪藏在动作和物件里，不直接说出来。', status: 'saved' }]} />
+      ) : null}
     </div>
   );
 }
@@ -127,11 +131,10 @@ function App(): React.JSX.Element {
     }, '已切换到「' + m.label + '」')
   };
   const OVERVIEW: Tab = { id: 'overview', kind: 'layer', name: '概览' };   /* 平台固定的页签 */
-  const all = [OVERVIEW, ...TABS, ABOUT];
+  const all = [OVERVIEW, ...TABS];   /* 「关于」挪到工具箱改成「更新」页（用户 2026-10-29） */
   const label = (t: Tab): string => plain(t.name);
   /* 来自预设的页签用 emoji → 图标映射；平台固定的「关于」直接用图标 */
-  const navItems: NavItem[] = all.map((t) => (t.id === 'about' ? { id: t.id, label: '关于', icon: 'info' }
-    : t.id === 'overview' ? { id: t.id, label: '概览', icon: 'sparkles' }
+  const navItems: NavItem[] = all.map((t) => (t.id === 'overview' ? { id: t.id, label: '概览', icon: 'sparkles' }
     : { id: t.id, label: <EntryLabel name={t.name} /> }));
   if (!open) { return <div style={{ position: 'fixed', left: 16, bottom: 16, pointerEvents: 'auto' }}><Button variant="primary" onClick={() => setOpen(true)}>重新打开预设设置</Button></div>; }
   const tab = all.find((t) => t.id === cur)!;
@@ -146,7 +149,7 @@ function App(): React.JSX.Element {
     <Panel title="预设设置" actions={modelBadge} onClose={() => setOpen(false)} defaultSize={{ w: 920, h: 780 }}>
       {compact ? (
         <Tabs label="预设分类" swipe sticky value={cur} onValueChange={setCur}
-          items={all.map((t) => ({ value: t.id, label: t.id === 'about' ? '关于' : t.id === 'overview' ? '概览' : <EntryLabel name={t.name} />, content: t.id === 'overview' ? <Overview st={st} act={act} compact /> : <TabBody t={t} st={st} act={act} /> }))} />
+          items={all.map((t) => ({ value: t.id, label: t.id === 'overview' ? '概览' : <EntryLabel name={t.name} />, content: t.id === 'overview' ? <Overview st={st} act={act} compact /> : <TabBody t={t} st={st} act={act} /> }))} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '190px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
           <div style={{ position: 'sticky', top: 0 }}><NavList layout="sidebar" label="预设分类" items={navItems} current={cur} onSelect={setCur} /></div>

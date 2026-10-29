@@ -178,19 +178,28 @@ const TONE: Record<string, 'accent' | 'info' | 'success' | 'warning' | 'danger' 
   行动: 'accent', 性格: 'info', 推进: 'success', 信息: 'info', 搞笑: 'warning', nsfw: 'danger', NSFW: 'danger'
 };
 
-export function MsgOptions({ items, pending, mode, onMode, onPick }: {
+export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen = true }: {
   items: OptionItem[]; pending: boolean; mode: OptionMode; onMode: (m: OptionMode) => void; onPick: (item: OptionItem, mode: OptionMode) => void;
+  /** 默认展开还是收起（显示面板「行动选项默认」；用户 2026-10-29 要求放进显示面板）。改了设置，已渲染的选项跟着变 */
+  defaultOpen?: boolean;
 }): React.JSX.Element {
+  const [open, setOpen] = React.useState(defaultOpen);
+  React.useEffect(() => { setOpen(defaultOpen); }, [defaultOpen]);
+  const id = React.useId();
   return (
-    <section {...k('msg-options', { mode })} data-streaming={pending ? '' : undefined} aria-label="行动选项">
+    <section {...k('msg-options', { mode })} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined} aria-label="行动选项">
       <div {...part('head')}>
-        <span {...part('title')}>行动选项</span>
-        {pending ? null : <span {...part('count')}>{items.length} 个</span>}
+        <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          <span {...part('title')}>行动选项</span>
+          {pending ? null : <span {...part('count')}>{items.length} 个</span>}
+          <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
+        </button>
         <span {...part('mode')}>
           <Segmented size="sm" label="点选项时" value={mode} onValueChange={(v) => onMode(v as OptionMode)} options={[{ value: 'fill', label: '填入' }, { value: 'send', label: '发送' }]} />
         </span>
       </div>
       {pending ? <p {...part('pending')}><Spinner size="sm" label="生成选项中" /> 正在生成选项……</p> : (
+        <div {...part('fold')} id={id} data-state={open ? 'open' : 'closed'} {...(open ? {} : { inert: '' as unknown as boolean, 'aria-hidden': true })}>
         <ul {...part('list')}>
           {items.map((it, i) => (
             <li key={i}>
@@ -206,6 +215,7 @@ export function MsgOptions({ items, pending, mode, onMode, onPick }: {
             </li>
           ))}
         </ul>
+        </div>
       )}
     </section>
   );
@@ -213,7 +223,7 @@ export function MsgOptions({ items, pending, mode, onMode, onPick }: {
 
 /* ───────── 一整条回复 ───────── */
 
-export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thinker }: {
+export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thinker, optionsOpen = true }: {
   /** 聊天原始数据里的这条回复（流式时是写到一半的文本） */
   raw: string; streaming: boolean;
   /** 是不是最新一条回复：只有它渲染行动选项（拍板 D） */
@@ -221,6 +231,8 @@ export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thin
   mode: OptionMode; onMode: (m: OptionMode) => void; onPick: (item: OptionItem, mode: OptionMode) => void;
   /** 思维链标题里的名字（默认奈亚子） */
   thinker?: string;
+  /** 行动选项默认展开（显示面板设置） */
+  optionsOpen?: boolean;
 }): React.JSX.Element {
   const r = React.useMemo(() => splitReply(raw), [raw]);
   const thinking = streaming && !!r.think && !r.think.closed;
@@ -234,7 +246,7 @@ export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thin
         /* 刚开始生成、还没写到任何内容：先放一个只有光标的正文，免得是一张空纸 */
         : streaming && !r.think && !r.search.length ? <MsgBody text="" streaming /> : null}
       {latest && r.options && (r.options.items.length || (streaming && !r.options.closed))
-        ? <MsgOptions items={r.options.items} pending={!r.options.closed} mode={mode} onMode={onMode} onPick={onPick} /> : null}
+        ? <MsgOptions items={r.options.items} pending={!r.options.closed} mode={mode} onMode={onMode} onPick={onPick} defaultOpen={optionsOpen} /> : null}
     </div>
   );
 }

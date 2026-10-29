@@ -4,6 +4,8 @@
  *   压缩 → design/copy/compress-copy.polished.json；标签处理 → 40-预设设置.js 的 TAGFIX_COPY（比 tagfix-copy.json 新，补了思维链引用保护）；
  *   常驻附加指令 → design/copy/godcmd-copy.json（**用户逐字给定，不改**）；导出 → 40-预设设置.js 的 EXPORT_NOTICE；
  *   搜索来源、说明、链接 → src/scripts/_search-providers.js；搜索限额字段、范围、默认值 → src/scripts/_search-pure.js。
+ * 第二版（用户 2026-10-29）：原预设设置的「关于」挪进来改成「更新」页（版本信息、检查更新 + 进度弹窗、继承旧预设 + 逐条裁决）；四个页签都带图标；
+ *   补上手动搜索弹窗（_search-manual-ui.js 的文案与四个步骤）和大总结的分块进度。更新进度直接跑 _update-progress.js 的状态机。
  * 只是预览：状态都在本页内存里，按钮只弹提示，不连酒馆。
  * 布局原则：常用操作在页签顶部；只有开着的功能才显示它的参数；高级项（提示词、手动搜索设置、头部任务）收进折叠卡。
  */
@@ -18,9 +20,10 @@ import GOD from '../../copy/godcmd-copy.json';
 import TAG0 from '../../copy/tagfix-copy.json';
 import { webSearchProviders } from '../../../src/scripts/_search-providers.js';
 import { webSearchLimitFields } from '../../../src/scripts/_search-pure.js';
+import * as UP from '../../../src/scripts/_update-progress.js';
 import {
   Badge, Button, ChoiceCard, ChoiceGrid, CollapseCard, Dialog, Field, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection,
-  Slider, Switch, Tabs, TextArea, TextField, Toast
+  Progress, Slider, Steps, Switch, Tabs, TextArea, TextField, Toast, ICONS
 } from '../../../src/frontend/ds';
 
 const rt = createRuntime(window);
@@ -145,6 +148,15 @@ function Compress({ notify }: { notify: Notify }): React.JSX.Element {
   const [keep, setKeep] = React.useState(12);
   const [chunk, setChunk] = React.useState(40);
   const [running, setRunning] = React.useState(false);
+  const [chunkAt, setChunkAt] = React.useState(0);
+  const CHUNKS = [{ from: 81, to: 120 }, { from: 121, to: 160 }, { from: 161, to: 200 }];
+  React.useEffect(() => {
+    if (!running) { return; }
+    if (chunkAt >= CHUNKS.length) { setRunning(false); notify(fill(CC.toasts.done, { a: CHUNKS.length, b: CHUNKS.length * 40, c: 2 + CHUNKS.length })); return; }
+    const t = setTimeout(() => setChunkAt((n) => n + 1), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, chunkAt]);
   const [armed, setArmed] = React.useState(false);
   const [pins, setPins] = React.useState([3, 17]);
   const [pin, setPin] = React.useState('');
@@ -158,11 +170,16 @@ function Compress({ notify }: { notify: Notify }): React.JSX.Element {
     <Stack>
       <div style={{ display: 'grid', gap: 6 }}>
         <Row>
-          <Button variant="primary" busy={running} onClick={() => { setRunning(true); notify(fill(CC.toasts.start, { x: CC.toasts.startManual })); setTimeout(() => { setRunning(false); notify(fill(CC.toasts.done, { a: 1, b: 40, c: 3 })); }, 1400); }}>{running ? CC.grand.running : CC.grand.runNow}</Button>
+          <Button variant="primary" busy={running} onClick={() => { if (running) { notify(CC.toasts.running); return; } setChunkAt(0); setRunning(true); notify(fill(CC.toasts.start, { x: CC.toasts.startManual })); }}>{running ? CC.grand.running : CC.grand.runNow}</Button>
           <Button onClick={() => notify(fill(CC.toasts.unhideDone, { n: 80 }))}>{CC.grand.unhideAll}</Button>
           <Button variant={armed ? 'danger' : 'ghost'} onClick={() => { if (!armed) { setArmed(true); return; } setArmed(false); notify(fill(CC.toasts.clearDone, { n: 2 })); }}>{armed ? CC.grand.clearArmed : CC.grand.clearData}</Button>
         </Row>
-        <Note>{CC.grand.runHint}</Note>
+        {running ? (
+          <div data-grand-progress="" style={{ display: 'grid', gap: 6 }} aria-live="polite">
+            <Progress label="大总结进度" value={(chunkAt / CHUNKS.length) * 100} />
+            <Note>{chunkAt < CHUNKS.length ? '正在总结第 ' + (chunkAt + 1) + ' / ' + CHUNKS.length + ' 块（' + CHUNKS[chunkAt]!.from + '–' + CHUNKS[chunkAt]!.to + ' 楼）' : '正在收尾…'}</Note>
+          </div>
+        ) : <Note>{CC.grand.runHint}</Note>}
       </div>
 
       <SettingSection title={CC.mode.section} badge={<Badge>可同时开</Badge>}>
@@ -257,7 +274,7 @@ function Search({ notify }: { notify: Notify }): React.JSX.Element {
   const needKey = !!(p.secret || p.localKey);
   return (
     <Stack>
-      {on && mode === 'service' ? <div><Button variant="primary" onClick={() => notify('正在准备手动搜索…')}>手动搜索</Button></div> : null}
+      {on && mode === 'service' ? <div><ManualSearch /></div> : null}
       <SettingSection title="搜索能力">
         <SettingRow label="开启搜索能力" control={<Switch checked={on} onCheckedChange={setOn} aria-label="开启搜索能力" />} />
         {on ? (
@@ -383,6 +400,190 @@ function Other({ notify }: { notify: Notify }): React.JSX.Element {
   );
 }
 
+/* ───────── 手动搜索弹窗（_search-manual-ui.js 的文案与四个步骤） ───────── */
+
+const MS_STEPS = [
+  { id: 'plan', label: '理解需求', hint: '识别世界与查询范围' },
+  { id: 'query', label: '查询外部资料', hint: '按主题查询真实来源' },
+  { id: 'facts', label: '整理详细资料', hint: '核对事实、细节与引用' },
+  { id: 'save', label: '保存资料', hint: '只新增一个资料楼层' }
+];
+
+function ManualSearch(): React.JSX.Element {
+  const [open, setOpen] = React.useState(false);
+  const [phase, setPhase] = React.useState<'ask' | 'run' | 'done' | 'stopped'>('ask');
+  const [ask, setAsk] = React.useState('');
+  const [at, setAt] = React.useState(0);
+  const [qn, setQn] = React.useState(1);
+  React.useEffect(() => {
+    if (phase !== 'run') { return; }
+    if (at >= MS_STEPS.length) { setPhase('done'); return; }
+    const t = setTimeout(() => { if (at === 1 && qn < 3) { setQn(qn + 1); } else { setAt(at + 1); } }, 700);
+    return () => clearTimeout(t);
+  }, [phase, at, qn]);
+  const close = (): void => { setOpen(false); setPhase('ask'); setAt(0); setQn(1); };
+  const title = phase === 'run' ? '手动搜索进行中' : phase === 'done' ? '手动搜索已完成' : phase === 'stopped' ? '搜索已中断' : '手动搜索';
+  return (
+    <>
+      <Button variant="primary" icon={React.createElement(ICONS['search']!, { width: 16, height: 16 })} onClick={() => setOpen(true)}>手动搜索</Button>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { if (phase === 'run') { setPhase('stopped'); } close(); } }} title={title} size="md"
+        footer={phase === 'ask'
+          ? <><Button variant="ghost" onClick={close}>取消</Button><Button variant="primary" disabled={!ask.trim()} onClick={() => setPhase('run')}>确认并搜索</Button></>
+          : phase === 'run' ? <Button variant="danger" onClick={() => setPhase('stopped')}>中断搜索</Button>
+            : <Button variant="primary" onClick={close}>关闭</Button>}>
+        {phase === 'ask' ? (
+          <div style={{ display: 'grid', gap: 'var(--k-gap-group)' }}>
+            <Field label="这次想查什么？" hint="会参考角色卡、世界书和经过正则处理的历史；不带剧情预设条目。">
+              <TextArea rows={4} placeholder="例如：整理当前年代的地理、居民、文化与规则，排除未来剧情。" value={ask} onChange={(e) => setAsk(e.target.value)} aria-label="本次搜索要求" />
+            </Field>
+            <Steps label="搜索步骤" items={MS_STEPS} current="" />
+            <Note>可以随时中断；未完成的资料不会写入聊天。</Note>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 'var(--k-gap-group)' }} aria-live="polite">
+            <Steps label="搜索步骤" items={MS_STEPS.map((s) => (s.id === 'query' && phase === 'run' && at === 1 ? { ...s, hint: '正在处理第 ' + qn + ' 个查询' } : s))}
+              current={phase === 'done' ? 'save' : MS_STEPS[Math.min(at, MS_STEPS.length - 1)]!.id} failed={phase === 'stopped'} />
+            {phase === 'run' ? <Progress label="手动搜索进度" value={null} /> : null}
+            <Note>{phase === 'done' ? '完成后只新增资料楼层。' : phase === 'stopped' ? '搜索已中断，未完成的资料不会写入聊天。' : '可以随时中断；未完成的资料不会写入聊天。'}</Note>
+          </div>
+        )}
+      </Dialog>
+    </>
+  );
+}
+
+/* ───────── 更新（原预设设置的「关于」页；用户 2026-10-29 挪进工具箱） ───────── */
+
+const INHERIT = {
+  title: '继承旧预设设置', note: '手动导入新版本后，可以用它把旧预设里你改过的设置搬过来。', pickHint: '请从下面选一个你之前用过的旧预设。',
+  notKamiWarn: '这个看起来不是卡密预设，强行搬过来可能会出问题。你想继续继承它，还是换一个？', working: '正在搬运设置...',
+  done: '设置已经搬过来了，并且立刻生效。当前的预设已经提前备份了一份，名字里带有“继承前备份”。', noOthers: '没有找到其他预设，需要先有旧预设才能搬运设置。',
+  sourceLabel: '这一份继承自', sourceNone: '还没继承过',
+  noAsk: '这次没有条目需要你裁决：你的旧预设和这一版之间，没有同一条内容被两边都改过，所以直接搬完了。', asked: '其中 {n} 处两边都改过，已按你在裁决页里的选择处理。'
+};
+const OLD_PRESETS = [{ id: 'a', name: 'kami-v0.92-100', kami: true }, { id: 'b', name: 'kami-v0.91-88（我改过）', kami: true }, { id: 'c', name: 'Default', kami: false }];
+const CONFLICTS = [
+  { id: 'c1', name: '📖 [语言文字] 简体中文', mine: '……保留用户口吻里的方言词……', theirs: '……统一使用规范书面语……' },
+  { id: 'c2', name: '🖊️ [写作文风] 白描', mine: '多用短句；少用比喻', theirs: '短句为主，比喻不超过每段一个' },
+  { id: 'c3', name: '🧩 推理预算 | var', mine: 'reasoning_budget = 8000', theirs: 'reasoning_budget = 6000' }
+];
+
+function UpdateProgressDialog({ open, onClose, fail }: { open: boolean; onClose: () => void; fail: boolean }): React.JSX.Element {
+  const ref = React.useRef(UP.newProgress(0));
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
+  const failOnce = React.useRef(fail);
+  const run = React.useCallback(() => {
+    const p = ref.current;
+    if (!UP.beginProgress(p, Date.now())) { return; }
+    force();
+    const total = 3464106;
+    const steps: Array<() => boolean> = [
+      () => { UP.enterStage(p, 'download'); UP.setTotal(p, total, 'manifest'); return true; },
+      ...Array.from({ length: 8 }, () => () => { UP.addBytes(p, total / 8); if (failOnce.current && p.received > total / 2) { failOnce.current = false; UP.failProgress(p, '几条下载通道都试不通（GitHub 直链、jsDelivr 镜像），请换个网络再重试一次'); return false; } return true; }),
+      () => UP.enterStage(p, 'verify'), () => UP.enterStage(p, 'merge'), () => UP.enterStage(p, 'write'),
+      () => { UP.doneProgress(p, 'v0.93-8'); return true; }
+    ];
+    let i = 0;
+    const tick = (): void => { if (i >= steps.length) { return; } const ok = steps[i++]!(); force(); if (ok && p.status === 'running') { setTimeout(tick, 260); } };
+    setTimeout(tick, 400);
+  }, []);
+  React.useEffect(() => { if (open) { ref.current = UP.newProgress(0); failOnce.current = fail; run(); } }, [open, run, fail]);
+  const v = UP.viewOf(ref.current);
+  const stages = UP.UPDATE_STAGES.map((s) => ({ id: s.id, label: UP.UPDATE_COPY[s.copy]! }));
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o && v.canClose) { onClose(); } }} title={v.title} size="sm"
+      footer={<>{v.canRetry ? <Button variant="primary" onClick={() => run()}>{UP.UPDATE_COPY['retry']}</Button> : null}
+        <Button variant={v.canRetry ? 'ghost' : 'primary'} disabled={!v.canClose} onClick={onClose}>{UP.UPDATE_COPY['close']}</Button></>}>
+      <div style={{ display: 'grid', gap: 'var(--k-gap-group)' }} aria-live="polite">
+        <Steps label="更新阶段" items={stages} current={v.stage} failed={v.status === 'failed'} />
+        {v.stage === 'download' || v.status === 'failed' ? <Progress label="下载进度" value={v.percent} tone={v.status === 'failed' ? 'danger' : 'accent'} /> : null}
+        {v.bytesText ? <Note>{v.bytesText}</Note> : null}
+        {v.detail ? <p style={{ color: v.status === 'failed' ? 'var(--k-danger)' : 'var(--k-on-muted)' }}>{v.detail}</p> : null}
+        {v.retryText ? <Badge>{v.retryText}</Badge> : null}
+      </div>
+    </Dialog>
+  );
+}
+
+function Update({ notify }: { notify: Notify }): React.JSX.Element {
+  const [check, setCheck] = React.useState<'idle' | 'busy' | 'new' | 'latest'>('idle');
+  const [checkedAt, setCheckedAt] = React.useState('');
+  const [prog, setProg] = React.useState(false);
+  const [failDemo, setFailDemo] = React.useState(true);
+  const [old, setOld] = React.useState('a');
+  const [warn, setWarn] = React.useState(false);
+  const [judge, setJudge] = React.useState(false);
+  const [pick, setPick] = React.useState<Record<string, 'mine' | 'theirs'>>({});
+  const [inherited, setInherited] = React.useState<{ from: string; asked: number } | null>(null);
+  const rows: Array<[string, string]> = [['酒馆版本', 'SillyTavern 1.18.0'], ['酒馆助手', '4.11.3'], ['预设版本', 'v0.93 · 构建 7']];
+  const oldP = OLD_PRESETS.find((x) => x.id === old)!;
+  const finish = (): void => { setJudge(false); setInherited({ from: oldP.name, asked: CONFLICTS.length }); notify('已从「' + oldP.name + '」继承设置，立刻生效'); };
+  return (
+    <Stack>
+      <SettingSection title="版本信息">
+        {rows.map(([k, v]) => <SettingRow key={k} label={k} control={<span style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</span>} />)}
+      </SettingSection>
+      <SettingSection title="检查更新" badge={check === 'new' ? <Badge tone="accent">有新版</Badge> : check === 'latest' ? <Badge tone="success">已是最新</Badge> : undefined}>
+        <SettingRow label="远程仓库" control={<code style={{ fontSize: 'var(--k-fs-sm)' }}>aforgomon41-create/sillytavern-kami-preset</code>} />
+        <SettingRow label="上次检查" control={<span style={{ color: 'var(--k-on-muted)' }}>{checkedAt || '本次会话还没查过'}</span>} />
+        {check === 'new' ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <p>仓库最新：<strong>v0.93-8</strong>（当前 v0.93-7）。更新会先备份当前预设，再把你改过的设置合并进新版。</p>
+            <Row>
+              <Button variant="primary" onClick={() => setProg(true)}>立即更新</Button>
+              <Button variant="ghost" onClick={() => { setCheck('idle'); notify('先不更新（之后不再为这一版弹窗）'); }}>先不更新</Button>
+              <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 'var(--k-fs-sm)', color: 'var(--k-on-muted)' }}>
+                <Switch size="sm" checked={failDemo} onCheckedChange={setFailDemo} aria-label="预览：第一次下载失败" />预览：第一次下载失败
+              </label>
+            </Row>
+          </div>
+        ) : null}
+        <div><Button busy={check === 'busy'} onClick={() => { setCheck('busy'); setTimeout(() => { setCheck('new'); setCheckedAt(new Date().toLocaleTimeString()); }, 700); }}>检查更新</Button></div>
+      </SettingSection>
+      <UpdateProgressDialog open={prog} fail={failDemo} onClose={() => { setProg(false); setCheck('latest'); }} />
+
+      <SettingSection title={INHERIT.title} aside={info(INHERIT.title, INHERIT.note)}>
+        <Field label="旧预设" hint={INHERIT.pickHint}>
+          <Select options={OLD_PRESETS.map((x) => ({ value: x.id, label: x.name + (x.kami ? '' : '（非卡密）') }))} value={old} onValueChange={(v) => { setOld(v); setWarn(false); }} />
+        </Field>
+        {warn ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <p style={{ color: 'var(--k-warning)' }}>{INHERIT.notKamiWarn}</p>
+            <Row><Button variant="danger" onClick={() => { setWarn(false); setJudge(true); }}>仍然继承</Button><Button variant="ghost" onClick={() => setWarn(false)}>换一个</Button></Row>
+          </div>
+        ) : <div><Button onClick={() => { if (!oldP.kami) { setWarn(true); return; } setPick({}); setJudge(true); }}>继承</Button></div>}
+        <SettingRow label={INHERIT.sourceLabel} control={<span style={{ color: 'var(--k-on-muted)' }}>{inherited ? inherited.from : INHERIT.sourceNone}</span>} />
+        {inherited ? <Note>{INHERIT.done + ' ' + (inherited.asked ? fill(INHERIT.asked.replace('{n}', '{n}'), { n: inherited.asked }) : INHERIT.noAsk)}</Note> : null}
+      </SettingSection>
+
+      <Dialog open={judge} onOpenChange={setJudge} title={'逐条裁决：' + CONFLICTS.length + ' 处你和新版都改过的内容'} size="lg"
+        footer={<>
+          <Button variant="ghost" onClick={() => setPick(Object.fromEntries(CONFLICTS.map((c) => [c.id, 'mine'])))}>全部保留我的</Button>
+          <Button variant="ghost" onClick={() => setPick(Object.fromEntries(CONFLICTS.map((c) => [c.id, 'theirs'])))}>全部用新版</Button>
+          <Button variant="primary" disabled={CONFLICTS.some((c) => !pick[c.id])} onClick={finish}>完成</Button>
+        </>}>
+        <div style={{ display: 'grid', gap: 'var(--k-gap-group)' }}>
+          <Note>每一条选一边；没选完不能完成。关掉窗口 = 这次不继承，什么都不会写。</Note>
+          {CONFLICTS.map((c) => (
+            <SettingSection key={c.id} title={c.name}>
+              <ChoiceGrid min={200}>
+                <ChoiceCard selected={pick[c.id] === 'mine'} onSelect={() => setPick({ ...pick, [c.id]: 'mine' })} title="保留我的">{c.mine}</ChoiceCard>
+                <ChoiceCard selected={pick[c.id] === 'theirs'} onSelect={() => setPick({ ...pick, [c.id]: 'theirs' })} title="用新版">{c.theirs}</ChoiceCard>
+              </ChoiceGrid>
+            </SettingSection>
+          ))}
+        </div>
+      </Dialog>
+    </Stack>
+  );
+}
+
+/** 页签标题：图标 + 文字（用户 2026-10-29：工具箱的页签都加上图标） */
+function tabLabel(icon: string, text: string): React.ReactNode {
+  const I = ICONS[icon];
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{I ? <I width="1.05em" height="1.05em" strokeWidth={1.75} aria-hidden="true" /> : null}{text}</span>;
+}
+
 /* ───────── 面板 ───────── */
 
 function App(): React.JSX.Element {
@@ -400,9 +601,10 @@ function App(): React.JSX.Element {
   return (
     <Panel title="工具箱" onClose={() => setOpen(false)} defaultSize={{ w: 860, h: 780 }}>
       <Tabs label="工具箱" swipe={compact} sticky mode={compact ? 'scroll' : 'fit'} value={tab} onValueChange={setTab} items={[
-        { value: 'compress', label: '压缩', content: <Compress notify={notify} /> },
-        { value: 'search', label: '网络搜索', content: <Search notify={notify} /> },
-        { value: 'other', label: '其他功能', content: <Other notify={notify} /> }
+        { value: 'compress', label: tabLabel('archive', '压缩'), content: <Compress notify={notify} /> },
+        { value: 'search', label: tabLabel('search', '网络搜索'), content: <Search notify={notify} /> },
+        { value: 'other', label: tabLabel('wrench', '其他功能'), content: <Other notify={notify} /> },
+        { value: 'update', label: tabLabel('refresh', '更新'), content: <Update notify={notify} /> }
       ]} />
       {toast ? <Toast key={toast.n} message={toast.msg} {...(toast.undo ? { action: '撤销', onAction: () => { const u = toast.undo!; setToast(null); u(); } } : {})} onClose={() => setToast(null)} /> : null}
     </Panel>

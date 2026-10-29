@@ -41,13 +41,15 @@ export const COMPONENTS = {
   'info-button': { parts: [], variants: {}, states: [] },
   popover: { parts: ['content'], variants: {}, states: ['open', 'closed'] },
   toast: { parts: ['message', 'action', 'close'], variants: {}, states: [] },
+  progress: { parts: ['indicator'], variants: { tone: ['accent', 'danger', 'success'] }, states: ['indeterminate', 'loading', 'complete'] },
+  steps: { parts: ['item', 'marker', 'label', 'hint'], variants: {}, states: ['done', 'current', 'failed', 'pending'] },
   spinner: { parts: [], variants: { size: ['sm', 'md'] }, states: [] },
   /* 消息前端（前端重构-消息前端方案；2026-10-28 用户拍板 A–F）。四个前端共用对齐轴与间距节奏，框不框由皮肤决定 */
   'msg-view': { parts: [], variants: {}, states: ['streaming'] },
   'msg-body': { parts: ['head', 'count', 'tools', 'text', 'para', 'narration', 'dialogue', 'quote', 'thought', 'name', 'keyword', 'term', 'scene-break', 'caret', 'raw'], variants: { view: ['rendered', 'raw'] }, states: ['streaming'] },
   'msg-think': { parts: ['head', 'toggle', 'icon', 'title', 'count', 'chevron', 'tools', 'fold', 'body', 'markdown', 'raw'], variants: { view: ['rendered', 'raw'] }, states: ['open', 'closed', 'streaming'] },
   'msg-search': { parts: ['head', 'toggle', 'icon', 'title', 'sites', 'chevron', 'fold', 'body', 'scope', 'facts', 'fact', 'ref', 'sources', 'source', 'status'], variants: {}, states: ['open', 'closed', 'streaming'] },
-  'msg-options': { parts: ['head', 'title', 'count', 'mode', 'list', 'item', 'item-head', 'type', 'label', 'text', 'pending'], variants: { mode: ['fill', 'send'] }, states: ['streaming'] }
+  'msg-options': { parts: ['head', 'toggle', 'chevron', 'fold', 'title', 'count', 'mode', 'list', 'item', 'item-head', 'type', 'label', 'text', 'pending'], variants: { mode: ['fill', 'send'] }, states: ['open', 'closed', 'streaming'] }
 } as const satisfies Record<string, ComponentSpec>;
 
 export type ComponentName = keyof typeof COMPONENTS;

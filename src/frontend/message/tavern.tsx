@@ -36,6 +36,8 @@ export interface ChatFrontendOptions {
   onPick: (item: OptionItem, mode: OptionMode) => void;
   /** 思维链标题里的名字 */
   thinker?: string;
+  /** 行动选项默认展开？（显示面板「行动选项默认」；默认读 localStorage kami.options.folded，和旧前端同一个键，'1' = 收起） */
+  optionsOpen?: () => boolean;
   /** 「填入 / 发送」偏好的存取（默认 localStorage） */
   loadMode?: () => OptionMode;
   saveMode?: (m: OptionMode) => void;
@@ -46,6 +48,7 @@ interface Mounted { host: HTMLElement; mes: Element; render: (node: React.ReactN
 const HOST_ATTR = 'data-kami-msg-host';
 const MES_ATTR = 'data-kami-msg';
 const STYLE_ID = 'kami-msg-host-style';
+const OPT_FOLD_KEY = 'kami.options.folded';
 /* 宿主文档里的唯一一条样式：只藏 / 显，不改酒馆任何外观 */
 const HOST_CSS =
   '#chat .mes[' + MES_ATTR + ']:not(:has(.mes_text textarea)) .mes_text { display: none !important; }\n' +
@@ -58,6 +61,7 @@ export class ChatFrontend {
   private observer: MutationObserver | null = null;
   private scheduled = false;
   private mode: OptionMode;
+  private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.reloadMode(); this.scan(); } };
   /** 统计：累计挂载次数（测试与排障用） */
   mounts = 0;
   /** 统计：累计重画次数 */
@@ -66,8 +70,17 @@ export class ChatFrontend {
   constructor(o: ChatFrontendOptions) {
     this.o = o;
     this.mode = 'fill';
-    try { this.mode = o.loadMode ? o.loadMode() : ((o.doc.defaultView!.localStorage.getItem('kami-option-mode') as OptionMode) || 'fill'); } catch (e) { /* 无痕模式 */ }
+    this.reloadMode();
+  }
+
+  private reloadMode(): void {
+    try { this.mode = this.o.loadMode ? this.o.loadMode() : ((this.o.doc.defaultView!.localStorage.getItem('kami-option-mode') as OptionMode) || 'fill'); } catch (e) { /* 无痕模式 */ }
     if (this.mode !== 'send') { this.mode = 'fill'; }
+  }
+
+  private optionsOpen(): boolean {
+    if (this.o.optionsOpen) { return this.o.optionsOpen(); }
+    try { return this.o.doc.defaultView!.localStorage.getItem(OPT_FOLD_KEY) !== '1'; } catch (e) { return true; }
   }
 
   start(): void {
@@ -81,11 +94,13 @@ export class ChatFrontend {
     const win = this.o.doc.defaultView as Window & typeof globalThis;
     this.observer = new win.MutationObserver(() => this.schedule());
     this.observer.observe(chat, { childList: true, subtree: true, characterData: true });
+    /* 显示面板改了「行动选项默认 / 填入发送」：其他标签页或面板写 localStorage 时跟上（同一页面里由调用方 refresh） */
+    try { win.addEventListener('storage', this.onStorage); } catch (e) { /* 没有 storage 事件 */ }
     this.scan();
   }
 
-  /** 外部事件（生成结束、切换回复、编辑完成……）也可以直接要一次重画 */
-  refresh(): void { this.schedule(); }
+  /** 外部事件（生成结束、切换回复、编辑完成……）也可以直接要一次重画；设置变了（选项模式等）也走这里 */
+  refresh(): void { this.reloadMode(); this.schedule(); }
 
   private schedule(): void {
     if (this.scheduled) { return; }
@@ -115,12 +130,13 @@ export class ChatFrontend {
       if (!m) { m = this.mount(id, mes); if (!m) { continue; } }
       const streaming = generating && id === lastId;
       /* 只在原文 / 最新 / 生成状态变了时重画（观察器每个流式片段都会叫一次） */
-      const key = msg.mes.length + ':' + msg.mes.slice(-64) + '|' + (id === latest) + '|' + streaming + '|' + this.mode;
+      const optOpen = this.optionsOpen();
+      const key = msg.mes.length + ':' + msg.mes.slice(-64) + '|' + (id === latest) + '|' + streaming + '|' + this.mode + '|' + optOpen;
       if (key === m.last) { continue; }
       m.last = key;
       this.paints++;
       m.render(<MessageView raw={msg.mes} streaming={streaming} latest={id === latest} mode={this.mode}
-        onMode={(v) => this.setMode(v)} onPick={this.o.onPick} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} />);
+        onMode={(v) => this.setMode(v)} onPick={this.o.onPick} optionsOpen={optOpen} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} />);
     }
   }
 
@@ -171,6 +187,7 @@ export class ChatFrontend {
 
   stop(): void {
     if (this.observer) { this.observer.disconnect(); this.observer = null; }
+    try { this.o.doc.defaultView!.removeEventListener('storage', this.onStorage); } catch (e) { /* 已卸载 */ }
     for (const [id, m] of Array.from(this.mounted)) { this.unmount(id, m); }
     const st = this.o.doc.getElementById(STYLE_ID);
     if (st) { st.remove(); }

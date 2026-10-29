@@ -106,8 +106,8 @@
 [data-k="msg-think"][data-streaming] > [data-k-part="head"] > [data-k-part="toggle"] { color: var(--k-on); }
 
 [data-k="msg-options"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .06em; }
-[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid transparent; }
-[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:active { transform: scale(.995); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid transparent; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]:active { transform: scale(.995); }
 @media (hover: hover) and (pointer: fine) {
-  [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:hover { box-shadow: 0 0 0 1px var(--k-focus-ring); }
+  [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]:hover { box-shadow: 0 0 0 1px var(--k-focus-ring); }
 }

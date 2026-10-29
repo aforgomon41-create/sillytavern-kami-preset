@@ -1,13 +1,15 @@
 /**
- * 皮肤管理面板（新前端）。界面上的每一项都由皮肤包清单（skin.json）生成，面板本身不认识任何一套具体皮肤：
+ * 显示面板（新前端；原「皮肤管理」，用户 2026-10-29 改名：**总管所有前端与显示的事情**）。
+ * 皮肤部分：界面上的每一项都由皮肤包清单（skin.json）生成，面板本身不认识任何一套具体皮肤：
  *   · 皮肤列表：每套皮肤一张选择卡，缩略图按它自己的每档配色实时推导（和真正套上时同一套令牌引擎）
  *   · 配色：「跟随系统」+ 清单里的每一档（浅色 / 深色 / 额外配色的 name）
  *   · 特效：清单 effects，按 group 分组，每项一句说明
  *   · 参数：清单 params，按 group 分组；number → 滑杆（带单位），enum → 分段 / 下拉，color → 取色
  *   · 显示（对所有皮肤生效）：动效、密度、字号
  * 所有改动都交给 SkinManager（设置按皮肤分别保存、立即套用到所有渲染面），面板只是它的界面。
- * 「角色名样式」「正文前端开关」「行动选项默认展开」不是皮肤设置，不放在这里（旧界面盘点第三节）。
- * 电脑：左边皮肤列表、右边当前皮肤的设置；手机（≤1000px）：皮肤 / 外观 / 特效三个页签，左右滑动切换。
+ * 消息部分（用户 2026-10-29 定：放这里）：角色名样式、行动选项默认展开 / 收起、点选项时填入还是发送。
+ *   这些设置的存放处各不相同（酒馆全局变量 / localStorage），面板不直接碰，由调用方传读写适配器（DisplayPrefs）；没传的项显示「脚本未运行」。
+ * 电脑：左边皮肤列表、右边外观 / 消息 / 特效；手机（≤1000px）：皮肤 / 外观 / 消息 / 特效与参数四个页签，左右滑动切换。
  */
 import * as React from 'react';
 import { createPortal } from 'react-dom';
@@ -18,8 +20,19 @@ import {
   Badge, Button, Card, ChoiceCard, DS_CSS, LevelProvider, ChoiceGrid, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection, Slider, Switch, Tabs, TextField, Toast
 } from '../ds';
 
-export interface SkinPanelProps {
+/** 非皮肤的显示设置：每项一对读写函数，set 返回 false 表示写不进去（面板提示、不改显示） */
+export interface DisplayPrefs {
+  /** 角色名样式（35 号脚本的 KamiNameWrap：酒馆全局变量 kami_name_wrap） */
+  nameWrap?: { modes: Array<{ id: string; label: string; demo: string }>; get: () => string; set: (id: string) => boolean };
+  /** 行动选项默认收起（localStorage kami.options.folded，'1' = 收起；消息前端同一个键） */
+  optionsFolded?: { get: () => boolean; set: (v: boolean) => boolean };
+  /** 点行动选项时：填入 / 发送（localStorage kami-option-mode；消息里的切换按钮改的是同一个） */
+  optionMode?: { get: () => 'fill' | 'send'; set: (v: 'fill' | 'send') => boolean };
+}
+
+export interface DisplayPanelProps {
   manager: SkinManager;
+  prefs?: DisplayPrefs;
   onClose: () => void;
   /** 窄屏判断（默认 ≤1000px，和预设设置面板一致） */
   compactQuery?: string;
@@ -271,6 +284,28 @@ function Effects({ mgr, st, m, notify }: Ctx): React.JSX.Element {
   );
 }
 
+/* ───────── 消息（非皮肤的显示设置） ───────── */
+
+const NAME_WRAP_NOTE = '更改角色名外面的包裹符号，切换后立刻对新生成的回复生效。';   /* 与引导同一句（design/copy/guide-copy.json nameWrapBody） */
+
+function MessagePrefs({ prefs, notify }: { prefs: DisplayPrefs; notify: Ctx['notify'] }): React.JSX.Element {
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
+  const off = <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>脚本未运行</span>;
+  const write = (ok: boolean): void => { if (!ok) { notify('写不进去，设置没变。'); } force(); };
+  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode;
+  const cur = nw ? nw.modes.find((m) => m.id === nw.get()) : undefined;
+  return (
+    <SettingSection title="消息" badge={<Badge>所有皮肤</Badge>}>
+      <SettingRow label="角色名样式" description={NAME_WRAP_NOTE + (cur ? '（现在：' + cur.demo + '）' : '')}
+        control={nw ? <Segmented label="角色名样式" size="sm" options={nw.modes.map((m) => ({ value: m.id, label: m.label }))} value={nw.get()} onValueChange={(v) => write(nw.set(v))} /> : off} />
+      <SettingRow label="行动选项默认" description="行动选项在消息里的默认状态。选项头部随时可以单独展开或收起。"
+        control={of ? <Segmented label="行动选项默认" size="sm" options={[{ value: 'open', label: '展开' }, { value: 'folded', label: '收起' }]} value={of.get() ? 'folded' : 'open'} onValueChange={(v) => write(of.set(v === 'folded'))} /> : off} />
+      <SettingRow label="点选项时" description="填进输入框（接在已有内容后面），还是直接发送。消息里的切换按钮改的是同一个设置。"
+        control={om ? <Segmented label="点选项时" size="sm" options={[{ value: 'fill', label: '填入' }, { value: 'send', label: '发送' }]} value={om.get()} onValueChange={(v) => write(om.set(v as 'fill' | 'send'))} /> : off} />
+    </SettingSection>
+  );
+}
+
 /** 标题栏的快速切换（用户 2026-10-29 要求）：不用翻列表，下拉直接换；同样可撤销 */
 function QuickPick({ mgr, st, notify }: { mgr: SkinManager; st: StoredSettings; notify: Ctx['notify'] }): React.JSX.Element {
   return (
@@ -286,7 +321,7 @@ function QuickPick({ mgr, st, notify }: { mgr: SkinManager; st: StoredSettings; 
   );
 }
 
-export function SkinPanel({ manager: mgr, onClose, compactQuery = '(max-width: 1000px)', defaultSize = { w: 960, h: 760 } }: SkinPanelProps): React.JSX.Element {
+export function DisplayPanel({ manager: mgr, prefs = {}, onClose, compactQuery = '(max-width: 1000px)', defaultSize = { w: 960, h: 760 } }: DisplayPanelProps): React.JSX.Element {
   const st = useManager(mgr);
   const compact = useMatch(compactQuery);
   const m = mgr.current.manifest;
@@ -302,17 +337,18 @@ export function SkinPanel({ manager: mgr, onClose, compactQuery = '(max-width: 1
   const [tab, setTab] = React.useState('skins');
   const cols = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignContent: 'start' } as const;
   return (
-    <Panel title="皮肤" actions={<QuickPick mgr={mgr} st={st} notify={notify} />} onClose={onClose} defaultSize={defaultSize}>
+    <Panel title="显示" actions={<QuickPick mgr={mgr} st={st} notify={notify} />} onClose={onClose} defaultSize={defaultSize}>
       {compact ? (
-        <Tabs label="皮肤设置" swipe sticky value={tab} onValueChange={setTab} items={[
+        <Tabs label="显示设置" swipe sticky value={tab} onValueChange={setTab} items={[
           { value: 'skins', label: '皮肤', content: <div style={cols}><SkinList {...ctx} compact /></div> },
           { value: 'look', label: '外观', content: <div style={cols}><Appearance {...ctx} /></div> },
+          { value: 'msg', label: '消息', content: <div style={cols}><MessagePrefs prefs={prefs} notify={notify} /></div> },
           { value: 'fx', label: '特效与参数', content: <div style={cols}><Effects {...ctx} /></div> }
         ]} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 340px) minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
           <div style={cols}><SkinList {...ctx} compact={false} /></div>
-          <div style={cols}><Appearance {...ctx} /><Effects {...ctx} /></div>
+          <div style={cols}><Appearance {...ctx} /><MessagePrefs prefs={prefs} notify={notify} /><Effects {...ctx} /></div>
         </div>
       )}
       {toast ? <Toast key={toast.n} message={toast.msg} {...(toast.undo ? { action: '撤销', onAction: () => { const u = toast.undo!; setToast(null); u(); } } : {})} onClose={() => setToast(null)} /> : null}

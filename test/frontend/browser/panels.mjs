@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * 工具箱与引导预览：node test/frontend/browser/panels.mjs（需先 node build/frontend/build-preview.mjs）
- *   工具箱：三个页签；只有开着的功能才显示参数；清除数据要点两次；搜索来源 / 限额由旧系统的目录与字段生成；
+ *   工具箱：四个页签都带图标（含「更新」：检查更新 → 进度弹窗失败可重试 → 完成；继承旧预设 → 逐条裁决）；大总结分块进度；手动搜索弹窗；
+ *           只有开着的功能才显示参数；清除数据要点两次；搜索来源 / 限额由旧系统的目录与字段生成；
  *           换来源后显示该来源需要的项（密钥 / 服务地址 / 百科语言）；常驻指令内容为空时打不开；标签处理有确认窗
  *   引导：免责声明确认前走不了；选皮肤立即套用；选的模型出现在完成页；每一步两档配色的实际对比度；窄屏不横向溢出
  */
@@ -33,8 +34,14 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   let errors = []; page.on('pageerror', (e) => errors.push(String(e)));
   const URL0 = base + '/design/previews/toolbox/index.html';
   await page.goto(URL0); await page.waitForTimeout(700);
-  const tabs = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].map((t) => t.textContent));
-  ok(tabs.join() === '压缩,网络搜索,其他功能', '三个页签：压缩 / 网络搜索 / 其他功能', tabs);
+  const tabs = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].map((t) => ({ t: t.textContent, svg: !!t.querySelector('svg') })));
+  ok(tabs.map((x) => x.t).join() === '压缩,网络搜索,其他功能,更新' && tabs.every((x) => x.svg), '四个页签（含更新），每个都带图标', tabs);
+  /* 大总结：分块进度条 */
+  await clickText(page, '[data-k="button"]', '^立即大总结$'); await page.waitForTimeout(300);
+  const gp = await inLayer(page, (r) => { const g = r.querySelector('[data-grand-progress]'); return g ? { bar: !!g.querySelector('[data-k="progress"][role="progressbar"]'), t: g.textContent } : null; });
+  ok(gp && gp.bar && /正在总结第 1 \/ 3 块/.test(gp.t), '立即大总结：出现分块进度', gp);
+  await page.waitForTimeout(3300);
+  ok(/大总结完成/.test(await inLayer(page, (r) => (r.querySelector('[data-k="toast"]') || {}).textContent || '')) && !(await inLayer(page, (r) => !!r.querySelector('[data-grand-progress]'))), '跑完：进度条收起，提示条报结果');
   /* 压缩：只有开着的模式显示参数 */
   let t = await text(page);
   ok(t.includes('超限压缩参数') && !t.includes('滚动压缩参数'), '默认只开超限压缩：只显示它的参数');
@@ -43,7 +50,7 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   ok(t.includes('滚动压缩参数') && t.includes('起始深度 20'), '开滚动压缩：出现它的参数，卡片显示当前深度');
   await clickText(page, '[data-k="button"]', '^清除压缩数据$'); await page.waitForTimeout(100);
   t = await text(page);
-  ok(t.includes('再点一次确认') && !(await inLayer(page, (r) => !!r.querySelector('[data-k="toast"]'))), '清除压缩数据：第一次只变成「再点一次确认」');
+  ok(t.includes('再点一次确认') && !/已清除/.test(await inLayer(page, (r) => (r.querySelector('[data-k="toast"]') || {}).textContent || '')), '清除压缩数据：第一次只变成「再点一次确认」');
   await clickText(page, '[data-k="button"]', '^再点一次确认$'); await page.waitForTimeout(150);
   ok(/已清除本聊天的压缩数据/.test(await inLayer(page, (r) => (r.querySelector('[data-k="toast"]') || {}).textContent || '')), '第二次才执行，提示条说明结果');
   await clickText(page, '[data-k="segmented"] [data-k-part="item"]', '^自定义接口$'); await page.waitForTimeout(150);
@@ -76,6 +83,41 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   t = await text(page);
   ok(!t.includes('搜索来源') && !t.includes('自动搜索限额'), '关掉搜索能力：只剩开关');
 
+  /* 手动搜索弹窗 */
+  await page.goto(URL0 + '?tab=search'); await page.waitForTimeout(600);
+  await clickText(page, '[data-k="button"]', '^手动搜索$'); await page.waitForTimeout(300);
+  const dlgText = () => inLayer(page, (r) => { const d = [...r.querySelectorAll('[role="dialog"]')].filter((x) => !x.matches('[data-k="panel"]')).pop(); return d ? d.textContent : ''; });
+  const confirmDisabled = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="button"]')].find((b) => b.textContent === '确认并搜索').disabled);
+  ok(confirmDisabled && /这次想查什么/.test(await dlgText()), '手动搜索：没填要求时「确认并搜索」点不了');
+  await inLayer(page, (r) => { const ta = [...r.querySelectorAll('textarea')].find((t) => t.getAttribute('aria-label') === '本次搜索要求'); ta.focus(); });
+  await page.keyboard.type('港口城市的地理'); await page.waitForTimeout(100);
+  await clickText(page, '[data-k="button"]', '^确认并搜索$'); await page.waitForTimeout(400);
+  const ms1 = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="steps"] > [data-k-part="item"]')].map((i) => i.getAttribute('data-state')));
+  ok(ms1[0] === 'current' && /手动搜索进行中/.test(await dlgText()), '开始后按四个步骤走', ms1);
+  await page.waitForTimeout(4200);
+  ok(/手动搜索已完成/.test(await dlgText()), '跑完显示「手动搜索已完成」');
+  await clickText(page, '[data-k="button"]', '^关闭$'); await page.waitForTimeout(200);
+
+  /* 更新页：检查更新 → 进度弹窗（预览默认第一次下载失败）→ 重试 → 完成 */
+  await page.goto(URL0 + '?tab=update'); await page.waitForTimeout(600);
+  t = await text(page);
+  ok(['酒馆版本', '酒馆助手', '预设版本', '检查更新', '继承旧预设设置'].every((x) => t.includes(x)), '更新页：版本信息、检查更新、继承旧预设');
+  await clickText(page, '[data-k="button"]', '^检查更新$'); await page.waitForTimeout(900);
+  await clickText(page, '[data-k="button"]', '^立即更新$'); await page.waitForTimeout(2600);
+  let up = await dlgText();
+  ok(/更新失败/.test(up) || /几条下载通道都试不通/.test(up), '下载失败：弹窗留在原地说原因', up.slice(0, 80));
+  await clickText(page, '[data-k="button"]', '^重试$'); await page.waitForTimeout(4500);
+  up = await dlgText();
+  ok(/更新完成/.test(up) && /第1次重试/.test(up), '重试后完成，标出第几次重试', up.slice(0, 120));
+  await clickText(page, '[data-k="button"]', '^关闭$'); await page.waitForTimeout(200);
+  await clickText(page, '[data-k="button"]', '^继承$'); await page.waitForTimeout(300);
+  const doneBtn = () => inLayer(page, (r) => [...r.querySelectorAll('[data-k="button"]')].find((b) => b.textContent === '完成').disabled);
+  ok(await doneBtn(), '逐条裁决：没选完不能完成');
+  await clickText(page, '[data-k="button"]', '^全部保留我的$'); await page.waitForTimeout(150);
+  ok(!(await doneBtn()), '「全部保留我的」后可以完成');
+  await clickText(page, '[data-k="button"]', '^完成$'); await page.waitForTimeout(250);
+  ok((await text(page)).includes('这一份继承自kami-v0.92-100'), '完成后记下继承自哪一份');
+
   /* 其他功能 */
   await page.goto(URL0 + '?tab=other'); await page.waitForTimeout(600);
   t = await text(page);
@@ -92,17 +134,42 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   /* 对比度：每个页签 × 两档配色 */
   const bad = []; let checked = 0;
   for (const scheme of ['light', 'dark']) {
-    for (const tab of ['compress', 'search', 'other']) {
+    for (const tab of ['compress', 'search', 'other', 'update']) {
       await page.goto(URL0 + '?scheme=' + scheme + '&tab=' + tab); await page.waitForTimeout(450);
       checked += await audit(page, scheme + '/' + tab, bad);
       if (await overflow(page)) { bad.push(scheme + '/' + tab + ' 横向溢出'); }
     }
   }
-  ok(bad.length === 0 && checked > 200, '对比度与溢出：3 页签 × 2 档共 ' + checked + ' 处', bad.slice(0, 3));
+  ok(bad.length === 0 && checked > 200, '对比度与溢出：4 页签 × 2 档共 ' + checked + ' 处', bad.slice(0, 3));
   ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
   await page.close();
 
   /* ───────── 引导 ───────── */
+  /* 预设设置：「关于」挪走了；写作指导页有自定义文风（新增 → 待保存 → 保存） */
+  console.log('\n── 预设设置 · ' + label);
+  page = await ctx.newPage();
+  errors = []; page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(base + '/design/previews/preset-panel/index.html'); await page.waitForTimeout(700);
+  const navT = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="nav"] [data-k-part="item"], [data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].map((x) => x.textContent));
+  ok(!navT.some((x) => /关于/.test(x)) && navT.some((x) => /写作指导/.test(x)), '预设设置不再有「关于」', navT);
+  if (opts.isMobile) { await inLayer(page, (r) => [...r.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].find((x) => /写作指导/.test(x.textContent)).focus()); }
+  else { await clickText(page, '[data-k="nav"] [data-k-part="item"]', '写作指导'); }
+  await page.waitForTimeout(300);
+  ok((await text(page)).includes('自定义文风') && (await text(page)).includes('冷硬派'), '写作指导页有自定义文风');
+  await clickText(page, '[data-k="setting-section"] [data-k="button"]', '^新增$'); await page.waitForTimeout(300);
+  await inLayer(page, (r) => { const i = [...r.querySelectorAll('input')].find((x) => x.placeholder === '给文风起个名字'); i.focus(); });
+  await page.keyboard.type('水墨'); await clickText(page, '[data-k="button"]', '^确定$'); await page.waitForTimeout(250);
+  t = await text(page);
+  ok(t.includes('水墨') && t.includes('待保存') && t.includes('有改动还没保存'), '新增一条：标「待保存」，分组标「有改动还没保存」');
+  await clickText(page, '[data-k="setting-section"] [data-k="button"]', '^保存$'); await page.waitForTimeout(200);
+  t = await text(page);
+  ok(t.includes('水墨') && !t.includes('待保存'), '保存后归为已保存');
+  const bad3 = [];
+  const c3 = await audit(page, '写作指导', bad3);
+  ok(bad3.length === 0 && c3 > 30, '写作指导页对比度：' + c3 + ' 处', bad3);
+  ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
+  await page.close();
+
   console.log('\n── 引导 · ' + label);
   page = await ctx.newPage();
   errors = []; page.on('pageerror', (e) => errors.push(String(e)));

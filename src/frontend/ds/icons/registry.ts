@@ -8,7 +8,7 @@ import {
   Gem, Ghost, Globe, HandFist, Heart, HeartHandshake, HelpCircle, Info, Languages, Laugh, Layers, Library, Map as MapIcon, MessageCircle,
   MessagesSquare, Moon, MoonStar, Mountain, Orbit, Palette, Pen, PenLine, Pin, Puzzle, RefreshCw, ScrollText, Search, Settings, Shield,
   Shuffle, Skull, SlidersHorizontal, Slice, Smile, Sparkle, Sparkles, Swords, Target, Telescope, Theater, Video, Volume2, Waves, Wrench, X,
-  Zap, Lamp, Users, LetterText, Sword, Rabbit, Squirrel, Bird, CloudRain, Sun, Star, Tv, Music, Hourglass, Lightbulb, Lock, Flag, Glasses
+  Zap, Lamp, Archive, Download, Users, LetterText, Sword, Rabbit, Squirrel, Bird, CloudRain, Sun, Star, Tv, Music, Hourglass, Lightbulb, Lock, Flag, Glasses
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export const ICONS: Record<string, IconComponent> = {
   mountain: Mountain, orbit: Orbit, palette: Palette, pen: Pen, 'pen-line': PenLine, pin: Pin, puzzle: Puzzle, refresh: RefreshCw, scroll: ScrollText,
   search: Search, settings: Settings, shield: Shield, shuffle: Shuffle, skull: Skull, sliders: SlidersHorizontal, knife: Slice, smile: Smile,
   sparkle: Sparkle, sparkles: Sparkles, swords: Swords, sword: Sword, target: Target, telescope: Telescope, theater: Theater, video: Video,
-  volume: Volume2, waves: Waves, wrench: Wrench, x: X, zap: Zap, lamp: Lamp, users: Users, letters: LetterText, rabbit: Rabbit, squirrel: Squirrel,
+  volume: Volume2, archive: Archive, download: Download, waves: Waves, wrench: Wrench, x: X, zap: Zap, lamp: Lamp, users: Users, letters: LetterText, rabbit: Rabbit, squirrel: Squirrel,
   bird: Bird, rain: CloudRain, sun: Sun, star: Star, tv: Tv, music: Music, hourglass: Hourglass, idea: Lightbulb, lock: Lock, flag: Flag, glasses: Glasses
 };
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 皮肤管理面板：node test/frontend/browser/skin-panel.mjs（需先 node build/frontend/build-preview.mjs）
+ * 显示面板（原皮肤管理）：node test/frontend/browser/display-panel.mjs（需先 node build/frontend/build-preview.mjs）
  * 在预览（真的 SkinManager + 运行库）上验证：
  *   ① 界面由清单生成：皮肤卡数 = 登记的皮肤数，配色选项 = 跟随系统 + 清单每一档，特效 / 参数行数 = 清单项数
  *   ② 换皮肤立即套到面板自己身上，提示条可撤销；配色、动效、密度写进设置并套用
@@ -19,7 +19,7 @@ const { server, base } = serve(ROOT);
 let pass = 0, fail = 0;
 const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'PASS  ' : 'FAIL  ') + l + (!c && x !== undefined ? '  ← ' + JSON.stringify(x) : '')); };
 const b = await chromium.launch();
-const URL0 = base + '/design/previews/skin-panel/index.html';
+const URL0 = base + '/design/previews/display-panel/index.html';
 const inLayer = (page, fn, arg) => page.evaluate(([src, arg]) => (0, eval)('(' + src + ')')(document.querySelector('kami-layer').shadowRoot, arg), [fn.toString(), arg]);
 const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('kami-skin-preview') || 'null'));
 const CARD = '[data-k="card"][data-role="choice"]';
@@ -57,7 +57,7 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   await tab(1);
   const seg = await inLayer(page, () => [...[...document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="segmented"]')][0].querySelectorAll('[data-k-part="item"]')].map((i) => i.textContent));
   ok(seg.length === shape.schemes + 1 && seg[0] === '跟随系统', '配色选项 = 跟随系统 + 清单每一档', seg);
-  await tab(2);
+  await tab(3);
   const rows = await inLayer(page, () => ({ sw: document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="setting-row"] [data-k="switch"]').length, sl: [...document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="setting-row"] [role="slider"]')].map((s) => s.getAttribute('aria-label')) }));
   ok(rows.sw === shape.effects, '特效开关数 = 清单特效数', rows);
   ok(rows.sl.filter((x) => x !== '字号').length === shape.params, '参数滑杆数 = 清单参数数', rows);
@@ -110,7 +110,7 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   ok(Math.abs(st.global.fontScale - (fs0 + 0.1)) < 1e-9 && fsAria === '110%', '字号：方向键两下 = +10%，读屏文字是百分比', { fs: st.global.fontScale, fsAria });
   await page.keyboard.press('End'); await page.waitForTimeout(120);
   ok((await stored(page)).global.fontScale === 1.4, 'End 到最大值 140%');
-  await tab(2);
+  await tab(3);
   const r0 = await inLayer(page, (r) => getComputedStyle(r.querySelector('[data-k-surface]')).getPropertyValue('--k-r-md').trim());
   const box = await inLayer(page, (r) => { const s = [...r.querySelectorAll('[role="slider"]')].find((x) => x.getAttribute('aria-label') === '圆角'); s.scrollIntoView({ block: 'center' }); const t = s.parentElement.getBoundingClientRect(); return { x: t.left, y: t.top + t.height / 2, w: t.width }; });
   await page.mouse.move(box.x + box.w * 0.5, box.y);
@@ -140,6 +140,18 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   const reload = await inLayer(page, (r) => ({ mode: r.querySelector('[data-k-surface]').getAttribute('data-k-mode'), density: r.querySelector('[data-k-surface]').getAttribute('data-k-density') }));
   ok(reload.mode === 'dark' && reload.density === 'compact', '刷新后设置还在', reload);
 
+  /* 消息设置（非皮肤）：角色名样式 / 行动选项默认 / 点选项时，写进各自的存放处 */
+  await tab(2);
+  const segOf = (label) => inLayer(page, (r, l) => { const s = [...r.querySelectorAll('[data-k="segmented"]')].find((x) => x.getAttribute('aria-label') === l); return s ? [...s.querySelectorAll('[data-k-part="item"]')].map((i) => ({ t: i.textContent, on: i.getAttribute('data-state') === 'on' })) : null; }, label);
+  const clickSeg = (label, text) => inLayer(page, (r, [l, t]) => { const s = [...r.querySelectorAll('[data-k="segmented"]')].find((x) => x.getAttribute('aria-label') === l); [...s.querySelectorAll('[data-k-part="item"]')].find((i) => i.textContent === t).click(); }, [label, text]);
+  const nw = await segOf('角色名样式');
+  ok(nw && nw.map((x) => x.t).join() === '反引号,双下划线,无包裹' && nw[0].on, '角色名样式三档，默认反引号', nw);
+  await clickSeg('角色名样式', '双下划线'); await clickSeg('行动选项默认', '收起'); await clickSeg('点选项时', '发送');
+  await page.waitForTimeout(150);
+  const lsv = await page.evaluate(() => [localStorage.getItem('kami-preview-name-wrap'), localStorage.getItem('kami.options.folded'), localStorage.getItem('kami-option-mode')]);
+  const desc = await inLayer(page, () => document.querySelector('kami-layer').shadowRoot.textContent.includes('现在：__角色名__'));
+  ok(lsv.join() === 'ul,1,send' && desc, '消息设置写进各自的键（与消息前端同一个），说明里显示当前样式', { lsv, desc });
+
   /* ⑤ 对比度：每套皮肤 × 每档配色（预览是一个面板，审计整个浮层） */
   await page.goto(URL0 + '?reset=1'); await page.waitForTimeout(700);
   const combos = await page.evaluate(() => window.__mgr.list().flatMap((m) => Object.keys(m.schemes).map((s) => [m.id, s])));
@@ -147,7 +159,7 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   for (const [skin, scheme] of combos) {
     await page.evaluate(([k, s]) => { window.__mgr.select(k); window.__mgr.setScheme(s); }, [skin, scheme]);
     await page.waitForTimeout(150);
-    for (const i of mobile ? [0, 1, 2] : [0]) {
+    for (const i of mobile ? [0, 1, 2, 3] : [0]) {
       await tab(i);
       const a = await page.evaluate(auditInPage, null);
       checked += a.checked; if (a.failures.length) { bad.push(skin + '/' + scheme + '#' + i + ': ' + JSON.stringify(a.failures.slice(0, 2))); }

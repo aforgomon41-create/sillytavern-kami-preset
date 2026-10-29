@@ -100,16 +100,17 @@
 [data-k="msg-view"] > * { min-width: 0; }
 
 /* 折叠外壳（思维链 / 搜索资料）：行高 0fr ↔ 1fr 过渡，收起也有动画；收完再藏起来（visibility 延后切换），动效关闭时由上面的规则变成瞬间 */
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] {
+:is([data-k="msg-think"], [data-k="msg-search"], [data-k="msg-options"]) > [data-k-part="fold"] {
   display: grid; grid-template-rows: 0fr; visibility: hidden;
   transition: grid-template-rows var(--k-dur-slow) var(--k-ease-out), visibility 0s linear var(--k-dur-slow);
 }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"][data-state="open"] {
+:is([data-k="msg-think"], [data-k="msg-search"], [data-k="msg-options"]) > [data-k-part="fold"][data-state="open"] {
   grid-template-rows: 1fr; visibility: visible;
   transition: grid-template-rows var(--k-dur-slow) var(--k-ease-out), visibility 0s;
 }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] { min-height: 0; overflow: hidden; }
+:is([data-k="msg-think"], [data-k="msg-search"], [data-k="msg-options"]) > [data-k-part="fold"] > [data-k-part="body"] { min-height: 0; overflow: hidden; }
 [data-k="card"][data-role="collapse"] > [data-k-part="body"] { overflow: hidden; }
 
 /* 分段控件直接放在设置分组里时按内容宽度，不被网格拉满（拉满后选项挤在左边、右边一大片空槽） */
 [data-k="setting-section"] > [data-k-part="body"] > [data-k="segmented"] { justify-self: start; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] { min-height: 0; overflow: hidden; }

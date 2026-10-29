@@ -89,7 +89,9 @@ for (let n = 0; n < 9; n++) {
   if (!(await inView())) { allVisible = false; }
 }
 ok(allVisible, '连续向左翻页：当前页签始终在页签条可见范围内');
-ok((await active()) === '关于', '翻到最后一页后停住（不循环）', await active());
+/* 最后一页 = 页签条里的最后一个（「关于」2026-10-29 挪去工具箱后是预设里的最后一页） */
+const lastTab = await page.evaluate(() => { const t = [...document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')]; return t[t.length - 1].textContent; });
+ok((await active()) === lastTab, '翻到最后一页后停住（不循环）', { now: await active(), lastTab });
 for (let n = 0; n < 9; n++) { await touchPath(Array.from({ length: 8 }, (_, i) => [70 + i * 30, y])); await page.waitForTimeout(300); }
 ok((await inView()) && (await active()) === t0, '向右翻回第一页，页签条也滚回来');
 

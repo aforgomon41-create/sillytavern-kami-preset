@@ -68,7 +68,7 @@ const inHost = (fn, arg, n = -1) => page.evaluate(([src, arg, n]) => {
   const h = hs[n < 0 ? hs.length + n : n];
   return h ? (0, eval)('(' + src + ')')(h.shadowRoot, arg) : null;
 }, [fn.toString(), arg, n]);
-const ITEM = '[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]';
+const ITEM = '[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const state = () => page.evaluate(() => {
   const ctx = window.SillyTavern.getContext();
   const aiMes = [...document.querySelectorAll('#chat .mes[mesid]')].filter((m) => m.getAttribute('is_user') !== 'true' && m.getAttribute('is_system') !== 'true');
