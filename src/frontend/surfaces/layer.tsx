@@ -25,8 +25,11 @@ export interface Layer {
 }
 
 const HOST_STYLE: Record<string, string> = {
-  position: 'fixed', inset: '0', width: '100%', height: '100%', margin: '0', padding: '0', border: '0',
-  'pointer-events': 'none', 'z-index': '2147482000', display: 'block', background: 'transparent', transform: 'none'
+  /* 高度用视口单位而不是 100%：酒馆手机版给 <html> 设了 transform 且 <html> 高 0，fixed 元素的包含块变成 <html>，
+     100% / inset:0 都会算成 0 高，贴底抽屉整块跑到屏幕上方（2026-10-29 实机抓到）。下面再试 dvh（地址栏伸缩时更准） */
+  position: 'fixed', top: '0', left: '0', right: '0', bottom: 'auto', width: '100%', height: '100vh', margin: '0', padding: '0', border: '0',
+  /* transform 让宿主自己成为里面 fixed 元素（贴底抽屉、对话框遮罩、碎光层）的包含块：不然它们又会去对齐酒馆手机版那个 0 高的 <html> */
+  'pointer-events': 'none', 'z-index': '2147482000', display: 'block', background: 'transparent', transform: 'translateZ(0)'
 };
 
 export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, string> = {}, onRoot?: (root: ShadowRoot) => () => void, icons: () => Record<string, string> = () => ({})): Layer {
@@ -35,6 +38,7 @@ export function createLayer(doc: Document, hub: StyleHub, attrs: Record<string, 
   const host = doc.createElement('kami-layer');
   host.setAttribute('data-k-host', 'layer');
   for (const [p, v] of Object.entries(HOST_STYLE)) { host.style.setProperty(p, v, 'important'); }
+  host.style.setProperty('height', '100dvh', 'important');   /* 不支持 dvh 的浏览器会忽略这一条，留着上面的 100vh */
   const shadow = host.attachShadow({ mode: 'open' });
   const detach = hub.attach(shadow);
   const root = doc.createElement('div');

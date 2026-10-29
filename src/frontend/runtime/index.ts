@@ -17,6 +17,8 @@ import { ChatFrontend, type ChatFrontendOptions } from '../message/tavern';
 import { FALLBACK_SKIN } from './fallback-skin';
 import { Fracture } from '../fx/fracture';
 import { loadFonts, probeImage, type LoadState } from './remote';
+import { SkinManager } from '../skin-engine/manager';
+import { DisplayPanel, SkinChoices } from '../panels/display-panel';
 
 export const VERSION = '2.0.0-alpha.1';
 
@@ -37,6 +39,10 @@ export interface Runtime {
   messages(o: Omit<MessageMountOptions, 'hub' | 'doc' | 'attrs'> & { doc?: Document }): MessageMounts;
   /** 酒馆聊天前端：每条 AI 回复由我们渲染（正文 / 思维链 / 搜索资料 / 行动选项），见 message/tavern.tsx */
   chatFrontend(o: Omit<ChatFrontendOptions, 'hub' | 'doc' | 'attrs' | 'icons' | 'onRoot'> & { doc?: Document }): ChatFrontend;
+  /** 皮肤管理器（设置按皮肤分别保存，变化交给 applySkin）；由「🧪 显示」脚本实例化 */
+  SkinManager: typeof SkinManager;
+  /** 现成的面板（脚本用 React.createElement 挂到 layer() 上） */
+  panels: { DisplayPanel: typeof DisplayPanel; SkinChoices: typeof SkinChoices };
   engine: { resolveScheme: typeof resolveScheme; auditScheme: typeof auditScheme; validateManifest: typeof validateManifest; composeSkin: typeof composeSkin; nthTag: typeof nthTag };
   dispose(): void;
 }
@@ -118,6 +124,8 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       mounts.add(cf);
       return cf;
     },
+    SkinManager,
+    panels: { DisplayPanel, SkinChoices },
     engine: { resolveScheme, auditScheme, validateManifest, composeSkin, nthTag },
     dispose() {
       for (const mm of mounts) { mm.stop(); }

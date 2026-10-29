@@ -2,7 +2,7 @@
  * ------------------------------------------------------------------
  * 用新运行库（KamiRuntimeNext）的 chatFrontend 渲染每条 AI 回复：正文 / 思维链 / 搜索资料 / 行动选项（前端重构-消息前端方案，用户拍板 A–F）。
  * 取代旧的「📄 正文外壳」与「💭 思维链」：支线上「💭 思维链」默认关闭；正文外壳与旧的正则前端还在 .mes_text 里，但 .mes_text 被藏起来，看不到。
- * 皮肤：新皮肤管理还没做，先固定用内置的「碎光」，跟随系统明暗。
+ * 皮肤：由「🧪 显示」脚本管（2026-10-29 接入）；它没开时先用内置的「碎光」，跟随系统明暗。
  * 关闭 / 删除本脚本：pagehide 时 stop()——宿主节点、标记、宿主样式全部移除，酒馆恢复原样。
  */
 (function () {
@@ -56,8 +56,11 @@
 
   function boot(rt) {
     if (disposed) { return; }
+    /* 皮肤归「🧪 显示」管（它记住用户选的皮肤）；它没在运行、运行库还是兜底皮肤时，才先套内置的「碎光」 */
     var skin = (SKINS_NEXT || []).filter(function (s) { return s.manifest && s.manifest.id === 'suiguang'; })[0];
-    if (skin) {
+    var managed = false;
+    try { managed = !!(HOST.KamiDisplay && HOST.KamiDisplay.alive()) || rt.current().attrs['data-k-skin'] !== 'fallback'; } catch (e) { managed = false; }
+    if (skin && !managed) {
       try { rt.applySkin(skin.manifest, { scheme: 'auto', density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss: skin.css, assetUrls: skin.assetUrls }); }
       catch (e) { log('套皮肤失败，用运行库内置兜底：' + e.message); }
     }

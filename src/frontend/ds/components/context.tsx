@@ -52,3 +52,26 @@ export const Surface = React.forwardRef<HTMLDivElement, DivProps & { level?: Lev
 export type SwipeStep = (dir: 1 | -1) => void;
 export const SwipeHostContext = React.createContext<React.MutableRefObject<SwipeStep | null> | null>(null);
 export const useSwipeHost = (): React.MutableRefObject<SwipeStep | null> | null => React.useContext(SwipeHostContext);
+
+/** 渲染面所在的窗口（酒馆主页面）。⚠️ 运行库代码跑在酒馆助手的脚本 iframe 里，全局 window / matchMedia 是那个看不见的小 iframe 的，
+    拿它判断宽窄屏永远是「窄屏」（2026-10-29 实机抓到：1440 宽的电脑上显示面板排成了手机页签）。一律从浮层节点反查。 */
+export function useHostWindow(): Window & typeof globalThis {
+  const portal = usePortal();
+  return ((portal && portal.ownerDocument.defaultView) || window) as Window & typeof globalThis;
+}
+
+/** 媒体查询（按渲染面所在窗口算） */
+export function useMedia(query: string): boolean {
+  const win = useHostWindow();
+  const [m, setM] = React.useState(() => { try { return win.matchMedia(query).matches; } catch (e) { return false; } });
+  React.useEffect(() => {
+    let mq: MediaQueryList;
+    try { mq = win.matchMedia(query); } catch (e) { return undefined; }
+    const on = (): void => setM(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [win, query]);
+  return m;
+}
+

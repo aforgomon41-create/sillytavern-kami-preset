@@ -1781,7 +1781,8 @@
         order: 20,
         tip: '皮肤管理（点击展开面板）',
         ping: Date.now(),
-        alive: function () { return !disposed; },
+        /* 支线上「🧪 显示」在运行时让位：它的按钮「🎨 显示」接管（用户 2026-10-29 把皮肤面板改成显示面板） */
+        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiDisplay && HOST.KamiDisplay.alive()); } catch (e) { return true; } },
         label: function () { return '🎨' + curSkin().button; },
         click: function () { togglePanel(); },
         ready: function () { return true; },

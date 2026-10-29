@@ -17,7 +17,7 @@ import { composeSkin, DEFAULT_SETTINGS } from '../skin-engine/compose';
 import type { SkinManager, StoredSettings } from '../skin-engine/manager';
 import type { ParamDef, SkinManifest } from '../skin-engine/package';
 import {
-  Badge, Button, Card, ChoiceCard, DS_CSS, LevelProvider, ChoiceGrid, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection, Slider, Switch, Tabs, TextField, Toast
+  Badge, Button, Card, ChoiceCard, DS_CSS, LevelProvider, useMedia, ChoiceGrid, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection, Slider, Switch, Tabs, TextField, Toast
 } from '../ds';
 
 /** 非皮肤的显示设置：每项一对读写函数，set 返回 false 表示写不进去（面板提示、不改显示） */
@@ -46,11 +46,7 @@ const schemeName = (m: SkinManifest, id: string): string => (id === 'light' ? '�
 /** 配色排序：浅色、深色在前，额外配色按清单顺序 */
 const schemeIds = (m: SkinManifest): string[] => ['light', 'dark', ...Object.keys(m.schemes).filter((s) => s !== 'light' && s !== 'dark')].filter((s) => m.schemes[s]);
 
-function useMatch(q: string): boolean {
-  const [c, setC] = React.useState(() => matchMedia(q).matches);
-  React.useEffect(() => { const m = matchMedia(q); const on = (): void => setC(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, [q]);
-  return c;
-}
+const useMatch = (q: string): boolean => useMedia(q);   /* 按酒馆主页面的宽度算（见 ds useMedia） */
 
 function useManager(mgr: SkinManager): StoredSettings {
   const [, force] = React.useReducer((x: number) => x + 1, 0);
@@ -116,7 +112,7 @@ function SkinPreview({ mgr, st, m }: { mgr: SkinManager; st: StoredSettings; m: 
     return () => { if (ro) { ro.disconnect(); } sr.textContent = ''; setMount(null); };
   }, []);
   const per = st.perSkin[m.id] || {};
-  const dark = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = useMedia('(prefers-color-scheme: dark)');
   const key = JSON.stringify([m.id, m.version, per, st.global, dark]);
   React.useLayoutEffect(() => {
     if (!mount) { return; }

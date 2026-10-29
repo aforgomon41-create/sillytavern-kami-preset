@@ -6,7 +6,7 @@
  *   content 参数；脚本再把流式响应里的这段参数抽出来，还原成普通的 delta.content
  *   交还给酒馆。正文因此走的是函数参数通道，而不是普通文本通道。
  *
- * 按钮：由「🎛 脚本按钮中转站」统一注册（点 🛡 切换开/关，标签显示「反截断 开 / 反截断 关」）。
+ * 按钮：由「🎛 脚本按钮中转站」统一注册（点 🛡 切换开/关，标签显示「🛡 反截断 开 / 🛡 反截断 关」）。
  *       本脚本只管登记 + 暴露 window.AntiTruncation = { enabled, on, off, toggle, status }。
  *       一切功能都走酒馆助手接口，不使用任何斜杠命令。
  *       v1.3：
@@ -28,7 +28,7 @@
  * 说明：只对 /api/backends/渠道/generate 生效。不需要函数调用的渠道开了可能空回；
  *       脚本发现异常只提示，不会替你关掉开关。
  *
- * 默认状态：**关闭**（导入后按钮显示「反截断 关」）。点「反截断」按钮即可开启；
+ * 默认状态：**关闭**（导入后按钮显示「🛡 反截断 关」）。点「反截断」按钮即可开启；
  *          开关状态记在脚本变量 anti-truncation.enabled 里，刷新后保留。
  */
 (function () {
@@ -36,7 +36,7 @@
 
   /* ───────── 可调参数 ───────── */
 
-  const BUTTON = '反截断';   // 按钮名（也是标签前缀，标签形如「反截断 开 / 反截断 关」）
+  const BUTTON = '🛡 反截断';   // 按钮名（也是标签前缀，标签形如「🛡 反截断 开 / 🛡 反截断 关」；2026-10-29 用户定：按钮统一「图标 + 空格 + 名字」）
   const VARS_KEY = 'anti-truncation';
   const API_NAME = 'AntiTruncation';
   const HOOK_MARK = '__antiTruncationHook';
@@ -953,7 +953,7 @@
     if (OWN_BUTTON_MODE === 'never') { return false; }
     return !relayManagesUs(relayAlive());
   }
-  function ownLabelText() { return relay.active ? '反截断 开' : '反截断 关'; }
+  function ownLabelText() { return relay.active ? '🛡 反截断 开' : '🛡 反截断 关'; }
 
   /* ── 认按钮的规矩：与「🎛 脚本按钮中转站」同一套 ─────────────────────
      只按「这一个按钮宿主自己的标签」认，绝不拿祖先按钮条拼起来的文字猜；
@@ -1231,7 +1231,7 @@
         tip: '反截断 开/关（点击切换）',
         ping: Date.now(),
         alive: function () { return !ownDisposed; },
-        label: function () { return relay.active ? '反截断 开' : '反截断 关'; },
+        label: function () { return relay.active ? '🛡 反截断 开' : '🛡 反截断 关'; },
         click: function () { setEnabled(!relay.active, true); },
         ready: function () { return true; },
         absent: '反截断还没就绪'
