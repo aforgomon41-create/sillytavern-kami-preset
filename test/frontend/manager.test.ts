@@ -53,6 +53,17 @@ test('重置当前皮肤：清掉它自己的设置', () => {
   assert.equal(m.settings.perSkin['alpha'], undefined);
 });
 
+test('撤销恢复默认：整组写回，坏字段被清洗', () => {
+  const { m } = setup();
+  m.setScheme('light'); m.setParam('x', 3);
+  const before = JSON.parse(JSON.stringify(m.settings.perSkin['alpha']));
+  m.resetSkin();
+  m.restoreSkin('alpha', { ...before, scheme: 'Bad Scheme!' });
+  assert.deepEqual(m.settings.perSkin['alpha'], { params: { x: 3 } });
+  m.restoreSkin('alpha', undefined);
+  assert.equal(m.settings.perSkin['alpha'], undefined);
+});
+
 test('清单不合法的皮肤登记时报错', () => {
   const { m } = setup();
   assert.throws(() => m.register({ manifest: { ...mk('gamma'), contract: '9' } }));

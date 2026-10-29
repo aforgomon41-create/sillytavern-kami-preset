@@ -77,9 +77,11 @@
 [data-k="setting-section"] { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 [data-k="setting-section"] > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; }
 [data-k="setting-section"] > [data-k-part="body"] { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
-[data-k="setting-row"] { display: flex; align-items: center; min-width: 0; }
-[data-k="setting-row"] > [data-k-part="text"] { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
-[data-k="setting-row"] > [data-k-part="control"], [data-k="setting-row"] > [data-k-part="info"] { flex: none; }
+/* 设置行：文字至少留 12em，放不下时控件整个换到下一行靠右（手机上宽控件——分段、滑杆——不再把说明挤成一字一行） */
+[data-k="setting-row"] { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; }
+[data-k="setting-row"] > [data-k-part="text"] { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
+[data-k="setting-row"] > [data-k-part="control"], [data-k="setting-row"] > [data-k-part="info"] { flex: none; max-width: 100%; }
+[data-k="setting-row"] > [data-k-part="control"] { margin-inline-start: auto; }
 [data-k="choice-grid"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--k-grid-min, 160px), 100%), 1fr)); min-width: 0; }
 [data-k="segmented"] { min-width: 0; }
 
@@ -109,3 +111,5 @@
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] { min-height: 0; overflow: hidden; }
 [data-k="card"][data-role="collapse"] > [data-k-part="body"] { overflow: hidden; }
 
+/* 分段控件直接放在设置分组里时按内容宽度，不被网格拉满（拉满后选项挤在左边、右边一大片空槽） */
+[data-k="setting-section"] > [data-k-part="body"] > [data-k="segmented"] { justify-self: start; }

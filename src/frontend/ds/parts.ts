@@ -18,6 +18,7 @@ export const COMPONENTS = {
   button: { parts: ['label', 'icon', 'spinner'], variants: { variant: ['default', 'primary', 'ghost', 'danger'], size: ['sm', 'md'] }, states: ['disabled', 'busy', 'pressed'] },
   'icon-button': { parts: ['icon'], variants: { variant: ['default', 'ghost'], size: ['sm', 'md'] }, states: ['disabled', 'pressed'] },
   switch: { parts: ['thumb'], variants: { size: ['sm', 'md'] }, states: ['checked', 'unchecked', 'disabled'] },
+  slider: { parts: ['track', 'range', 'thumb', 'value'], variants: {}, states: ['disabled', 'dragging'] },
   checkbox: { parts: ['indicator'], variants: {}, states: ['checked', 'unchecked', 'indeterminate', 'disabled'] },
   tabs: { parts: ['list', 'tab', 'panels', 'panel'], variants: { mode: ['scroll', 'fit'] }, states: ['active', 'inactive', 'disabled'] },
   select: { parts: ['trigger', 'value', 'icon', 'content', 'viewport', 'item', 'item-indicator'], variants: { size: ['sm', 'md'] }, states: ['open', 'closed', 'checked', 'highlighted', 'disabled', 'placeholder'] },
@@ -30,6 +31,8 @@ export const COMPONENTS = {
   tooltip: { parts: ['content', 'arrow'], variants: {}, states: ['delayed-open', 'instant-open', 'closed'] },
   badge: { parts: [], variants: { tone: ['neutral', 'accent', 'danger', 'warning', 'success', 'info'] }, states: [] },
   empty: { parts: ['icon', 'title', 'description', 'actions'], variants: {}, states: [] },
+  /* 长文排版（免责声明、说明页）：里面是普通标签（h4~h6 / p / ul / ol / blockquote / table / hr / code），没有部件 */
+  prose: { parts: [], variants: {}, states: [] },
   'setting-section': { parts: ['head', 'title', 'badge', 'aside', 'body'], variants: {}, states: [] },
   'setting-row': { parts: ['text', 'label', 'description', 'info', 'control'], variants: {}, states: [] },
   'choice-grid': { parts: [], variants: {}, states: [] },

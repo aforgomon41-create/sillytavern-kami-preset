@@ -122,6 +122,14 @@ export class SkinManager {
   }
   setParam(id: string, value: string | number): void { this.change((s) => { ((s.perSkin[s.skin] ||= {}).params ||= {})[id] = value; }); }
   resetSkin(): void { this.change((s) => { delete s.perSkin[s.skin]; }); }
+  /** 整组写回某套皮肤自己的设置（撤销「恢复默认」用）；传 undefined 等于恢复默认。只接受清洗过的结构 */
+  restoreSkin(id: string, per: StoredSettings['perSkin'][string] | undefined): void {
+    this.change((s) => {
+      if (!per) { delete s.perSkin[id]; return; }
+      const clean = sanitizeStored({ perSkin: { [id]: per } }, s.skin).perSkin[id];
+      if (clean) { s.perSkin[id] = clean; }
+    });
+  }
 
   subscribe(fn: (s: StoredSettings) => void): () => void { this.listeners.add(fn); return () => this.listeners.delete(fn); }
 

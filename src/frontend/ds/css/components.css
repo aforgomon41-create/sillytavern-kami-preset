@@ -52,6 +52,25 @@
 [data-k="switch"][data-state="checked"] [data-k-part="thumb"] { background: var(--k-on-accent); transform: translateX(19px); }
 [data-k="switch"][data-disabled] { opacity: .5; cursor: not-allowed; }
 
+/* 滑杆：轨道是下沉层，已选段与把手用强调色；把手 20px，手机上触控区扩到 44px 高 */
+[data-k="slider"] { display: flex; align-items: center; gap: var(--k-space-3); min-width: 0; width: 100%; }
+[data-k="slider"] > [data-k-part="track"] {
+  position: relative; flex: 1 1 auto; min-width: 80px; height: 6px; margin: 0 10px; border-radius: var(--k-r-pill);
+  background: var(--k-sunken); box-shadow: inset 0 0 0 var(--k-border-w) var(--k-border-sunken); cursor: pointer; touch-action: pan-y;
+}
+[data-k="slider"] > [data-k-part="track"]::before { content: ""; position: absolute; left: -10px; right: -10px; top: -14px; bottom: -14px; }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="range"] { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: var(--k-accent); pointer-events: none; }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] {
+  position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%;
+  background: var(--k-control); border: 2px solid var(--k-accent); box-shadow: var(--k-shadow-1);
+  transition: transform var(--k-dur-fast, 120ms) var(--k-ease-out);
+}
+[data-k="slider"] > [data-k-part="track"][data-dragging] > [data-k-part="thumb"] { transform: scale(1.12); }
+[data-k="slider"] > [data-k-part="value"] { flex: none; min-width: 3.5em; text-align: end; font-variant-numeric: tabular-nums; color: var(--k-on-muted); font-size: var(--k-fs-sm); }
+[data-k="slider"][data-disabled] { opacity: .5; }
+[data-k="slider"][data-disabled] > [data-k-part="track"] { cursor: not-allowed; }
+@media (pointer: coarse) { [data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { width: 24px; height: 24px; margin: -12px 0 0 -12px; } }
+
 [data-k="checkbox"] {
   flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
   border-radius: var(--k-r-xs); background: var(--k-control); border: var(--k-border-w) solid var(--k-border-control); color: var(--k-on-control);
@@ -220,7 +239,26 @@
   border: 1.5px solid var(--k-link); color: var(--k-link); background: transparent;
   font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; font-size: 14px; line-height: 1;
 }
+/* 选中的选择卡底色换成了「选中」配对，本表面的链接色在上面不保证对比度：改用选中配对的前景 */
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-part="info"] > [data-k="info-button"]:not(:hover):not([data-state="open"]) { color: var(--k-on-selected); border-color: var(--k-on-selected); }
 [data-k="info-button"]:hover, [data-k="info-button"][data-state="open"] { background: var(--k-control-hover); color: var(--k-on-control); border-color: var(--k-on-control); }
+
+/* ───────── 长文（prose）：免责声明、说明页。阅读字号与行长跟正文阅读令牌走 ───────── */
+[data-k="prose"] { line-height: var(--k-read-lh, 1.8); max-width: var(--k-read-measure, 42em); overflow-wrap: anywhere; }
+[data-k="prose"] > * { margin: 0 0 .8em; }
+[data-k="prose"] > :last-child { margin-bottom: 0; }
+[data-k="prose"] :is(h4, h5, h6) { margin-top: 1.2em; font-family: var(--k-font-heading); font-size: var(--k-fs-lg); color: var(--k-on); }
+[data-k="prose"] :is(ul, ol) { padding-left: 1.4em; }
+[data-k="prose"] ul { list-style: disc; }
+[data-k="prose"] ol { list-style: decimal; }
+[data-k="prose"] li + li { margin-top: .3em; }
+[data-k="prose"] strong { color: var(--k-on); font-weight: var(--k-fw-strong); }
+[data-k="prose"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); color: var(--k-on-muted); }
+[data-k="prose"] code { font-family: var(--k-font-mono); font-size: .92em; }
+[data-k="prose"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k="prose"] table { border-collapse: collapse; min-width: 100%; font-size: var(--k-fs-sm); }
+[data-k="prose"] :is(th, td) { padding: var(--k-space-2) var(--k-space-3); border: var(--k-border-w) solid var(--k-divider); text-align: start; vertical-align: top; }
+[data-k="prose"] th { font-weight: var(--k-fw-strong); color: var(--k-on); }
 
 /* ───────── 消息前端（正文 / 思维链 / 搜索资料 / 行动选项）─────────
    平台只给结构与节奏：同一条对齐轴、同一套间距；框不框、线怎么画由皮肤决定（前端重构-消息前端方案 第三节）。

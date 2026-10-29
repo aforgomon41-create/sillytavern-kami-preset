@@ -43,3 +43,10 @@ const rank = (t) => (t.kind === 'model' ? 0 : t.vars && t.vars.length ? 1 : 2);
 tabs.sort((a, b) => rank(a) - rank(b) || a.order - b.order);
 fs.writeFileSync(path.join(ROOT, 'design/previews/preset-panel/preset-data.json'), JSON.stringify({ tabs }, null, 1) + '\n');
 console.log('[预览数据] ' + tabs.length + ' 个页签：' + tabs.map((t) => t.name).join('、'));
+
+/* 引导预览：免责声明正文现读预设里名字含「免责」的条目（和旧引导一样，不在界面代码里抄一份）；去掉 {{// … }} 注释宏外壳 */
+const disc = (JSON.parse(fs.readFileSync(path.join(ROOT, 'src/preset.base.json'), 'utf8')).prompts || []).find((p) => /免责/.test(p.name || ''));
+const disclaimer = disc ? String(disc.content || '').replace(/^\s*\{\{\/\/\s*/, '').replace(/\s*\}\}\s*$/, '').replace(/\n-{3,}\s*$/, '').trim() : '';
+fs.mkdirSync(path.join(ROOT, 'design/previews/guide'), { recursive: true });
+fs.writeFileSync(path.join(ROOT, 'design/previews/guide/guide-data.json'), JSON.stringify({ disclaimer }, null, 1) + '\n');
+console.log('[预览数据] 引导：免责声明 ' + disclaimer.length + ' 字');

@@ -14,111 +14,23 @@ import skinCss from '../../../src/skins-next/suiguang/skin.css';
 import paperUrl from '../../../src/skins-next/suiguang/assets/paper.png';
 import data from './preset-data.json';
 import {
-  Badge, Button, ChoiceCard, ChoiceGrid, EmojiIcon, EntryLabel, InfoPopover, NavList, Panel, SettingSection, Tabs, TextField, Toast, stripEmoji, type NavItem
+  Badge, Button, ChoiceCard, ChoiceGrid, EmojiIcon, EntryLabel, NavList, Panel, SettingSection, Tabs, Toast, type NavItem
 } from '../../../src/frontend/ds';
+import { GroupCards, ModelPicker, VarFields, info, initial, plain, type Act, type State, type Tab } from '../../../src/frontend/panels/preset-parts';
 
 const manifest = manifestJson as unknown as SkinManifest;
 const rt = createRuntime(window);
 const q = new URLSearchParams(location.search);
 rt.applySkin(manifest, { scheme: q.get('scheme') || 'auto', density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss, assetUrls: { paper: paperUrl } });
 
-interface Item { id: string; name: string; on: boolean; note: string }
-interface Group { name: string; mode: 'one' | 'any'; note: string; items: Item[] }
-interface VarField { kind: 'single' | 'range'; keys: string[]; values: number[] }
-interface VarCard { name: string; note: string; fields: VarField[] }
-interface Model { name: string; label: string; emoji: string; items: Item[] }
-interface Tab { id: string; kind: 'model' | 'layer'; name: string; note?: string; models?: Model[]; vars?: VarCard[]; standalone?: Item[]; groups?: Group[] }
 const TABS: Tab[] = (data as unknown as { tabs: Tab[] }).tabs;
 const ABOUT: Tab = { id: 'about', kind: 'layer', name: '关于' };   /* 平台固定的页签，不来自预设 */
-
-const plain = (name: string): string => stripEmoji(name).replace(/[[\]]/g, '').trim();
-const groupLabel = (name: string): string => name.replace(/[[\]]/g, '');
 
 function useCompact(): boolean {
   const mq = '(max-width: 1000px)';
   const [c, setC] = React.useState(() => matchMedia(mq).matches);
   React.useEffect(() => { const m = matchMedia(mq); const on = (): void => setC(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
   return c;
-}
-
-/** 状态：条目 id → 开关；变量 key → 数值；当前模型 */
-interface State { on: Record<string, boolean>; vars: Record<string, number>; model: string }
-function initial(): State {
-  const on: Record<string, boolean> = {}, vars: Record<string, number> = {};
-  let model = '';
-  for (const t of TABS) {
-    for (const g of t.groups || []) { for (const i of g.items) { on[i.id] = i.on; } }
-    for (const i of t.standalone || []) { on[i.id] = i.on; }
-    for (const v of t.vars || []) { for (const f of v.fields) { f.keys.forEach((k, n) => { vars[k] = f.values[n] as number; }); } }
-    if (t.models) {
-      for (const m of t.models) { for (const i of m.items) { on[i.id] = i.on; } }
-      /* 当前模型：开着的专属条目最多的那个 */
-      const best = [...t.models].sort((a, b) => b.items.filter((i) => i.on).length - a.items.filter((i) => i.on).length)[0];
-      model = best ? best.name : '';
-    }
-  }
-  return { on, vars, model };
-}
-
-const info = (label: string, note: string | undefined): React.ReactNode =>
-  note ? <InfoPopover label={'关于「' + label + '」'}><p style={{ whiteSpace: 'pre-wrap' }}>{note}</p></InfoPopover> : undefined;
-
-type Act = { toggle: (g: Group | null, item: Item) => void; setVar: (k: string, v: number) => void; setModel: (m: Model) => void };
-
-function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): React.JSX.Element {
-  const [all, setAll] = React.useState(false);
-  const LIMIT = 8;
-  const shown = all ? g.items : g.items.slice(0, LIMIT);
-  return (
-    <SettingSection title={<EntryLabel name={groupLabel(g.name)} />} badge={<Badge>{g.mode === 'one' ? '单选' : '多选'}</Badge>}
-      aside={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        {g.items.length > LIMIT ? <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>{all ? '收起' : '全部 ' + g.items.length + ' 项'}</Button> : null}
-        {info(plain(g.name), g.note)}
-      </span>}>
-      <ChoiceGrid>
-        {shown.map((i) => <ChoiceCard key={i.id} multi={g.mode === 'any'} title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]}
-          onSelect={() => act.toggle(g, i)} info={info(plain(i.name), i.note)} />)}
-      </ChoiceGrid>
-    </SettingSection>
-  );
-}
-
-function ModelPicker({ t, st, act, withItems }: { t: Tab; st: State; act: Act; withItems: boolean }): React.JSX.Element {
-  const cur = (t.models || []).find((m) => m.name === st.model);
-  return (
-    <>
-      <SettingSection title={<EntryLabel name={t.name} />} badge={<Badge>单选</Badge>} aside={info('模型切换', t.note)}>
-        <ChoiceGrid>
-          {(t.models || []).map((m) => <ChoiceCard key={m.name} title={<EntryLabel name={m.name} />} selected={m.name === st.model} onSelect={() => act.setModel(m)} />)}
-        </ChoiceGrid>
-      </SettingSection>
-      {withItems && cur ? (
-        <SettingSection title={<EntryLabel name={cur.emoji + ' ' + cur.label + ' 专属条目'} />} badge={<Badge>多选</Badge>}>
-          <ChoiceGrid>
-            {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
-          </ChoiceGrid>
-        </SettingSection>
-      ) : null}
-    </>
-  );
-}
-
-function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): React.JSX.Element {
-  return (
-    <SettingSection title={<EntryLabel name={v.name} />} aside={info(plain(v.name), v.note)}>
-      {v.fields.map((f) => (
-        <div key={f.keys.join()} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {f.keys.map((k, n) => (
-            <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {f.kind === 'range' ? <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{n === 0 ? '最少' : '最多'}</span> : null}
-              <span style={{ width: 112 }}><TextField type="number" inputMode="numeric" value={String(st.vars[k] ?? '')} onChange={(e) => act.setVar(k, Number(e.target.value))} aria-label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
-              {f.kind === 'range' && n === 0 ? <span aria-hidden="true">–</span> : null}
-            </label>
-          ))}
-        </div>
-      ))}
-    </SettingSection>
-  );
 }
 
 /** 「当前生效」：每个单选组的当前选项 + 当前模型（全部由解析结果算出） */
@@ -186,7 +98,7 @@ function TabBody({ t, st, act }: { t: Tab; st: State; act: Act }): React.JSX.Ele
 
 function App(): React.JSX.Element {
   const compact = useCompact();
-  const [st, setSt] = React.useState<State>(initial);
+  const [st, setSt] = React.useState<State>(() => initial(TABS));
   const [cur, setCur] = React.useState('overview');
   const [toast, setToast] = React.useState<{ msg: string; undo: State } | null>(null);
   const [open, setOpen] = React.useState(true);

@@ -14,3 +14,14 @@ declare module '*.png' {
 declare module '*/_search-pure.js' {
   export function readWebSearchRecords(text: string): unknown[];
 }
+
+/** 旧系统的搜索限额字段（同上；工具箱预览按它生成限额控件，范围与默认值只有一份） */
+declare module '*/_search-pure.js' {
+  export function webSearchLimitFields(): Array<{ key: string; label: string; min: number; max: number; auto: number; manual: number }>;
+}
+
+/** 搜索来源目录（src/scripts/_search-providers.js）：工具箱的「服务」下拉与每家的说明、链接都从这里来 */
+declare module '*/_search-providers.js' {
+  export interface WebSearchProvider { id: string; label: string; url: string; note: string; secret?: string; localKey?: boolean; endpoint?: boolean; endpointKey?: string; keyUrl?: string }
+  export function webSearchProviders(): WebSearchProvider[];
+}

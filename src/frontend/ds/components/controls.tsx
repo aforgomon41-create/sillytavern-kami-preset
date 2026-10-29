@@ -112,6 +112,70 @@ export function Checkbox(props: CheckboxProps): React.JSX.Element {
   );
 }
 
+/* ───────── 滑杆 ─────────
+ * 自己实现（没有装 Radix Slider）：role="slider" + 方向键 / Home / End / PageUp / PageDown；指针拖动用 pointer capture。
+ * 手机上 touch-action: pan-y——竖着划照常滚动页面，横着拖才是调值；面板翻页手势本来就跳过 [role="slider"]。 */
+
+export interface SliderProps {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onValueChange: (v: number) => void;
+  /** 松手（或键盘改完）时调用一次：适合写盘、发提示 */
+  onValueCommit?: (v: number) => void;
+  /** 显示在右侧的值（默认就是数值本身） */
+  format?: (v: number) => string;
+  disabled?: boolean;
+  'aria-label'?: string;
+}
+
+export function Slider({ value, min, max, step = 1, onValueChange, onValueCommit, format, disabled, ...rest }: SliderProps): React.JSX.Element {
+  const f = useField();
+  const track = React.useRef<HTMLDivElement>(null);
+  const live = React.useRef(value);
+  live.current = value;
+  const dis = disabled ?? f?.disabled ?? false;
+  const decimals = (String(step).split('.')[1] || '').length;
+  const snap = (v: number): number => Number(Math.min(max, Math.max(min, Math.round((v - min) / step) * step + min)).toFixed(decimals));
+  const set = (v: number): number => { const n = snap(v); if (n !== live.current) { live.current = n; onValueChange(n); } return n; };
+  const fromX = (x: number): number => { const r = track.current!.getBoundingClientRect(); return min + (r.width ? (x - r.left) / r.width : 0) * (max - min); };
+  const pct = max > min ? ((Math.min(max, Math.max(min, value)) - min) / (max - min)) * 100 : 0;
+  const text = format ? format(value) : String(value);
+  const onDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (dis || e.button !== 0) { return; }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.currentTarget.setAttribute('data-dragging', '');
+    (e.currentTarget.querySelector('[role="slider"]') as HTMLElement | null)?.focus({ preventScroll: true });
+    set(fromX(e.clientX));
+  };
+  const onMove = (e: React.PointerEvent<HTMLDivElement>): void => { if (e.currentTarget.hasPointerCapture(e.pointerId)) { set(fromX(e.clientX)); } };
+  const onUp = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (!e.currentTarget.hasAttribute('data-dragging')) { return; }
+    e.currentTarget.removeAttribute('data-dragging');
+    if (onValueCommit) { onValueCommit(live.current); }
+  };
+  const onKey = (e: React.KeyboardEvent): void => {
+    const big = Math.max(step, (max - min) / 10);
+    const map: Record<string, number> = { ArrowRight: value + step, ArrowUp: value + step, ArrowLeft: value - step, ArrowDown: value - step, PageUp: value + big, PageDown: value - big, Home: min, End: max };
+    if (!(e.key in map)) { return; }
+    e.preventDefault();
+    const n = set(map[e.key] as number);
+    if (onValueCommit) { onValueCommit(n); }
+  };
+  return (
+    <div {...k('slider')} data-disabled={dis ? '' : undefined}>
+      <div {...part('track')} ref={track} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+        <div {...part('range')} style={{ width: pct + '%' }} />
+        <div {...part('thumb')} role="slider" tabIndex={dis ? -1 : 0} id={f?.id} aria-describedby={f?.describedBy}
+          aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-valuetext={text} aria-disabled={dis || undefined}
+          aria-label={rest['aria-label']} style={{ left: pct + '%' }} onKeyDown={dis ? undefined : onKey} />
+      </div>
+      <output {...part('value')} aria-hidden="true">{text}</output>
+    </div>
+  );
+}
+
 /* ───────── 输入 ───────── */
 
 type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> & { size?: 'sm' | 'md'; invalid?: boolean };
