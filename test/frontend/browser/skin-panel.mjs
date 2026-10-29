@@ -44,8 +44,16 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   const cards = await inLayer(page, (r, C) => [...r.querySelectorAll(C)].map((c) => ({ sel: c.getAttribute('data-state') === 'selected', title: c.querySelector('[data-k-part="title"]').textContent })), CARD);
   ok(cards.length === shape.skins, '皮肤卡数 = 登记的皮肤数（' + shape.skins + '）', cards);
   ok(cards.filter((c) => c.sel).length === 1 && cards.find((c) => c.sel).title === shape.name, '当前皮肤的卡选中', cards);
-  const swatches = await inLayer(page, (r, C) => [...r.querySelectorAll(C)].map((c) => c.querySelector('[data-k-part="body"] > span').children.length), CARD);
-  ok(swatches[0] === shape.schemes, '缩略图按每档配色各画一块', swatches);
+  /* 实时预览：每张卡里一个独立 Shadow DOM，套的是那套皮肤自己的样式（不是当前皮肤的） */
+  const prev = await inLayer(page, (r, C) => [...r.querySelectorAll(C)].map((c) => {
+    const h = c.querySelector('[data-k-part="body"] > span[aria-hidden="true"]');
+    const sr = h && h.shadowRoot; const root = sr && sr.querySelector('[data-k-surface]');
+    const btn = sr && sr.querySelector('[data-k="button"][data-variant="primary"]');
+    return { skin: root && root.getAttribute('data-k-skin'), card: !!(sr && sr.querySelector('[data-k="card"]')), inert: h && h.hasAttribute('inert'), bg: btn && getComputedStyle(btn).backgroundColor, radius: btn && getComputedStyle(btn).borderTopLeftRadius };
+  }), CARD);
+  const ids = await page.evaluate(() => window.__mgr.list().map((m) => m.id));
+  ok(prev.every((p, n) => p.skin === ids[n] && p.card && p.inert), '每张皮肤卡用自己的样式渲染真组件预览（只看不点）', prev);
+  ok(new Set(prev.map((p) => p.bg)).size === prev.length && new Set(prev.map((p) => p.radius)).size > 1, '预览里的按钮颜色 / 圆角各不相同（真的是各自皮肤的样子）', prev.map((p) => [p.bg, p.radius]));
   await tab(1);
   const seg = await inLayer(page, () => [...[...document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="segmented"]')][0].querySelectorAll('[data-k-part="item"]')].map((i) => i.textContent));
   ok(seg.length === shape.schemes + 1 && seg[0] === '跟随系统', '配色选项 = 跟随系统 + 清单每一档', seg);
@@ -66,6 +74,18 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   await inLayer(page, (r) => r.querySelector('[data-k="toast"] [data-k-part="action"]').click());
   await page.waitForTimeout(250);
   ok((await stored(page)).skin === 'suiguang', '撤销：换回原来的皮肤');
+  /* 标题栏快速切换（Radix 下拉，选项在弹层里） */
+  await page.locator('[data-k="panel"] [data-k-part="actions"] [data-k="select"]').first().click(); await page.waitForTimeout(250);
+  const qopts = await inLayer(page, (r) => [...r.querySelectorAll('[role="option"]')].map((o) => o.textContent));
+  ok(qopts.length === shape.skins, '标题栏下拉列出全部皮肤', qopts);
+  await page.locator('[role="option"]', { hasText: '近黑暗红' }).first().click(); await page.waitForTimeout(250);
+  const q = await inLayer(page, (r) => ({ skin: r.querySelector('[data-k-surface]').getAttribute('data-k-skin'), sel: r.querySelector('[data-k="panel"] [data-k-part="actions"]').textContent, card: [...r.querySelectorAll('[data-k="card"][data-role="choice"]')].findIndex((c) => c.getAttribute('data-state') === 'selected') }));
+  ok(q.skin === 'abyss' && q.sel.includes('近黑暗红') && q.card === 2, '下拉选「近黑暗红」：立即套用，列表里的选中卡跟着变', q);
+  await inLayer(page, (r) => r.querySelector('[data-k="toast"] [data-k-part="action"]').click()); await page.waitForTimeout(250);
+  ok((await stored(page)).skin === 'suiguang', '下拉切换同样可撤销');
+  /* 分段控件选中项没有自己的边框（用户 2026-10-29：不要「框里套按钮」） */
+  const segOn = await inLayer(page, (r) => { const on = r.querySelector('[data-k="segmented"] [data-k-part="item"][data-state="on"]'); if (!on) { return null; } const cs = getComputedStyle(on); return { bw: cs.borderTopWidth, bc: cs.borderTopColor, sh: cs.boxShadow }; });
+  ok(!segOn || ((segOn.bw === '0px' || /rgba\(0, 0, 0, 0\)|transparent/.test(segOn.bc)) && segOn.sh === 'none'), '分段控件选中项不带边框和阴影', segOn);
 
   /* 配色 / 动效 / 密度 */
   await tab(1);

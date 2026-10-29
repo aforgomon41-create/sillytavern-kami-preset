@@ -82,6 +82,8 @@ export class SkinManager {
     this.skins.set(e.manifest.id, e);
   }
 
+  /** 某套皮肤的完整登记（清单 + CSS + 素材），皮肤卡的实时预览要用 */
+  entry(id: string): SkinEntry | undefined { return this.skins.get(id); }
   list(): SkinManifest[] { return Array.from(this.skins.values()).map((e) => e.manifest); }
   get settings(): StoredSettings { return this.state; }
   get current(): SkinEntry { return this.skins.get(this.state.skin) as SkinEntry; }

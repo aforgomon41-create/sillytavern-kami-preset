@@ -201,7 +201,8 @@
 [data-k="segmented"] { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--k-r-md); background: var(--k-sunken); border: var(--k-border-w) solid var(--k-border-sunken); max-width: 100%; }
 [data-k="segmented"] [data-k-part="item"] { padding: 0 var(--k-space-3); min-height: calc(var(--k-control-h) - 8px); border-radius: var(--k-r-sm); color: var(--k-on-sunken-muted); white-space: nowrap; border: 1px solid transparent; }
 [data-k="segmented"] [data-k-part="item"]:hover { color: var(--k-on-sunken); }
-[data-k="segmented"] [data-k-part="item"][data-state="on"] { background: var(--k-control); color: var(--k-on-control); border-color: var(--k-border-control); font-weight: var(--k-fw-strong); box-shadow: var(--k-shadow-1); }
+/* 选中项不再自带边框和阴影（用户 2026-10-29：「框里套一个按钮」不好看）：只靠「选中」配对的底色 + 加粗区分，和选择卡同一套选中语言 */
+[data-k="segmented"] [data-k-part="item"][data-state="on"] { background: var(--k-selected); color: var(--k-on-selected); font-weight: var(--k-fw-strong); }
 [data-k="popover"][data-k-part="content"] { max-width: min(340px, calc(100vw - 24px)); padding: var(--k-space-3) var(--k-space-4); border-radius: var(--k-r-md); border: var(--k-border-w) solid var(--k-border); box-shadow: var(--k-shadow-2); font-size: var(--k-fs-sm); line-height: var(--k-lh); }
 [data-k="toast"] { display: flex; align-items: center; gap: var(--k-space-3); padding: var(--k-space-2) var(--k-space-2) var(--k-space-2) var(--k-space-4); border-radius: var(--k-r-md); box-shadow: var(--k-shadow-3); font-size: var(--k-fs-sm); }
 [data-k="toast"] [data-k-part="action"] { font-weight: var(--k-fw-strong); text-decoration: underline; text-underline-offset: 3px; padding: var(--k-space-1) var(--k-space-2); color: var(--k-on); }

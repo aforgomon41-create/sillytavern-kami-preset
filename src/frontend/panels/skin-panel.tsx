@@ -10,12 +10,12 @@
  * 电脑：左边皮肤列表、右边当前皮肤的设置；手机（≤1000px）：皮肤 / 外观 / 特效三个页签，左右滑动切换。
  */
 import * as React from 'react';
-import { resolveScheme } from '../skin-engine/tokens';
+import { createPortal } from 'react-dom';
+import { composeSkin, DEFAULT_SETTINGS } from '../skin-engine/compose';
 import type { SkinManager, StoredSettings } from '../skin-engine/manager';
 import type { ParamDef, SkinManifest } from '../skin-engine/package';
-import type { Mode } from '../skin-engine/tokens';
 import {
-  Badge, Button, Card, ChoiceCard, ChoiceGrid, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection, Slider, Switch, Tabs, TextField, Toast
+  Badge, Button, Card, ChoiceCard, DS_CSS, LevelProvider, ChoiceGrid, InfoPopover, Panel, Segmented, Select, SettingRow, SettingSection, Slider, Switch, Tabs, TextField, Toast
 } from '../ds';
 
 export interface SkinPanelProps {
@@ -30,7 +30,6 @@ const MOTION = [{ value: 'full', label: '完整' }, { value: 'calm', label: '平
 const DENSITY = [{ value: 'compact', label: '紧凑' }, { value: 'cozy', label: '适中' }, { value: 'roomy', label: '宽松' }];
 
 const schemeName = (m: SkinManifest, id: string): string => (id === 'light' ? '浅色' : id === 'dark' ? '深色' : m.schemes[id]?.name || id);
-const schemeMode = (m: SkinManifest, id: string): Mode => (id === 'light' || id === 'dark' ? id : (m.schemes[id]?.base || 'light'));
 /** 配色排序：浅色、深色在前，额外配色按清单顺序 */
 const schemeIds = (m: SkinManifest): string[] => ['light', 'dark', ...Object.keys(m.schemes).filter((s) => s !== 'light' && s !== 'dark')].filter((s) => m.schemes[s]);
 
@@ -46,47 +45,79 @@ function useManager(mgr: SkinManager): StoredSettings {
   return mgr.settings;
 }
 
-/* ───────── 缩略图：每档配色一块，按真实令牌画「底色 + 卡片 + 标题条 + 正文条 + 强调按钮」 ───────── */
+/* ───────── 实时预览：用这套皮肤**真正的样式**渲染一小块真实界面 ─────────
+ * 用户 2026-10-29：之前按令牌画的色条「没有把皮肤的样子展示出来」——看不到字体、纸纹、印章、圆角、阴影。
+ * 现在每张皮肤卡里挂一个独立的 Shadow DOM：设计系统静态表（整个文档共用一份）+ 这套皮肤自己合成的样式表
+ * （composeSkin，和真正套上时同一条路，含皮肤 CSS 与素材），里面用真组件摆一张卡片、一段文字、按钮、开关、徽章。
+ * 预览只看不点：宿主 inert + aria-hidden + 不接收指针，点击落到外面的选择卡上。 */
 
-const swatchCache = new Map<string, Record<string, string>>();
-function schemeTokens(m: SkinManifest, id: string): Record<string, string> | null {
-  const key = m.id + '@' + m.version + ':' + id;
-  if (swatchCache.has(key)) { return swatchCache.get(key)!; }
-  const def = m.schemes[id];
-  if (!def) { return null; }
-  try {
-    const t = resolveScheme({ mode: schemeMode(m, id), seeds: def.seeds, ...(def.tokens ? { tokens: def.tokens } : {}) }).tokens;
-    swatchCache.set(key, t);
-    return t;
-  } catch (e) { return null; }
+const dsSheets = new WeakMap<Document, CSSStyleSheet | null>();
+function dsSheetFor(doc: Document): CSSStyleSheet | null {
+  if (dsSheets.has(doc)) { return dsSheets.get(doc)!; }
+  let sheet: CSSStyleSheet | null = null;
+  try { const W = doc.defaultView as (Window & typeof globalThis) | null; if (W && 'adoptedStyleSheets' in W.Document.prototype) { sheet = new W.CSSStyleSheet(); sheet.replaceSync(DS_CSS); } } catch (e) { sheet = null; }
+  dsSheets.set(doc, sheet);
+  return sheet;
 }
 
-function Swatch({ m, active }: { m: SkinManifest; active?: string | undefined }): React.JSX.Element {
-  const ids = schemeIds(m);
+function SkinPreview({ mgr, st, m }: { mgr: SkinManager; st: StoredSettings; m: SkinManifest }): React.JSX.Element {
+  const host = React.useRef<HTMLSpanElement>(null);
+  const [mount, setMount] = React.useState<{ root: HTMLElement; setCss: (css: string) => void } | null>(null);
+  React.useLayoutEffect(() => {
+    const h = host.current!;
+    const doc = h.ownerDocument;
+    const sr = h.shadowRoot || h.attachShadow({ mode: 'open' });
+    sr.textContent = '';
+    const ds = dsSheetFor(doc);
+    let setCss: (css: string) => void;
+    if (ds) {
+      const own = new (doc.defaultView as Window & typeof globalThis).CSSStyleSheet();
+      sr.adoptedStyleSheets = [ds, own];
+      setCss = (css) => own.replaceSync(css);
+    } else {
+      const a = doc.createElement('style'), b = doc.createElement('style');
+      a.textContent = DS_CSS; sr.append(a, b);
+      setCss = (css) => { b.textContent = css; };
+    }
+    const root = doc.createElement('div');
+    root.setAttribute('data-k-surface', 'preview');
+    root.setAttribute('data-k-level', 'bg');
+    root.style.padding = '10px';
+    root.style.borderRadius = '6px';
+    sr.appendChild(root);
+    setMount({ root, setCss });
+    return () => { sr.textContent = ''; setMount(null); };
+  }, []);
+  const per = st.perSkin[m.id] || {};
+  const dark = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
+  const key = JSON.stringify([m.id, m.version, per, st.global, dark]);
+  React.useLayoutEffect(() => {
+    if (!mount) { return; }
+    const e = mgr.entry(m.id);
+    try {
+      const c = composeSkin(m, { ...DEFAULT_SETTINGS, ...st.global, scheme: per.scheme ?? 'auto', ...(per.effects ? { effects: per.effects } : {}), ...(per.params ? { params: per.params } : {}) },
+        { systemDark: dark, ...(e?.css ? { skinCss: e.css } : {}), ...(e?.assetUrls ? { assetUrls: e.assetUrls } : {}) });
+      mount.setCss(c.css);
+      for (const [n, v] of Object.entries(c.attrs)) { mount.root.setAttribute(n, v); }
+    } catch (err) { mount.setCss(''); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mount, key]);
   return (
-    <span aria-hidden="true" style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-      {ids.map((id) => {
-        const t = schemeTokens(m, id);
-        if (!t) { return null; }
-        const r = Math.min(8, Number(m.schemes[id]?.seeds.radius ?? 6));
-        const bar = (w: string, c: string, h = 4): React.JSX.Element => <span style={{ display: 'block', width: w, height: h, borderRadius: 2, background: c }} />;
-        return (
-          <span key={id} title={schemeName(m, id)} style={{
-            flex: '1 1 0', minWidth: 0, display: 'block', padding: 5, borderRadius: r, background: t['bg'],
-            outline: active === id ? '2px solid ' + t['accent'] : 'none', outlineOffset: 1
-          }}>
-            <span style={{ display: 'grid', gap: 4, padding: 6, minWidth: 0, overflow: 'hidden', borderRadius: Math.max(0, r - 2), background: t['surface-1'], boxShadow: 'inset 0 0 0 1px ' + t['border-surface-1'] }}>
-              {bar('55%', t['on-surface-1']!, 5)}
-              {bar('90%', t['on-surface-1-muted']!)}
-              {bar('70%', t['on-surface-1-muted']!)}
-              <span style={{ display: 'flex', gap: 3, marginTop: 2, minWidth: 0 }}>
-                <span style={{ display: 'block', width: '36%', height: 8, borderRadius: Math.min(4, r), background: t['accent'] }} />
-                <span style={{ display: 'block', width: '22%', height: 8, borderRadius: Math.min(4, r), background: t['control'], boxShadow: 'inset 0 0 0 1px ' + t['border-control'] }} />
+    <span ref={host} aria-hidden="true" {...{ inert: '' }} style={{ display: 'block', marginTop: 8, pointerEvents: 'none' }}>
+      {mount ? createPortal(
+        <LevelProvider level="bg">
+          <Card title="示例卡片" meta="预览">
+            <span style={{ display: 'grid', gap: 8 }}>
+              <span style={{ display: 'block' }}>「静时如纸，动时碎光。」她合上书页，抬眼看你。</span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                <Button variant="primary" size="sm">确定</Button>
+                <Button size="sm">取消</Button>
+                <Switch checked aria-label="示例开关" />
+                <Badge tone="accent">标签</Badge>
               </span>
             </span>
-          </span>
-        );
-      })}
+          </Card>
+        </LevelProvider>, mount.root) : null}
     </span>
   );
 }
@@ -130,7 +161,6 @@ function SkinList({ mgr, st, notify, compact }: Ctx & { compact: boolean }): Rea
     <SettingSection title="皮肤" badge={<Badge>{list.length} 套</Badge>}>
       <ChoiceGrid min={compact ? 240 : 220}>
         {list.map((m) => {
-          const per = st.perSkin[m.id];
           return (
             <ChoiceCard key={m.id} selected={st.skin === m.id}
               title={m.name} meta={'v' + m.version}
@@ -145,7 +175,8 @@ function SkinList({ mgr, st, notify, compact }: Ctx & { compact: boolean }): Rea
                 {m.description ? <p>{m.description}</p> : null}
                 {m.author ? <p style={{ color: 'var(--k-on-muted)' }}>作者：{m.author}</p> : null}
               </>) : undefined}>
-              <Swatch m={m} active={st.skin === m.id ? (per?.scheme && per.scheme !== 'auto' ? per.scheme : undefined) : undefined} />
+              <SkinPreview mgr={mgr} st={st} m={m} />
+              <span style={{ display: 'block', marginTop: 6, fontSize: 'var(--k-fs-sm)', color: 'inherit', opacity: 1 }}>{schemeIds(m).map((id) => schemeName(m, id)).join(' · ')}</span>
             </ChoiceCard>
           );
         })}
@@ -226,6 +257,21 @@ function Effects({ mgr, st, m, notify }: Ctx): React.JSX.Element {
   );
 }
 
+/** 标题栏的快速切换（用户 2026-10-29 要求）：不用翻列表，下拉直接换；同样可撤销 */
+function QuickPick({ mgr, st, notify }: { mgr: SkinManager; st: StoredSettings; notify: Ctx['notify'] }): React.JSX.Element {
+  return (
+    <span style={{ display: 'block', maxWidth: '45vw' }}>
+      <Select aria-label="快速切换皮肤" size="sm" value={st.skin} options={mgr.list().map((x) => ({ value: x.id, label: x.name }))}
+        onValueChange={(id) => {
+          if (id === st.skin) { return; }
+          const prev = st.skin, prevName = mgr.list().find((x) => x.id === prev)?.name || prev, name = mgr.list().find((x) => x.id === id)?.name || id;
+          mgr.select(id);
+          notify('已换成「' + name + '」', () => { mgr.select(prev); notify('已换回「' + prevName + '」'); });
+        }} />
+    </span>
+  );
+}
+
 export function SkinPanel({ manager: mgr, onClose, compactQuery = '(max-width: 1000px)', defaultSize = { w: 960, h: 760 } }: SkinPanelProps): React.JSX.Element {
   const st = useManager(mgr);
   const compact = useMatch(compactQuery);
@@ -242,7 +288,7 @@ export function SkinPanel({ manager: mgr, onClose, compactQuery = '(max-width: 1
   const [tab, setTab] = React.useState('skins');
   const cols = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignContent: 'start' } as const;
   return (
-    <Panel title="皮肤" actions={<Badge tone="accent">{m.name}</Badge>} onClose={onClose} defaultSize={defaultSize}>
+    <Panel title="皮肤" actions={<QuickPick mgr={mgr} st={st} notify={notify} />} onClose={onClose} defaultSize={defaultSize}>
       {compact ? (
         <Tabs label="皮肤设置" swipe sticky value={tab} onValueChange={setTab} items={[
           { value: 'skins', label: '皮肤', content: <div style={cols}><SkinList {...ctx} compact /></div> },
