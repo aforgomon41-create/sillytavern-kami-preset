@@ -305,6 +305,17 @@ export function expandRuntimeNext(root, code) {
   return code.replace(RUNTIME_NEXT_MARK, () => src);
 }
 
+/* 新前端的内置皮肤包（frontend-rewrite 支线）：.cache/frontend/skins.json，由 build/frontend/pack-skins.mjs 生成。
+   脚本里写占位 /* @@KAMI_SKINS_NEXT@@ *\/，展开成 var SKINS_NEXT = [...]（皮肤管理新版做好之前，消息前端先用它固定套「碎光」） */
+const SKINS_NEXT_MARK = '/* @@KAMI_SKINS_NEXT@@ */';
+export function expandSkinsNext(root, code) {
+  if (code.indexOf(SKINS_NEXT_MARK) < 0) { return code; }
+  const p = path.join(root, '.cache', 'frontend', 'skins.json');
+  if (!fs.existsSync(p)) { throw new Error('找不到新前端内置皮肤 .cache/frontend/skins.json —— 先运行 node build/frontend-build.mjs'); }
+  const json = fs.readFileSync(p, 'utf8').trim();
+  return code.replace(SKINS_NEXT_MARK, () => 'var SKINS_NEXT = ' + json + ';');
+}
+
 export function expandRuntime(root, code) {
   if (code.indexOf(RUNTIME_MARK) < 0) { return code; }
   const bundlePath = path.join(root, 'src', 'runtime', 'bundle.js');

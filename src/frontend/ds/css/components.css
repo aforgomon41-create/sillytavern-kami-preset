@@ -237,29 +237,33 @@
 [data-k="msg-body"] > [data-k-part="raw"], [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="raw"] {
   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--k-font-mono); font-size: var(--k-fs-sm); line-height: 1.7;
 }
-[data-k="msg-body"] > [data-k-part="tools"] { display: flex; justify-content: flex-end; gap: var(--k-space-1); margin-top: var(--k-space-1); color: var(--k-on-muted); }
-/* 电脑：工具平时隐去，悬停在正文上（或键盘聚焦到工具）时淡入；触屏一直显示，但很淡 */
+/* 正文头部：左边字数，右边工具（看原文 / 复制）。电脑上工具平时隐去，悬停在正文上（或键盘聚焦到工具）时淡入；触屏一直显示，但很淡 */
+[data-k="msg-body"] > [data-k-part="head"] { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: 28px; margin-bottom: var(--k-space-2); color: var(--k-on-muted); font-size: var(--k-fs-xs); }
+[data-k="msg-body"] > [data-k-part="head"] > [data-k-part="count"] { font-variant-numeric: tabular-nums; }
+[data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"] { display: flex; gap: var(--k-space-1); }
 @media (hover: hover) and (pointer: fine) {
-  [data-k="msg-body"] > [data-k-part="tools"] { opacity: 0; transition: opacity var(--k-dur) var(--k-ease); }
-  [data-k="msg-body"]:hover > [data-k-part="tools"], [data-k="msg-body"] > [data-k-part="tools"]:focus-within { opacity: 1; }
+  [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"] { opacity: 0; transition: opacity var(--k-dur) var(--k-ease); }
+  [data-k="msg-body"]:hover > [data-k-part="head"] > [data-k-part="tools"], [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"]:focus-within { opacity: 1; }
 }
-@media (hover: none) { [data-k="msg-body"] > [data-k-part="tools"] { opacity: .7; } }
+@media (hover: none) { [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"] { opacity: .7; } }
 
 /* 思维链 / 搜索资料：边注，收起时只是一行摘要 */
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] {
-  display: flex; align-items: center; gap: var(--k-space-2); width: 100%; min-height: 32px; padding: var(--k-space-1) 0;
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--k-space-2); min-height: 32px; }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="toggle"] {
+  display: flex; flex: 1 1 auto; align-items: center; gap: var(--k-space-2); min-width: 0; padding: var(--k-space-1) 0;
   color: var(--k-on-muted); font-size: var(--k-fs-sm); text-align: left; cursor: pointer;
 }
-[data-k="msg-search"] > [data-k-part="head"]:disabled { cursor: default; }
-[data-k="msg-think"] > [data-k-part="head"]:hover, [data-k="msg-search"] > [data-k-part="head"]:not(:disabled):hover { color: var(--k-on); }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="icon"] { display: inline-flex; flex: none; width: 1.15em; height: 1.15em; align-items: center; justify-content: center; }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > :is([data-k-part="title"], [data-k-part="count"]) { flex: none; white-space: nowrap; }
-[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="count"] { font-variant-numeric: tabular-nums; }
-[data-k="msg-search"] > [data-k-part="head"] > [data-k-part="sites"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-on-muted); }
-:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="chevron"] { display: inline-flex; flex: none; transition: transform var(--k-dur) var(--k-ease); }
-:is([data-k="msg-think"], [data-k="msg-search"])[data-state="open"] > [data-k-part="head"] > [data-k-part="chevron"] { transform: rotate(180deg); }
+[data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"]:disabled { cursor: default; }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="toggle"]:not(:disabled):hover { color: var(--k-on); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"] { display: inline-flex; flex: none; width: 1.15em; height: 1.15em; align-items: center; justify-content: center; }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="toggle"] > :is([data-k-part="title"], [data-k-part="count"]) { flex: none; white-space: nowrap; }
+[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="count"] { font-variant-numeric: tabular-nums; }
+[data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="sites"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--k-on-muted); }
+:is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="chevron"] { display: inline-flex; flex: none; transition: transform var(--k-dur) var(--k-ease); }
+:is([data-k="msg-think"], [data-k="msg-search"])[data-state="open"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="chevron"] { transform: rotate(180deg); }
+/* 工具：放不下时整组换到第二行靠右，不挤压「奈亚子思考了 N 字」 */
+[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="tools"] { display: flex; flex: none; align-items: center; gap: var(--k-space-1); margin-left: auto; }
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="body"] { padding: var(--k-space-2) 0 var(--k-space-2) var(--k-space-4); color: var(--k-on-muted); font-size: var(--k-fs-sm); line-height: 1.75; }
-[data-k="msg-think"] > [data-k-part="body"] > [data-k-part="tools"] { display: flex; align-items: center; justify-content: flex-end; gap: var(--k-space-2); margin-top: var(--k-space-2); }
 [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > * { margin: 0 0 .6em; }
 [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] > :last-child { margin-bottom: 0; }
 [data-k="msg-think"] > [data-k-part="body"] > [data-k-part="markdown"] :is(ul, ol) { padding-left: 1.4em; }
@@ -287,16 +291,17 @@
 [data-k="msg-options"] > [data-k-part="head"] > [data-k-part="count"] { color: var(--k-on-muted); }
 [data-k="msg-options"] > [data-k-part="head"] > [data-k-part="mode"] { margin-left: auto; }
 [data-k="msg-options"] > [data-k-part="list"] { display: grid; gap: var(--k-space-1); margin: 0; padding: 0; list-style: none; }
+/* 选项：类型标签 + 标题是头部，内容在下面占满宽度 */
 [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--k-space-2); row-gap: 2px; align-items: baseline;
-  width: 100%; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-md); color: inherit; text-align: left; cursor: pointer;
-  transition: background-color var(--k-dur-fast) var(--k-ease);
+  display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--k-space-2) var(--k-space-3);
+  border-radius: var(--k-r-md); color: inherit; text-align: left; cursor: pointer; transition: background-color var(--k-dur-fast) var(--k-ease);
 }
 [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"]:hover { background: var(--k-control-hover); color: var(--k-on-control); }
-[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="type"] { grid-row: 1; font-size: var(--k-fs-xs); }
-[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="label"] { grid-column: 2; font-weight: var(--k-fw-strong); }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] { display: flex; align-items: center; gap: var(--k-space-2); min-width: 0; }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] { flex: none; font-size: var(--k-fs-xs); }
+[data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="label"] { min-width: 0; font-weight: var(--k-fw-strong); }
 [data-k="msg-options"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="text"] {
-  grid-column: 2; color: var(--k-on-muted); font-size: var(--k-fs-sm);
+  color: var(--k-on-muted); font-size: var(--k-fs-sm);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden;
 }
 /* 电脑：悬停 / 键盘聚焦时展开完整内容；手机：两行 */

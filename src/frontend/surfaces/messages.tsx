@@ -41,6 +41,33 @@ export function nthTag(tag: string): (raw: string, index: number) => string | un
   };
 }
 
+/**
+ * 在一个元素上挂渲染面：attachShadow（不带插槽，元素里原有的兜底内容自动不显示）→ 共享样式表 → 渲染面根属性 → React 根。
+ * 消息挂载服务与酒馆聊天前端（message/tavern.tsx）共用。render 每次都带上弹层容器、图标映射、层级与提示的上下文。
+ */
+export function mountSurface(el: Element, o: { doc: Document; hub: StyleHub; attrs?: () => Record<string, string>; icons?: () => Record<string, string>; onRoot?: (root: ShadowRoot) => () => void }): {
+  root: Root; shadow: ShadowRoot; detach: () => void; off: (() => void) | null; render: (node: React.ReactNode) => void;
+} {
+  const shadow = el.attachShadow({ mode: 'open' });
+  const detach = o.hub.attach(shadow);
+  const surface = o.doc.createElement('div');
+  surface.setAttribute('data-k-surface', 'message');
+  for (const [n, v] of Object.entries(o.attrs ? o.attrs() : {})) { surface.setAttribute(n, v); }
+  const app = o.doc.createElement('div'), portal = o.doc.createElement('div');
+  portal.setAttribute('data-k-portal', '');
+  surface.append(app, portal);
+  shadow.appendChild(surface);
+  const root = createRoot(app);
+  const render = (node: React.ReactNode): void => root.render(
+    <PortalProvider container={portal}>
+      <IconMapProvider value={o.icons ? o.icons() : {}}>
+        <LevelProvider level="bg"><TooltipProvider>{node}</TooltipProvider></LevelProvider>
+      </IconMapProvider>
+    </PortalProvider>
+  );
+  return { root, shadow, detach, off: o.onRoot ? o.onRoot(shadow) : null, render };
+}
+
 export class MessageMounts {
   private readonly o: MessageMountOptions;
   private readonly mounted = new Map<Element, Mounted>();
@@ -90,26 +117,10 @@ export class MessageMounts {
   }
 
   private mount(el: Element, spec: MountKind<any>, payload: unknown, mesId: number, index: number, kind: string): void {
-    const shadow = el.attachShadow({ mode: 'open' });   /* 没有插槽：标记里的兜底文字自动不再显示 */
-    const detach = this.o.hub.attach(shadow);
-    const doc = this.o.doc;
-    const surface = doc.createElement('div');
-    surface.setAttribute('data-k-surface', 'message');
-    for (const [n, v] of Object.entries(this.o.attrs ? this.o.attrs() : {})) { surface.setAttribute(n, v); }
-    const app = doc.createElement('div'), portal = doc.createElement('div');
-    portal.setAttribute('data-k-portal', '');
-    surface.append(app, portal);
-    shadow.appendChild(surface);
-    const root = createRoot(app);
-    const paint = (): void => root.render(
-      <PortalProvider container={portal}>
-        <IconMapProvider value={this.o.icons ? this.o.icons() : {}}>
-          <LevelProvider level="bg"><TooltipProvider>{spec.render(payload, { mesId, index })}</TooltipProvider></LevelProvider>
-        </IconMapProvider>
-      </PortalProvider>
-    );
+    const s = mountSurface(el, this.o);
+    const paint = (): void => s.render(spec.render(payload, { mesId, index }));
     paint();
-    this.mounted.set(el, { root, detach, key: mesId + ':' + kind + ':' + index, off: this.o.onRoot ? this.o.onRoot(shadow) : null, paint });
+    this.mounted.set(el, { root: s.root, detach: s.detach, key: mesId + ':' + kind + ':' + index, off: s.off, paint });
     this.mounts++;
   }
 

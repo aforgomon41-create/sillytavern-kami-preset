@@ -13,6 +13,7 @@ import { resolveScheme, auditScheme } from '../skin-engine/tokens';
 import { validateManifest, type SkinManifest } from '../skin-engine/package';
 import { createLayer, type Layer } from '../surfaces/layer';
 import { MessageMounts, nthTag, type MessageMountOptions } from '../surfaces/messages';
+import { ChatFrontend, type ChatFrontendOptions } from '../message/tavern';
 import { FALLBACK_SKIN } from './fallback-skin';
 import { Fracture } from '../fx/fracture';
 import { loadFonts, probeImage, type LoadState } from './remote';
@@ -34,6 +35,8 @@ export interface Runtime {
   remote(): Promise<{ fonts: Record<string, LoadState>; assets: Record<string, 'remote' | 'fallback'> }>;
   current(): ComposedSkin;
   messages(o: Omit<MessageMountOptions, 'hub' | 'doc' | 'attrs'> & { doc?: Document }): MessageMounts;
+  /** 酒馆聊天前端：每条 AI 回复由我们渲染（正文 / 思维链 / 搜索资料 / 行动选项），见 message/tavern.tsx */
+  chatFrontend(o: Omit<ChatFrontendOptions, 'hub' | 'doc' | 'attrs' | 'icons' | 'onRoot'> & { doc?: Document }): ChatFrontend;
   engine: { resolveScheme: typeof resolveScheme; auditScheme: typeof auditScheme; validateManifest: typeof validateManifest; composeSkin: typeof composeSkin; nthTag: typeof nthTag };
   dispose(): void;
 }
@@ -42,7 +45,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
   const doc0 = host.document;
   const hubs = new Map<Document, StyleHub>();
   const layers = new Map<Document, Layer>();
-  const mounts = new Set<MessageMounts>();
+  const mounts = new Set<{ refreshAttrs(): void; stop(): void }>();
   const systemDark = (): boolean => { try { return host.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return true; } };
   let composed: ComposedSkin = composeSkin(FALLBACK_SKIN, DEFAULT_SETTINGS, { systemDark: systemDark() });
   let manifest: SkinManifest = FALLBACK_SKIN;
@@ -108,6 +111,12 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: () => manifest.icons || {} });
       mounts.add(mm);
       return mm;
+    },
+    chatFrontend(o) {
+      const doc = o.doc || doc0;
+      const cf = new ChatFrontend({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: () => manifest.icons || {} });
+      mounts.add(cf);
+      return cf;
     },
     engine: { resolveScheme, auditScheme, validateManifest, composeSkin, nthTag },
     dispose() {

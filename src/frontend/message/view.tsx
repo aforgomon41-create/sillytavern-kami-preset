@@ -63,6 +63,16 @@ export function MsgBody({ text, streaming }: { text: string; streaming: boolean 
   const last = blocks.length - 1;
   return (
     <section {...k('msg-body', { view: raw ? 'raw' : 'rendered' })} data-streaming={streaming ? '' : undefined} aria-busy={streaming || undefined}>
+      {/* 头部：字数 + 工具（用户 2026-10-28：相关按钮放在前端头部，不放尾部）。生成中只显示字数 */}
+      <div {...part('head')}>
+        <span {...part('count')}>{countChars(text)} 字</span>
+        {streaming ? null : (
+          <span {...part('tools')}>
+            <IconButton size="sm" variant="ghost" label={raw ? '看排版' : '看原文'} aria-pressed={raw} onClick={() => setRaw(!raw)}><IconCode width={16} height={16} /></IconButton>
+            <CopyButton text={text.trim()} label="复制正文" />
+          </span>
+        )}
+      </div>
       {raw ? <pre {...part('raw')}>{text.trim()}</pre> : (
         <div {...part('text')}>
           {blocks.map((b, i) => (b.t === 'scene'
@@ -71,19 +81,13 @@ export function MsgBody({ text, streaming }: { text: string; streaming: boolean 
           {streaming && (last < 0 || blocks[last]!.t === 'scene') ? <p {...part('para')}><span {...part('caret')} aria-hidden="true" /></p> : null}
         </div>
       )}
-      {streaming ? null : (
-        <div {...part('tools')}>
-          <IconButton size="sm" variant="ghost" label={raw ? '看排版' : '看原文'} aria-pressed={raw} onClick={() => setRaw(!raw)}><IconCode width={16} height={16} /></IconButton>
-          <CopyButton text={text.trim()} label="复制正文" />
-        </div>
-      )}
     </section>
   );
 }
 
 /* ───────── 思维链 ───────── */
 
-export function MsgThink({ text, streaming }: { text: string; streaming: boolean }): React.JSX.Element {
+export function MsgThink({ text, streaming, thinker = '奈亚子' }: { text: string; streaming: boolean; thinker?: string }): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
   const [raw, setRaw] = React.useState(false);
   const id = React.useId();
@@ -91,19 +95,24 @@ export function MsgThink({ text, streaming }: { text: string; streaming: boolean
   const Brain = ICONS['brain']!;
   return (
     <section {...k('msg-think', { view: raw ? 'raw' : 'rendered' })} data-state={open ? 'open' : 'closed'} data-streaming={streaming ? '' : undefined}>
-      <button type="button" {...part('head')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
-        <span {...part('icon')} aria-hidden="true">{streaming ? <Spinner size="sm" label="思考中" /> : <Brain width="100%" height="100%" strokeWidth={1.75} />}</span>
-        <span {...part('title')}>{streaming ? '思考中' : '思考了'}</span>
-        <span {...part('count')}>{n} 字</span>
-        <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
-      </button>
+      {/* 头部：左边是展开 / 收起（「奈亚子思考了 N 字」），展开后右边是排版 / 原文与复制（按钮里不能嵌按钮，所以分开） */}
+      <div {...part('head')}>
+        <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          <span {...part('icon')} aria-hidden="true">{streaming ? <Spinner size="sm" label="思考中" /> : <Brain width="100%" height="100%" strokeWidth={1.75} />}</span>
+          <span {...part('title')}>{thinker + (streaming ? '思考中' : '思考了')}</span>
+          <span {...part('count')}>{n} 字</span>
+          <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
+        </button>
+        {open ? (
+          <span {...part('tools')}>
+            <Segmented size="sm" label="显示方式" value={raw ? 'raw' : 'md'} onValueChange={(v) => setRaw(v === 'raw')} options={[{ value: 'md', label: '排版' }, { value: 'raw', label: '原文' }]} />
+            <CopyButton text={text} label="复制思维链" />
+          </span>
+        ) : null}
+      </div>
       {open ? (
         <div {...part('body')} id={id}>
           {raw ? <pre {...part('raw')}>{text}</pre> : <div {...part('markdown')}><Markdown text={text} /></div>}
-          <div {...part('tools')}>
-            <Segmented size="sm" label="显示方式" value={raw ? 'raw' : 'md'} onValueChange={(v) => setRaw(v === 'raw')} options={[{ value: 'md', label: '排版' }, { value: 'raw', label: '原文' }]} />
-            <CopyButton text={text} label="复制思维链" />
-          </div>
         </div>
       ) : null}
     </section>
@@ -120,12 +129,14 @@ export function MsgSearch({ records, pending }: { records: SearchRecord[]; pendi
   const Search = ICONS['search']!;
   return (
     <section {...k('msg-search')} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined}>
-      <button type="button" {...part('head')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={!records.length}>
+      <div {...part('head')}>
+      <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={!records.length}>
         <span {...part('icon')} aria-hidden="true">{pending ? <Spinner size="sm" label="整理资料中" /> : <Search width="100%" height="100%" strokeWidth={1.75} />}</span>
         <span {...part('title')}>{records.length ? '参考了 ' + sources.length + ' 个来源' : '正在整理资料'}</span>
         {sites.length ? <span {...part('sites')}>{sites.slice(0, 3).join(' · ')}{sites.length > 3 ? ' 等' : ''}</span> : null}
         {records.length ? <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span> : null}
       </button>
+      </div>
       {open ? (
         <div {...part('body')} id={id}>
           {records.map((r, ri) => {
@@ -177,8 +188,11 @@ export function MsgOptions({ items, pending, mode, onMode, onPick }: {
             <li key={i}>
               <button type="button" {...part('item')} title={it.content} onClick={() => onPick(it, mode)}
                 aria-label={(mode === 'send' ? '发送：' : '填入：') + it.title + '。' + it.content}>
-                <span {...part('type')}><Badge tone={TONE[it.type] || 'neutral'}>{it.type === 'nsfw' ? 'NSFW' : it.type}</Badge></span>
-                <span {...part('label')}>{it.title}</span>
+                {/* 类型标签 + 标题一起作为头部，内容在下面占满整个宽度（用户 2026-10-28） */}
+                <span {...part('item-head')}>
+                  <span {...part('type')}><Badge tone={TONE[it.type] || 'neutral'}>{it.type === 'nsfw' ? 'NSFW' : it.type}</Badge></span>
+                  <span {...part('label')}>{it.title}</span>
+                </span>
                 <span {...part('text')}>{it.content}</span>
               </button>
             </li>
@@ -191,12 +205,14 @@ export function MsgOptions({ items, pending, mode, onMode, onPick }: {
 
 /* ───────── 一整条回复 ───────── */
 
-export function MessageView({ raw, streaming, latest, mode, onMode, onPick }: {
+export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thinker }: {
   /** 聊天原始数据里的这条回复（流式时是写到一半的文本） */
   raw: string; streaming: boolean;
   /** 是不是最新一条回复：只有它渲染行动选项（拍板 D） */
   latest: boolean;
   mode: OptionMode; onMode: (m: OptionMode) => void; onPick: (item: OptionItem, mode: OptionMode) => void;
+  /** 思维链标题里的名字（默认奈亚子） */
+  thinker?: string;
 }): React.JSX.Element {
   const r = React.useMemo(() => splitReply(raw), [raw]);
   const thinking = streaming && !!r.think && !r.think.closed;
@@ -204,9 +220,11 @@ export function MessageView({ raw, streaming, latest, mode, onMode, onPick }: {
   return (
     /* 自己铺底色（画布层 bg）：酒馆主题可能是深色、皮肤是浅色，不铺底就保证不了对比度。皮肤可以把它做得很淡，但不能透明 */
     <div {...k('msg-view')} data-k-level="bg" data-streaming={streaming ? '' : undefined}>
-      {r.think && r.think.text ? <MsgThink text={r.think.text} streaming={thinking} /> : null}
+      {r.think && r.think.text ? <MsgThink text={r.think.text} streaming={thinking} {...(thinker ? { thinker } : {})} /> : null}
       {r.search.length || (streaming && r.searchPending) ? <MsgSearch records={r.search} pending={streaming && r.searchPending} /> : null}
-      {r.body ? <MsgBody text={r.body.text} streaming={bodyStreaming} /> : null}
+      {r.body ? <MsgBody text={r.body.text} streaming={bodyStreaming} />
+        /* 刚开始生成、还没写到任何内容：先放一个只有光标的正文，免得是一张空纸 */
+        : streaming && !r.think && !r.search.length ? <MsgBody text="" streaming /> : null}
       {latest && r.options && (r.options.items.length || (streaming && !r.options.closed))
         ? <MsgOptions items={r.options.items} pending={!r.options.closed} mode={mode} onMode={onMode} onPick={onPick} /> : null}
     </div>

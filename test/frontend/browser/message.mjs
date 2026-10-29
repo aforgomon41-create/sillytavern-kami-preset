@@ -55,19 +55,25 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   ok(!body.comment && !body.nameTag, '步骤注释与 <n> 标记不显示');
   ok(body.parts.length === 0, '对白 / 引号 / 心理 / 角色名 / 关键词 / 专有名词 / 场景转换都有部件', body.parts);
   /* ② 思维链 */
-  const think0 = await inMount(page, -1, (r) => { const t = r.querySelector('[data-k="msg-think"]'); return { state: t.getAttribute('data-state'), head: t.querySelector(':scope > [data-k-part="head"]').textContent, body: !!t.querySelector(':scope > [data-k-part="body"]') }; });
+  const think0 = await inMount(page, -1, (r) => { const t = r.querySelector('[data-k="msg-think"]'); return { state: t.getAttribute('data-state'), head: t.querySelector(':scope > [data-k-part="head"]').textContent, tools: !!t.querySelector(':scope > [data-k-part="head"] > [data-k-part="tools"]'), body: !!t.querySelector(':scope > [data-k-part="body"]') }; });
   ok(think0.state === 'closed' && !think0.body, '思维链默认收起');
-  ok(/思考了\s*\d+\s*字/.test(think0.head), '收起时显示字数', think0.head);
+  ok(/^奈亚子思考了\s*\d+\s*字/.test(think0.head.trim()), '收起时显示「奈亚子思考了 N 字」', think0.head);
+  ok(!think0.tools, '收起时头部不显示工具');
   const think1 = await inMount(page, -1, (r) => {
-    r.querySelector('[data-k="msg-think"] > [data-k-part="head"]').click();
+    r.querySelector('[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"]').click();
     return new Promise((res) => setTimeout(() => {
       const t = r.querySelector('[data-k="msg-think"]');
       const md = t.querySelector('[data-k-part="markdown"]');
-      res({ state: t.getAttribute('data-state'), md: !!md, h: !!(md && md.querySelector('h4, h5, h6')), li: md ? md.querySelectorAll('li').length : 0, nameTag: md ? md.textContent.includes('<n>') : true });
+      res({ toolsInHead: !!t.querySelector(':scope > [data-k-part="head"] > [data-k-part="tools"] [data-k="segmented"]'), state: t.getAttribute('data-state'), md: !!md, h: !!(md && md.querySelector('h4, h5, h6')), li: md ? md.querySelectorAll('li').length : 0, nameTag: md ? md.textContent.includes('<n>') : true });
     }, 50));
   });
   ok(think1.state === 'open' && think1.md && think1.h && think1.li >= 2, '展开后按 Markdown 排版（标题、列表）', think1);
   ok(!think1.nameTag, '思维链里的 <n> 标记也不显示');
+  ok(think1.toolsInHead, '展开后排版 / 原文与复制在头部');
+  const clash = await inMount(page, -1, (r) => { const h = r.querySelector('[data-k="msg-think"] > [data-k-part="head"]'); const a = h.querySelector('[data-k-part="chevron"]').getBoundingClientRect(); const b = h.querySelector('[data-k-part="tools"]').getBoundingClientRect(); const tg = h.querySelector('[data-k-part="toggle"]'); return { overlap: a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom, clipped: tg.scrollWidth > tg.clientWidth + 1 }; });
+  ok(!clash.overlap && !clash.clipped, '头部的工具不挤压、不遮住「奈亚子思考了 N 字」', clash);
+  const bodyHead = await inMount(page, -1, (r) => { const h = r.querySelector('[data-k="msg-body"] > [data-k-part="head"]'); const b = r.querySelector('[data-k="msg-body"]'); return { first: b.firstElementChild === h, count: h.querySelector('[data-k-part="count"]').textContent, tools: h.querySelectorAll('[data-k-part="tools"] [data-k="icon-button"]').length }; });
+  ok(bodyHead.first && /\d+ 字/.test(bodyHead.count) && bodyHead.tools === 2, '正文的字数与工具在头部', bodyHead);
   const raw = await inMount(page, -1, (r) => {
     [...r.querySelectorAll('[data-k="msg-think"] [data-k="segmented"] [data-k-part="item"]')].find((x) => x.textContent === '原文').click();
     return new Promise((res) => setTimeout(() => res(!!r.querySelector('[data-k="msg-think"] [data-k-part="raw"]')), 50));
@@ -77,7 +83,7 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   const search = await inMount(page, -1, (r) => {
     const s = r.querySelector('[data-k="msg-search"]');
     const head = s.querySelector(':scope > [data-k-part="head"]').textContent;
-    s.querySelector(':scope > [data-k-part="head"]').click();
+    s.querySelector(':scope > [data-k-part="head"] > [data-k-part="toggle"]').click();
     return new Promise((res) => setTimeout(() => res({ head, facts: s.querySelectorAll('[data-k-part="fact"]').length, links: s.querySelectorAll('[data-k-part="source"] a[target="_blank"][rel~="noopener"]').length }), 50));
   });
   ok(/参考了 2 个来源/.test(search.head), '搜索资料收起时一行摘要', search.head);
@@ -101,6 +107,13 @@ for (const [label, opts] of [['电脑 1280', { viewport: { width: 1280, height: 
   const n = await inMount(page, -1, (r, sel) => r.querySelectorAll(sel).length, ITEM);
   const cnt = await inMount(page, -1, (r) => r.querySelector('[data-k="msg-options"] [data-k-part="count"]').textContent);
   ok(n === 6 && cnt.includes('6'), '显示选项个数', { n, cnt });
+  const layout = await inMount(page, -1, (r, sel) => {
+    const it = r.querySelector(sel); const ib = it.getBoundingClientRect();
+    const head = it.querySelector(':scope > [data-k-part="item-head"]'); const t = it.querySelector(':scope > [data-k-part="text"]');
+    const tb = t.getBoundingClientRect(); const pad = parseFloat(getComputedStyle(it).paddingLeft) + it.clientLeft;
+    return { typeInHead: !!head.querySelector('[data-k-part="type"]') && !!head.querySelector('[data-k-part="label"]'), textLeft: Math.round(tb.left - ib.left - pad), textW: Math.round(tb.width), innerW: Math.round(ib.width - pad * 2) };
+  }, ITEM);
+  ok(layout.typeInHead && layout.textLeft === 0 && Math.abs(layout.textW - layout.innerW) <= 1, '选项：类型标签与标题一起作为头部，内容占满宽度', layout);
   /* 填入：接在已有内容后面 */
   await page.fill('#send_textarea', '我想想');
   await inMount(page, -1, (r, sel) => { r.querySelectorAll(sel)[1].click(); }, ITEM);
