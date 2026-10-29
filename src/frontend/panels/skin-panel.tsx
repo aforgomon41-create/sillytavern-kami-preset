@@ -51,6 +51,7 @@ function useManager(mgr: SkinManager): StoredSettings {
  * （composeSkin，和真正套上时同一条路，含皮肤 CSS 与素材），里面用真组件摆一张卡片、一段文字、按钮、开关、徽章。
  * 预览只看不点：宿主 inert + aria-hidden + 不接收指针，点击落到外面的选择卡上。 */
 
+const PREVIEW_W = 280;
 const dsSheets = new WeakMap<Document, CSSStyleSheet | null>();
 function dsSheetFor(doc: Document): CSSStyleSheet | null {
   if (dsSheets.has(doc)) { return dsSheets.get(doc)!; }
@@ -83,10 +84,23 @@ function SkinPreview({ mgr, st, m }: { mgr: SkinManager; st: StoredSettings; m: 
     root.setAttribute('data-k-surface', 'preview');
     root.setAttribute('data-k-level', 'bg');
     root.style.padding = '10px';
+    /* 预览按固定 280px 宽排版，再按卡片实际宽度整体等比缩放（手机两张并排时卡片只有 160px 左右，直接排会把按钮挤成一列） */
+    root.style.width = PREVIEW_W + 'px';
+    root.style.transformOrigin = '0 0';
     root.style.borderRadius = '6px';
     sr.appendChild(root);
     setMount({ root, setCss });
-    return () => { sr.textContent = ''; setMount(null); };
+    const fit = (): void => {
+      const w = h.clientWidth;
+      const k = w > 0 ? Math.min(1, w / PREVIEW_W) : 1;
+      root.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+      root.style.width = (k < 1 ? PREVIEW_W : w) + 'px';
+      h.style.height = Math.ceil(root.offsetHeight * k) + 'px';
+    };
+    const W = doc.defaultView as Window & typeof globalThis;
+    const ro = typeof W.ResizeObserver === 'function' ? new W.ResizeObserver(fit) : null;
+    if (ro) { ro.observe(h); ro.observe(root); } else { fit(); }
+    return () => { if (ro) { ro.disconnect(); } sr.textContent = ''; setMount(null); };
   }, []);
   const per = st.perSkin[m.id] || {};
   const dark = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
@@ -103,7 +117,7 @@ function SkinPreview({ mgr, st, m }: { mgr: SkinManager; st: StoredSettings; m: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mount, key]);
   return (
-    <span ref={host} aria-hidden="true" {...{ inert: '' }} style={{ display: 'block', marginTop: 8, pointerEvents: 'none' }}>
+    <span ref={host} aria-hidden="true" {...{ inert: '' }} style={{ display: 'block', marginTop: 8, pointerEvents: 'none', overflow: 'hidden' }}>
       {mount ? createPortal(
         <LevelProvider level="bg">
           <Card title="示例卡片" meta="预览">
@@ -159,7 +173,7 @@ function SkinList({ mgr, st, notify, compact }: Ctx & { compact: boolean }): Rea
   const list = mgr.list();
   return (
     <SettingSection title="皮肤" badge={<Badge>{list.length} 套</Badge>}>
-      <ChoiceGrid min={compact ? 240 : 220}>
+      <ChoiceGrid min={compact ? 140 : 220}>
         {list.map((m) => {
           return (
             <ChoiceCard key={m.id} selected={st.skin === m.id}
