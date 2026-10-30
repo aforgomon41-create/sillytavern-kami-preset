@@ -1,22 +1,31 @@
-/* 🧪 消息前端 v0.1（frontend-rewrite 支线测试）
+/* 🧪 消息前端 v0.2（frontend-rewrite 支线测试）
  * ------------------------------------------------------------------
- * 用新运行库（KamiRuntimeNext）的 chatFrontend 渲染每条 AI 回复：正文 / 思维链 / 搜索资料 / 行动选项（前端重构-消息前端方案，用户拍板 A–F）。
- * 取代旧的「📄 正文外壳」与「💭 思维链」：支线上「💭 思维链」默认关闭；正文外壳与旧的正则前端还在 .mes_text 里，但 .mes_text 被藏起来，看不到。
- * 皮肤：由「🧪 显示」脚本管（2026-10-29 接入）；它没开时先用内置的「碎光」，跟随系统明暗。
- * 关闭 / 删除本脚本：pagehide 时 stop()——宿主节点、标记、宿主样式全部移除，酒馆恢复原样。
+ * 用新运行库（KamiRuntimeNext）的 chatFrontend 给每条 AI 回复加外壳：正文 / 思维链 / 搜索资料 / 行动选项。
+ * v0.2（2026-10-29 用户实测意见）：**内容留在酒馆的 DOM 里**——正文由酒馆渲染（插件插的按钮、HTML 美化、酒馆的字体颜色都照常），
+ * 思维链读酒馆原生思维链块（「💭 思维链」负责把它从正文流里搬进去），搜索资料 / 行动选项换掉酒馆助手的 iframe。
+ * 与 main 的两个脚本分工：「💭 思维链」照常搬运、只是不美化；「📄 正文外壳」让位。本前端关掉（显示面板「消息前端」开关、
+ * 或关掉本脚本）时，它们自动接回。
+ * 皮肤：由「🧪 显示」脚本管；它没开时先用内置的「碎光」，跟随系统明暗。
+ * 关闭 / 删除本脚本：pagehide 时 stop()——正文放回原处、宿主与样式全部移除，酒馆恢复原样。
  */
 (function () {
   /* @@KAMI_SKINS_NEXT@@ */
-  var VERSION = '0.1';
+  var VERSION = '0.2';
+  var ENABLE_KEY = 'kami.msgfe';   /* localStorage：'0' = 关（显示面板「消息前端」开关） */
   var HOST = (function () {
     try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
     return window;
   })();
   var HDOC = HOST.document;
-  var disposed = false, cf = null, unsubs = [], timer = null;
+  var disposed = false, cf = null, unsubs = [], timer = null, rtRef = null;
   function log(msg) { try { console.log('[消息前端] ' + msg); } catch (e) { } }
 
   function ctx() { try { return SillyTavern.getContext(); } catch (e) { return null; } }
+  function enabledPref() { try { return HOST.localStorage.getItem(ENABLE_KEY) !== '0'; } catch (e) { return true; } }
+  /* 「📄 正文外壳」「💭 思维链」：我们接管时让它们收起装饰；我们退出后让它们重新扫一遍 */
+  function oldScripts(fn) {
+    ['KamiBodyShell', 'KamiCot'].forEach(function (n) { try { var a = HOST[n]; if (a && typeof a[fn] === 'function') { a[fn](); } } catch (e) { } });
+  }
   function stopVisible() {
     var b = HDOC.getElementById('mes_stop');
     return !!b && HOST.getComputedStyle(b).display !== 'none';
@@ -64,24 +73,56 @@
       try { rt.applySkin(skin.manifest, { scheme: 'auto', density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss: skin.css, assetUrls: skin.assetUrls }); }
       catch (e) { log('套皮肤失败，用运行库内置兜底：' + e.message); }
     }
+    rtRef = rt;
+    try { HOST.KamiChatFrontend = { version: VERSION, active: function () { return !disposed && !!cf; }, enabled: enabledPref, setEnabled: setEnabled, get instance() { return cf; }, shutdown: shutdown }; } catch (e) { }
+    if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
+      var on = function (name, fn) { var ev = tavern_events[name]; if (!ev) { return; } try { var s = eventOn(ev, fn); if (s) { unsubs.push(s); } } catch (e) { } };
+      var again = function () { if (cf) { cf.refresh(); } };
+      on('GENERATION_STARTED', again);
+      ['GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED', 'MESSAGE_RECEIVED'].forEach(function (n) { on(n, function () { again(); setTimeout(again, 300); setTimeout(again, 1200); }); });
+      ['MESSAGE_UPDATED', 'MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'CHARACTER_MESSAGE_RENDERED', 'STREAM_TOKEN_RECEIVED',
+        'MESSAGE_REASONING_EDITED', 'MESSAGE_REASONING_DELETED', 'STREAM_REASONING_DONE'].forEach(function (n) { on(n, again); });
+    }
+    if (enabledPref()) { startFrontend(); } else { log('启动 v' + VERSION + '：消息前端已在显示面板里关闭'); }
+  }
+
+  function startFrontend() {
+    if (disposed || cf || !rtRef) { return; }
+    var rt = rtRef;
     cf = rt.chatFrontend({
       chat: function () { return HDOC.getElementById('chat'); },
-      getMessage: function (id) { var c = ctx(); var m = c && c.chat[id]; return m ? { mes: String(m.mes || ''), isUser: !!m.is_user, isSystem: !!m.is_system } : undefined; },
+      getMessage: function (id) {
+        var c = ctx(); var m = c && c.chat[id];
+        if (!m) { return undefined; }
+        var r = m.extra && typeof m.extra.reasoning === 'string' ? m.extra.reasoning : '';
+        return { mes: String(m.mes || ''), isUser: !!m.is_user, isSystem: !!m.is_system, reasoning: r };
+      },
+      liveThink: function () { try { return HOST.KamiCot && typeof HOST.KamiCot.live === 'function' ? HOST.KamiCot.live() : null; } catch (e) { return null; } },
       count: function () { var c = ctx(); return c ? c.chat.length : 0; },
       /* 「正在生成」以停止键为准：酒馆统计提示词（dry run）时也发 GENERATION_STARTED，却没有对应的结束事件，
          拿事件记状态会一直卡在「生成中」（2026-10-28 实测）。事件只用来叫一次重画 */
       generating: stopVisible,
       onPick: function (item, mode) { if (mode === 'send') { send(item.content); } else { fill(item.content); } }
     });
+    /* 先让「📄 正文外壳」「💭 思维链」收起已有的装饰（它们的 dress 看 active() 让位），再开始接管 */
+    oldScripts('release');
     cf.start();
-    if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
-      var on = function (name, fn) { var ev = tavern_events[name]; if (!ev) { return; } try { var s = eventOn(ev, fn); if (s) { unsubs.push(s); } } catch (e) { } };
-      on('GENERATION_STARTED', function () { cf.refresh(); });
-      ['GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'].forEach(function (n) { on(n, function () { cf.refresh(); setTimeout(function () { if (cf) { cf.refresh(); } }, 300); }); });
-      ['MESSAGE_RECEIVED', 'MESSAGE_UPDATED', 'MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'CHARACTER_MESSAGE_RENDERED', 'STREAM_TOKEN_RECEIVED'].forEach(function (n) { on(n, function () { cf.refresh(); }); });
-    }
-    try { HOST.KamiChatFrontend = { version: VERSION, instance: cf, shutdown: shutdown }; } catch (e) { }
-    log('启动 v' + VERSION + '：已接管 ' + cf.size + ' 条回复');
+    log('启动 v' + VERSION + '：已接管 ' + cf.size + ' 处');
+  }
+
+  function stopFrontend() {
+    if (!cf) { return; }
+    try { cf.stop(); } catch (e) { }
+    cf = null;
+    oldScripts('scan');
+    log('消息前端已关闭：交回酒馆与「📄 正文外壳」「💭 思维链」');
+  }
+
+  /* 显示面板的「消息前端」开关 */
+  function setEnabled(v) {
+    try { HOST.localStorage.setItem(ENABLE_KEY, v ? '1' : '0'); } catch (e) { }
+    if (v) { startFrontend(); } else { stopFrontend(); }
+    return true;
   }
 
   /* 运行库由另一个脚本加载，脚本是并行跑的：最多等 15 秒 */
@@ -100,7 +141,7 @@
     if (timer) { clearTimeout(timer); timer = null; }
     unsubs.forEach(function (u) { try { u.stop(); } catch (e) { } });
     unsubs = [];
-    if (cf) { try { cf.stop(); } catch (e) { } cf = null; }
+    if (cf) { try { cf.stop(); } catch (e) { } cf = null; oldScripts('scan'); }
     try { if (HOST.KamiChatFrontend && HOST.KamiChatFrontend.shutdown === shutdown) { delete HOST.KamiChatFrontend; } } catch (e) { }
     try { window.removeEventListener('pagehide', shutdown); } catch (e) { }
     log('已注销');

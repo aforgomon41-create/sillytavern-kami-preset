@@ -288,6 +288,8 @@
    平台只给结构与节奏：同一条对齐轴、同一套间距；框不框、线怎么画由皮肤决定（前端重构-消息前端方案 第三节）。
    一律用 > 逐级写到部件：这些前端里嵌着按钮、分段按钮等别的组件，后代选择器会误伤它们的同名部件（例如 item / icon）。 */
 [data-k="msg-view"] { gap: var(--k-gap-group); padding: var(--k-pad-card); border-radius: var(--k-r-lg); }
+/* 酒馆里单独的一块（思维链 / 搜索资料 / 行动选项各自一个宿主）：与酒馆正文同宽，上下留白收紧（收起时只是一行头部） */
+[data-k="msg-view"][data-k-kind] { padding: var(--k-space-2) var(--k-space-3); }
 
 /* 正文：阅读令牌；段首两字缩进（电脑、手机一样，用户拍板 C）；段距。text 里只有行内排版，没有别的组件 */
 [data-k="msg-body"] > [data-k-part="text"] { font-size: var(--k-read-size); line-height: var(--k-read-lh); }
@@ -314,6 +316,19 @@
   [data-k="msg-body"]:hover > [data-k-part="head"] > [data-k-part="tools"], [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"]:focus-within { opacity: 1; }
 }
 @media (hover: none) { [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"] { opacity: .7; } }
+/* 酒馆里的正文外壳（message/tavern.tsx）：正文由酒馆渲染、通过 slot 显示——字体与颜色都跟酒馆的设置走（用户 2026-10-29），
+   不铺底色；头部的字数与按钮也用酒馆的正文颜色（淡一些），保证在任何酒馆主题上都看得清 */
+[data-k="msg-body"][data-k-source="tavern"] {
+  --k-on: var(--SmartThemeBodyColor, currentColor);
+  --k-on-muted: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 72%, transparent);
+  color: var(--SmartThemeBodyColor, inherit); font-family: var(--mainFontFamily, inherit); font-size: var(--mainFontSize, inherit);
+}
+[data-k="msg-body"][data-k-source="tavern"] > [data-k-part="head"] { margin-bottom: 0; }
+[data-k="msg-body"][data-k-source="tavern"] > [data-k-part="slot"][hidden] { display: none; }
+[data-k="msg-body"][data-k-source="tavern"] > [data-k-part="raw"] { color: inherit; }
+/* 公式（我们自己渲染的地方：思维链、搜索资料、行动选项） */
+[data-kami-math="block"] { display: block; overflow-x: auto; overflow-y: hidden; margin: .4em 0; text-indent: 0; }
+[data-kami-math] math { font-size: 1.05em; }
 
 /* 思维链 / 搜索资料：边注，收起时只是一行摘要 */
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--k-space-2); min-height: 32px; }

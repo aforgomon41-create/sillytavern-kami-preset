@@ -16,7 +16,7 @@
  * 写入通道（自己不碰预设，全部走各脚本暴露的现成 API）：
  *   · 条目开关 / 选模型 / 写变量 → KamiPreset.setEnabled / selectModel / setVar（🌟 预设设置）
  *   · 换皮肤 → KamiSkin.setSkin（🎨 皮肤管理）
- *   · 反截断开关 → AntiTruncation.on / off（🛡 反截断）
+ *   · 反截断开关 → AntiTruncation.on / off（反截断）
  *   · 压缩开关 → KamiSummarize.setRolling / setGrand、调参去 KamiSummarize.open() 打开的 📜 面板（📜 压缩）
  *   对应脚本没在运行时，相关页面降级成纯说明，不让用户卡住。
  *
@@ -138,7 +138,7 @@
     antitruncPageIntro: '有时回复会在中途被截断。反截断开关用一个变通办法绕开它：开了之后回复改走工具调用通道带回来，体验接近非流式；需要渠道支持函数调用，不支持的渠道开了会没有回复。',
     antitruncOn: '已开启',
     antitruncOff: '已关闭',
-    antitruncDegrade: '反截断脚本没有在运行，这里只有说明。启用 🛡 反截断 后可用按钮条上的 🛡 开关。',
+    antitruncDegrade: '反截断脚本没有在运行，这里只有说明。启用 反截断 后可用按钮条上的「反截断」开关。',
     compressPageTitle: '长文压缩（避免顶到模型上限）',
     compressPageIntro: '聊久了每次发出去的内容会越来越多，迟早顶到模型能记住的上限。这一页有两个压缩开关，用来把旧楼层总结成摘要。它们出手的时机不一样，各自都有优劣。',
     compressRollName: '滚动压缩（楼层深了就出手）',
@@ -153,7 +153,7 @@
     compressOpenPanel: '打开工具箱 · 压缩',
     compressDegrade: '工具箱没有在运行，这一页只剩说明。启用 🧰 工具箱 之后可以在这里开关，参数在那块面板里调。',
     completionTitle: '设置完成',
-    completionBody: '你的选择已经生效。以后想调整：🌟 预设设置 管条目与变量，🎨 显示 管皮肤与显示，🛡 反截断 管反截断；点 🧭 引导 可以随时重看这份引导。',
+    completionBody: '你的选择已经生效。以后想调整：🌟 预设设置 管条目与变量，🎨 显示 管皮肤与显示，反截断 管反截断；点 🧭 引导 可以随时重看这份引导。',
     fallbackMissing: '这一项在预设里找不到了，可能已被改名或删除。',
     applyFail: '这次改动没有写进去，可以重试一次，或稍后到 🌟 预设设置 里手动改。'
   };

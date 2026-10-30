@@ -97,6 +97,7 @@
 
 /* 消息前端：四个前端同一条对齐轴（受正文行长约束，电脑上选项不会比正文宽）；内部一律允许收缩 */
 [data-k="msg-view"] { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--k-read-measure); min-width: 0; }
+[data-k="msg-view"][data-k-kind] { max-width: none; }   /* 酒馆里单独的一块：与酒馆正文同宽 */
 [data-k="msg-view"] > * { min-width: 0; }
 
 /* 折叠外壳（思维链 / 搜索资料）：行高 0fr ↔ 1fr 过渡，收起也有动画；收完再藏起来（visibility 延后切换），动效关闭时由上面的规则变成瞬间 */

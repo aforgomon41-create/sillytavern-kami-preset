@@ -57,12 +57,15 @@ export class Fracture {
   private readonly mo: MutationObserver;
   private readonly coarse: boolean;
   private readonly reduce: boolean;
+  /** 宿主窗口：脚本在酒馆助手的 iframe 里跑，全局的 this.win.innerHeight / getComputedStyle 是那个 0 高 iframe 的——一律用面板所在文档的窗口 */
+  private readonly win: Window & typeof globalThis;
   private disposed = false;
 
   constructor(root: ShadowRoot, private readonly o: FractureOptions) {
     this.root = root;
     const doc = root.ownerDocument;
     const win = doc.defaultView as Window & typeof globalThis;
+    this.win = win;
     this.coarse = !!win.matchMedia && win.matchMedia('(pointer: coarse)').matches;
     this.reduce = !!win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.layer = doc.createElement('div');
@@ -103,7 +106,7 @@ export class Fracture {
     const p = this.pending;
     this.pending = null;
     if (!p || p.id !== pe.pointerId) { return; }
-    if (Math.hypot(pe.clientX - p.x, pe.clientY - p.y) > TAP_SLOP || performance.now() - p.t > 600) { return; }
+    if (Math.hypot(pe.clientX - p.x, pe.clientY - p.y) > TAP_SLOP || this.win.performance.now() - p.t > 600) { return; }
     this.trigger(p.target, pe.clientX, pe.clientY);
   };
 
@@ -112,7 +115,7 @@ export class Fracture {
     if (pe.button !== undefined && pe.button !== 0) { return; }
     if (pe.pointerType === 'touch') {
       const t0 = pe.composedPath()[0] as Element | undefined;
-      this.pending = t0 && typeof t0.closest === 'function' ? { id: pe.pointerId, x: pe.clientX, y: pe.clientY, t: performance.now(), target: t0 } : null;
+      this.pending = t0 && typeof t0.closest === 'function' ? { id: pe.pointerId, x: pe.clientX, y: pe.clientY, t: this.win.performance.now(), target: t0 } : null;
       return;
     }
     this.trigger(pe.composedPath()[0] as Element | undefined, pe.clientX, pe.clientY);
@@ -170,7 +173,7 @@ export class Fracture {
     if (motion === 'off' || this.active.length >= MAX_ACTIVE) { return; }
     const r = el.getBoundingClientRect();
     if (r.width < 4) { return; }
-    const cs = getComputedStyle(el);
+    const cs = this.win.getComputedStyle(el);
     const glow = cs.getPropertyValue('--k-fx-glow').trim() || cs.getPropertyValue('--k-accent').trim() || '#7aa2f7';
     const g = this.freeGlows.pop();
     if (!g) { return; }
@@ -199,13 +202,13 @@ export class Fracture {
     const head = el.querySelector(':scope > [data-k-part="head"]');
     const body = el.querySelector(':scope > [data-k-part="fold"] > [data-k-part="body"]') || el.querySelector(':scope > [data-k-part="fold"]') || el.querySelector(':scope > [data-k-part="body"]');
     const er = el.getBoundingClientRect();
-    if (er.width < 4 || er.bottom < 0 || er.top > innerHeight) { return; }
+    if (er.width < 4 || er.bottom < 0 || er.top > this.win.innerHeight) { return; }
     const top = head ? head.getBoundingClientRect().bottom : er.top;
     /* 线的长度：展开时是内容的自然高度（此刻高度动画刚开始，量 scrollHeight）；收起时是当前高度 */
-    const len = Math.max(24, Math.min(innerHeight * 1.2, body ? (open ? (body as HTMLElement).scrollHeight : body.getBoundingClientRect().height) : er.bottom - top));
-    const bs = body ? getComputedStyle(body) : null;
+    const len = Math.max(24, Math.min(this.win.innerHeight * 1.2, body ? (open ? (body as HTMLElement).scrollHeight : body.getBoundingClientRect().height) : er.bottom - top));
+    const bs = body ? this.win.getComputedStyle(body) : null;
     const x = body ? body.getBoundingClientRect().left + (bs && parseFloat(bs.borderLeftWidth) > 0 ? parseFloat(bs.borderLeftWidth) / 2 : Math.min(12, parseFloat(bs!.paddingLeft) / 2 || 0)) : er.left;
-    const cs = getComputedStyle(el);
+    const cs = this.win.getComputedStyle(el);
     const num = (v: string, d: number): number => { const n = parseFloat(v); return isFinite(n) ? n : d; };
     const size = Math.max(3, num(cs.getPropertyValue('--k-fx-size'), 6)) * (this.coarse ? 1.4 : 1);
     const glow = cs.getPropertyValue('--k-fx-glow').trim() || cs.getPropertyValue('--k-accent').trim() || '#7aa2f7';
@@ -257,14 +260,14 @@ export class Fracture {
     if (this.disposed || !this.o.enabled()) { return; }
     const motion = this.reduce ? 'off' : this.o.motion();
     if (motion === 'off') { return; }
-    const now = performance.now();
+    const now = this.win.performance.now();
     if ((this.last.get(el) || 0) > now - 120) { return; }
     this.last.set(el, now);
     if (this.active.length >= MAX_ACTIVE) { return; }
     const r = el.getBoundingClientRect();
-    if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > innerHeight) { return; }
+    if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > this.win.innerHeight) { return; }
 
-    const cs = getComputedStyle(el);
+    const cs = this.win.getComputedStyle(el);
     const num = (v: string, d: number): number => { const n = parseFloat(v); return isFinite(n) ? n : d; };
     const size = Math.max(3, num(cs.getPropertyValue('--k-fx-size'), 6)) * (this.coarse ? 1.5 : 1);
     const glow = cs.getPropertyValue('--k-fx-glow').trim() || cs.getPropertyValue('--k-accent').trim() || '#7aa2f7';

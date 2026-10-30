@@ -47,3 +47,8 @@ declare module '*/_update-progress.js' {
 declare module '*/_custom-style-ui.js' {
   export const CUSTOM_STYLE_COPY: Record<string, string>;
 }
+
+/** 「只复制干净的正文」的取文本规则（src/scripts/_copy-clean.js，与「📄 正文外壳」「💭 思维链」同一份实现） */
+declare module '*/_copy-clean.js' {
+  export function cleanCopyText(node: Node): string;
+}

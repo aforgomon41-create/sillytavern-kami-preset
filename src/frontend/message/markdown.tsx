@@ -1,24 +1,42 @@
 /**
- * 轻量 Markdown（思维链的「排版」视图、引导里的免责声明等长文用）：标题、列表、引用、代码块、分隔线、表格、段落；行内粗体 / 斜体 / 行内代码。
+ * 轻量 Markdown（思维链的「排版」视图、搜索资料、行动选项、引导里的免责声明等长文用）：标题、列表、引用、代码块、分隔线、表格、段落；
+ * 行内粗体 / 斜体 / 删除线 / 行内代码 / 链接；公式（$…$、\(…\)、$$…$$、\[…\]，见 math.ts，渲染成 MathML）。
  * 只输出 React 节点、不拼 HTML 字符串，模型输出里的尖括号原样显示，没有注入风险。
  * 够用即可：表格只认标准的竖线表（第二行是 |---| 分隔行）；表格外面包一层可横向滚动的容器，窄屏不撑破。
  */
 import * as React from 'react';
+import { mathHtml, maybeMath, splitMath } from './math';
 
-function inline(s: string, key: string): React.ReactNode[] {
+function emphasis(s: string, key: string): React.ReactNode[] {
   const out: React.ReactNode[] = [];
-  const re = /`([^`]+)`|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\s][^*]*)\*|_([^_\s][^_]*)_/g;
+  const re = /`([^`]+)`|\*\*([^*]+)\*\*|__([^_]+)__|~~([^~]+)~~|\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|\*([^*\s][^*]*)\*|_([^_\s][^_]*)_/g;
   let at = 0, m: RegExpExecArray | null, n = 0;
   while ((m = re.exec(s))) {
     if (m.index > at) { out.push(s.slice(at, m.index)); }
     const k = key + '-' + n++;
     if (m[1] !== undefined) { out.push(<code key={k}>{m[1]}</code>); }
-    else if (m[2] !== undefined || m[3] !== undefined) { out.push(<strong key={k}>{m[2] ?? m[3]}</strong>); }
-    else { out.push(<em key={k}>{m[4] ?? m[5]}</em>); }
+    else if (m[2] !== undefined || m[3] !== undefined) { out.push(<strong key={k}>{emphasis(m[2] ?? m[3]!, k)}</strong>); }
+    else if (m[4] !== undefined) { out.push(<del key={k}>{emphasis(m[4], k)}</del>); }
+    else if (m[5] !== undefined) { out.push(<a key={k} href={m[6]} target="_blank" rel="noopener noreferrer">{m[5]}</a>); }
+    else { out.push(<em key={k}>{emphasis(m[7] ?? m[8]!, k)}</em>); }
     at = m.index + m[0].length;
   }
   if (at < s.length) { out.push(s.slice(at)); }
   return out;
+}
+
+/** 行内：先切出公式（公式里的 * _ 不能当强调），其余按行内 markdown */
+function inline(s: string, key: string): React.ReactNode[] {
+  if (!maybeMath(s)) { return emphasis(s, key); }
+  return splitMath(s).flatMap((p, i): React.ReactNode[] => (p.t === 'text'
+    ? emphasis(p.v, key + 'm' + i)
+    : [<span key={key + 'm' + i} data-kami-math={p.display ? 'block' : 'inline'} title={p.v} dangerouslySetInnerHTML={mathHtml(p.v, p.display)} />]));
+}
+
+/** 一段行内文字（行动选项内容、搜索资料的事实等）：行内 markdown + 公式，保留换行 */
+export function InlineMarkdown({ text }: { text: string }): React.JSX.Element {
+  const ls = text.replace(/\r\n?/g, '\n').replace(/<\/?n>/g, '').split('\n');
+  return <>{ls.flatMap((l, i) => (i ? [<br key={'br' + i} />, ...inline(l, 'l' + i)] : inline(l, 'l' + i)))}</>;
 }
 
 /** 多行段落：行与行之间保留换行（思维链常是一行一个念头） */
@@ -34,6 +52,27 @@ export function Markdown({ text }: { text: string }): React.JSX.Element {
     const line = src[i]!;
     const key = 'b' + n++;
     if (!line.trim()) { i++; continue; }
+    /* 独立公式：$$ … $$ 或 \[ … \]（可以跨行） */
+    const dm = /^\s*(\$\$|\\\[)/.exec(line);
+    if (dm) {
+      const close = dm[1] === '$$' ? '$$' : '\\]';
+      const body: string[] = [];
+      let rest = line.slice(dm.index + dm[0].length);
+      let j = i, done = false;
+      for (;;) {
+        const c = rest.indexOf(close);
+        if (c >= 0) { body.push(rest.slice(0, c)); done = true; break; }
+        body.push(rest);
+        if (++j >= src.length) { break; }
+        rest = src[j]!;
+      }
+      const tex = body.join('\n').trim();
+      if (done && tex && mathHtml(tex, true).__html) {
+        out.push(<div key={key} data-kami-math="block" title={tex} dangerouslySetInnerHTML={mathHtml(tex, true)} />);
+        i = j + 1;
+        continue;
+      }
+    }
     if (/^```/.test(line)) {
       const body: string[] = [];
       i++;

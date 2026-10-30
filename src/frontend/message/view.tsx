@@ -7,10 +7,10 @@
  */
 import * as React from 'react';
 import { k, part } from '../ds/hooks';
-import { IconChevronDown, IconCode, IconCopy } from '../ds/icons';
+import { IconChevronDown, IconCode, IconCopy, IconPencil, IconTrash } from '../ds/icons';
 import { ICONS } from '../ds/icons/registry';
 import { Badge, IconButton, Segmented, Spinner } from '../ds';
-import { Markdown } from './markdown';
+import { InlineMarkdown, Markdown } from './markdown';
 import { countChars, parseBody, siteOf, splitReply, type Inline, type OptionItem, type SearchRecord } from './parse';
 
 /** 复制到剪贴板（消息在宿主页面里，clipboard API 不可用时退回 execCommand） */
@@ -99,7 +99,10 @@ function Fold({ open, id, children }: { open: boolean; id: string; children: Rea
 
 /* ───────── 思维链 ───────── */
 
-export function MsgThink({ text, streaming, thinker = '奈亚子' }: { text: string; streaming: boolean; thinker?: string }): React.JSX.Element {
+/** 思维链头部的原生操作：思维链存在酒馆原生思维链块里时，编辑 / 删除交给酒馆自己的按钮（用户：原生入口要保留） */
+export interface ThinkActions { edit?: () => void; remove?: () => void }
+
+export function MsgThink({ text, streaming, thinker = '奈亚子', actions }: { text: string; streaming: boolean; thinker?: string; actions?: ThinkActions }): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
   const [raw, setRaw] = React.useState(false);
   const id = React.useId();
@@ -119,6 +122,8 @@ export function MsgThink({ text, streaming, thinker = '奈亚子' }: { text: str
           <span {...part('tools')}>
             <Segmented size="sm" label="显示方式" value={raw ? 'raw' : 'md'} onValueChange={(v) => setRaw(v === 'raw')} options={[{ value: 'md', label: '排版' }, { value: 'raw', label: '原文' }]} />
             <CopyButton text={text} label="复制思维链" />
+            {actions && actions.edit ? <IconButton size="sm" variant="ghost" label="编辑思维链" onClick={actions.edit}><IconPencil width={16} height={16} /></IconButton> : null}
+            {actions && actions.remove ? <IconButton size="sm" variant="ghost" label="删除思维链" onClick={actions.remove}><IconTrash width={16} height={16} /></IconButton> : null}
           </span>
         ) : null}
       </div>
@@ -155,7 +160,7 @@ export function MsgSearch({ records, pending }: { records: SearchRecord[]; pendi
                 {r.world ? <p {...part('scope')}>范围{r.origin === 'native' ? '（模型自带搜索）' : ''}：{r.world}</p> : null}
                 {r.facts.length ? (
                   <ol {...part('facts')}>
-                    {r.facts.map((f, i) => <li key={i} {...part('fact')}>{f.text}{f.source_ids.map((sid) => <sup key={sid} {...part('ref')}>[{num.get(sid)}]</sup>)}</li>)}
+                    {r.facts.map((f, i) => <li key={i} {...part('fact')}><InlineMarkdown text={f.text} />{f.source_ids.map((sid) => <sup key={sid} {...part('ref')}>[{num.get(sid)}]</sup>)}</li>)}
                   </ol>
                 ) : <p {...part('status')}>{r.status === 'not_found' ? '本次没有找到可用资料。' : r.status === 'budget_exceeded' ? '资料超过本轮长度预算，未加入新事实。' : '本次没有需要补充的新事实。'}</p>}
                 {r.sources.length ? (
@@ -208,9 +213,9 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
                 {/* 类型标签 + 标题一起作为头部，内容在下面占满整个宽度（用户 2026-10-28） */}
                 <span {...part('item-head')}>
                   <span {...part('type')}><Badge tone={TONE[it.type] || 'neutral'}>{it.type === 'nsfw' ? 'NSFW' : it.type}</Badge></span>
-                  <span {...part('label')}>{it.title}</span>
+                  <span {...part('label')}><InlineMarkdown text={it.title} /></span>
                 </span>
-                <span {...part('text')}>{it.content}</span>
+                <span {...part('text')}><InlineMarkdown text={it.content} /></span>
               </button>
             </li>
           ))}
@@ -219,6 +224,45 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
       )}
     </section>
   );
+}
+
+/* ───────── 酒馆里的正文外壳（内容留在酒馆的 DOM 里） ───────── */
+
+/**
+ * 正文外壳：正文由**酒馆自己渲染**（markdown、正则、HTML 美化、其他插件插进去的按钮都照常），
+ * 外壳只加一个头部（字数 / 看原文 / 复制）。正文节点留在页面的 DOM 里，通过 <slot> 显示在这里，
+ * 所以字体、颜色（对白、心理描写）都跟酒馆的设置走（用户 2026-10-29：直接用酒馆的字体颜色设置）。
+ */
+export function MsgBodyShell({ raw, copy }: {
+  /** 正文原文（<content> 里的那段，字数与「看原文」用） */
+  raw: string;
+  /** 复制：取渲染后的干净正文（由调用方从页面 DOM 里取） */
+  copy: () => string;
+}): React.JSX.Element {
+  const [showRaw, setShowRaw] = React.useState(false);
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const [done, setDone] = React.useState(false);
+  return (
+    <section {...k('msg-body', { view: showRaw ? 'raw' : 'rendered' })} data-k-source="tavern">
+      <div {...part('head')}>
+        <span {...part('count')}>{countChars(raw)} 字</span>
+        <span {...part('tools')}>
+          <IconButton size="sm" variant="ghost" label={showRaw ? '看排版' : '看原文'} aria-pressed={showRaw} onClick={() => setShowRaw(!showRaw)}><IconCode width={16} height={16} /></IconButton>
+          <IconButton ref={ref} size="sm" variant="ghost" label={done ? '已复制' : '复制正文'}
+            onClick={() => { void copyText(ref.current!.ownerDocument, copy()).then((ok) => { setDone(ok); window.setTimeout(() => setDone(false), 1500); }); }}>
+            <IconCopy width={16} height={16} />
+          </IconButton>
+        </span>
+      </div>
+      {showRaw ? <pre {...part('raw')}>{raw.trim()}</pre> : null}
+      <div {...part('slot')} hidden={showRaw}><slot /></div>
+    </section>
+  );
+}
+
+/** 思维链 / 搜索资料 / 行动选项各自一块：自己铺底色（酒馆主题可能是深色、皮肤是浅色，不铺底就保证不了对比度） */
+export function MsgPart({ kind, children }: { kind: string; children: React.ReactNode }): React.JSX.Element {
+  return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind}>{children}</div>;
 }
 
 /* ───────── 一整条回复 ───────── */

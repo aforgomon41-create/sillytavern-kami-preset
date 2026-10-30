@@ -1,14 +1,17 @@
-// 新消息前端（🧪 消息前端 脚本 + 新运行库 chatFrontend）在真实酒馆里的验证：
+// 新消息前端 v0.2（🧪 消息前端 脚本 + 新运行库 chatFrontend）在真实酒馆里的验证：
 //   node test/st/message-next.mjs [--mobile] [--shots]
-// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包（含「🧪 消息前端」），见 test/st/README.md
-// 核对：接管已有回复、藏起酒馆的 .mes_text；流式生成期间逐步排版（读 chat[mesid].mes）；生成结束出选项；
-//       只有最新回复有选项；填入 / 发送（酒馆助手 createChatMessages + generate）；编辑消息时让回酒馆的编辑框；
-//       重载聊天重挂、删除消息清理；实际渲染对比度；脚本注销后不留任何东西。
+// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包，见 test/st/README.md
+// v0.2 的做法（2026-10-29 用户实测意见）：内容留在酒馆的 DOM 里，我们只加外壳。核对：
+//   · 思维链：「💭 思维链」流式时搬进酒馆原生思维链块（extra.reasoning），新前端显示它（原生块藏起、编辑 / 删除走原生按钮）；
+//     生成中显示「奈亚子思考中」；
+//   · 正文：仍是酒馆渲染的节点（在 .mes_text 里），对白 / 心理描写的颜色就是酒馆的字体颜色设置；其他插件插进去的节点留得住；
+//     正文里的 HTML 美化（酒馆助手 iframe）照常显示；公式渲染成 MathML；
+//   · 搜索资料 / 行动选项：换掉酒馆助手的 iframe；只有最新回复有选项；填入 / 发送；
+//   · 编辑后重新接管、重载聊天、删除消息；显示面板的「消息前端」开关（关 → 「📄 正文外壳」「💭 思维链」接回）；
+//   · 折叠时有碎光特效；实际渲染对比度；脚本注销后不留东西。
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { auditInPage } from '../frontend/browser/audit-lib.mjs';
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
 const { chromium } = require('playwright');
 const MOBILE = process.argv.includes('--mobile');
@@ -23,10 +26,11 @@ const OPTIONS = [
   { title: '敲门报上名字', type: '性格', content: '「打扰了，我是从镇上来的。」规规矩矩地敲三下门。' },
   { title: '绕到后窗', type: '推进', content: '沿着墙根绕到屋后，看看破窗里能不能先瞧见些什么。' },
   { title: '学猫叫试探', type: '搞笑', content: '冲着门缝「喵——」了一声，看看屋里的人会不会上当。' },
-  { title: '转身离开', type: '其他', content: '这地方不对劲，还是先回镇上打听清楚再说。' }
+  { title: '转身离开', type: '其他', content: '这地方不对劲，还是先回镇上打听清楚再说。$x^2$ 也算' }
 ];
+const THINK = ['## 场景确认', '深夜的废屋，<n>老马什</n>在屋里。', '', '## 最终线路', '1. **步骤1**：门前的环境与声音', '2. **步骤2**：开门前的一瞬', '- 选项给 6 个', '- 能量守恒 $E=mc^2$'];
 const REPLY = [
-  '<nyaruko_think>', '## 场景确认', '深夜的废屋，<n>老马什</n>在屋里。', '', '## 最终线路', '1. **步骤1**：门前的环境与声音', '2. **步骤2**：开门前的一瞬', '- 选项给 6 个', '</nyaruko_think>',
+  '<nyaruko_think>', ...THINK, '</nyaruko_think>',
   '<out_body>', '<introduction>',
   '<search_results>', '范围：克苏鲁神话｜洛夫克拉夫特原作设定', '- 印斯茅斯是马萨诸塞州海岸的虚构小镇。 [1]', '- 达贡秘密教团在镇上取代了原有教会。 [1][2]',
   '[1] https://zh.wikipedia.org/wiki/Innsmouth 印斯茅斯', '[2] https://www.hplovecraft.com/writings/texts/fiction/soi.aspx The Shadow over Innsmouth', '</search_results>',
@@ -35,6 +39,9 @@ const REPLY = [
   '', '　　屋里有人在说话。*他们在说什么？*你摸了摸口袋里的地图，上面圈出的正是【马什旧宅】。',
   '', '<!-- 步骤2/Token280 -->', '___', '',
   '　　「外面有人。」一个沙哑的声音忽然停了下来。<n>老马什</n>的影子爬上了门缝——那是传说中的**深潜者之潮**。',
+  '', '　　门上刻着一行算式：\\(\\frac{a*b}{c_1}\\) 与 $x_1 + y_1$，价格标签写着 $5 和 $10。',
+  '', '$$', '\\int_0^1 x\\,dx = \\frac{1}{2}', '$$',
+  '', '```html', '<!DOCTYPE html><html><body><div id="kami-html-card" style="padding:8px">HTML美化卡片</div></body></html>', '```',
   '</content>', '<appendix>', '<options>', JSON.stringify(OPTIONS), '</options>', '</appendix>', '</out_body>'
 ].join('\n');
 const REPLY2 = ['<content>', '　　门开了。<n>老马什</n>上下打量着你：「进来吧，外面……不安全。」', '</content>', '<options>',
@@ -61,167 +68,222 @@ if (!(await page.locator('#send_but').isVisible())) {
   await page.evaluate(() => document.getElementById('api_button_openai')?.click());
   await page.waitForSelector('#send_but', { state: 'visible', timeout: 30000 });
 }
+/* 上次测试可能关掉了开关 */
+await page.evaluate(() => { try { localStorage.removeItem('kami.msgfe'); } catch (e) { } if (window.KamiChatFrontend && !window.KamiChatFrontend.active()) { window.KamiChatFrontend.setEnabled(true); } });
 
-/* 在最后一个（或第 n 个）宿主的 Shadow DOM 里求值 */
-const inHost = (fn, arg, n = -1) => page.evaluate(([src, arg, n]) => {
-  const hs = [...document.querySelectorAll('#chat [data-kami-msg-host]')];
-  const h = hs[n < 0 ? hs.length + n : n];
-  return h ? (0, eval)('(' + src + ')')(h.shadowRoot, arg) : null;
-}, [fn.toString(), arg, n]);
-const ITEM = '[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
-const state = () => page.evaluate(() => {
+/* 最后一条消息里某种宿主的 Shadow DOM 里求值 */
+const inPart = (kind, fn, arg, mesid) => page.evaluate(([kind, src, arg, mesid]) => {
   const ctx = window.SillyTavern.getContext();
-  const aiMes = [...document.querySelectorAll('#chat .mes[mesid]')].filter((m) => m.getAttribute('is_user') !== 'true' && m.getAttribute('is_system') !== 'true');
-  const hosts = document.querySelectorAll('#chat [data-kami-msg-host]');
-  const visibleText = aiMes.filter((m) => { const t = m.querySelector('.mes_text'); return t && getComputedStyle(t).display !== 'none'; }).length;
-  return { chat: ctx.chat.length, ai: aiMes.length, hosts: hosts.length, visibleText, size: window.KamiChatFrontend ? window.KamiChatFrontend.instance.size : -1 };
-});
+  const id = mesid === undefined ? ctx.chat.length - 1 : mesid;
+  const h = document.querySelector('#chat .mes[mesid="' + id + '"] [data-kami-msg-host="' + kind + '"]');
+  return h ? (0, eval)('(' + src + ')')(h.shadowRoot, arg, h) : null;
+}, [kind, fn.toString(), arg, mesid]);
+const ITEM = '[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
+const notGenerating = () => page.waitForFunction(() => { const s = document.getElementById('mes_stop'); return !s || getComputedStyle(s).display === 'none'; }, null, { timeout: 60000 });
 
-/* ① 接管已有回复 */
-ok(await page.evaluate(() => !!window.KamiChatFrontend && !!window.KamiRuntimeNext), '「🧪 消息前端」脚本已启动并拿到新运行库', logs.join(' | '));
-let s = await state();
-ok(s.ai > 0 && s.hosts === s.ai && s.size === s.ai, '已有的每条 AI 回复都挂上了新前端', s);
-ok(s.visibleText === 0, '酒馆自己的 .mes_text 都藏起来了', s);
+ok(await page.evaluate(() => !!window.KamiChatFrontend && window.KamiChatFrontend.active() && !!window.KamiCot && !!window.KamiBodyShell), '「🧪 消息前端」启动；「💭 思维链」「📄 正文外壳」也在跑（前者负责搬、后者让位）', logs.join(' | '));
 
-/* ② 流式生成：慢慢吐字，生成期间取样 */
+/* ① 流式生成：慢慢吐字 */
 await fetch(MOCK + '/__mock/reset', { method: 'POST' });
-await queue({ content: REPLY, chunk: 6, delayMs: 45 });
-const before = (await state()).chat;
+await queue({ content: REPLY, chunk: 6, delayMs: 40 });
+const before = await page.evaluate(() => window.SillyTavern.getContext().chat.length);
 await page.fill('#send_textarea', '走向旧宅');
 await page.click('#send_but');
 await page.waitForFunction((n) => window.SillyTavern.getContext().chat.length >= n + 2, before, { timeout: 30000 });
 const samples = [];
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 60; i++) {
   const x = await page.evaluate(() => {
     const ctx = window.SillyTavern.getContext();
-    const last = ctx.chat[ctx.chat.length - 1];
-    const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]');
-    const h = mes && mes.querySelector('[data-kami-msg-host]');
-    const r = h && h.shadowRoot;
+    const id = ctx.chat.length - 1;
+    const mes = document.querySelector('#chat .mes[mesid="' + id + '"]');
+    const h = mes && mes.querySelector('[data-kami-msg-host="think"]');
     const stop = document.getElementById('mes_stop');
+    const t = mes && mes.querySelector('.mes_text');
     return {
-      raw: (last.mes || '').length, stop: !!stop && getComputedStyle(stop).display !== 'none',
-      host: !!h, streaming: !!(r && r.querySelector('[data-k="msg-view"][data-streaming]')),
-      caret: !!(r && r.querySelector('[data-k-part="caret"]')), paras: r ? r.querySelectorAll('[data-k="msg-body"] [data-k-part="para"]').length : 0,
-      thinkHead: r ? ((r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent || '') : '',
-      optList: r ? r.querySelectorAll('[data-k="msg-options"] [data-k-part="list"]').length : 0,
-      textShown: !!(mes && getComputedStyle(mes.querySelector('.mes_text')).display !== 'none')
+      stop: !!stop && getComputedStyle(stop).display !== 'none', raw: (ctx.chat[id].mes || '').length,
+      think: h ? ((h.shadowRoot.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent || '') : '',
+      rawThink: /<nyaruko_think>/.test(ctx.chat[id].mes || ''), textLen: t ? t.textContent.length : 0
     };
   });
   samples.push(x);
-  if (!x.stop && x.raw >= REPLY.length - 5) { break; }
-  await page.waitForTimeout(150);
+  if (!x.stop && i > 3) { break; }
+  await page.waitForTimeout(120);
 }
 const live = samples.filter((x) => x.stop);
 ok(live.length >= 5, '取到了生成中的样本', samples.length + ' 个样本，其中生成中 ' + live.length);
-ok(live.some((x) => x.raw > 0 && x.raw < REPLY.length), '生成期间 chat[mesid].mes 在实时更新（流式可以直接读聊天数据）', live.map((x) => x.raw).join(','));
-ok(live.every((x) => x.host), '生成期间宿主一直在（酒馆重写 .mes_text 冲不掉它）');
-ok(live.some((x) => /奈亚子思考中/.test(x.thinkHead)), '思维链写到一半时显示「奈亚子思考中」', [...new Set(live.map((x) => x.thinkHead))].join(' / '));
-ok(live.some((x) => x.streaming && x.caret && x.paras >= 1), '生成期间正文就按新排版逐步出现（有光标）');
-const growth = live.map((x) => x.paras).filter((n, i, a) => i === 0 || n !== a[i - 1]);
-ok(growth.length >= 3, '段落随生成逐步增加', growth.join('→'));
-ok(live.every((x) => x.optList === 0), '生成期间不显示选项列表');
-ok(live.every((x) => !x.textShown), '生成期间酒馆的 .mes_text 一直藏着（没有原文闪一下）');
-await page.waitForFunction(() => { const s = document.getElementById('mes_stop'); return !s || getComputedStyle(s).display === 'none'; }, null, { timeout: 60000 });
-await page.waitForTimeout(1500);
-const end = await inHost((r, sel) => ({
-  streaming: !!r.querySelector('[data-streaming]'), caret: !!r.querySelector('[data-k-part="caret"]'), opts: r.querySelectorAll(sel).length,
-  think: (r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent || '', thinkOpen: r.querySelector('[data-k="msg-think"]')?.getAttribute('data-state'),
-  search: (r.querySelector('[data-k="msg-search"] [data-k-part="toggle"]') || {}).textContent || '',
-  paras: r.querySelectorAll('[data-k="msg-body"] [data-k-part="para"]').length, scene: r.querySelectorAll('[data-k-part="scene-break"]').length,
-  parts: ['dialogue', 'thought', 'name', 'keyword', 'term'].filter((p) => !r.querySelector('[data-k="msg-body"] [data-k-part="' + p + '"]')),
-  leak: /<!--|<n>|步骤1/.test(r.querySelector('[data-k="msg-body"] [data-k-part="text"]').textContent)
-}), ITEM);
-ok(!end.streaming && !end.caret, '生成结束：退出流式状态、光标消失', end);
-ok(end.opts === 6, '生成结束：出现 6 个行动选项', end.opts);
-ok(/^奈亚子思考了\s*\d+\s*字/.test(end.think.trim()) && end.thinkOpen === 'closed', '思维链默认收起：「奈亚子思考了 N 字」', end.think);
-ok(/参考了 2 个来源/.test(end.search), '搜索资料一行摘要', end.search);
-ok(end.paras === 3 && end.scene === 1 && end.parts.length === 0 && !end.leak, '正文排版：段落、场景转换、对白 / 心理 / 角色名 / 关键词 / 专有名词，注释与标记不外露', end);
-const native = await page.evaluate(() => { const m = document.querySelector('#chat .mes:last-of-type .mes_reasoning_details'); return m ? getComputedStyle(m).display : 'none'; });
-ok(native === 'none', '没有重复的原生思维链块（旧「💭 思维链」已关）', native);
-const optsPerMes = await page.evaluate(() => [...document.querySelectorAll('#chat [data-kami-msg-host]')].map((h) => h.shadowRoot.querySelectorAll('[data-k="msg-options"]').length));
-ok(optsPerMes.slice(0, -1).every((n) => n === 0) && optsPerMes[optsPerMes.length - 1] === 1, '只有最新一条回复渲染行动选项', optsPerMes.join(','));
-if (SHOTS) { await page.screenshot({ path: path.join(SHOT_DIR, 'st-msg-' + (MOBILE ? 'mobile' : 'desktop') + '.png') }); }
+ok(live.some((x) => /奈亚子思考中/.test(x.think)), '生成中思维链显示「奈亚子思考中」（读「💭 思维链」正在搬的内容）', [...new Set(live.map((x) => x.think))].join(' / '));
+ok(live.every((x) => !x.rawThink), '思维链没有进正文（「💭 思维链」流式时就扣走了）');
+ok(live.some((x) => x.textLen > 20), '生成中正文由酒馆照常逐步显示', live.map((x) => x.textLen).join(','));
+await notGenerating();
+await page.waitForTimeout(2000);
 
-/* ③ 实际渲染对比度（展开思维链与搜索资料） */
-await inHost((r) => { r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]').click(); r.querySelector('[data-k="msg-search"] [data-k-part="toggle"]').click(); });
-await page.waitForTimeout(400);
+/* ② 生成结束：各部分 */
+const info = await page.evaluate(() => {
+  const ctx = window.SillyTavern.getContext();
+  const id = ctx.chat.length - 1, m = ctx.chat[id];
+  const mes = document.querySelector('#chat .mes[mesid="' + id + '"]');
+  const text = mes.querySelector('.mes_text');
+  const host = (k) => mes.querySelector('[data-kami-msg-host="' + k + '"]');
+  const body = host('body');
+  const details = mes.querySelector('.mes_reasoning_details');
+  const css = getComputedStyle(document.documentElement);
+  const rgb = (v) => { const d = document.createElement('span'); d.style.color = v; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+  const q = body && body.querySelector('q'), em = body && body.querySelector('em');
+  return {
+    reasoning: (m.extra && m.extra.reasoning) || '', mesHasThink: /<nyaruko_think>/.test(m.mes),
+    thinkHead: host('think') ? (host('think').shadowRoot.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent : null,
+    thinkClosed: host('think') ? host('think').shadowRoot.querySelector('[data-k="msg-think"]').getAttribute('data-state') : null,
+    nativeShown: details ? getComputedStyle(details).display !== 'none' : null,
+    search: host('search') ? (host('search').shadowRoot.querySelector('[data-k="msg-search"] [data-k-part="toggle"]') || {}).textContent : null,
+    opts: host("options") ? host("options").shadowRoot.querySelectorAll('[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]').length : 0,
+    bodyInText: !!body && text.contains(body), bodyParas: body ? body.querySelectorAll(':scope > p').length : 0,
+    bodyShadowHead: body && body.shadowRoot ? (body.shadowRoot.querySelector('[data-k="msg-body"] [data-k-part="count"]') || {}).textContent : null,
+    slot: body && body.shadowRoot ? !!body.shadowRoot.querySelector('slot') : false,
+    leak: body ? /<!--|步骤1|nyaruko/.test(body.textContent) : true,
+    quote: q ? getComputedStyle(q).color : null, quoteWant: rgb(css.getPropertyValue('--SmartThemeQuoteColor')),
+    em: em ? getComputedStyle(em).color : null, emWant: rgb(css.getPropertyValue('--SmartThemeEmColor')),
+    para: body && body.querySelector('p') ? getComputedStyle(body.querySelector('p')).color : null, paraWant: rgb(css.getPropertyValue('--SmartThemeBodyColor')),
+    math: body ? [...body.querySelectorAll('[data-kami-math]')].map((x) => x.getAttribute('data-kami-math') + ':' + !!x.querySelector('math')) : [],
+    texLeft: body ? body.querySelectorAll('code[data-kami-tex]').length : -1,
+    price: body ? body.textContent.includes('$5 和 $10') : false,
+    thIframes: [...text.querySelectorAll('.TH-render')].map((th) => (th.hasAttribute('data-kami-msg-hidden') ? 'hidden:' + th.getAttribute('data-kami-msg-hidden') : 'shown') + (body && body.contains(th) ? '@body' : '')),
+    htmlCard: (() => { const f = body && [...body.querySelectorAll('.TH-render iframe')][0]; return f ? f.getBoundingClientRect().height : 0; })()
+  };
+});
+ok(info.reasoning.includes('场景确认') && !info.mesHasThink, '思维链写进了酒馆原生思维链（extra.reasoning），正文原文里没有', { len: info.reasoning.length, inMes: info.mesHasThink });
+ok(/^奈亚子思考了\s*\d+\s*字/.test((info.thinkHead || '').trim()) && info.thinkClosed === 'closed', '思维链默认收起：「奈亚子思考了 N 字」', info.thinkHead);
+ok(info.nativeShown === false, '原生思维链块藏起来（由新前端代为显示，不重复）', info.nativeShown);
+ok(/参考了 2 个来源/.test(info.search || ''), '搜索资料：换掉 iframe，一行摘要', info.search);
+ok(info.opts === 6, '行动选项：换掉 iframe，6 个', info.opts);
+ok(info.bodyInText && info.slot && info.bodyParas >= 3 && /\d+ 字/.test(info.bodyShadowHead || '') && !info.leak, '正文：酒馆渲染的段落留在 .mes_text 里（slot 显示），外壳只加头部；注释与标记不外露', info);
+ok(info.quote === info.quoteWant && info.em === info.emWant && info.para === info.paraWant, '对白 / 心理描写 / 正文颜色 = 酒馆的字体颜色设置', { q: [info.quote, info.quoteWant], em: [info.em, info.emWant], p: [info.para, info.paraWant] });
+ok(info.math.filter((x) => x === 'inline:true').length === 2 && info.math.includes('block:true') && info.texLeft === 0 && info.price, '公式：行内 2 个 + 独立 1 个渲染成 MathML；价格「$5 和 $10」不误伤', { math: info.math, left: info.texLeft, price: info.price });
+ok(info.thIframes.filter((x) => x.startsWith('hidden')).length === 2 && info.thIframes.includes('shown@body') && info.htmlCard > 10, '酒馆助手 iframe：搜索资料 / 行动选项的藏起，正文里的 HTML 美化照常显示', info);
+
+/* ③ 插件兼容：往正文里插节点（模拟生图按钮类插件），重扫后还在原位 */
+const plug = await page.evaluate(async () => {
+  const ctx = window.SillyTavern.getContext();
+  const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]');
+  const p = mes.querySelector('[data-kami-msg-host="body"] > p');
+  const btn = document.createElement('button'); btn.className = 'kami-test-plugin'; btn.textContent = '生图';
+  p.appendChild(btn);
+  window.KamiChatFrontend.instance.refresh();
+  await new Promise((r) => setTimeout(r, 300));
+  const again = mes.querySelector('.kami-test-plugin');
+  return { found: !!again && mes.querySelector('.mes_text').contains(again), visible: !!again && again.getClientRects().length > 0 };
+});
+ok(plug.found && plug.visible, '插件往正文里插的按钮：在 .mes_text 里、看得见、重扫后不丢', plug);
+
+/* ④ 展开思维链：特效、Markdown、公式、编辑走原生按钮 */
+const fx0 = await inPart('think', (r) => { r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]').click(); return true; });
+await page.waitForTimeout(90);
+const fxShown = await inPart('think', (r) => [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length);
+ok(fx0 && fxShown > 0, '展开思维链有碎光特效（' + fxShown + ' 片）', fxShown);
+await page.waitForTimeout(500);
+const th = await inPart('think', (r) => ({
+  h: [...r.querySelectorAll('[data-k-part="markdown"] :is(h4, h5, h6)')].map((x) => x.textContent), li: r.querySelectorAll('[data-k-part="markdown"] li').length,
+  math: r.querySelectorAll('[data-k-part="markdown"] [data-kami-math] math').length, edit: !!r.querySelector('[aria-label="编辑思维链"]')
+}));
+ok(th.h.includes('场景确认') && th.li >= 4 && th.math === 1 && th.edit, '思维链：Markdown（标题、列表）+ 公式；头部有「编辑」（酒馆原生入口）', th);
+await inPart('think', (r) => r.querySelector('[aria-label="编辑思维链"]').click());
+await page.waitForTimeout(700);
+const ed = await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]'); const d = mes.querySelector('.mes_reasoning_details'); const h = mes.querySelector('[data-kami-msg-host="think"]'); return { ta: !!mes.querySelector('.reasoning_edit_textarea'), native: d ? getComputedStyle(d).display : 'none', ours: h ? getComputedStyle(h).display : 'gone' }; });
+ok(ed.ta && ed.native !== 'none' && ed.ours === 'none', '点「编辑」：进酒馆原生思维链的编辑框（原生块显示、我们的让开）', ed);
+await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]'); (mes.querySelector('.mes_reasoning_edit_cancel') || mes.querySelector('.mes_reasoning_edit_done'))?.click(); });
+await page.waitForTimeout(800);
+const ed2 = await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]'); const d = mes.querySelector('.mes_reasoning_details'); const h = mes.querySelector('[data-kami-msg-host="think"]'); return { native: d ? getComputedStyle(d).display : 'none', ours: h ? getComputedStyle(h).display : 'gone' }; });
+ok(ed2.native === 'none' && ed2.ours !== 'none', '退出编辑：回到新前端的思维链', ed2);
+
+/* ⑤ 对比度（展开思维链与搜索资料） */
+await inPart('search', (r) => r.querySelector('[data-k="msg-search"] [data-k-part="toggle"]').click());
+await page.waitForTimeout(500);
 const auditRes = await page.evaluate(([src]) => {
-  /* audit-lib 的 '@mounts' 认的是 [data-kami-mount]；这里给宿主临时借一个同名属性 */
-  const hs = [...document.querySelectorAll('#chat [data-kami-msg-host]')];
+  const hs = [...document.querySelectorAll('#chat [data-kami-msg-host]:not([data-kami-msg-host="body"])')];
   hs.forEach((h) => h.setAttribute('data-kami-mount', 'audit'));
   const r = (0, eval)('(' + src + ')')('@mounts');
   hs.forEach((h) => h.removeAttribute('data-kami-mount'));
   return r;
 }, [auditInPage.toString()]);
-ok(auditRes.failures.length === 0 && auditRes.checked > 30, '真实酒馆里的实际渲染对比度：' + auditRes.checked + ' 处', auditRes.failures.slice(0, 3));
-const head = await inHost((r) => !!r.querySelector('[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="tools"] [data-k="segmented"]'));
-ok(head, '展开后排版 / 原文与复制在思维链头部');
-if (SHOTS) { await page.locator('#chat .mes:last-of-type').screenshot({ path: path.join(SHOT_DIR, 'st-msg-open-' + (MOBILE ? 'mobile' : 'desktop') + '.png') }); }
+ok(auditRes.failures.length === 0 && auditRes.checked > 30, '思维链 / 搜索资料 / 行动选项的实际渲染对比度：' + auditRes.checked + ' 处', auditRes.failures.slice(0, 3));
+if (SHOTS) { await page.locator('#chat .mes:last-of-type').screenshot({ path: path.join(SHOT_DIR, 'st-msg-' + (MOBILE ? 'mobile' : 'desktop') + '.png') }); }
 
-/* ④ 填入：接在输入框已有内容后面 */
+/* ⑥ 填入：接在输入框已有内容后面 */
 await page.fill('#send_textarea', '我想想');
-await inHost((r, sel) => { r.querySelectorAll(sel)[1].click(); }, ITEM);
+await inPart('options', (r, sel) => { r.querySelectorAll(sel)[1].click(); }, ITEM);
 await page.waitForTimeout(300);
 const filled = await page.inputValue('#send_textarea');
 ok(filled.startsWith('我想想') && filled.includes('贴着门板'), '填入：接在酒馆输入框已有内容的后面', filled);
 await page.fill('#send_textarea', '');
 
-/* ⑤ 编辑消息：让回酒馆的编辑框 */
+/* ⑦ 编辑消息：酒馆的编辑框照常；保存后重新接管 */
 const lastId = await page.evaluate(() => window.SillyTavern.getContext().chat.length - 1);
-await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); m.querySelector('.mes_edit')?.click(); }, lastId);
+await page.evaluate((id) => { document.querySelector('#chat .mes[mesid="' + id + '"] .mes_edit')?.click(); }, lastId);
 await page.waitForTimeout(800);
-const editing = await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); const t = m.querySelector('.mes_text'); const h = m.querySelector('[data-kami-msg-host]'); return { ta: !!t.querySelector('textarea'), text: getComputedStyle(t).display, host: h ? getComputedStyle(h).display : 'gone' }; }, lastId);
-ok(editing.ta && editing.text !== 'none' && editing.host === 'none', '编辑消息时显示酒馆的编辑框、藏起新前端', editing);
+const editing = await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); return { ta: !!m.querySelector('.mes_text textarea'), body: !!m.querySelector('[data-kami-msg-host="body"]') }; }, lastId);
+ok(editing.ta && !editing.body, '编辑消息：酒馆的编辑框照常出现', editing);
 await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); (m.querySelector('.mes_edit_cancel') || m.querySelector('.mes_edit_done'))?.click(); }, lastId);
-await page.waitForTimeout(1000);
-const after = await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); const h = m.querySelector('[data-kami-msg-host]'); return { text: getComputedStyle(m.querySelector('.mes_text')).display, host: h ? getComputedStyle(h).display : 'gone', opts: h ? h.shadowRoot.querySelectorAll('[data-k="msg-options"] [data-k-part="item"]').length : 0 }; }, lastId);
-ok(after.text === 'none' && after.host !== 'none' && after.opts > 0, '退出编辑后新前端回来', after);
+await page.waitForTimeout(1200);
+const after = await page.evaluate((id) => { const m = document.querySelector('#chat .mes[mesid="' + id + '"]'); const o = m.querySelector('[data-kami-msg-host="options"]'); return { body: !!m.querySelector('[data-kami-msg-host="body"]'), opts: o ? o.shadowRoot.querySelectorAll('[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]').length : 0 }; }, lastId);
+ok(after.body && after.opts === 6, '退出编辑后重新接管', after);
 
-/* ⑥ 发送模式：点选项 → 酒馆助手新建用户楼层并生成 */
+/* ⑧ 发送模式：点选项 → 作为用户楼层发出并生成 */
 await queue({ content: REPLY2, chunk: 8, delayMs: 30 });
-await inHost((r) => [...r.querySelectorAll('[data-k="msg-options"] [data-k="segmented"] [data-k-part="item"]')].find((x) => x.textContent === '发送').click());
+await inPart('options', (r) => [...r.querySelectorAll('[data-k="msg-options"] [data-k="segmented"] [data-k-part="item"]')].find((x) => x.textContent === '发送').click());
 await page.waitForTimeout(300);
-const n0 = (await state()).chat;
+const n0 = await page.evaluate(() => window.SillyTavern.getContext().chat.length);
 await page.fill('#send_textarea', '写了一半的草稿');
-await inHost((r, sel) => { r.querySelector(sel).click(); }, ITEM);
+await inPart('options', (r, sel) => { r.querySelector(sel).click(); }, ITEM);
 await page.waitForFunction((n) => window.SillyTavern.getContext().chat.length >= n + 2, n0, { timeout: 30000 });
-await page.waitForFunction(() => { const s = document.getElementById('mes_stop'); return !s || getComputedStyle(s).display === 'none'; }, null, { timeout: 60000 });
-await page.waitForTimeout(1500);
+await notGenerating();
+await page.waitForTimeout(1800);
 const sent = await page.evaluate(() => { const c = window.SillyTavern.getContext().chat; return { user: c[c.length - 2].mes, isUser: c[c.length - 2].is_user }; });
 ok(sent.isUser && sent.user.includes('推开那扇吱呀作响') && !sent.user.includes('草稿'), '发送：只把选项内容作为用户楼层发出', sent);
 ok((await page.inputValue('#send_textarea')) === '写了一半的草稿', '发送后输入框里原来写了一半的内容还在');
 await page.fill('#send_textarea', '');
-const r2 = await inHost((r, sel) => ({ opts: r.querySelectorAll(sel).length, mode: r.querySelector('[data-k="msg-options"]')?.getAttribute('data-mode'), body: r.querySelector('[data-k="msg-body"]')?.textContent.includes('门开了') }), ITEM);
-ok(r2.body && r2.opts === 2 && r2.mode === 'send', '新回复渲染完成，选项模式保持「发送」', r2);
-const optsNow = await page.evaluate(() => [...document.querySelectorAll('#chat [data-kami-msg-host]')].map((h) => h.shadowRoot.querySelectorAll('[data-k="msg-options"]').length));
-ok(optsNow.filter((n) => n > 0).length === 1 && optsNow[optsNow.length - 1] === 1, '上一条回复的选项已经消失', optsNow.join(','));
+const optsPer = await page.evaluate(() => [...document.querySelectorAll('#chat .mes[is_user="false"]')].map((m) => m.querySelectorAll('[data-kami-msg-host="options"]').length));
+ok(optsPer[optsPer.length - 1] === 1 && optsPer.slice(0, -1).every((n) => n === 0), '只有最新一条回复显示行动选项', optsPer.join(','));
 
-/* ⑦ 重载聊天：自动重挂 */
-const m0 = await page.evaluate(() => window.KamiChatFrontend.instance.mounts);
-await page.evaluate(() => window.SillyTavern.getContext().reloadCurrentChat()); await page.waitForTimeout(3000);
-s = await state();
-const m1 = await page.evaluate(() => window.KamiChatFrontend.instance.mounts);
-ok(m1 > m0 && s.hosts === s.ai && s.size === s.ai && s.visibleText === 0, '重载聊天后全部重挂（挂载点不累积）', { ...s, m0, m1 });
-
-/* ⑧ 删除最后两条：挂载点被清理 */
-const size0 = s.size;
-await page.evaluate(async () => { const ctx = window.SillyTavern.getContext(); await ctx.deleteLastMessage(); await ctx.deleteLastMessage(); });
+/* ⑨ 显示面板的「消息前端」开关：关 → 酒馆原样 + 「📄 正文外壳」「💭 思维链」接回；开 → 重新接管 */
+await page.evaluate(() => { const el = [...document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')].find((x) => x.textContent.trim() === '🎨 显示'); el && el.click(); });
+await page.waitForTimeout(900);
+/* 手机上显示面板分页签，「消息」一组在自己的页签里 */
+if (MOBILE) { await page.evaluate(() => { const l = document.querySelector('kami-layer'); const t = [...l.shadowRoot.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].find((x) => x.textContent === '消息'); t && t.focus(); t && t.click(); }); await page.waitForTimeout(400); }
+const sw = await page.evaluate(() => { const l = document.querySelector('kami-layer'); const s = l && [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端'); if (!s) { return null; } s.scrollIntoView(); const st = s.getAttribute('data-state'); s.click(); return st; });
 await page.waitForTimeout(1200);
-s = await state();
-ok(s.size === size0 - 1 && s.hosts === s.ai, '删除消息后对应的挂载点被清理', s);
-const optsAfterDel = await page.evaluate(() => [...document.querySelectorAll('#chat [data-kami-msg-host]')].map((h) => h.shadowRoot.querySelectorAll('[data-k="msg-options"]').length));
-ok(optsAfterDel[optsAfterDel.length - 1] === 1, '删掉最新回复后，新的「最新一条」重新显示选项', optsAfterDel.join(','));
-
-/* ⑨ 注销：不留任何东西 */
-await page.evaluate(() => window.KamiChatFrontend.shutdown());
-await page.waitForTimeout(300);
-const clean = await page.evaluate(() => ({
-  hosts: document.querySelectorAll('[data-kami-msg-host]').length, marks: document.querySelectorAll('[data-kami-msg]').length,
-  style: !!document.getElementById('kami-msg-host-style'), api: !!window.KamiChatFrontend,
-  hidden: [...document.querySelectorAll('#chat .mes .mes_text')].filter((t) => getComputedStyle(t).display === 'none').length
+const off = await page.evaluate(() => ({
+  active: window.KamiChatFrontend.active(), hosts: document.querySelectorAll('#chat [data-kami-msg-host]').length,
+  hidden: document.querySelectorAll('#chat [data-kami-msg-hidden]').length,
+  oldBody: document.querySelectorAll('#chat [data-kami-body-host]').length, oldThink: document.querySelectorAll('#chat [data-kami-native-think]').length,
+  ls: localStorage.getItem('kami.msgfe')
 }));
-ok(!clean.hosts && !clean.marks && !clean.style && !clean.api && !clean.hidden, '脚本注销后：宿主、标记、宿主样式、全局对象全部移除，酒馆的 .mes_text 恢复显示', clean);
+ok(sw === 'checked' && !off.active && off.hosts === 0 && off.hidden === 0 && off.ls === '0', '显示面板关掉「消息前端」：宿主全部移除、iframe 恢复', { sw, ...off });
+ok(off.oldBody > 0 && off.oldThink > 0, '……「📄 正文外壳」「💭 思维链」的装饰接回', off);
+await page.evaluate(() => { const l = document.querySelector('kami-layer'); const s = [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端'); s.click(); });
+await page.waitForTimeout(1500);
+const on = await page.evaluate(() => ({
+  active: window.KamiChatFrontend.active(), body: document.querySelectorAll('#chat [data-kami-msg-host="body"]').length,
+  oldBody: document.querySelectorAll('#chat [data-kami-body-host]').length, oldThink: document.querySelectorAll('#chat [data-kami-native-think]').length
+}));
+ok(on.active && on.body > 0 && on.oldBody === 0 && on.oldThink === 0, '重新打开：新前端接管，旧装饰收起', on);
+await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+
+/* ⑩ 重载聊天、删除消息 */
+await page.evaluate(() => window.SillyTavern.getContext().reloadCurrentChat()); await page.waitForTimeout(3500);
+const rel = await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]'); return { body: !!mes.querySelector('[data-kami-msg-host="body"]'), opts: mes.querySelectorAll('[data-kami-msg-host="options"]').length, size: window.KamiChatFrontend.instance.size }; });
+ok(rel.body && rel.opts === 1, '重载聊天后重新接管', rel);
+await page.evaluate(async () => { const ctx = window.SillyTavern.getContext(); await ctx.deleteLastMessage(); await ctx.deleteLastMessage(); });
+await page.waitForTimeout(1500);
+const del = await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); const mes = document.querySelector('#chat .mes[mesid="' + (ctx.chat.length - 1) + '"]'); return { opts: mes.querySelectorAll('[data-kami-msg-host="options"]').length, hidden: mes.querySelectorAll('[data-kami-msg-hidden="options"]').length }; });
+ok(del.opts === 1, '删掉最新回复后，新的「最新一条」重新显示选项', del);
+
+/* ⑪ 注销：不留任何东西 */
+await page.evaluate(() => window.KamiChatFrontend.shutdown());
+await page.waitForTimeout(500);
+const clean = await page.evaluate(() => ({
+  hosts: document.querySelectorAll('[data-kami-msg-host]').length, marks: document.querySelectorAll('[data-kami-msg], [data-kami-msg-hidden], [data-kami-msg-native-think]').length,
+  style: !!document.getElementById('kami-msg-host-style'), api: !!window.KamiChatFrontend
+}));
+ok(!clean.hosts && !clean.marks && !clean.style && !clean.api, '脚本注销后：宿主、标记、宿主样式、全局对象全部移除', clean);
 ok(errors.length === 0, '没有页面错误', errors.join(' | '));
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));
 await b.close();

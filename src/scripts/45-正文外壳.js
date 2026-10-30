@@ -192,8 +192,14 @@
     return { root: root, renderBox: renderBox, sub: sub, rawBox: rawBox };
   }
 
+  /* 支线：「🧪 消息前端」接管正文时本脚本让位（不套壳；已套的由它调 release() 收回），它关掉后再接着套 */
+  function yielded() {
+    try { var f = HOST.KamiChatFrontend; return !!(f && typeof f.active === 'function' && f.active()); } catch (e) { return false; }
+  }
+
   /* ───────── 给一个楼层套壳 ───────── */
   function dress(mes) {
+    if (yielded()) { return 0; }
     var mesid = mes.getAttribute('mesid');
     if (mesid === null || mesid === '') { return 0; }
     if (mes.querySelector('[' + HOST_ATTR + ']')) { return 0; }   /* 已经套过了，不重复搬节点 */
@@ -312,7 +318,9 @@
             var ev = tavern_events[pair[0]];
             if (!ev) { return; }
             try {
-              keepSubscription(eventOn(ev, function () {
+              keepSubscription(eventOn(ev, function (type, opts, dryRun) {
+                /* 酒馆统计提示词（dry run）也发 GENERATION_STARTED，却没有对应的结束事件：当成「开始生成」会把套壳停到看门狗超时 */
+                if (pair[1] && dryRun === true) { return; }
                 if (pair[1]) { setGenerating(true); log('开始生成：暂停套壳与刷新'); }
                 else { finishGeneration(); }
               }));
@@ -397,6 +405,8 @@
   var api = {
     version: VERSION,
     scan: scan, refresh: refresh,
+    /* 「🧪 消息前端」接管时调用：把已套的壳拆掉、正文放回原处（标记一并放回，之后由它套自己的外壳） */
+    release: function () { try { restoreBodies(); } catch (e) { warn('收回外壳失败：' + e.message); } },
     /* 诊断读数：给预览台/真机排查用（只看，不改） */
     status: function () {
       var chat = HDOC.getElementById('chat');

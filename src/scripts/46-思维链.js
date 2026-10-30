@@ -216,7 +216,7 @@
     streamHint = null;
   }
   function showStreamHint() {
-    if (disposed) { return; }
+    if (disposed || yielded()) { return; }
     if (streamHint && streamHint.parentNode) { return; }
     var mes = lastMes();
     if (!mes || mes.getAttribute('is_user') === 'true') { return; }
@@ -518,8 +518,13 @@
     records = [];
   }
 
+  /* 支线：「🧪 消息前端」接管思维链的显示时，本脚本只搬（流式扣走 + 写进 extra.reasoning），不美化、不出流式提示 */
+  function yielded() {
+    try { var f = HOST.KamiChatFrontend; return !!(f && typeof f.active === 'function' && f.active()); } catch (e) { return false; }
+  }
+
   function dress(mes) {
-    if (disposed || !mes) { return; }
+    if (disposed || !mes || yielded()) { return; }
     var details = mes.querySelector('details.mes_reasoning_details');
     if (!details) { return; }
     var idx = Number(mes.getAttribute('mesid'));
@@ -715,6 +720,17 @@
     var api = {
       version: VERSION,
       scan: scan,
+      /* 「🧪 消息前端」接管时调用：拆掉美化与流式提示（原生块恢复酒馆原样） */
+      release: function () { hideStreamHint(); undressAll(); },
+      /* 流式中正在扣的思维链（消息前端用来边生成边显示「思考中 N 字」）：没有在搬时返回 null */
+      live: function () {
+        try {
+          var c = HOST[STASH_KEY];
+          if (!c || c.done) { return null; }
+          var text = String(c.text || '') + (c.diverting && c.partial ? (c.text ? '\n\n' : '') + String(c.partial) : '');
+          return { diverting: !!c.diverting, text: text };
+        } catch (e) { return null; }
+      },
       status: function () {
         return {
           version: VERSION, decorated: records.length,

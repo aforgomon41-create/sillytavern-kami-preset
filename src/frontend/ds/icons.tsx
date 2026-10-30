@@ -11,3 +11,5 @@ export const IconClose = (p: P): React.JSX.Element => <svg {...base} {...p}><pat
 export const IconMinus = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M6 12h12" /></svg>;
 export const IconCopy = (p: P): React.JSX.Element => <svg {...base} {...p}><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>;
 export const IconCode = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M8 7l-5 5 5 5M16 7l5 5-5 5" /></svg>;
+export const IconPencil = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg>;
+export const IconTrash = (p: P): React.JSX.Element => <svg {...base} {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>;

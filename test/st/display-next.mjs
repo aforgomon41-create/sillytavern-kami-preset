@@ -42,11 +42,15 @@ await page.waitForTimeout(3000);
 const bt = await buttons();
 ok(bt.includes('🎨 显示'), '按钮条有「🎨 显示」', bt);
 ok(bt.filter((x) => x.startsWith('🎨')).length === 1, '只有一颗 🎨（旧皮肤管理让位）', bt);
-ok(bt.includes('🌟 预设设置') && bt.includes('🧭 引导') && bt.some((x) => /^🛡 反截断 (开|关)$/.test(x)) && bt.some((x) => x.startsWith('🧰 工具箱')), '其他按钮统一成「图标 + 空格 + 名字」', bt);
+ok(bt.includes('🌟 预设设置') && bt.includes('🧭 引导') && bt.some((x) => /^反截断 (开|关)$/.test(x)) && bt.some((x) => x.startsWith('🧰 工具箱')), '其他按钮统一成「图标 + 空格 + 名字」，反截断开关不带图标', bt);
 
 /* ② 点按钮打开面板 */
 await page.evaluate(() => { const el = [...document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')].find((x) => x.textContent.trim() === '🎨 显示'); el && el.click(); });
-await page.waitForTimeout(800);
+await page.waitForTimeout(120);
+/* 特效：打开面板时碎光聚合。脚本跑在酒馆助手的 0 高 iframe 里，曾因用了那个 iframe 的 innerHeight 而一律判成「在屏幕外」不画（2026-10-29 用户实测） */
+const fxOpen = await inLayer((r) => [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length);
+ok(fxOpen > 0, '打开面板时有碎光特效（' + fxOpen + ' 片）', fxOpen);
+await page.waitForTimeout(700);
 const panel = await inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); return p ? { title: p.querySelector('[data-k-part="title"]').textContent, cards: p.querySelectorAll('[data-k="card"][data-role="choice"]').length } : null; });
 ok(panel && panel.title.includes('显示') && panel.cards >= 1, '点「🎨 显示」打开显示面板', panel);
 const geo = await inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); const b = p.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, h: innerHeight, layout: p.getAttribute('data-layout'), tabs: !!p.querySelector('[data-k="tabs"]') }; });

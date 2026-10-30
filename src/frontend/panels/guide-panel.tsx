@@ -145,7 +145,7 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
             {long.antitrunc && anti !== null ? (
               <SettingRow label={anti ? G.antitruncOn : G.antitruncOff} description={G.antitruncPageIntro}
                 control={<Switch checked={anti} onCheckedChange={(x) => { void Promise.resolve(long.antitrunc!.set(x)).then(force); }} aria-label={G.antitruncPageTitle} />} />
-            ) : <Intro>「🛡 反截断」脚本没在运行。</Intro>}
+            ) : <Intro>「反截断」脚本没在运行。</Intro>}
           </SettingSection>
         </Stack>
       )
@@ -178,7 +178,8 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
 
   const go = (n: number): void => {
     setI(n); setSeen((s) => Math.max(s, n));
-    requestAnimationFrame(() => { const el = body.current?.closest('[data-k-part="body"]'); if (el) { el.scrollTop = 0; } });
+    const w = body.current?.ownerDocument.defaultView || window;   /* 宿主窗口的 rAF：脚本 iframe 是隐藏的，它的 rAF 可能不触发 */
+    w.requestAnimationFrame(() => { const el = body.current?.closest('[data-k-part="body"]'); if (el) { el.scrollTop = 0; } });
   };
   const step = STEPS[i]!;
   const last = i === STEPS.length - 1;

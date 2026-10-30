@@ -51,6 +51,14 @@
         set: function (id) { try { return nw.set(id) === true; } catch (e) { return false; } }
       };
     }
+    var fe = null;
+    try { fe = HOST.KamiChatFrontend && typeof HOST.KamiChatFrontend.setEnabled === 'function' ? HOST.KamiChatFrontend : null; } catch (e) { fe = null; }
+    if (fe) {
+      p.chatFrontend = {
+        get: function () { try { return !!fe.enabled(); } catch (e) { return true; } },
+        set: function (v) { try { return fe.setEnabled(!!v) === true; } catch (e) { return false; } }
+      };
+    }
     var s = ls();
     if (s) {
       p.optionsFolded = {

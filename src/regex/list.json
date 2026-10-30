@@ -54,6 +54,40 @@
   },
   {
     "disabled": false,
+    "findRegex": "/(?<=<content>(?:(?!<\\/content>)[\\s\\S])*?)(?:\\$\\$([\\s\\S]+?)\\$\\$|\\\\\\[([\\s\\S]+?)\\\\\\])(?=(?:(?!<content>)[\\s\\S])*?<\\/content>)/g",
+    "id": "b871219a-a31e-5a5a-bc50-5ba300fd2787",
+    "markdownOnly": true,
+    "maxDepth": null,
+    "minDepth": null,
+    "placement": [
+      2
+    ],
+    "promptOnly": false,
+    "replaceString": "\n\n<code data-kami-tex=\"b\">$1$2</code>\n\n",
+    "runOnEdit": false,
+    "scriptName": "前端|公式(独立) v0.1",
+    "substituteRegex": 0,
+    "trimStrings": []
+  },
+  {
+    "disabled": false,
+    "findRegex": "/(?<=<content>(?:(?!<\\/content>)[\\s\\S])*?)(?:\\\\\\(((?:(?!\\n\\n)[^\\n])+?)\\\\\\)|(?<![\\\\$\\w])\\$(?![\\s$])([^\\n$]+?)(?<![\\s\\\\])\\$(?![\\w$]))(?=(?:(?!<content>)[\\s\\S])*?<\\/content>)/g",
+    "id": "6a43ad8d-11b3-5665-bd4a-10d3ee63c492",
+    "markdownOnly": true,
+    "maxDepth": null,
+    "minDepth": null,
+    "placement": [
+      2
+    ],
+    "promptOnly": false,
+    "replaceString": "<code data-kami-tex=\"i\">$1$2</code>",
+    "runOnEdit": false,
+    "scriptName": "前端|公式(行内) v0.1",
+    "substituteRegex": 0,
+    "trimStrings": []
+  },
+  {
+    "disabled": false,
     "findRegex": "/[ \\t]*<content>([\\s\\S]*?)<\\/content>[ \\t]*/g",
     "id": "4c1f9b26-7d05-4a53-9f18-2be7c4a0d6e1",
     "markdownOnly": true,

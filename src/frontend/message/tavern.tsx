@@ -1,22 +1,37 @@
 /**
- * 酒馆聊天前端：把 MessageView 挂到酒馆的每条 AI 回复上（拍板 A：正文由我们渲染；E：生成期间就逐步排版）。
+ * 酒馆聊天前端 v0.2（2026-10-29 按用户实测意见重做）：**内容留在酒馆的 DOM 里，我们只加外壳**。
  *
- * 怎么挂（2026-10-28 在本机测试酒馆实测定下，见 test/st/message-next.mjs）：
- *   · 每条 AI 消息的 .mes_block 里、紧跟 .mes_text 之后插一个宿主 <div data-kami-msg-host>，挂 Shadow DOM。
- *     **不放进 .mes_text**：流式生成时酒馆每个片段都整段重写 .mes_text，放进去会被反复冲掉。
- *   · 酒馆自己的 .mes_text 用一条宿主样式藏起来（.mes 上打 data-kami-msg 标记）；**编辑消息时**（.mes_text 里出现编辑框）
- *     反过来：显示酒馆的编辑框、藏起我们的宿主。酒馆的控件和交互一个都不动（前端契约 8.4）。
- *   · 原文只从聊天数据读（chat[mesid].mes，流式时酒馆也在实时更新它），绝不从渲染后的 DOM 取（契约 8.3）。
- *   · 观察 #chat：酒馆每次重写消息（流式片段、重绘、切换回复、重载聊天）都会触发，合并到一次微任务里重画；
- *     宿主节点离开文档（删除消息、重载聊天）就卸载 React 根、释放样式表。整段 .mes 被换掉时自动重挂。
- *   · stop() 之后不留任何东西：宿主、标记、宿主样式全部移除，酒馆恢复原样。
+ * 为什么（用户 2026-10-29）：v0.1 把 .mes_text 整个藏起来、自己从原文重画，结果
+ *   · 其他插件往正文里插的按钮 / 生图标记全没了，正文里的 HTML 美化也不显示；
+ *   · 对白 / 心理描写的颜色不跟酒馆的字体颜色设置走；
+ *   · 思维链没走 main 的做法（「💭 思维链」把它从正文流里搬进酒馆原生思维链块）。
+ * 现在与 main 的「📄 正文外壳」同一个思路：
+ *   · 正文：正则「前端|正文」把 <content> 换成两个空标记夹住的正文，酒馆照常渲染；这里把两个标记之间的节点**原样**搬进
+ *     我们的宿主元素。宿主挂 Shadow DOM，里面是头部（字数 / 看原文 / 复制）和一个 <slot>——正文节点仍是页面 DOM 的一部分
+ *     （仍在 .mes_text 里），插件照常找得到、照常插；字体颜色由酒馆的样式决定。公式见 math.ts。
+ *   · 思维链：内容来自酒馆原生思维链块（extra.reasoning，「💭 思维链」流式时搬进去的）；老楼层正文里内联的思维链也认。
+ *     我们在 .mes_text 前面放一块自己的思维链（Shadow DOM），原生块藏起来；编辑 / 删除按钮点的是酒馆原生的那两个，
+ *     酒馆进入编辑状态时反过来：显示原生块、藏起我们的。生成中显示「思考中 N 字」（读「💭 思维链」正在扣的内容）。
+ *   · 搜索资料 / 行动选项：酒馆助手把对应正则渲染成 iframe（.TH-render）。认出是哪一种后藏起 iframe，在原位置换成我们的；
+ *     行动选项只有最新一条回复渲染（拍板 D）。
+ *   · 生成中的那一楼只更新思维链；正文 / 搜索资料 / 行动选项等生成结束、酒馆最后一次渲染之后再接管（酒馆流式时每个片段都重写
+ *     .mes_text，放进去的东西会被冲掉——main 的正文外壳也是这么处理的）。
+ *   · stop()：正文节点搬回原处、标记放回，iframe 取消隐藏，宿主与样式全部移除——酒馆、「📄 正文外壳」「💭 思维链」原样接手。
+ * 原文只从聊天数据读（契约 8.3）；酒馆的控件和交互一个都不动（契约 8.4）。
  */
 import * as React from 'react';
 import type { StyleHub } from '../skin-engine/sheets';
 import { mountSurface } from '../surfaces/messages';
-import { MessageView, type OptionItem, type OptionMode } from './view';
+import { typesetTex } from './math';
+import { splitReply, takeTag } from './parse';
+import { MsgBodyShell, MsgOptions, MsgPart, MsgSearch, MsgThink, type OptionItem, type OptionMode, type ThinkActions } from './view';
+import { cleanCopyText } from '../../scripts/_copy-clean.js';
 
-export interface TavernMessage { mes: string; isUser: boolean; isSystem?: boolean }
+export interface TavernMessage {
+  mes: string; isUser: boolean; isSystem?: boolean;
+  /** 酒馆原生思维链（extra.reasoning） */
+  reasoning?: string;
+}
 
 export interface ChatFrontendOptions {
   doc: Document;
@@ -32,36 +47,63 @@ export interface ChatFrontendOptions {
   count: () => number;
   /** 现在是否正在生成（酒馆：停止按钮可见）；生成中的只会是最后一条 */
   generating: () => boolean;
-  /** 点行动选项：填入 / 发送由调用方实现（酒馆助手的 createChatMessages + generate，输入框） */
+  /** 生成中正在搬的思维链（「💭 思维链」的 KamiCot.live()）；没有在搬时返回 null */
+  liveThink?: () => { diverting: boolean; text: string } | null;
+  /** 点行动选项：填入 / 发送由调用方实现 */
   onPick: (item: OptionItem, mode: OptionMode) => void;
   /** 思维链标题里的名字 */
   thinker?: string;
-  /** 行动选项默认展开？（显示面板「行动选项默认」；默认读 localStorage kami.options.folded，和旧前端同一个键，'1' = 收起） */
+  /** 行动选项默认展开？（默认读 localStorage kami.options.folded，'1' = 收起） */
   optionsOpen?: () => boolean;
   /** 「填入 / 发送」偏好的存取（默认 localStorage） */
   loadMode?: () => OptionMode;
   saveMode?: (m: OptionMode) => void;
 }
 
-interface Mounted { host: HTMLElement; mes: Element; render: (node: React.ReactNode) => void; dispose: () => void; last: string }
+interface Surface { host: HTMLElement; render: (node: React.ReactNode) => void; dispose: () => void; last: string }
+type Kind = 'think' | 'search' | 'options' | 'body';
 
-const HOST_ATTR = 'data-kami-msg-host';
 const MES_ATTR = 'data-kami-msg';
+const HOST_ATTR = 'data-kami-msg-host';          /* 我们的宿主元素，值是种类 */
+const HIDE_ATTR = 'data-kami-msg-hidden';        /* 被我们换掉的酒馆助手 iframe（.TH-render） */
+const NATIVE_THINK = 'data-kami-msg-native-think'; /* .mes 上：原生思维链块由我们代为显示 */
+const MARK_START = 'data-kami-body-start';
+const MARK_END = 'data-kami-body-end';
 const STYLE_ID = 'kami-msg-host-style';
 const OPT_FOLD_KEY = 'kami.options.folded';
-/* 宿主文档里的唯一一条样式：只藏 / 显，不改酒馆任何外观 */
-const HOST_CSS =
-  '#chat .mes[' + MES_ATTR + ']:not(:has(.mes_text textarea)) .mes_text { display: none !important; }\n' +
-  '#chat .mes[' + MES_ATTR + ']:has(.mes_text textarea) [' + HOST_ATTR + '] { display: none !important; }\n' +
-  '#chat [' + HOST_ATTR + '] { display: block; margin-top: 4px; }';
+const EDITING_THINK = '.reasoning_edit_textarea';
+
+/* 宿主文档里的唯一一条样式：只藏 / 显我们接手的东西，外加公式的排版（公式在页面 DOM 里，影子样式管不到）。不改酒馆任何外观 */
+const HOST_CSS = [
+  '#chat [' + HIDE_ATTR + '] { display: none !important; }',
+  '#chat .mes[' + NATIVE_THINK + ']:not(:has(' + EDITING_THINK + ')) .mes_reasoning_details { display: none !important; }',
+  '#chat .mes:has(' + EDITING_THINK + ') [' + HOST_ATTR + '="think"] { display: none !important; }',
+  '#chat [' + HOST_ATTR + '] { display: block; }',
+  /* 思维链在 .mes_text 外面：右边留出与 .mes_text 一样的空，和正文同宽 */
+  '#chat [' + HOST_ATTR + '="think"] { margin: 4px var(--mes-right-spacing, 0) 4px 0; }',
+  '#chat [' + HOST_ATTR + '="search"], #chat [' + HOST_ATTR + '="options"] { margin: 6px 0; text-indent: 0; }',
+  '#chat [data-kami-math="block"] { display: block; overflow-x: auto; overflow-y: hidden; margin: .4em 0; text-indent: 0; }',
+  '#chat [data-kami-math] math { font-size: 1.05em; }'
+].join('\n');
+
+/** 酒馆助手渲染的 iframe 前端是哪一种：看它保留的源码（隐藏的 <pre><code>）里的组件标记 */
+function thKind(th: Element): 'think' | 'search' | 'options' | null {
+  const code = th.querySelector(':scope > pre code, :scope > pre');
+  const src = code ? code.textContent || '' : '';
+  /* 认元素上的标记（<div class="kami-root" data-kami-comp="…">），不认样式表里的选择器——基础样式里三种组件的选择器都有 */
+  const m = /<div class="kami-root" data-kami-comp="(think|search|options)"/.exec(src);
+  return m ? (m[1] as 'think' | 'search' | 'options') : null;
+}
 
 export class ChatFrontend {
   private readonly o: ChatFrontendOptions;
-  private readonly mounted = new Map<number, Mounted>();
+  /** 每个宿主元素一个渲染面 */
+  private readonly surfaces = new Map<HTMLElement, Surface>();
   private observer: MutationObserver | null = null;
   private scheduled = false;
+  private busy = false;
   private mode: OptionMode;
-  private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.reloadMode(); this.scan(); } };
+  private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.refresh(); } };
   /** 统计：累计挂载次数（测试与排障用） */
   mounts = 0;
   /** 统计：累计重画次数 */
@@ -92,15 +134,18 @@ export class ChatFrontend {
       this.o.doc.head.appendChild(st);
     }
     const win = this.o.doc.defaultView as Window & typeof globalThis;
-    this.observer = new win.MutationObserver(() => this.schedule());
+    this.observer = new win.MutationObserver(() => { if (!this.busy) { this.schedule(); } });
     this.observer.observe(chat, { childList: true, subtree: true, characterData: true });
-    /* 显示面板改了「行动选项默认 / 填入发送」：其他标签页或面板写 localStorage 时跟上（同一页面里由调用方 refresh） */
     try { win.addEventListener('storage', this.onStorage); } catch (e) { /* 没有 storage 事件 */ }
     this.scan();
   }
 
-  /** 外部事件（生成结束、切换回复、编辑完成……）也可以直接要一次重画；设置变了（选项模式等）也走这里 */
-  refresh(): void { this.reloadMode(); this.schedule(); }
+  /** 外部事件（生成结束、切换回复、编辑完成……）或设置变了：重画一次 */
+  refresh(): void {
+    this.reloadMode();
+    for (const s of this.surfaces.values()) { s.last = ''; }
+    this.schedule();
+  }
 
   private schedule(): void {
     if (this.scheduled) { return; }
@@ -115,8 +160,17 @@ export class ChatFrontend {
   }
 
   scan(): void {
+    /* 自己改 DOM 时观察器会再叫一次：改动期间不排队（改完的状态本来就是这次扫描的结果） */
+    this.busy = true;
+    try { this.scanNow(); } finally {
+      this.busy = false;
+      if (this.observer) { this.observer.takeRecords(); }
+    }
+  }
+
+  private scanNow(): void {
+    for (const [h, s] of this.surfaces) { if (!h.isConnected) { s.dispose(); this.surfaces.delete(h); } }
     const chat = this.o.chat();
-    for (const [id, m] of this.mounted) { if (!m.host.isConnected || !m.mes.isConnected) { this.unmount(id, m); } }
     if (!chat) { return; }
     const latest = this.latestAi();
     const generating = this.o.generating();
@@ -125,70 +179,184 @@ export class ChatFrontend {
       const id = Number(mes.getAttribute('mesid'));
       const msg = this.o.getMessage(id);
       if (!msg || msg.isUser || msg.isSystem || mes.getAttribute('is_user') === 'true' || mes.getAttribute('is_system') === 'true') { continue; }
-      let m = this.mounted.get(id);
-      if (m && m.mes !== mes) { this.unmount(id, m); m = undefined; }
-      if (!m) { m = this.mount(id, mes); if (!m) { continue; } }
+      const text = mes.querySelector('.mes_text');
+      if (!text) { continue; }
+      mes.setAttribute(MES_ATTR, '');
       const streaming = generating && id === lastId;
-      /* 只在原文 / 最新 / 生成状态变了时重画（观察器每个流式片段都会叫一次） */
-      const optOpen = this.optionsOpen();
-      const key = msg.mes.length + ':' + msg.mes.slice(-64) + '|' + (id === latest) + '|' + streaming + '|' + this.mode + '|' + optOpen;
-      if (key === m.last) { continue; }
-      m.last = key;
-      this.paints++;
-      m.render(<MessageView raw={msg.mes} streaming={streaming} latest={id === latest} mode={this.mode}
-        onMode={(v) => this.setMode(v)} onPick={this.o.onPick} optionsOpen={optOpen} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} />);
+      this.think(mes, text, id, msg, streaming);
+      if (text.querySelector('textarea')) { continue; }   /* 酒馆正在编辑这条：不碰 .mes_text */
+      if (streaming) {
+        /* 生成中：只藏起已经出现的 iframe 前端（结束后在原位换成我们的），别的不碰——每个片段酒馆都会重写 .mes_text */
+        for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd) { th.setAttribute(HIDE_ATTR, kd); } }
+        continue;
+      }
+      this.iframes(text, id, msg, id === latest);
+      this.body(text, id, msg);
+      typesetTex(text);
     }
+  }
+
+  /* ───── 思维链：放在 .mes_text 前面（不在 .mes_text 里，流式重写冲不掉） ───── */
+  private think(mes: Element, text: Element, id: number, msg: TavernMessage, streaming: boolean): void {
+    const native = (msg.reasoning || '').trim();
+    let src = native;
+    let live = false;
+    if (!src) { const t = takeTag(msg.mes, 'nyaruko_think'); if (t && t.text.trim()) { src = t.text.trim(); live = streaming && !t.closed; } }
+    if (!src && streaming && this.o.liveThink) {
+      const l = this.o.liveThink();
+      if (l && (l.diverting || l.text)) { src = l.text; live = l.diverting; }
+      if (l && l.diverting && !src) { src = ''; live = true; }
+    }
+    const details = mes.querySelector('.mes_reasoning_details');
+    if (native && details) { mes.setAttribute(NATIVE_THINK, ''); } else { mes.removeAttribute(NATIVE_THINK); }
+    let host = text.parentElement!.querySelector(':scope > [' + HOST_ATTR + '="think"]') as HTMLElement | null;
+    if (!src && !live) { if (host) { this.drop(host); } return; }
+    if (!host || host.nextElementSibling !== text) {
+      if (host) { this.drop(host); }
+      host = this.o.doc.createElement('div');
+      host.setAttribute(HOST_ATTR, 'think');
+      text.before(host);
+    }
+    const actions: ThinkActions = {};
+    if (native && details) {
+      const click = (sel: string) => (): void => {
+        const b = details.querySelector(sel) as HTMLElement | null;
+        if (!b) { return; }
+        if (sel.includes('edit')) { (details as HTMLDetailsElement).open = true; }
+        b.click();
+      };
+      if (details.querySelector('.mes_reasoning_edit')) { actions.edit = click('.mes_reasoning_edit'); }
+      if (details.querySelector('.mes_reasoning_delete')) { actions.remove = click('.mes_reasoning_delete'); }
+    }
+    this.paint(host, 'think|' + src.length + ':' + src.slice(-48) + '|' + live + '|' + !!actions.edit,
+      <MsgPart kind="think"><MsgThink text={src} streaming={live} actions={actions} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} /></MsgPart>);
+  }
+
+  /* ───── 酒馆助手渲染的 iframe：思维链（老楼层）直接藏；搜索资料 / 行动选项换成我们的 ───── */
+  private iframes(text: Element, id: number, msg: TavernMessage, latest: boolean): void {
+    let reply: ReturnType<typeof splitReply> | null = null;
+    const get = (): ReturnType<typeof splitReply> => (reply ||= splitReply(msg.mes));
+    let optsTh = false;
+    for (const th of Array.from(text.querySelectorAll('.TH-render'))) {
+      const kind = thKind(th);
+      if (!kind) { continue; }
+      th.setAttribute(HIDE_ATTR, kind);
+      if (kind === 'think') { continue; }
+      let host = th.previousElementSibling as HTMLElement | null;
+      if (!host || host.getAttribute(HOST_ATTR) !== kind) {
+        host = this.o.doc.createElement('div');
+        host.setAttribute(HOST_ATTR, kind);
+        th.before(host);
+      }
+      if (kind === 'search') {
+        const r = get();
+        if (!r.search.length) { this.drop(host); th.removeAttribute(HIDE_ATTR); continue; }
+        this.paint(host, 'search|' + msg.mes.length, <MsgPart kind="search"><MsgSearch records={r.search} pending={false} /></MsgPart>);
+      } else {
+        optsTh = true;
+        const r = get();
+        const open = this.optionsOpen();
+        if (!latest || !r.options || !r.options.items.length) {
+          /* 不是最新一条：选项不显示（iframe 也藏着）；解析不出选项时把 iframe 还回去 */
+          if (latest) { th.removeAttribute(HIDE_ATTR); }
+          this.drop(host);
+          continue;
+        }
+        this.paint(host, 'options|' + msg.mes.length + '|' + this.mode + '|' + open,
+          <MsgPart kind="options"><MsgOptions items={r.options.items} pending={false} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} /></MsgPart>);
+      }
+    }
+    /* 行动选项的正则只作用在最后两条（maxDepth 1）：更早渲染的楼层里没有选项 iframe。删掉最新回复后，新的「最新一条」
+       就没有地方可换——这时把选项接在 .mes_text 末尾；不再是最新一条时收掉 */
+    const tailHost = text.querySelector(':scope > [' + HOST_ATTR + '="options"][data-kami-msg-tail]') as HTMLElement | null;
+    const r = latest && !optsTh ? get() : null;
+    if (r && r.options && r.options.items.length) {
+      let host = tailHost;
+      if (!host) { host = this.o.doc.createElement('div'); host.setAttribute(HOST_ATTR, 'options'); host.setAttribute('data-kami-msg-tail', ''); text.appendChild(host); }
+      const open = this.optionsOpen();
+      this.paint(host, 'options|' + msg.mes.length + '|' + this.mode + '|' + open,
+        <MsgPart kind="options"><MsgOptions items={r.options.items} pending={false} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} /></MsgPart>);
+    } else if (tailHost) { this.drop(tailHost); }
+  }
+
+  /* ───── 正文：两个标记之间的节点原样搬进宿主（slot 显示），标记收掉 ───── */
+  private body(text: Element, id: number, msg: TavernMessage): void {
+    const start = text.querySelector('[' + MARK_START + ']');
+    const end = text.querySelector('[' + MARK_END + ']');
+    if (start && end && start.parentNode === end.parentNode) {
+      const host = this.o.doc.createElement('div');
+      host.setAttribute(HOST_ATTR, 'body');
+      let n = start.nextSibling;
+      while (n && n !== end) { const nx = n.nextSibling; host.appendChild(n); n = nx; }
+      start.before(host);
+      start.remove(); end.remove();
+    }
+    for (const host of Array.from(text.querySelectorAll('[' + HOST_ATTR + '="body"]')) as HTMLElement[]) {
+      const raw = (takeTag(msg.mes, 'content') || { text: '' }).text;
+      this.paint(host, 'body|' + raw.length + ':' + raw.slice(-48),
+        <MsgBodyShell raw={raw} copy={() => cleanCopyText(host)} />);
+    }
+  }
+
+  private paint(host: HTMLElement, key: string, node: React.ReactNode): void {
+    let s = this.surfaces.get(host);
+    if (!s) {
+      const m = mountSurface(host, this.o);
+      s = { host, render: m.render, last: '', dispose: () => { try { m.root.unmount(); } catch (e) { /* 已卸载 */ } if (m.off) { m.off(); } m.detach(); } };
+      this.surfaces.set(host, s);
+      this.mounts++;
+    }
+    if (s.last === key) { return; }
+    s.last = key;
+    this.paints++;
+    s.render(node);
+  }
+
+  private drop(host: HTMLElement): void {
+    const s = this.surfaces.get(host);
+    if (s) { s.dispose(); this.surfaces.delete(host); }
+    host.remove();
   }
 
   private setMode(v: OptionMode): void {
     this.mode = v;
     try { if (this.o.saveMode) { this.o.saveMode(v); } else { this.o.doc.defaultView!.localStorage.setItem('kami-option-mode', v); } } catch (e) { /* 无痕模式 */ }
-    this.scan();
+    this.refresh();
   }
 
-  private mount(id: number, mes: Element): Mounted | undefined {
-    const text = mes.querySelector('.mes_text');
-    if (!text || !text.parentElement) { return undefined; }
-    let host = text.parentElement.querySelector(':scope > [' + HOST_ATTR + ']') as HTMLElement | null;
-    if (host && host.shadowRoot) { host.remove(); host = null; }   /* 上一个实例留下的（不该发生，保险） */
-    host = this.o.doc.createElement('div');
-    host.setAttribute(HOST_ATTR, '');
-    text.after(host);
-    mes.setAttribute(MES_ATTR, '');
-    const s = mountSurface(host, this.o);
-    const m: Mounted = {
-      host, mes, render: s.render, last: '',
-      dispose: () => { try { s.root.unmount(); } catch (e) { /* 已卸载 */ } if (s.off) { s.off(); } s.detach(); }
-    };
-    this.mounted.set(id, m);
-    this.mounts++;
-    return m;
-  }
-
-  private unmount(id: number, m: Mounted): void {
-    m.dispose();
-    if (m.host.isConnected) { m.host.remove(); }
-    if (m.mes.isConnected) { m.mes.removeAttribute(MES_ATTR); }
-    this.mounted.delete(id);
-  }
-
-  /** 皮肤属性变化：同步到所有渲染面根并重画（图标映射等上下文） */
+  /** 皮肤属性变化：同步到所有渲染面根并重画 */
   refreshAttrs(): void {
     const a = this.o.attrs ? this.o.attrs() : {};
-    for (const m of this.mounted.values()) {
-      const s = m.host.shadowRoot && m.host.shadowRoot.querySelector('[data-k-surface]');
-      if (s) { for (const [n, v] of Object.entries(a)) { s.setAttribute(n, v); } }
-      m.last = '';
+    for (const s of this.surfaces.values()) {
+      const el = s.host.shadowRoot && s.host.shadowRoot.querySelector('[data-k-surface]');
+      if (el) { for (const [n, v] of Object.entries(a)) { el.setAttribute(n, v); } }
+      s.last = '';
     }
     this.scan();
   }
 
-  get size(): number { return this.mounted.size; }
+  get size(): number { return this.surfaces.size; }
 
   stop(): void {
     if (this.observer) { this.observer.disconnect(); this.observer = null; }
     try { this.o.doc.defaultView!.removeEventListener('storage', this.onStorage); } catch (e) { /* 已卸载 */ }
-    for (const [id, m] of Array.from(this.mounted)) { this.unmount(id, m); }
+    for (const s of this.surfaces.values()) { s.dispose(); }
+    this.surfaces.clear();
+    const chat = this.o.chat();
+    if (chat) {
+      /* 正文放回原处，两个标记也放回去（「📄 正文外壳」或之后重新开启的我们还能认出来） */
+      for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + '="body"]'))) {
+        const a = this.o.doc.createElement('div'), b = this.o.doc.createElement('div');
+        a.setAttribute(MARK_START, ''); b.setAttribute(MARK_END, '');
+        host.before(a);
+        while (host.firstChild) { host.before(host.firstChild); }
+        host.before(b);
+        host.remove();
+      }
+      for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + ']'))) { host.remove(); }
+      for (const el of Array.from(chat.querySelectorAll('[' + HIDE_ATTR + ']'))) { el.removeAttribute(HIDE_ATTR); }
+      for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + ']'))) { el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); }
+    }
     const st = this.o.doc.getElementById(STYLE_ID);
     if (st) { st.remove(); }
   }

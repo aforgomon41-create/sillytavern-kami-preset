@@ -28,6 +28,8 @@ export interface DisplayPrefs {
   optionsFolded?: { get: () => boolean; set: (v: boolean) => boolean };
   /** 点行动选项时：填入 / 发送（localStorage kami-option-mode；消息里的切换按钮改的是同一个） */
   optionMode?: { get: () => 'fill' | 'send'; set: (v: 'fill' | 'send') => boolean };
+  /** 消息前端总开关（「🧪 消息前端」脚本：localStorage kami.msgfe；关掉后回到酒馆原样与旧前端） */
+  chatFrontend?: { get: () => boolean; set: (v: boolean) => boolean };
 }
 
 export interface DisplayPanelProps {
@@ -160,16 +162,17 @@ const fmtNum = (p: Extract<ParamDef, { type: 'number' }>, v: number): string => 
   return v.toFixed(d) + (p.unit ? ' ' + p.unit : '');
 };
 
-/** 滑杆：拖动时只更新显示，按帧合并后才交给管理器（重新合成皮肤），避免每个指针事件都重算令牌 */
+/** 滑杆：拖动时只更新显示，约一帧合并一次才交给管理器（重新合成皮肤），避免每个指针事件都重算令牌。
+ *  用 setTimeout 而不是 requestAnimationFrame：面板代码跑在酒馆助手的隐藏 iframe 里，那里的 rAF 可能永远不触发 */
 function ParamSlider({ p, value, onApply }: { p: Extract<ParamDef, { type: 'number' }>; value: number; onApply: (v: number) => void }): React.JSX.Element {
   const [v, setV] = React.useState(value);
   const raf = React.useRef(0);
   React.useEffect(() => { setV(value); }, [value]);
-  React.useEffect(() => () => cancelAnimationFrame(raf.current), []);
+  React.useEffect(() => () => window.clearTimeout(raf.current), []);
   const change = (n: number): void => {
     setV(n);
-    cancelAnimationFrame(raf.current);
-    raf.current = requestAnimationFrame(() => onApply(n));
+    window.clearTimeout(raf.current);
+    raf.current = window.setTimeout(() => onApply(n), 16);
   };
   return <Slider value={v} min={p.min} max={p.max} step={p.step ?? 1} onValueChange={change} format={(x) => fmtNum(p, x)} aria-label={p.name} />;
 }
@@ -288,10 +291,12 @@ function MessagePrefs({ prefs, notify }: { prefs: DisplayPrefs; notify: Ctx['not
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   const off = <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>脚本未运行</span>;
   const write = (ok: boolean): void => { if (!ok) { notify('写不进去，设置没变。'); } force(); };
-  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode;
+  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode, fe = prefs.chatFrontend;
   const cur = nw ? nw.modes.find((m) => m.id === nw.get()) : undefined;
   return (
     <SettingSection title="消息" badge={<Badge>所有皮肤</Badge>}>
+      <SettingRow label="消息前端" description="用新前端显示回复：思维链、正文外壳、搜索资料、行动选项。正文仍由酒馆渲染，字体颜色跟酒馆的设置走。关掉后回到酒馆原样。"
+        control={fe ? <Switch checked={fe.get()} aria-label="消息前端" onCheckedChange={(v) => write(fe.set(v))} /> : off} />
       <SettingRow label="角色名样式" description={NAME_WRAP_NOTE + (cur ? '（现在：' + cur.demo + '）' : '')}
         control={nw ? <Segmented label="角色名样式" size="sm" options={nw.modes.map((m) => ({ value: m.id, label: m.label }))} value={nw.get()} onValueChange={(v) => write(nw.set(v))} /> : off} />
       <SettingRow label="行动选项默认" description="行动选项在消息里的默认状态。选项头部随时可以单独展开或收起。"
