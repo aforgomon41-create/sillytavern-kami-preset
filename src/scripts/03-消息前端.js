@@ -80,8 +80,11 @@
       var again = function () { if (cf) { cf.refresh(); } };
       on('GENERATION_STARTED', again);
       ['GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED', 'MESSAGE_RECEIVED'].forEach(function (n) { on(n, function () { again(); setTimeout(again, 300); setTimeout(again, 1200); }); });
-      ['MESSAGE_UPDATED', 'MESSAGE_SWIPED', 'MESSAGE_EDITED', 'MESSAGE_DELETED', 'CHARACTER_MESSAGE_RENDERED', 'STREAM_TOKEN_RECEIVED',
-        'MESSAGE_REASONING_EDITED', 'MESSAGE_REASONING_DELETED', 'STREAM_REASONING_DONE'].forEach(function (n) { on(n, again); });
+      /* 只涉及一楼的事件：只重查那一楼（长聊天里流式每个片段都全部重画太重）；参数不是楼层号时按最后一楼 */
+      var one = function (id) { if (cf) { var n = Number(id); cf.touch(isFinite(n) && String(id) !== '' && typeof id !== 'object' ? n : undefined); } };
+      on('MESSAGE_DELETED', again);
+      ['MESSAGE_UPDATED', 'MESSAGE_SWIPED', 'MESSAGE_EDITED', 'CHARACTER_MESSAGE_RENDERED', 'MESSAGE_REASONING_EDITED', 'MESSAGE_REASONING_DELETED'].forEach(function (n) { on(n, one); });
+      ['STREAM_TOKEN_RECEIVED', 'STREAM_REASONING_DONE'].forEach(function (n) { on(n, function () { one(); }); });
     }
     if (enabledPref()) { startFrontend(); } else { log('启动 v' + VERSION + '：消息前端已在显示面板里关闭'); }
   }

@@ -142,6 +142,7 @@ const info = await page.evaluate(() => {
     bodyShadowHead: body && body.shadowRoot ? (body.shadowRoot.querySelector('[data-k="msg-body"] [data-k-part="count"]') || {}).textContent : null,
     slot: body && body.shadowRoot ? !!body.shadowRoot.querySelector('slot') : false,
     leak: body ? /<!--|步骤1|nyaruko/.test(body.innerText) : true,
+    skinQ: body ? rgb(getComputedStyle(body.shadowRoot.querySelector('[data-k="msg-view"]')).getPropertyValue('--k-msg-dialogue')) : null, skinEm: body ? rgb(getComputedStyle(body.shadowRoot.querySelector('[data-k="msg-view"]')).getPropertyValue('--k-msg-thought')) : null,
     quote: q ? getComputedStyle(q).color : null, quoteWant: rgb(css.getPropertyValue('--SmartThemeQuoteColor')),
     em: em ? getComputedStyle(em).color : null, emWant: rgb(css.getPropertyValue('--SmartThemeEmColor')),
     para: body && body.querySelector('p') ? getComputedStyle(body.querySelector('p')).color : null, paraWant: rgb(css.getPropertyValue('--SmartThemeBodyColor')),
@@ -173,7 +174,7 @@ ok(info.opts === 6, '行动选项：换掉 iframe，6 个', info.opts);
 ok(info.bodyInText && info.slot && info.bodyParas >= 3 && /\d+ 字/.test(info.bodyShadowHead || '') && !info.leak, '正文节点留在 .mes_text 里（插件找得到），头部有字数；注释与标记不外露', info);
 ok(info.typo && info.typo.mode === 'body' && parseFloat(info.typo.indent) > 10 && !info.typo.lead && /Songti|Serif|serif/.test(info.typo.font) && info.typo.scene === 1 && info.typo.term === '【马什旧宅】' && /Kaiti|KaiTi|楷/.test(info.typo.thoughtFont || '') && info.typo.dialogue >= 1,
   '正文由我们排版：皮肤字体（碎光：宋体 / 心理描写楷体）、两字缩进、场景转换、专有名词、对白', info.typo);
-ok(info.quote === info.para && !/rgba\(0, 0, 0, 0\)|transparent/.test(info.bodyBg || 'transparent'), '默认「皮肤字体颜色」开：正文铺皮肤的底色，对白用皮肤的颜色（覆盖酒馆的字体颜色）', { q: info.quote, p: info.para, bg: info.bodyBg });
+ok(info.quote === info.skinQ && info.quote !== info.para && info.em === info.skinEm && !/rgba\(0, 0, 0, 0\)|transparent/.test(info.bodyBg || 'transparent'), '默认「皮肤字体颜色」开：正文铺皮肤的底色，对白 / 心理描写用皮肤自己的颜色（覆盖酒馆的字体颜色）', { q: info.quote, skinQ: info.skinQ, em: info.em, skinEm: info.skinEm, p: info.para, bg: info.bodyBg });
 ok(info.searchFacts === 2 && info.searchShown, '搜索资料：事实经统一管线渲染进页面 DOM，经 slot 显示', info.searchFacts);
 ok(info.optSlots === 12 && info.optMath, '行动选项：标题与内容经统一管线渲染（含公式），经 slot 显示', { slots: info.optSlots, math: info.optMath });
 ok(info.math.filter((x) => x === 'inline:true').length === 2 && info.math.includes('block:true') && info.texLeft === 0 && info.price, '公式：行内 2 个 + 独立 1 个渲染成 MathML；价格「$5 和 $10」不误伤', { math: info.math, left: info.texLeft, price: info.price });

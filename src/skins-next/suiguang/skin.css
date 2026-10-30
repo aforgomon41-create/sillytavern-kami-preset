@@ -95,6 +95,11 @@
 [data-k="msg-view"] { box-shadow: 0 1px 0 var(--k-divider); }
 /* 正文用衬线：读长文更有纸感；对白略重、引号退后；心理描写用楷体（系统没有楷体时退回衬线） */
 [data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, Georgia, serif; letter-spacing: .02em; }
+/* 皮肤自己的字体颜色（显示面板「皮肤字体颜色」开着时用；关掉时由 lock.css 换成酒馆的 Quote / Em 颜色）：
+   对白用青瓷色（与强调色同族、压深一档保证正文对比度），心理描写用淡墨 */
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #2c6a58; --k-msg-thought: #6b6356; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #9ccfbd; --k-msg-thought: #aaa294; }
+[data-k-surface][data-k-scheme="reading"] { --k-msg-dialogue: #7a4520; --k-msg-thought: #6a5c49; }
 [data-k-content] [data-k-part="thought"] { font-style: normal; font-family: "Kaiti SC", STKaiti, KaiTi, "楷体", "AR PL UKai CN", "Noto Serif CJK SC", serif; }
 [data-k-content] [data-k-part="term"] { text-decoration-color: var(--k-accent); text-decoration-thickness: 1px; text-decoration-style: dotted; }
 /* 场景转换：一枚小方块（印章母题）代替横线 */

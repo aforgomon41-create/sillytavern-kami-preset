@@ -19,7 +19,7 @@
     try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
     return window;
   })();
-  var disposed = false, rt = null, mgr = null, ownDef = null, timer = null, isOpen = false;
+  var disposed = false, rt = null, mgr = null, ownDef = null, timer = null, isOpen = false, pingTimer = null;
   function log(msg) { try { console.log('[显示] ' + msg); } catch (e) { } }
 
   /* 设置存脚本变量（getVariables / replaceVariables，type: 'script'，和 70 号远程更新同一套） */
@@ -119,6 +119,8 @@
     } catch (e) { log('⚠ 皮肤管理器启动失败：' + e.message); mgr = null; return; }
     try { HOST.KamiDisplay = { version: VERSION, alive: function () { return !disposed; }, open: open, close: close, toggle: toggle, manager: mgr, shutdown: shutdown }; } catch (e) { }
     registerButton();
+    /* 心跳：按钮中转站超过 3 分钟没收到 ping 就当登记方已死、撤下按钮（之前漏了这一条，按钮用一会儿就掉） */
+    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);
     log('启动 v' + VERSION + '：' + entries.length + ' 套内置皮肤，当前「' + mgr.current.manifest.name + '」');
   }
 
@@ -136,6 +138,7 @@
     if (disposed) { return; }
     disposed = true;
     if (timer) { clearTimeout(timer); timer = null; }
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
     close();
     try {
       var defs = HOST.__hubDefs || [];

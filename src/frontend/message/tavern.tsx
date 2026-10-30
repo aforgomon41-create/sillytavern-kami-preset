@@ -101,6 +101,10 @@ export class ChatFrontend {
   private observer: MutationObserver | null = null;
   private scheduled = false;
   private busy = false;
+  /* 增量扫描：只重查有变动的楼层（长聊天里流式每个片段都全量扫一遍，100 楼要 15ms）；all = 下次全部重查 */
+  private dirty = new Set<Element>();
+  private all = true;
+  private prevLatest = -2;
   private mode: OptionMode;
   /** 内容容器上次写进去的源（没变就不重写——插件插进去的节点留着） */
   private readonly written = new WeakMap<Element, string>();
@@ -140,7 +144,8 @@ export class ChatFrontend {
     }
     this.bodyStyle();
     const win = this.o.doc.defaultView as Window & typeof globalThis;
-    this.observer = new win.MutationObserver(() => { if (!this.busy) { this.schedule(); } });
+    this.observer = new win.MutationObserver((records) => { if (!this.busy) { this.note(records); this.schedule(); } });
+    this.all = true;
     this.observer.observe(chat, { childList: true, subtree: true, characterData: true });
     try { win.addEventListener('storage', this.onStorage); } catch (e) { /* 没有 storage 事件 */ }
     this.scan();
@@ -160,7 +165,34 @@ export class ChatFrontend {
     this.reloadMode();
     const c = this.colors();
     for (const s of this.surfaces.values()) { s.last = ''; if (s.surface) { s.surface.setAttribute('data-k-colors', c); } }
+    this.all = true;
     this.schedule();
+  }
+
+  /** 某一楼的内容变了（流式片段、单条消息的编辑 / 切换回复事件）：只重查这一楼，不重画别的楼。id 省略 = 最后一楼 */
+  touch(id?: number): void {
+    const chat = this.o.chat();
+    if (!chat) { return; }
+    const n = typeof id === 'number' && id >= 0 ? id : this.o.count() - 1;
+    const mes = chat.querySelector('.mes[mesid="' + n + '"]');
+    if (mes) { this.dirty.add(mes); } else { this.all = true; }
+    this.schedule();
+  }
+
+  /** 观察器的记录 → 变动的楼层 */
+  private note(records: MutationRecord[]): void {
+    if (this.all) { return; }
+    for (const r of records) {
+      const t = r.target.nodeType === 1 ? r.target as Element : r.target.parentElement;
+      const mes = t && t.closest('.mes[mesid]');
+      if (mes) { this.dirty.add(mes); continue; }
+      /* 直接加在 #chat 上的楼层（新消息、重载） */
+      for (const n of Array.from(r.addedNodes)) {
+        if (n.nodeType !== 1) { continue; }
+        const el = n as Element;
+        if (el.matches('.mes[mesid]')) { this.dirty.add(el); } else { for (const m of Array.from(el.querySelectorAll('.mes[mesid]'))) { this.dirty.add(m); } }
+      }
+    }
   }
 
   private schedule(): void {
@@ -191,7 +223,12 @@ export class ChatFrontend {
     const latest = this.latestAi();
     const generating = this.o.generating();
     const lastId = this.o.count() - 1;
-    for (const mes of Array.from(chat.querySelectorAll('.mes[mesid]'))) {
+    /* 最新一条换了（新回复、删除）：上一条的行动选项要收掉，全部重查 */
+    if (latest !== this.prevLatest) { this.all = true; this.prevLatest = latest; }
+    const list = this.all ? Array.from(chat.querySelectorAll('.mes[mesid]')) : Array.from(this.dirty).filter((m) => m.isConnected && chat.contains(m));
+    this.all = false;
+    this.dirty.clear();
+    for (const mes of list) {
       const id = Number(mes.getAttribute('mesid'));
       const msg = this.o.getMessage(id);
       if (!msg || msg.isUser || msg.isSystem || mes.getAttribute('is_user') === 'true' || mes.getAttribute('is_system') === 'true') { continue; }
@@ -402,6 +439,7 @@ export class ChatFrontend {
       s.last = '';
     }
     this.bodyStyle();
+    this.all = true;
     this.scan();
   }
 

@@ -43,6 +43,11 @@ const bt = await buttons();
 ok(bt.includes('🎨 显示'), '按钮条有「🎨 显示」', bt);
 ok(bt.filter((x) => x.startsWith('🎨')).length === 1, '只有一颗 🎨（旧皮肤管理让位）', bt);
 ok(bt.includes('🌟 预设设置') && bt.includes('🧭 引导') && bt.some((x) => /^反截断 (开|关)$/.test(x)) && bt.some((x) => x.startsWith('🧰 工具箱')), '其他按钮统一成「图标 + 空格 + 名字」，反截断开关不带图标', bt);
+/* 心跳：按钮中转站 3 分钟收不到 ping 就撤下按钮（用户实测「显示」按钮用一会儿就掉） */
+const ping0 = await page.evaluate(() => ((window.__hubDefs || []).find((d) => d && d.name === '🎨 显示') || {}).ping || 0);
+await page.waitForTimeout(3200);
+const ping1 = await page.evaluate(() => ((window.__hubDefs || []).find((d) => d && d.name === '🎨 显示') || {}).ping || 0);
+ok(ping0 > 0 && ping1 > ping0, '「🎨 显示」有心跳（按钮不会过几分钟被中转站当成已死撤下）', { ping0, ping1 });
 
 /* ② 点按钮打开面板 */
 await page.evaluate(() => { const el = [...document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')].find((x) => x.textContent.trim() === '🎨 显示'); el && el.click(); });
