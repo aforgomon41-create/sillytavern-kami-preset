@@ -117,8 +117,8 @@ if (shell) {
 
 /* ⑤ 面板 / 引导那枚开关（原来在 .audit/check-bodyfront-artifact.mjs 里，2026-09-26 并到这里：
       同一条链路只留一份守卫）。这几条都是真出过事的地方，别删。 */
-const skin = String((scripts.find(s => /皮肤管理/.test(String(s.name))) || {}).content || '');
-const guide = String((scripts.find(s => /引导/.test(String(s.name))) || {}).content || '');
+const skin = String((scripts.find(s => /皮肤管理/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
+const guide = String((scripts.find(s => /引导/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 ok(skin.indexOf("bodyFront: '1',") >= 0, "⑤ 面板档位默认值是字符串 '1'（写布尔 true 会显示成「关」）");
 ok(skin.indexOf('r.script_name !== undefined') >= 0, '⑤ 按归一化字段名找条目（script_name，不是 scriptName）');
 ok(skin.indexOf('r.enabled = !!on;') >= 0, '⑤ 启用位写的是 enabled（不是 disabled）');
@@ -132,7 +132,7 @@ ok(guide.indexOf('api.syncBodyFront()') >= 0, '⑤ 引导页渲染皮肤卡之�
 /* ⑥ 流式输出时不许来回重画（2026-09-28 用户反馈的「闪」）：
       生成期间扫都不扫，等生成结束再一次性补上；标志位必须有兜底与注销，
       否则报错 / 中断会让刷新被永久关死。 */
-const shellSrc = String((scripts.find(s => /正文外壳/.test(String(s.name))) || {}).content || '');
+const shellSrc = String((scripts.find(s => /正文外壳/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 const stripC = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 const shellCode = stripC(shellSrc);
 ok(shellSrc.indexOf('function setGenerating') >= 0, '⑥ 有「正在生成」这个标志位');

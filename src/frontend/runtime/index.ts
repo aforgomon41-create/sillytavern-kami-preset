@@ -20,6 +20,7 @@ import { loadFonts, probeImage, type LoadState } from './remote';
 import { SkinManager } from '../skin-engine/manager';
 import { DisplayPanel, SkinChoices } from '../panels/display-panel';
 import { PresetPanel } from '../panels/preset-panel';
+import { GuidePanel } from '../panels/guide-panel';
 import { ToolboxPanel, ManualSearchDialog, UpdateAskDialog, UpdateProgressDialog, MergeReviewDialog } from '../panels/toolbox-panel';
 
 export const VERSION = '2.0.0-alpha.1';
@@ -44,7 +45,7 @@ export interface Runtime {
   /** 皮肤管理器（设置按皮肤分别保存，变化交给 applySkin）；由「🧪 显示」脚本实例化 */
   SkinManager: typeof SkinManager;
   /** 现成的面板（脚本用 React.createElement 挂到 layer() 上） */
-  panels: { DisplayPanel: typeof DisplayPanel; SkinChoices: typeof SkinChoices; ToolboxPanel: typeof ToolboxPanel; PresetPanel: typeof PresetPanel; ManualSearchDialog: typeof ManualSearchDialog; UpdateAskDialog: typeof UpdateAskDialog; UpdateProgressDialog: typeof UpdateProgressDialog; MergeReviewDialog: typeof MergeReviewDialog };
+  panels: { DisplayPanel: typeof DisplayPanel; SkinChoices: typeof SkinChoices; ToolboxPanel: typeof ToolboxPanel; PresetPanel: typeof PresetPanel; GuidePanel: typeof GuidePanel; ManualSearchDialog: typeof ManualSearchDialog; UpdateAskDialog: typeof UpdateAskDialog; UpdateProgressDialog: typeof UpdateProgressDialog; MergeReviewDialog: typeof MergeReviewDialog };
   engine: { resolveScheme: typeof resolveScheme; auditScheme: typeof auditScheme; validateManifest: typeof validateManifest; composeSkin: typeof composeSkin; nthTag: typeof nthTag };
   dispose(): void;
 }
@@ -127,7 +128,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       return cf;
     },
     SkinManager,
-    panels: { DisplayPanel, SkinChoices, PresetPanel, ToolboxPanel, ManualSearchDialog, UpdateAskDialog, UpdateProgressDialog, MergeReviewDialog },
+    panels: { DisplayPanel, SkinChoices, PresetPanel, GuidePanel, ToolboxPanel, ManualSearchDialog, UpdateAskDialog, UpdateProgressDialog, MergeReviewDialog },
     engine: { resolveScheme, auditScheme, validateManifest, composeSkin, nthTag },
     dispose() {
       for (const mm of mounts) { mm.stop(); }

@@ -2545,8 +2545,32 @@
     });
   }
 
+  /* 支线：「🧪 引导」在跑时由它画新界面（展示记录仍记在本脚本，经 guideBridge 回写） */
+  function nextGuide() {
+    try { var n = HOST.KamiGuideNext; if (n && typeof n.alive === 'function' && n.alive() && typeof n.open === 'function') { return n; } } catch (e) { }
+    return null;
+  }
+  function guideDisclaimer() {
+    var raw = readTree();
+    if (!raw.ok) { return ''; }
+    var d = findEntryByName((raw.preset && raw.preset.prompts) || [], '免责');
+    return d ? (firstComment(d.content) || '') : '';
+  }
+  function guideBridge() {
+    return {
+      copy: GUIDE_COPY || null,
+      version: GUIDE_VERSION,
+      disclaimer: guideDisclaimer,
+      opened: function () { markVisit({ shown: true }); log('引导打开（新界面，版本 ' + GUIDE_VERSION + '）'); },
+      confirmed: function () { markVisit({ shown: true, confirmed: true }); },
+      finish: function (completed) { markVisit(completed ? { shown: true, completed: true } : { shown: true }); log('引导关闭（新界面）' + (completed ? '：已完成' : '')); }
+    };
+  }
+
   function openWizard() {
     if (disposed) { return; }
+    var nx = nextGuide();
+    if (nx) { nx.open(); return true; }
     var raw = readTree();
     if (!raw.ok) {
       toast('error', raw.error);
@@ -2629,6 +2653,7 @@
       version: VERSION,
       build: BUILD_N,
       open: function () { openWizard(); },
+      guideBridge: guideBridge,
       close: function () { closeWizard(true); },
       reset: function () { markVisit({ shown: false, confirmed: false, completed: false }); log('已清除本版展示记录（下次加载会自动弹）'); },
       status: function () {
@@ -2650,15 +2675,22 @@
     try {
       var w = HOST;
       var defs = w.__hubDefs || (w.__hubDefs = []);
+      /* 只清掉同名的死登记（上一份实例）：支线上「🧪 引导」用同一个按钮名，它的登记要留着 */
       for (var i = defs.length - 1; i >= 0; i -= 1) {
-        if (defs[i] && defs[i].name === HUB_NAME) { defs.splice(i, 1); }
+        if (defs[i] && defs[i].name === HUB_NAME) {
+          var dead = true;
+          try { dead = typeof defs[i].alive === 'function' ? !defs[i].alive() : true; } catch (e0) { dead = true; }
+          if (dead || defs[i].__kamiOld) { defs.splice(i, 1); }
+        }
       }
       ownDef = {
         name: HUB_NAME,
+        __kamiOld: true,
         order: HUB_ORDER,
         tip: '新手引导（点击打开向导，可随时重看）',
         ping: Date.now(),
-        alive: function () { return !disposed; },
+        /* 支线上「🧪 引导」在运行时让位：同名按钮由它接管 */
+        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiGuideNext && HOST.KamiGuideNext.alive()); } catch (e) { return true; } },
         label: function () { return HUB_NAME; },
         ready: function () { return true; },
         absent: '引导脚本拿不到宿主窗口',

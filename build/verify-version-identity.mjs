@@ -66,7 +66,7 @@ ok(guide.indexOf('不自动弹') < 0 || guide.indexOf('已看过') >= 0,
 ok(/hasSeenCurrentVersion\(\)/.test(guide), '④ 按完整版本展示记录判定，不再只认关闭时的数字产物号');
 const guideIdentity = /SELF_NAME\s*=\s*'([^']+)'/.exec(guide);
 ok(!!guideIdentity && guideIdentity[1] === asset && /guideVersionOf\(SELF_NAME\)/.test(guide), '④ 引导的完整版本取自构建常量');
-const guideScript = scripts.find(s => String(s.name).includes('引导'));
+const guideScript = scripts.find(s => String(s.name).includes('引导') && String(s.name).indexOf('🧪') < 0);
 ok(!!guideScript && Object.keys(guideScript.data || {}).length === 0 && guideScript.export_with?.data === false, '④ 分发与导出不携带用户引导记录');
 ok(guide.indexOf('@@KAMI_BUILD_N@@') < 0, '④ 引导的产物号已注入');
 
