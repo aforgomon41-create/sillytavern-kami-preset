@@ -1,5 +1,7 @@
 /* ============================================================
- * 🧰 工具箱 v1.0（压缩 / 网络搜索 / 其他功能）
+ * 🧰 工具箱 v2.0（压缩 / 网络搜索 / 其他功能 / 更新）
+ * 2026-10-30 脚本整理：界面换成「🧩 运行库」的 ToolboxPanel（文件末尾「界面接线」一段，原「🧪 工具箱」并入），
+ * 下面关于旧面板（DOM 拼的窗口、契约类、手势）的历史说明只作追溯。
  * 原压缩脚本 ID 与 KamiSummarize 接口保持兼容；下方 v1.x 为压缩功能历史。
  * 酒馆助手（TavernHelper / JS-Slash-Runner 4.9.5+）脚本
  * ------------------------------------------------------------
@@ -103,21 +105,10 @@
   'use strict';
   /* @@KAMI_UI@@ */
 
-  var VERSION = '1.0';
-  var HUB_NAME = '🧰 工具箱';
-  /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
-  var HUB_ORDER = 40;
-  var PANEL_ID = 'kami-compress-panel';
-  var CSS_ID = 'kami-compress-css';   // 兜底皮肤 + 本面板布局（LAYOUT_CSS）装在同一个 style 里
+  var VERSION = '2.0';
   var API_NAME = 'KamiSummarize';
   var VARS_KEY = 'kami-summarize';
-  var CHAR_ID = 100001;          // 酒馆 prompt_order 主键（与 40-预设设置.js 一致）
-  var Z = 30000;
-  /* 面板默认尺寸（2026-10-24 统一）：与皮肤管理、预设设置、全部皮肤一致，按视口自动夹取。 */
-var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
-  var STATUS_ROLE = 'status';
-
-  /* ── 对象标识（真相在 src/regex/list.json 与 src/preset.base.json） ── */
+  var CHAR_ID = 100001; /* ── 对象标识（真相在 src/regex/list.json 与 src/preset.base.json） ── */
   var ROLL_ID = '0c74198f-1acc-43e3-8d88-d776d7242b89';   // 压缩|摘要/设定(默认最小深度20)
   var ROLL_NAME = '压缩|摘要/设定';
   var SUMMARY_ID = '3fd5251a-b51b-4fc2-a4a8-fbb955faa527'; // 🧱 摘要(小总结)
@@ -397,7 +388,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* ── 面板文案到这里为止 ── */
 
   /* 面板手势共享模块（构建期内联，两块面板共用同一份） */
-  /* @@KAMI_PANEL_GESTURES@@ */
   /* @@KAMI_TOOLBOX_TABS@@ */
   /* @@KAMI_TOOLBOX_BRIDGE@@ */
   /* @@KAMI_SEARCH_PROVIDERS@@ */
@@ -417,7 +407,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* @@KAMI_SUMMARIZE_PURE@@ */
 
   /* 兜底皮肤（唯一真相：src/skin/base.css，构建期内联成字符串常量） */
-  /* @@KAMI_BASE_CSS_JS@@ */
 
   /* ───────── 宿主窗口 ───────── */
 
@@ -518,9 +507,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* ───────── 状态 ───────── */
 
   var disposed = false;
-  var panelRoot = null, panelDrop = null, panelHead = null, bodyEl = null;
-  var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
-  var GESTURES = null;
   var geom = { x: null, y: null, w: null, h: null };
   var cfg = {
     grandOn: false, threshold: DEF_THRESHOLD, keep: DEF_KEEP, chunk: DEF_CHUNK,
@@ -540,10 +526,9 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   function currentTpl(){ return compressLlmEditor.currentTemplate(); }
   function syncCurrentTpl(){ return compressLlmEditor.syncCurrent(); }
   function currentSumConfig(){ return compressLlmEditor.currentConfig(); }
-  var pingTimer = null, saveTimer = null, resizeHandler = null, hideHandler = null;
+  var pingTimer = null, saveTimer = null, hideHandler = null;
   var armTimer = null;        // 两段式确认的 4 秒定时器（注销时清）
-  var panelDrag = null;       // 面板拖动/缩放进行中的状态（注销时释放指针捕获用）
-  var ownDef = null, unsubs = [];
+  var unsubs = [];
   var regexWrites = 0, entryWrites = 0;
   var lastError = null;
 
@@ -1081,7 +1066,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
         await ctx.saveWorldInfo(st.lbName, raw, true);
         requireChat(stamp);
         log('已同步 ' + changed + ' 个块的注入深度（' + reason + '）');
-        if (panelRoot) { renderContent(); }
+        renderContent();
       }
     } catch (e) { log('同步注入深度失败：' + msgOf(e)); }
   }
@@ -1619,8 +1604,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       var doneCount = 0;
       var bumpProgress = function () {
         pipeline.done = doneCount;
-        var bRun = panelHead ? panelHead.querySelector('[data-kami-act="run-now"]') : null;
-        if (bRun) { bRun.textContent = COPY.grand.running + ' ' + pipeline.done + '/' + pipeline.total; }
         renderStatus();
       };
 
@@ -1726,7 +1709,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     }
     updateDef();
     renderStatus();
-    if (panelRoot) { renderContent(); }
+    renderContent();
   }
 
   /* 自动触发：挂在生成起点（酒馆会等这个事件的所有监听者跑完才继续），
@@ -1756,7 +1739,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     var stamp = chatStamp();
     return loadChatState().then(function () {
       requireChat(stamp);
-      if (panelRoot) { renderContent(); }
+      renderContent();
       renderStatus();
       return syncBlockDepths('切换聊天');
     }).catch(function (e) { if (!e.chatCancelled) { log('切换聊天后读取失败：' + msgOf(e)); } });
@@ -1776,7 +1759,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     } else if (reason === 'manual') {
       toast('info', COPY.toasts.refreshed);
     }
-    if (panelRoot) { renderContent(); }
+    renderContent();
     renderStatus();
   }
   /* 世界书事件：用户在世界书面板里改条目（ST 1.18 是输入即存，没有保存按钮），
@@ -1819,7 +1802,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     /* 重新对账一遍：notice / orphan / suspect 全部回到真实状态（别手搓面板文案） */
     await loadChatState();
     requireChat(stamp);
-    if (panelRoot) { renderContent(); }
+    renderContent();
     renderStatus();
   }
   function onMessagesChanged() {
@@ -1835,293 +1818,27 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       /* 收拢要落盘，否则下次 loadChatState 又从账本读回未收拢的值 */
       if (st.lbName) { saveChatState().catch(function (e) { log('收拢落盘失败：' + msgOf(e)); }); }
     }
-    if (panelRoot) { renderContent(); }
+    renderContent();
     renderStatus();
   }
 
-  /* ───────── 面板 ───────── */
+  /* ───────── DOM 小工具（搜索服务、手动搜索按钮、模型列表等仍在用） ───────── */
 
   function mk(tag, cls, text) {
     return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
   }
-  function clampNum(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
 
-  /* 本面板的布局样式表：**只写布局，不写颜色/字体/材质**。
-     先例 = 50-引导.js 的 GUIDE_CSS 排版层（契约 §4.4 例外②）。
-     管两件事：① 标题栏第二行（三个等宽按钮）——.kami-head 在四套皮肤里都是 nowrap，
-     需要 wrap 才能落第二行；② 三个按钮等宽 + 字号压到面板小号档（用户真机裁定「字太大」）。
-     条目卡开关态高亮（.is-on）**不在这里**——那归皮肤管：主任务已把 trpg/rain/nixie
-     三代选择器缺的空格修好，兜底皮肤也有规则，直接吃皮肤的。 */
-  var LAYOUT_CSS = [
-    '#' + PANEL_ID + ' .kami-head{flex-wrap:wrap;}',
-    '#' + PANEL_ID + ' .kami-head>[data-kami-role="head-actions"]{flex:0 0 100%;display:flex;align-items:center;gap:var(--kami-gap);min-width:0;}',
-    '#' + PANEL_ID + ' .kami-head>[data-kami-role="head-actions"]>.kami-btn{flex:1 1 0;min-width:0;font-size:var(--kami-fs-xs);}',
-    /* 字段行里的宽控件：文本/下拉/多行撑满剩余宽度（数字框、以及裹在
-       .kami-field-value 里的框保持皮肤登记的宽度）。
-       ⚠️ 2026-09-21：类名从 `.kami-number` 换成契约 §4.2 新登记的
-       `.kami-text` / `.kami-select` / `.kami-textarea` —— 原来一条 `:not([type="number"])`
-       把 textarea 与 select 也捞进来，只是权宜之计。 */
-    '#' + PANEL_ID + ' .kami-field > input.kami-text,',
-    '#' + PANEL_ID + ' .kami-field > select.kami-select{flex:1 1 auto;min-width:0;}',
-    /* 多行文本框 */
-    '#' + PANEL_ID + ' textarea.kami-textarea{width:100%;box-sizing:border-box;min-height:72px;resize:vertical;}',
-    /* 「名称框 + 存为 / 删除」这一行（大总结模型与摘要提示词模板共用 data-kami-role="name-row"）：
-       按钮不许在词中间折断，名称框吃掉剩余宽度；一行放不下时**整行换行**而不是把
-       「存为新模板」拆成两行（420px 面板里不加这几条就会拆）。 */
-    '#' + PANEL_ID + ' [data-kami-role="name-row"]{flex-wrap:wrap;row-gap:6px;}',
-    '#' + PANEL_ID + ' [data-kami-role="name-row"]>.kami-field-label{flex:0 0 auto;}',
-    '#' + PANEL_ID + ' [data-kami-role="name-row"]>input.kami-text{flex:1 1 6em;min-width:6em;}',
-    '#' + PANEL_ID + ' [data-kami-role="name-row"]>.kami-btn{flex:0 0 auto;white-space:nowrap;}',
-    /* 例外楼层小标签一行排开、窄了换行 */
-    '#' + PANEL_ID + ' [data-kami-role="pin-chips"]{display:flex;flex-wrap:wrap;gap:var(--kami-gap);}',
-    /* 压缩块正文保留提要里的换行 */
-    '#' + PANEL_ID + ' [data-kami-role="block-text"]{white-space:pre-wrap;}'
-  ].join('\n');
-
-
-  var TOOLBOX_LAYOUT_CSS = [
-    '#'+PANEL_ID+' .kami-toolbox-pane{flex:1 1 auto;min-height:0;overflow:auto;}',
-    '#'+PANEL_ID+' [data-toolbox-pane=compress]{display:flex;flex-direction:column;overflow:hidden;}',
-    '#'+PANEL_ID+' .kami-toolbox-pane[hidden]{display:none!important;}',
-    '#'+PANEL_ID+' .kami-toolbox-pane>.kami-body{flex:1 1 auto;min-height:0;overflow:auto;}',
-    '#'+PANEL_ID+' .kami-tabs{display:flex;flex:0 0 auto;gap:0;}',
-    '#'+PANEL_ID+' .kami-toolbox-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:var(--kami-gap);padding:var(--kami-pad-y) var(--kami-pad-lg-x);}',
-    '#'+PANEL_ID+' .kami-toolbox-actions>.kami-btn{flex:1 1 auto;min-width:0;white-space:nowrap;font-size:var(--kami-fs-xs);}',
-    '#'+PANEL_ID+' [data-toolbox-pane=other] .kami-card{margin-bottom:var(--kami-gap);}',
-    '#'+PANEL_ID+' details>summary{cursor:pointer;list-style:none;}',
-    '#'+PANEL_ID+' details>summary::-webkit-details-marker{display:none;}',
-    '#'+PANEL_ID+' details>summary::after{content:"⌄";margin-left:auto;}',
-    '#'+PANEL_ID+' details[open]>summary::after{content:"⌃";}',
-    '#'+PANEL_ID+' [data-search-manual-settings] .kami-card{margin-top:var(--kami-gap);}',
-    '#'+PANEL_ID+' [data-search-limits] input[type=number]{width:130px;min-width:0;max-width:100%;flex:0 1 130px;}',
-    '.kami-manual-dialog{border:0;padding:0;background:transparent;color:inherit;width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:90dvh;overflow:visible;}',
-    '.kami-manual-dialog::backdrop{background:rgba(0,0,0,.58);}',
-    '.kami-manual-dialog .kami-shell{position:relative!important;inset:auto!important;transform:none!important;width:100%!important;max-height:90dvh;display:flex;flex-direction:column;margin:0!important;}',
-    '.kami-manual-dialog .kami-body{overflow:auto;min-height:0;background:var(--kami-card-2);color:var(--kami-fg);}',
-    '.kami-manual-dialog .kami-root[data-kami-comp="dialog"] .kami-card-note{color:var(--kami-fg-dim);opacity:1;}',
-    '.kami-manual-dialog textarea.kami-textarea{width:100%;box-sizing:border-box;min-height:150px!important;resize:vertical;}',
-    '.kami-manual-dialog .kami-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--kami-gap);}',
-    '.kami-manual-dialog li{padding:var(--kami-gap) 0;}',
-    '.kami-manual-dialog .kami-search-status{display:flex;align-items:center;gap:16px;padding:20px;background:var(--kami-card-2);color:var(--kami-fg);border:1px solid var(--kami-accent-line);border-radius:var(--kami-r-md);}',
-    '.kami-manual-dialog .kami-search-status>div{min-width:0;}',
-    '.kami-manual-dialog .kami-search-status p{margin:0;overflow-wrap:anywhere;}',
-    '.kami-manual-dialog .kami-search-status-eyebrow,.kami-manual-dialog .kami-search-status-count{font-size:var(--kami-fs-sm);color:var(--kami-fg-dim);}',
-    '.kami-manual-dialog .kami-search-status-title{font-size:calc(var(--kami-fs) * 1.25);font-weight:750;line-height:1.4;padding:5px 0;}',
-    '.kami-manual-dialog .kami-search-status-icon{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;font-size:24px;font-weight:700;color:var(--kami-fg);}',
-    '.kami-manual-dialog .kami-search-status-icon.is-running{box-sizing:border-box;border:3px solid var(--kami-line-strong);border-top-color:var(--kami-accent);border-radius:50%;animation:kami-search-spin 1s linear infinite;}',
-    '.kami-manual-dialog .kami-search-stages{list-style:none;padding:0;margin:18px 0;}',
-    '.kami-manual-dialog .kami-search-stages li{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid transparent;border-radius:var(--kami-r-sm);color:var(--kami-fg-dim);}',
-    '.kami-manual-dialog .kami-search-stages li.is-current{background:var(--kami-card-2);border-color:var(--kami-accent-line);color:var(--kami-fg);}',
-    '.kami-manual-dialog .kami-search-stages li.is-done{color:var(--kami-fg);}',
-    '.kami-manual-dialog .kami-search-stages li.is-error{color:var(--kami-warn);}',
-    '.kami-manual-dialog .kami-search-stages small{display:block;font-size:var(--kami-fs-xs);color:var(--kami-fg-dim);margin-top:2px;}',
-    '.kami-manual-dialog .kami-search-stage-mark{display:grid;place-items:center;box-sizing:border-box;width:28px;height:28px;flex:0 0 28px;border:1px solid var(--kami-line-strong);border-radius:50%;font-weight:650;}',
-    '.kami-manual-dialog .is-current .kami-search-stage-mark,.kami-manual-dialog .is-done .kami-search-stage-mark{border-color:var(--kami-accent);color:var(--kami-fg);}',
-    '.kami-manual-dialog .is-current .kami-search-stage-mark{outline:2px solid var(--kami-accent-soft);outline-offset:2px;}',
-    '.kami-manual-dialog .is-search-stop{font-weight:700;border-width:2px;}',
-    '@keyframes kami-search-spin{to{transform:rotate(360deg);}}',
-    '@media(prefers-reduced-motion:reduce){.kami-manual-dialog .kami-search-status-icon.is-running{animation:none;}}',
-    'html[data-kami-motion="off"] .kami-manual-dialog .kami-search-status-icon.is-running{animation:none;}',
-    '@media(max-width:600px){.kami-manual-dialog .kami-search-status{padding:15px;gap:12px;}.kami-manual-dialog .kami-search-stages li{padding:10px;}}',
-    '.kami-manual-dialog [hidden]{display:none!important;}'
-  ].join('\n');
-
-  function injectCss() {
-    try {
-      if (HDOC.getElementById(CSS_ID)) { return; }
-      var stl = HDOC.createElement('style');
-      stl.id = CSS_ID;
-      /* 兜底皮肤（皮肤管理没跑时才生效）+ 本面板布局，装在同一个 style 里 */
-      stl.textContent = ((typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '') + '\n' + LAYOUT_CSS + '\n' + TOOLBOX_LAYOUT_CSS;
-      (HDOC.head || HDOC.documentElement).appendChild(stl);
-      log('已注入兜底皮肤 ' + stl.textContent.length + 'B（皮肤管理在跑时自动失效）');
-    } catch (e) { log('注入兜底皮肤失败：' + msgOf(e)); }
+  /* 搜索服务的设置页与手动搜索窗口（旧组件写法）还要这几个表单小工具；那两块界面现在由运行库的面板代替，
+     模块拆干净之前先留着（2026-10-30 脚本整理）。 */
+  function sectionCard(title) {
+    var card=createKamiUi(HDOC).settingsCard({title:title,flatTitle:true});return {card:card,body:card.body};
   }
-  function dropCss() {
-    try {
-      var stl = HDOC.getElementById(CSS_ID);
-      if (stl && stl.parentNode) { stl.parentNode.removeChild(stl); }
-    } catch (e) { }
-  }
-
-  function tavernSingleColumn() {
-    /* ① 酒馆自己的移动布局开关：body 被钉住 = 已进单栏
-          （public/css/mobile-styles.css:98-102，≤1000px 时 body{position:fixed}）。
-          它比「小锁被藏起来」活得长 —— 本仓库那份 1.13 的源码里已经没有藏小锁的规则，
-          真机 1.18 上小锁常显会让下面的老判定误报成「非单栏」。 */
-    try {
-      var view0 = HDOC.defaultView || HOST;
-      if (view0.getComputedStyle(HDOC.body).position === 'fixed') { return true; }
-    } catch (e) { }
-    var any = false;
-    try {
-      var ids = ['lm_button_panel_pin_div', 'rm_button_panel_pin_div'];
-      var view2 = HDOC.defaultView || HOST;
-      for (var i = 0; i < ids.length; i++) {
-        var el = HDOC.getElementById(ids[i]);
-        if (!el) { continue; }
-        any = true;
-        if (view2.getComputedStyle(el).display !== 'none') { return false; }
-      }
-    } catch (e) { }
-    if (any) { return true; }
-    try { return !!(HOST.matchMedia && HOST.matchMedia('(max-width: 1000px)').matches); } catch (e) { return false; }
-  }
-  function sheetMode() { return tavernSingleColumn(); }
-
-  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二，与 30 号同一处原因）：
-     舞台锚在文档原点，可视窗口漂走时面板会落在可视区外。桌面无感。 */
-  function bringViewportHome() {
-    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
-  }
-
-  function restoreGeometry() {
-    if (!panelRoot || !panelDrop) { return; }
-    panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
-    if (sheetMode()) {
-      panelRoot.style.removeProperty('--kami-panel-x');
-      panelRoot.style.removeProperty('--kami-panel-y');
-      panelRoot.style.removeProperty('--kami-panel-w');
-      panelRoot.style.removeProperty('--kami-panel-h');
-      return;
-    }
-    var vw = HDOC.documentElement.clientWidth, vh = HDOC.documentElement.clientHeight;
-    var w = clampNum(geom.w || PANEL_W, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24));
-    var h = clampNum(geom.h || PANEL_H, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24));
-    var x = (geom.x === null || geom.x === undefined) ? Math.max(12, (vw - w) / 2) : clampNum(geom.x, -40, Math.max(-40, vw - 80));
-    var y = (geom.y === null || geom.y === undefined) ? 72 : clampNum(geom.y, 0, Math.max(0, vh - 48));
-    panelRoot.style.setProperty('--kami-panel-w', Math.round(w) + 'px');
-    panelRoot.style.setProperty('--kami-panel-h', Math.round(h) + 'px');
-    panelRoot.style.setProperty('--kami-panel-x', Math.round(x) + 'px');
-    panelRoot.style.setProperty('--kami-panel-y', Math.round(y) + 'px');
-  }
-
-  function buildPanel() {
-    if (panelRoot) { return; }
-    panelRoot = mk('div', 'kami-root');
-    panelRoot.id = PANEL_ID;
-    panelRoot.setAttribute('data-kami-comp', 'panel');
-    panelRoot.setAttribute('data-kami-container', 'panel');
-    panelRoot.style.position = 'fixed';
-    panelRoot.style.inset = '0';
-    panelRoot.style.zIndex = String(Z);
-    panelRoot.style.pointerEvents = 'none';
-    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：
-       窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0 ⇒ 舞台 top:0;bottom:0 归零。
-       内联兜底，dvh 不认时落回上一行 vh。 */
-    panelRoot.style.minHeight = '100vh';
-    panelRoot.style.minHeight = '100dvh';
-
-    panelDrop = mk('div', 'kami-drop kami-surface');
-    panelDrop.setAttribute('data-kami-open', '0');
-    panelDrop.style.pointerEvents = 'auto';
-    panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
-
-    /* ── 面板骨架（React，2026-10-26 迁移）────────────────────────────
-       渲染 head / foot / 缩放手柄。标签条与三个内容页仍动态创建，插在 head 与 foot 之间。
-       注意：headRow2（第二行三个手动操作按钮）**必须留在这里命令式创建** —— 
-       它是要塞进 compressPane 里的，不是 head 的子节点。上次迁移把它一起删了，
-       后面 compressPane.appendChild(headRow2) 直接抛错，整个面板起不来。 */
-    var rt0 = HOST.KamiRuntime;
-    var footEl = null;
-    if (rt0 && rt0.createRoot) {
-      var h0 = rt0.React.createElement;
-      shellRoot = rt0.createRoot(panelDrop);
-      rt0.flushSync(function () {
-        shellRoot.render(h0(rt0.React.Fragment, null,
-          h0('div', { key: 'head', className: 'kami-head', 'data-kami-drag': '1', ref: function (n) { panelHead = n; } },
-            h0('span', { className: 'kami-dot' }),
-            h0('span', { className: 'kami-deco', 'data-kami-deco': 'd20', 'aria-hidden': 'true' }),
-            h0('span', { className: 'kami-title' }, '🧰 工具箱'),
-            h0('span', { className: 'kami-actions' },
-              h0('button', { type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭', 'data-kami-act': 'close' }, '✕')
-            )
-          ),
-          h0('div', { key: 'foot', className: 'kami-foot', ref: function (n) { footEl = n; } },
-            h0('span', { className: 'kami-sub', 'data-kami-role': STATUS_ROLE })
-          ),
-          h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
-        ));
-      });
-      try { rt0.classifyTree(panelDrop); } catch (e0) { }
-    } else {
-      /* 兜底：运行库不可用时退回命令式（单测沙箱走这条路） */
-      var head = mk('div', 'kami-head');
-      panelHead = head;
-      head.setAttribute('data-kami-drag', '1');
-      head.appendChild(mk('span', 'kami-dot'));
-      var decoSlot = mk('span', 'kami-deco');
-      decoSlot.setAttribute('data-kami-deco', 'd20');
-      decoSlot.setAttribute('aria-hidden', 'true');
-      head.appendChild(decoSlot);
-      head.appendChild(mk('span', 'kami-title', '🧰 工具箱'));
-      var acts = mk('span', 'kami-actions');
-      var btnClose = mk('button', 'kami-icon-btn', '✕');
-      btnClose.type = 'button';
-      btnClose.setAttribute('aria-label', '关闭');
-      btnClose.setAttribute('data-kami-act', 'close');
-      acts.appendChild(btnClose);
-      head.appendChild(acts);
-      panelDrop.appendChild(head);
-    }
-    /* 标题栏第二行：三个手动操作按钮（属于「压缩」内容页，命令式创建） */
-    var headRow2 = mk('div');
-    headRow2.setAttribute('data-kami-role', 'head-actions');
-    var hb1 = mk('button', 'kami-btn kami-btn--ghost', COPY.grand.runNow);
-    hb1.type = 'button';
-    hb1.setAttribute('data-kami-act', 'run-now');
-    hb1.title = COPY.grand.runHint;
-    headRow2.appendChild(hb1);
-    var hb2 = mk('button', 'kami-btn kami-btn--ghost', COPY.grand.unhideAll);
-    hb2.type = 'button';
-    hb2.setAttribute('data-kami-act', 'unhide-all');
-    headRow2.appendChild(hb2);
-    var hb3 = mk('button', 'kami-btn kami-btn--ghost', COPY.grand.clearData);
-    hb3.type = 'button';
-    hb3.setAttribute('data-kami-act', 'clear-data');
-    headRow2.appendChild(hb3);
-    /* 标签条 + 三个内容页：内容随数据重建，所以仍由命令式代码创建，
-       再按顺序插到 foot **之前**（React 那边已经把 foot 画好了）。 */
-    var tabsNode = buildToolboxTabs();
-    var compressPane = createToolboxPane('compress', false);
-    headRow2.className = 'kami-toolbox-actions';
-    compressPane.appendChild(headRow2);
-    bodyEl = mk('div', 'kami-body kami-scroll');
-    bodyEl.setAttribute('data-kami-pane', 'main');
-    bodyEl.style.touchAction = 'pan-y';
-    compressPane.appendChild(bodyEl);
-    var searchPane = createToolboxPane('search', true);
-    var otherPane = createToolboxPane('other', true);
-    [tabsNode, compressPane, searchPane, otherPane].forEach(function (node) {
-      if (footEl) { panelDrop.insertBefore(node, footEl); } else { panelDrop.appendChild(node); }
-    });
-    if (!footEl) {
-      /* 兜底：运行库不可用时页脚与缩放手柄也要有 */
-      var foot = mk('div', 'kami-foot');
-      var stl = mk('span', 'kami-sub');
-      stl.setAttribute('data-kami-role', STATUS_ROLE);
-      foot.appendChild(stl);
-      panelDrop.appendChild(foot);
-      var rz = mk('span', 'kami-resize');
-      rz.setAttribute('data-kami-act', 'resize');
-      rz.setAttribute('aria-hidden', 'true');
-      panelDrop.appendChild(rz);
-    }
-
-    panelRoot.appendChild(panelDrop);
-    HDOC.body.appendChild(panelRoot);
-
-    injectCss();
-    restoreGeometry();
-    bindPanelEvents();
-    renderContent();
-    setToolboxTab(toolboxTab, false);
-    log('面板已创建（' + (sheetMode() ? '窄屏抽屉' : '桌面悬浮窗') + '）');
-  }
-
+  function noteLine(parent,text){var n=mk('div','kami-card-note',text);parent.appendChild(n);return n;}
+  function fieldRow(parent,label,control){var row=createKamiUi(HDOC).field({label:label,control:control,labelTag:'span'});parent.appendChild(row);return row;}
+  function textInput(parent,label,value,attrs,hint){var input=createKamiUi(HDOC).text({value:value,attrs:attrs});fieldRow(parent,label,input);if(hint)noteLine(parent,hint);return input;}
+  function selectRow(parent,label,items,current,attrs){var input=createKamiUi(HDOC).select({items:items,value:current,attrs:attrs});fieldRow(parent,label,input);return input;}
   /* ── 面板内容（数据变了就整片重画正文；几何与手势不动） ── */
 
-  /* @@KAMI_COMPRESS_UI@@ */
 
   function toggleModelMode(mode){ return compressLlmEditor.mode(mode); }
   function applyModelInput(field, value){ return compressLlmEditor.modelInput(field, value); }
@@ -2204,8 +1921,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     modelFetchSeq++;
     if (modelFetchAbort) { modelFetchAbort.abort(); modelFetchAbort = null; }
     fetchState = 'idle';
-    var button = bodyEl && bodyEl.querySelector('[data-kami-act="fetch-models"]');
-    if (button) { button.disabled = false; button.textContent = COPY.model.fetchModels; }
+    bridgeNotify();
   }
   function modelListRequest(cur) {
     var defaults = { openai: 'https://api.openai.com/v1', claude: 'https://api.anthropic.com/v1',
@@ -2274,7 +1990,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     modelFetchAbort = controller;
     fetchState = 'busy';
-    if (panelRoot) { renderContent(); }   // 按钮进「获取中…」并禁用
+    renderContent();   // 按钮进「获取中…」并禁用
     var timeout = null;
     try {
       var body = modelListRequest(config);
@@ -2391,250 +2107,23 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   /* ── 面板事件（照 40-预设设置.js 的 pointer 分段结构，无 tab 行） ── */
 
-  function bindPanelEvents() {
-    panelDrop.addEventListener('click', function (ev) {
-      var t = ev.target;
-      while (t && t !== panelDrop) {
-        if (t.getAttribute) {
-          var act = t.getAttribute('data-kami-act');
-          if (act === 'close') { setOpen(false); return; }
-          if (t.getAttribute('data-kami-cmode')) { toggleMode(t.getAttribute('data-kami-cmode')); return; }
-          if (t.getAttribute('data-kami-model-mode')) { toggleModelMode(t.getAttribute('data-kami-model-mode')); return; }
-          if (act === 'fetch-models') { fetchModelList(); return; }
-          if (act === 'config-save-as') {
-            var nameInput = bodyEl.querySelector('[data-kami-mi="__name"]');
-            saveConfigAs(nameInput ? nameInput.value : '');
-            return;
-          }
-          if (act === 'config-del') { deleteCurrentConfig(); return; }
-          if (act === 'tpl-save-as') {
-            var tplInput = bodyEl.querySelector('[data-kami-pt="__name"]');
-            savePromptTplAs(tplInput ? tplInput.value : '');
-            return;
-          }
-          if (act === 'tpl-del') { deletePromptTpl(); return; }
-          if (act === 'prompt-add') { addPromptEntry(t.getAttribute('data-kami-prompt')); return; }
-          if (act === 'prompt-del') { removePromptEntry(t.getAttribute('data-kami-prompt'), Number(t.getAttribute('data-kami-pi'))); return; }
-          if (act === 'task-reset') { resetTask(); return; }
-          if (act === 'run-now') { runPipeline('manual'); return; }
-          if (act === 'blocks-refresh') { refreshState('手动刷新').catch(function (e) { toast('error', msgOf(e)); }); return; }
-          if (act === 'repair-orphans') { repairOrphans().catch(function (e) { toast('error', msgOf(e)); }); return; }
-          if (act === 'unhide-all') { unhideAll().catch(function (e) { toast('error', msgOf(e)); }); return; }
-          if (act === 'clear-data') {
-            /* 删除性操作：两段式确认（第一次点变成待确认，4 秒内再点才执行）。
-               句柄存起来，注销时清掉（R1：原来 4 秒定时器没处可收）。 */
-            if (t.getAttribute('data-kami-armed') === '1') {
-              t.removeAttribute('data-kami-armed');
-              t.textContent = COPY.grand.clearData;
-              clearChatData().catch(function (e) { toast('error', msgOf(e)); });
-            } else {
-              t.setAttribute('data-kami-armed', '1');
-              t.textContent = COPY.grand.clearArmed;
-              try { if (armTimer) { clearTimeout(armTimer); } } catch (e) { }
-              armTimer = setTimeout(function () {
-                armTimer = null;
-                if (t.isConnected && t.getAttribute('data-kami-armed') === '1') {
-                  t.removeAttribute('data-kami-armed');
-                  t.textContent = COPY.grand.clearData;
-                }
-              }, 4000);
-            }
-            return;
-          }
-          if (act === 'toggle-entry') {
-            var info = summaryInfo();
-            if (info.ok) {
-              writeSummaryEntry(!info.enabled).then(function () { renderContent(); renderStatus(); })
-                .catch(function (e) { toast('error', msgOf(e)); });
-            }
-            return;
-          }
-          if (act === 'pin-add' || act === 'pin-del') {
-            var input = bodyEl.querySelector('[data-kami-var="pin"]');
-            if (input) { addPin(input.value, act === 'pin-del').then(function () { input.value = ''; }); }
-            return;
-          }
-          /* 例外楼层小标签：整枚就是「移除这枚」（含键盘 Enter/Space，见下方 keydown） */
-          if (t.getAttribute && t.getAttribute('data-kami-pin')) { addPin(t.getAttribute('data-kami-pin'), true); return; }
-        }
-        t = t.parentNode;
-      }
-    });
-
-    panelDrop.addEventListener('change', function (ev) {
-      var t = ev.target;
-      if (!t || !t.getAttribute) { return; }
-      if (t.getAttribute('data-kami-var')) { applyNum(t.getAttribute('data-kami-var'), t.value, t); return; }
-      if (t.getAttribute('data-kami-mi')) { applyModelInput(t.getAttribute('data-kami-mi'), t.value); return; }
-      if (t.getAttribute('data-kami-pt') === '__tpl') { switchPromptTpl(t.value); return; }
-      if (t.getAttribute('data-kami-prompt')) {
-        applyPromptChange(t.getAttribute('data-kami-prompt'), Number(t.getAttribute('data-kami-pi') || 0), t.getAttribute('data-kami-pf'), t.value);
-      }
-    });
-    panelDrop.addEventListener('keydown', function (ev) {
-      var t = ev.target;
-      if (!t || !t.getAttribute) { return; }
-      var isEnter = (ev.key === 'Enter' || ev.keyCode === 13);
-      var isSpace = (ev.key === ' ' || ev.key === 'Spacebar' || ev.keyCode === 32);
-      /* 例外楼层小标签的键盘可达（role=button + tabindex=0 的那枚） */
-      if (t.getAttribute('data-kami-pin') && (isEnter || isSpace)) {
-        ev.preventDefault();
-        addPin(t.getAttribute('data-kami-pin'), true);
-        return;
-      }
-      if (isEnter && t.getAttribute('data-kami-var')) { ev.preventDefault(); applyNum(t.getAttribute('data-kami-var'), t.value, t); }
-    });
-
-    panelDrop.addEventListener('pointerdown', function (ev) {
-      if (ev.button !== undefined && ev.button !== 0 && ev.pointerType === 'mouse') { return; }
-      var t = ev.target, mode = null;
-      while (t && t !== panelDrop) {
-        if (t.getAttribute) {
-          if (t.getAttribute('data-kami-drag')) { mode = 'move'; break; }
-          if (t.getAttribute('data-kami-act') === 'resize') { mode = 'size'; break; }
-        }
-        t = t.parentNode;
-      }
-      if (!mode) { return; }
-      if (sheetMode() && (mode === 'move' || mode === 'size')) { return; }
-      if (mode === 'move' && ev.target.closest && ev.target.closest('button')) { return; }
-      var r = panelDrop.getBoundingClientRect();
-      panelDrag = { mode: mode, sx: ev.clientX, sy: ev.clientY, l: r.left, t: r.top, w: r.width, h: r.height, moved: 0, pointerId: ev.pointerId };
-      try { panelDrop.setPointerCapture(ev.pointerId); } catch (e) { }
-      ev.preventDefault();
-    });
-    panelDrop.addEventListener('pointermove', function (ev) {
-      if (!panelDrag) { return; }
-      var dx = ev.clientX - panelDrag.sx, dy = ev.clientY - panelDrag.sy;
-      panelDrag.moved = Math.max(panelDrag.moved, Math.abs(dx) + Math.abs(dy));
-      var vw = HDOC.documentElement.clientWidth, vh = HDOC.documentElement.clientHeight;
-      if (panelDrag.mode === 'move') {
-        geom.x = Math.round(clampNum(panelDrag.l + dx, -40, Math.max(-40, vw - 80)));
-        geom.y = Math.round(clampNum(panelDrag.t + dy, 0, Math.max(0, vh - 48)));
-        panelRoot.style.setProperty('--kami-panel-x', geom.x + 'px');
-        panelRoot.style.setProperty('--kami-panel-y', geom.y + 'px');
-      } else if (panelDrag.mode === 'size') {
-        geom.w = Math.round(clampNum(panelDrag.w + dx, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24)));
-        geom.h = Math.round(clampNum(panelDrag.h + dy, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24)));
-        panelRoot.style.setProperty('--kami-panel-w', geom.w + 'px');
-        panelRoot.style.setProperty('--kami-panel-h', geom.h + 'px');
-      }
-    });
-    panelDrop.addEventListener('pointerup', function (ev) {
-      var was = panelDrag ? panelDrag.mode : null;
-      if (panelDrag && (was === 'move' || was === 'size')) { saveVars(); }
-      panelDrag = null;
-      try { panelDrop.releasePointerCapture(ev.pointerId); } catch (e) { }
-    });
-    panelDrop.addEventListener('pointercancel', function () {
-      if (panelDrag && (panelDrag.mode === 'move' || panelDrag.mode === 'size')) { saveVars(); }
-      panelDrag = null;
-    });
-
-    if (GESTURES) { try { GESTURES.destroy(); } catch (e) { } }
-    GESTURES = bindPanelGestures({
-      root: panelDrop,
-      handle: function () { return panelHead; },
-      pane: activeToolboxPane,
-      tabs: function () { return toolboxTabsBar; },
-      onStep: stepToolboxTab,
-      isSheet: sheetMode,
-      onClose: function () { setOpen(false); }
-    });
-  }
-
-  function renderStatus() {
-    bridgeNotify();
-    if (!panelDrop) { return; }
-    var sub = panelDrop.querySelector('[data-kami-role="src"]');
-    var stl = panelDrop.querySelector('[data-kami-role="' + STATUS_ROLE + '"]');
-    var roll = rollInfo();
-    if (sub) {
-      sub.textContent = st.lbName || '聊天未绑世界书';
-    }
-    if (!stl) { return; }
-    var parts = [];
-    parts.push('滚动 ' + (roll.ok ? (roll.enabled ? '开·深' + roll.minDepth : '关') : '✕'));
-    parts.push('超限 ' + (cfg.grandOn ? '开' : '关'));
-    if (measure.last && measure.last.total) { parts.push('实测 ' + fmtK(measure.last.total)); }
-    if (st.blocks.length) { parts.push('块' + st.blocks.length + '→' + st.covered + '楼'); }
-    if (pipeline.running) { parts.push('总结中 ' + pipeline.done + '/' + pipeline.total); }
-    if (lastError) { parts.push('⚠'); }
-    /* 这一行必须短：.kami-sub 是 nowrap，长文字会被面板裁掉。完整数字看 KamiSummarize.status()。 */
-    stl.textContent = parts.join(' ｜ ');
-    renderToolboxStatus(stl);
-  }
-  function fmtK(n) {
-    if (n >= 10000) { return Math.round(n / 1000) + 'k'; }
-    if (n >= 1000) { return (Math.round(n / 100) / 10) + 'k'; }
-    return String(n);
-  }
-
-  function setOpen(v) {
-    if (disposed) { return; }
-    if (!panelRoot) { buildPanel(); }
-    var open = !!v;
-    panelDrop.setAttribute('data-kami-open', open ? '1' : '0');
-    panelRoot.style.display = open ? '' : 'none';
-    if (open) {
-      restoreGeometry();
-      bringViewportHome();
-      /* 每次打开都重新对账：你在世界书里手改过正文的话，面板进来就是最新的 */
-      (toolboxTab === 'compress' ? refreshState('open') : Promise.resolve()).catch(function (e) { log('打开面板时读状态失败：' + msgOf(e)); });
-      renderStatus();
-    }
-  }
+  /* 状态 / 内容有变：通知面板重画（面板经读写桥订阅；2026-10-30 起旧 DOM 面板已删，这两个名字留作统一的「变了」入口） */
+  function renderStatus() { bridgeNotify(); }
+  function renderContent() { bridgeNotify(); }  /* 面板由本脚本末尾的「界面接线」一段画（运行库的 ToolboxPanel，经 HOST.KamiToolboxNext 开关）；
+     2026-10-30 脚本整理：原来这里自己用 DOM 拼的旧面板（窗口、页签、手势、几何）已删除。 */
+  function nextUi() { try { var n = HOST.KamiToolboxNext; return n && n.alive() ? n : null; } catch (e) { return null; } }
   function openPanel() { openToolbox('compress'); }
-  function closePanel() { setOpen(false); }
-  function isOpen() { return !!(panelDrop && panelDrop.getAttribute('data-kami-open') === '1'); }
-  function togglePanel() { if (isOpen() && toolboxTab === 'compress') { closePanel(); } else { openPanel(); } }
+  function closePanel() { var n = nextUi(); if (n) { n.close(); } }
+  function isOpen() { var n = nextUi(); return !!(n && n.isOpen && n.isOpen()); }
+  function togglePanel() { var n = nextUi(); if (n) { n.toggle(); } }
 
   /* ───────── 登记按钮 ───────── */
 
   function updateDef() {
     if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.ping(); }
-    if (!ownDef) { return; }
+    bridgeNotify();
     try { if (HOST.__hub && typeof HOST.__hub.paint === 'function') { HOST.__hub.paint(); } } catch (e) { }
   }
-  function registerButton() {
-    try {
-      var w = HOST;
-      var defs = w.__hubDefs || (w.__hubDefs = []);
-      /* 只清掉同名的死登记（上一份实例）：支线上「🧪 工具箱」用同一个按钮名，它的登记要留着 */
-      for (var i = defs.length - 1; i >= 0; i -= 1) {
-        if (defs[i] && defs[i].name === HUB_NAME) {
-          var dead = true;
-          try { dead = typeof defs[i].alive === 'function' ? !defs[i].alive() : true; } catch (e0) { dead = true; }
-          if (dead || defs[i].__kamiOld) { defs.splice(i, 1); }
-        }
-      }
-      ownDef = {
-        name: HUB_NAME,
-        __kamiOld: true,
-        order: HUB_ORDER,
-        tip: COPY.hubTip,
-        ping: Date.now(),
-        /* 支线上「🧪 工具箱」在运行时让位：同名按钮由它接管（它注销后这份登记重新生效） */
-        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiToolboxNext && HOST.KamiToolboxNext.alive()); } catch (e) { return true; } },
-        label: function () {
-          return HUB_NAME + (pipeline.running ? '·总结中 ' + pipeline.done + '/' + pipeline.total : '') + (lastError ? '⚠' : '');
-        },
-        ready: function () { return true; },
-        absent: COPY.hubAbsent,
-        click: function () { toggleToolbox(); }
-      };
-      defs.push(ownDef);
-      try {
-        var ev = w.document.createEvent('Event');
-        ev.initEvent('kami-hub-def', false, false);
-        w.dispatchEvent(ev);
-      } catch (e) { }
-      log('已向按钮中转站登记按钮 ' + HUB_NAME);
-    } catch (e) {
-      console.warn('[压缩] 向中转站登记按钮失败（可用控制台 KamiSummarize.open() 手动打开）', e);
-    }
-  }
-
   /* ───────── 全局 API ───────── */
 
   function status() {
@@ -2699,7 +2188,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     disposeToolboxServices();
     modelFetchSeq++;
     if (modelFetchAbort) { modelFetchAbort.abort(); modelFetchAbort = null; }
-    log('正在注销：摘事件 / 停实测钩子 / 拆面板 / 收样式 / 撤登记 / 删全局');
+    log('正在注销：摘事件 / 停实测钩子 / 删全局');
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
     try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } } catch (e) { }
     try { if (armTimer) { clearTimeout(armTimer); armTimer = null; } } catch (e) { }   /* R1：两段确认的 4 秒定时器 */
@@ -2707,28 +2196,10 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     for (var i = 0; i < unsubs.length; i++) { try { if (unsubs[i] && unsubs[i].stop) { unsubs[i].stop(); } } catch (e) { } }
     unsubs = [];
     disposeMeasureHook();
-    try { if (resizeHandler) { HOST.removeEventListener('resize', resizeHandler); } } catch (e) { }
-    resizeHandler = null;
     try { if (hideHandler) { window.removeEventListener('pagehide', hideHandler); } } catch (e) { }
     try { if (hideHandler && HOST !== window) { HOST.removeEventListener('pagehide', hideHandler); } } catch (e) { }
     hideHandler = null;
-    dropCss();
-    /* R3：拖动中注销，把指针捕获放掉（节点随后移除，但捕获先撒手更干净） */
-    try { if (panelDrag && panelDrop && panelDrag.pointerId !== undefined) { panelDrop.releasePointerCapture(panelDrag.pointerId); } } catch (e) { }
-    panelDrag = null;
-    try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
-    GESTURES = null;
-    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
-    try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
-    panelRoot = null; panelDrop = null; panelHead = null; bodyEl = null;
-    try {
-      var defs = HOST.__hubDefs || [];
-      for (var j = defs.length - 1; j >= 0; j -= 1) {
-        if (defs[j] === ownDef || (defs[j] && defs[j].name === HUB_NAME)) { defs.splice(j, 1); }
-      }
-      if (HOST.__hub && typeof HOST.__hub.unregister === 'function') { HOST.__hub.unregister(HUB_NAME); }
-    } catch (e) { }
-    ownDef = null;
+    /* 按钮登记归末尾的「界面接线」管（它有自己的 pagehide 注销），这里不碰中转站 */
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
     log('注销完成：面板、样式、登记、实测钩子、全局 API 都已收回；世界书条目、隐藏楼层、正则状态按设计保持原样');
@@ -2757,14 +2228,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
     expose();
     initToolboxServices();
-    registerButton();
-    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); if (SEARCH) { SEARCH.syncTask(); } if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.ping(); } } }, 2500);
-    resizeHandler = function () {
-      if (!panelDrop) { return; }
-      restoreGeometry();
-      if (isOpen()) { renderStatus(); }
-    };
-    try { HOST.addEventListener('resize', resizeHandler); } catch (e) { }
+    pingTimer = setInterval(function () { if (!disposed) { if (SEARCH) { SEARCH.syncTask(); } if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.ping(); } } }, 2500);
     hideHandler = function () { try { teardown('脚本关闭'); } catch (e) { } };
     try { window.addEventListener('pagehide', hideHandler); } catch (e) { }
     if (HOST !== window) { try { HOST.addEventListener('pagehide', hideHandler); } catch (e) { } }
@@ -2806,4 +2270,178 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   whenRuntimeReady(function () {
     try { boot(); } catch (e) { console.error('[压缩] 启动失败', e); }
   });
+})();
+
+/* ────────────────────────────────────────────────────────────────────
+ * 界面接线（2026-10-30 脚本整理：原「🧪 工具箱 v0.1」并入本脚本）
+ * 面板由「🧩 运行库」的 ToolboxPanel 画；逻辑与状态全在上面那一段，经读写桥拿数据、调动作：
+ *   · 压缩 / 网络搜索 / 手动搜索 → 上面的 KamiToolbox.bridge()
+ *   · 其他功能（标签处理、常驻附加指令、导出）与更新页（版本信息、检查更新、继承旧预设）→ 🌟 预设设置 的 KamiPreset.toolsBridge() / updateBridge()
+ *   · 远程更新流程里的三个窗口（要不要更新 / 进度 / 逐条裁决）：登记 HOST.KamiUpdateUi，🔄 远程更新 用这里的窗口
+ * 按钮条上的「🧰 工具箱」由这一段登记；pagehide 时注销——按钮登记、面板与窗口、全局 API 全部收回。
+ * ──────────────────────────────────────────────────────────────────── */
+(function () {
+  var VERSION = '2.0';
+  var HUB_NAME = '🧰 工具箱';
+  var HUB_ORDER = 40;
+  var LAYER_ID = 'kami-toolbox';
+  var HOST = (function () {
+    try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
+    return window;
+  })();
+  var disposed = false, rt = null, ownDef = null, timer = null, isOpen = false, tab = 'compress';
+  var pingTimer = null, offBridge = null;
+  function log(msg) { try { console.log('[工具箱·界面] ' + msg); } catch (e) { } }
+
+  function bridges() {
+    var tb = null, other = null, update = null;
+    try { if (HOST.KamiToolbox && typeof HOST.KamiToolbox.bridge === 'function') { tb = HOST.KamiToolbox.bridge(); } } catch (e) { tb = null; }
+    try { if (HOST.KamiPreset && typeof HOST.KamiPreset.toolsBridge === 'function') { other = HOST.KamiPreset.toolsBridge(); } } catch (e) { other = null; }
+    try { if (HOST.KamiPreset && typeof HOST.KamiPreset.updateBridge === 'function') { update = HOST.KamiPreset.updateBridge(); } } catch (e) { update = null; }
+    return { toolbox: tb, other: other, update: update };
+  }
+  function h() { return rt.React.createElement; }
+
+  function open(which) {
+    if (disposed || !rt) { return; }
+    if (which) { tab = which; }
+    var b = bridges();
+    if (offBridge) { offBridge(); offBridge = null; }
+    if (b.toolbox) { offBridge = b.toolbox.subscribe(paintButton); }
+    rt.layer().open(LAYER_ID, h()(rt.panels.ToolboxPanel, {
+      toolbox: b.toolbox, other: b.other, update: b.update, tab: tab,
+      onTabChange: function (t) { tab = t; },
+      onClose: close, onManualSearch: manualSearch
+    }));
+    isOpen = true;
+  }
+  function close() {
+    isOpen = false;
+    if (offBridge) { offBridge(); offBridge = null; }
+    try { if (rt) { rt.layer().close(LAYER_ID); } } catch (e) { }
+  }
+  function toggle() { if (isOpen) { close(); } else { open(); } }
+
+  /* 手动搜索窗口：开在同一层上（不依赖面板开着），关掉 = 中断（如果还在跑） */
+  function manualSearch() {
+    if (disposed || !rt) { return; }
+    var b = bridges();
+    var manual = b.toolbox && b.toolbox.manual;
+    if (!manual) { toast('warning', '网络搜索还没就绪（🧰 工具箱脚本是否开着？）'); return; }
+    var st = manual.status();
+    if (!st.enabled || st.mode !== 'service') { toast('warning', '请先开启搜索能力并选择搜索服务'); return; }
+    if (st.running && !st.manualRunning) { toast('warning', '请先等待自动搜索完成'); return; }
+    rt.layer().open('kami-manual-search', h()(rt.panels.ManualSearchDialog, { manual: manual, onClose: function () { try { rt.layer().close('kami-manual-search'); } catch (e) { } } }));
+  }
+  function toast(kind, msg) {
+    try { if (typeof toastr !== 'undefined' && toastr[kind]) { toastr[kind](msg, '工具箱'); return; } } catch (e) { }
+    log(msg);
+  }
+
+  /* 70 号远程更新的三个窗口 */
+  var updateUi = {
+    alive: function () { return !disposed && !!rt; },
+    ask: function (remote, local) {
+      if (disposed || !rt) { return null; }
+      return new Promise(function (resolve) {
+        var done = false;
+        rt.layer().open('kami-update-ask', h()(rt.panels.UpdateAskDialog, {
+          remote: remote, local: local,
+          onAnswer: function (yes) { if (done) { return; } done = true; try { rt.layer().close('kami-update-ask'); } catch (e) { } resolve(!!yes); }
+        }));
+      });
+    },
+    progress: function (view, handlers) {
+      if (!rt) { return; }
+      if (!view) { try { rt.layer().close('kami-update-progress'); } catch (e) { } return; }
+      rt.layer().open('kami-update-progress', h()(rt.panels.UpdateProgressDialog, {
+        view: view,
+        onRetry: function () { if (handlers && handlers.retry) { handlers.retry(); } },
+        onClose: function () { if (handlers && handlers.close) { handlers.close(); } else { try { rt.layer().close('kami-update-progress'); } catch (e) { } } }
+      }));
+    },
+    review: function (plan, done) {
+      if (disposed || !rt) { return false; }
+      var settled = false;
+      rt.layer().open('kami-merge-review', h()(rt.panels.MergeReviewDialog, {
+        plan: plan,
+        onDone: function (p) { if (settled) { return; } settled = true; try { rt.layer().close('kami-merge-review'); } catch (e) { } done(p); }
+      }));
+      return true;
+    }
+  };
+
+  function buttonLabel() {
+    try {
+      var b = HOST.KamiToolbox && HOST.KamiToolbox.bridge ? HOST.KamiToolbox.bridge() : null;
+      var s = b ? b.compress.get() : null;
+      if (s && s.pipeline.running) { return HUB_NAME + '·总结中 ' + s.pipeline.done + '/' + s.pipeline.total; }
+      if (s && s.lastError) { return HUB_NAME + '⚠'; }
+    } catch (e) { }
+    return HUB_NAME;
+  }
+  function paintButton() { try { if (HOST.__hub && typeof HOST.__hub.paint === 'function') { HOST.__hub.paint(); } } catch (e) { } }
+
+  function registerButton() {
+    try {
+      var defs = HOST.__hubDefs || (HOST.__hubDefs = []);
+      for (var i = defs.length - 1; i >= 0; i -= 1) { if (defs[i] && defs[i].__kamiNext === HUB_NAME) { defs.splice(i, 1); } }
+      ownDef = {
+        name: HUB_NAME,
+        __kamiNext: HUB_NAME,
+        order: HUB_ORDER,
+        tip: '工具箱：压缩、网络搜索、其他功能、更新（点击展开面板）',
+        ping: Date.now(),
+        alive: function () { return !disposed; },
+        label: buttonLabel,
+        ready: function () { return !!rt; },
+        absent: '工具箱还没就绪（🧩 运行库 是否开着？）',
+        click: function () { toggle(); }
+      };
+      defs.push(ownDef);
+      try { var ev = HOST.document.createEvent('Event'); ev.initEvent('kami-hub-def', false, false); HOST.dispatchEvent(ev); } catch (e) { }
+    } catch (e) { log('⚠ 登记按钮失败：' + e.message); }
+  }
+
+  function boot(r) {
+    if (disposed) { return; }
+    rt = r;
+    try {
+      HOST.KamiToolboxNext = { version: VERSION, alive: function () { return !disposed; }, open: open, close: close, toggle: toggle, isOpen: function () { return isOpen; }, manualSearch: manualSearch, shutdown: shutdown };
+      HOST.KamiUpdateUi = updateUi;
+    } catch (e) { }
+    registerButton();
+    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);
+    log('启动 v' + VERSION);
+  }
+
+  var waited = 0;
+  function wait() {
+    if (disposed) { return; }
+    var r = HOST.KamiRuntimeNext;
+    if (r && r.panels && r.panels.ToolboxPanel) { boot(r); return; }
+    if ((waited += 100) > 15000) { log('⚠ 等不到运行库（🧩 运行库 是否开着？）'); return; }
+    timer = setTimeout(wait, 100);
+  }
+
+  function shutdown() {
+    if (disposed) { return; }
+    disposed = true;
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+    close();
+    try { if (rt) { ['kami-manual-search', 'kami-update-ask', 'kami-update-progress', 'kami-merge-review'].forEach(function (id) { rt.layer().close(id); }); } } catch (e) { }
+    try {
+      var defs = HOST.__hubDefs || [];
+      for (var j = defs.length - 1; j >= 0; j -= 1) { if (defs[j] === ownDef) { defs.splice(j, 1); } }
+      var ev = HOST.document.createEvent('Event'); ev.initEvent('kami-hub-def', false, false); HOST.dispatchEvent(ev);
+    } catch (e) { }
+    ownDef = null;
+    try { if (HOST.KamiToolboxNext && HOST.KamiToolboxNext.shutdown === shutdown) { delete HOST.KamiToolboxNext; } } catch (e) { }
+    try { if (HOST.KamiUpdateUi === updateUi) { delete HOST.KamiUpdateUi; } } catch (e) { }
+    try { window.removeEventListener('pagehide', shutdown); } catch (e) { }
+    log('已注销');
+  }
+  try { window.addEventListener('pagehide', shutdown); } catch (e) { }
+  wait();
 })();

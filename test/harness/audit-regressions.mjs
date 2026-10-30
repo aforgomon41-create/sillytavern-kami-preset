@@ -154,7 +154,7 @@ function modelEnv(fetcher, source = 'custom') {
   const config = { name: 'test', source, apiurl: source === 'custom' ? 'https://example.invalid/v1' : '', key: 'FAKE-KEY' };
   const notices = [], requests = [], timers = new Map(); let timer = 0;
   const c = vm.createContext({ URL, AbortController, disposed: false, modelListCache: {}, modelFetchSeq: 0, modelFetchAbort: null,
-    fetchState: 'idle', panelRoot: null, bodyEl: null, currentSumConfig: () => config, renderContent: noop, msgOf: e => e.message,
+    fetchState: 'idle', bridgeNotify: noop, currentSumConfig: () => config, renderContent: noop, msgOf: e => e.message,
     COPY: { model: { fetchModels: '获取模型列表', fetchEmpty: '空列表', fetchFail: '失败：{err}' } },
     toast: (kind, text) => notices.push({kind,text}), stCtx: () => ({getRequestHeaders: () => ({'Content-Type':'application/json','X-CSRF-Token':'CSRF'})}),
     HOST: { fetch: async (url, init) => { requests.push({url,init}); return fetcher(url,init); } },

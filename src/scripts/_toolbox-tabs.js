@@ -1,54 +1,7 @@
 /* 工具箱导航。复用原压缩窗口、保存位置和面板手势，不创建第二个窗口或独立脚本。 */
-  var toolboxTab = 'compress', toolboxPanes = {}, toolboxTabsBar = null;
+  var toolboxTab = 'compress', toolboxPanes = {};
   var otherToolsOwner = null, otherToolsDispose = null, SEARCH = null, MANUAL_SEARCH_UI = null;
-  var TOOLBOX_PAGES = [
-    { id: 'compress', title: '压缩' },
-    { id: 'search', title: '网络搜索' },
-    { id: 'other', title: '其他功能' }
-  ];
-
-export function buildToolboxTabs() {
-    toolboxTabsBar = mk('div', 'kami-tabs');
-    toolboxTabsBar.setAttribute('data-kami-role', 'tabs');
-    toolboxTabsBar.setAttribute('role', 'tablist');
-    toolboxTabsBar.setAttribute('data-kami-tabs-mode', 'fit');
-    toolboxTabsBar.setAttribute('aria-label', '工具类别');
-    TOOLBOX_PAGES.forEach(function (page, index) {
-      var button = mk('button', 'kami-tab', page.title);
-      button.type = 'button';
-      button.id = 'kami-toolbox-tab-' + page.id;
-      button.setAttribute('role', 'tab');
-      button.setAttribute('aria-controls', 'kami-toolbox-pane-' + page.id);
-      button.setAttribute('data-toolbox-tab', page.id);
-      button.addEventListener('click', function () { setToolboxTab(page.id); });
-      button.addEventListener('keydown', function (event) {
-        var target = index;
-        if (event.key === 'ArrowRight') { target = (index + 1) % TOOLBOX_PAGES.length; }
-        else if (event.key === 'ArrowLeft') { target = (index + TOOLBOX_PAGES.length - 1) % TOOLBOX_PAGES.length; }
-        else if (event.key === 'Home') { target = 0; }
-        else if (event.key === 'End') { target = TOOLBOX_PAGES.length - 1; }
-        else { return; }
-        event.preventDefault(); setToolboxTab(TOOLBOX_PAGES[target].id);
-        var next = toolboxTabsBar.querySelector('[data-toolbox-tab="' + TOOLBOX_PAGES[target].id + '"]');
-        if (next) { next.focus(); }
-      });
-      toolboxTabsBar.appendChild(button);
-    });
-    return toolboxTabsBar;
-  }
-
-  function createToolboxPane(key, scroll) {
-    var pane = mk('div', (scroll ? 'kami-body kami-scroll ' : '') + 'kami-toolbox-pane');
-    pane.id = 'kami-toolbox-pane-' + key;
-    pane.setAttribute('role', 'tabpanel');
-    pane.setAttribute('aria-labelledby', 'kami-toolbox-tab-' + key);
-    pane.setAttribute('data-toolbox-pane', key);
-    pane.hidden = true;
-    toolboxPanes[key] = pane;
-    return pane;
-  }
-
-  function mountOtherToolsPage() {
+export function mountOtherToolsPage() {
     var pane = toolboxPanes.other, owner = HOST.KamiPreset;
     if (!pane) { return; }
     if (owner && typeof owner.mountOtherTools === 'function') {
@@ -63,43 +16,8 @@ export function buildToolboxTabs() {
     pane.textContent = '';
     pane.appendChild(mk('div', 'kami-card-note', '请启用预设设置脚本，以使用标签处理、常驻指令和正文导出。'));
   }
-
-  function setToolboxTab(key, remember) {
-    if (!TOOLBOX_PAGES.some(function (page) { return page.id === key; })) { key = 'compress'; }
-    toolboxTab = key;
-    if (toolboxTabsBar) {
-      var buttons = toolboxTabsBar.querySelectorAll('[data-toolbox-tab]');
-      for (var i = 0; i < buttons.length; i++) {
-        var selected = buttons[i].getAttribute('data-toolbox-tab') === key;
-        buttons[i].setAttribute('aria-selected', selected ? 'true' : 'false');
-        buttons[i].tabIndex = selected ? 0 : -1;
-      }
-    }
-    for (var id in toolboxPanes) {
-      if (Object.prototype.hasOwnProperty.call(toolboxPanes, id)) { toolboxPanes[id].hidden = id !== key; }
-    }
-    if (key === 'other') { mountOtherToolsPage(); }
-    if (key === 'search' && SEARCH && toolboxPanes.search) { SEARCH.mount(toolboxPanes.search); }
-    if (remember !== false) { saveVars(); }
-    renderStatus();
-  }
-
-  function stepToolboxTab(direction) {
-    var at = 0;
-    for (var i = 0; i < TOOLBOX_PAGES.length; i++) { if (TOOLBOX_PAGES[i].id === toolboxTab) { at = i; break; } }
-    setToolboxTab(TOOLBOX_PAGES[(at + (direction < 0 ? -1 : 1) + TOOLBOX_PAGES.length) % TOOLBOX_PAGES.length].id);
-  }
-
-  function activeToolboxPane() { return toolboxTab === 'compress' ? bodyEl : toolboxPanes[toolboxTab]; }
-  function openToolbox(key) { if (key) { toolboxTab = key; } setOpen(true); setToolboxTab(toolboxTab); }
-  function toggleToolbox() { setOpen(!isOpen()); }
-
-  function renderToolboxStatus(element) {
-    if (toolboxTab === 'compress') { return; }
-    if (toolboxTab === 'other') { element.textContent = '常用工具与辅助设置'; return; }
-    var state = SEARCH ? SEARCH.status() : null;
-    element.textContent = state ? state.message : '网络搜索尚未就绪';
-  }
+  function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi(); if (n) { n.open(toolboxTab); } }
+  function toggleToolbox() { togglePanel(); }
 
   function exposeToolbox() {
     var api = {
@@ -192,7 +110,7 @@ export function buildToolboxTabs() {
       if (searchEnv.nativeProbe) { try { var offProbe = searchEnv.nativeProbe.subscribe(function () { bridgeNotify(); }); unsubs.push({ stop: offProbe }); } catch (e) { } }
     }
     MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,changed:function(){bridgeNotify();},document:HDOC,make:mk,copy:COPY,profiles:tavernCCProfiles,
-      defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,ensureStyle:injectCss,
+      defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,ensureStyle:function(){},
       ui:{section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow},toast:function(kind,text){toast(kind,text,'手动搜索');}});
     MANUAL_SEARCH_UI.ping();
     var promptChanged = function (event) {

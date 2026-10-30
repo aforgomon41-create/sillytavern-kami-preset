@@ -1,9 +1,9 @@
-// 「🧪 工具箱」脚本（新工具箱面板 + 读写桥）在真实酒馆里的验证：
+// 「🧰 工具箱」脚本（v2.0：压缩 / 搜索逻辑 + 运行库的工具箱面板）在真实酒馆里的验证：
 //   node test/st/toolbox-next.mjs [--mobile] [--shots]
-// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包（含「🧪 工具箱」），见 test/st/README.md
-// 核对：按钮条只有一颗 🧰（旧工具箱让位）；四个页签；压缩页的开关 / 数字写进 60 号；搜索页开关写进搜索服务；
+// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包，见 test/st/README.md
+// 核对：按钮条只有一颗 🧰；四个页签；压缩页的开关 / 数字写进 60 号；搜索页开关写进搜索服务；
 //       其他功能写进 40 号（标签处理档位、常驻指令）；更新页有版本信息、能检查；70 号的逐条裁决走新窗口；
-//       手动搜索窗口；对比度；注销后按钮交回旧工具箱、全局 API 收回。
+//       手动搜索窗口；对比度；注销后按钮、面板与全局 API 收回。
 import { createRequire } from 'node:module';
 import { auditInPage } from '../frontend/browser/audit-lib.mjs';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
@@ -50,15 +50,15 @@ const commit = (label, value) => inLayer((r, [l, v]) => {
 
 /* ① 按钮条 */
 const bt = await buttons();
-ok(bt.filter((x) => x.startsWith('🧰')).length === 1, '按钮条只有一颗 🧰（旧工具箱让位给新面板）', bt);
+ok(bt.filter((x) => x.startsWith('🧰')).length === 1, '按钮条只有一颗 🧰', bt);
 
 /* ② 打开面板 */
 ok(await clickBtn('🧰 工具箱'), '找到「🧰 工具箱」按钮');
 await page.waitForTimeout(900);
 const panel = await inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); return p ? { title: p.querySelector('[data-k-part="title"]').textContent, tabs: [...p.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].map((t) => t.textContent) } : null; });
 ok(panel && panel.title.includes('工具箱') && panel.tabs.length === 4 && panel.tabs.join() === '压缩,网络搜索,其他功能,更新', '点按钮打开新工具箱：四个页签带图标', panel);
-const oldOpen = await page.evaluate(() => window.KamiToolbox.status().open);
-ok(oldOpen === false, '旧工具箱面板没有被打开', oldOpen);
+const st0 = await page.evaluate(() => ({ open: window.KamiToolbox.status().open, oldDom: !!document.getElementById('kami-compress-panel'), oldCss: !!document.getElementById('kami-compress-css') }));
+ok(st0.open === true && !st0.oldDom && !st0.oldCss, 'KamiToolbox.status() 反映新面板已打开；页面上没有旧面板的节点与样式', st0);
 
 /* ③ 压缩页：超限压缩开关、阈值 */
 /* 按卡片标题找（滚动压缩卡的说明里也提到「超限压缩」，不能按全文找） */
@@ -145,16 +145,13 @@ ok(JSON.stringify(picks) === '["next","next"]', '逐条裁决窗口：「全部�
 const a2 = await page.evaluate(auditInPage, null);
 ok(a2.failures.length === 0, '更新页对比度：' + a2.checked + ' 处', a2.failures.slice(0, 3));
 
-/* ⑦ 注销 */
-await page.evaluate(() => window.KamiToolboxNext.shutdown());
+/* ⑦ 注销（整个脚本：界面一段 + 逻辑一段） */
+await page.evaluate(() => { window.KamiToolboxNext.shutdown(); window.KamiToolbox.shutdown(); });
 await page.waitForTimeout(3500);
-const gone = await page.evaluate(() => ({ api: !!window.KamiToolboxNext, ui: !!window.KamiUpdateUi, open: !!document.querySelector('kami-layer').shadowRoot.querySelector('[data-k="panel"]') }));
+const gone = await page.evaluate(() => ({ api: !!window.KamiToolboxNext, ui: !!window.KamiUpdateUi, tb: !!window.KamiToolbox, sum: !!window.KamiSummarize, open: !!document.querySelector('kami-layer').shadowRoot.querySelector('[data-k="panel"]'), css: !!document.getElementById('kami-compress-css') }));
 const bt2 = await buttons();
-ok(!gone.api && !gone.ui && !gone.open, '注销后面板与全局 API 收回', gone);
-ok(bt2.filter((x) => x.startsWith('🧰')).length === 1, '按钮交回旧工具箱（仍是一颗 🧰）', bt2);
-await clickBtn('🧰 工具箱');
-await page.waitForTimeout(800);
-ok(await page.evaluate(() => window.KamiToolbox.status().open), '点它打开的是旧工具箱');
+ok(!gone.api && !gone.ui && !gone.tb && !gone.sum && !gone.open && !gone.css, '注销后面板、全局 API 收回，不留旧面板样式', gone);
+ok(bt2.filter((x) => x.startsWith('🧰')).length === 0, '注销后按钮收回（旧工具箱面板已删，不再有接手的）', bt2);
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 await b.close();
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));
