@@ -86,7 +86,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     pickHint: '请从下面选一个你之前用过的旧预设。',
     notKamiWarn: '这个看起来不是卡密预设，强行搬过来可能会出问题。你想继续继承它，还是换一个？',
     working: '正在搬运设置...',
-    done: '设置已经搬过来了，并且立刻生效。当前的预设已经提前备份了一份，名字里带有“继承前备份”。',
+    done: '设置已经搬过来了，页面会在几秒后自动刷新，让各个脚本用上搬来的设置。当前的预设已经提前备份了一份，名字里带有“继承前备份”。',
     failHead: '搬运设置失败：',
     noOthers: '没有找到其他预设，需要先有旧预设才能搬运设置。',
     degrade: '这个功能需要远程更新脚本运行才能用。请先启动脚本。',
@@ -3135,13 +3135,10 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
         }
         var w = applyInheritedToLive(r.merged, r.targetName);
         if (!w.ok) { setOutText(INHERIT_COPY.failHead + w.msg); return; }
-        inheritFromName = r.oldName || '';
-        inheritAtText = nowText();
-        saveVars();
+        finishInherit(r.oldName);
         setSrcName(inheritFromName);
         setSrcAt(inheritAtText);
         setOutText(summarize(r, w));
-        toast('success', '已从「' + r.oldName + '」继承设置，立刻生效');
       })['catch'](function (e) {
         setBusy(false);
         setOutText(INHERIT_COPY.failHead + ((e && e.message) || e));
@@ -3406,13 +3403,10 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
         }
         var w = applyInheritedToLive(r.merged, r.targetName);
         if (!w.ok) { say(INHERIT_COPY.failHead + w.msg); return; }
-        /* 记下「这一份是从哪继承来的」——跟着预设走（脚本变量就写在预设文件里） */
-        inheritFromName = r.oldName || '';
-        inheritAtText = nowText();
-        saveVars();
+        /* 记下「这一份是从哪继承来的」——跟着预设走（脚本变量就写在预设文件里），然后刷新页面 */
+        finishInherit(r.oldName);
         try { srcRow.querySelector('.kami-field-value').textContent = inheritFromName + '（' + inheritAtText + '）'; } catch (e) { }
         say(summarize(r, w));
-        toast('success', '已从「' + r.oldName + '」继承设置，立刻生效');
       })['catch'](function (e) {
         btn.disabled = false;
         say(INHERIT_COPY.failHead + ((e && e.message) || e));
@@ -3510,6 +3504,50 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
      为什么不像远程更新那样导入成一个新预设：用户就是想让**现在这一份**把旧设置捡回来，
      再让他切来切去等于没省事。写盘前 70 号已经先把当前预设备份过了。
      覆盖前把要动的键各存一份，写盘失败就退回去 —— 不然内存与磁盘就分家了。 */
+  /* 继承写盘后同步酒馆助手（2026-10-30 预览版用户报「继承不了」，实机查明）：
+     酒馆助手在内存里另存一份当前预设的脚本树与预设变量，只在切换预设时才重读；继承写完盘后，
+     任何脚本存一次变量，它就在 1 秒后把内存里那份旧脚本树写回预设——脚本开关、脚本里的设置
+     （压缩、搜索、标签处理、皮肤……）全被盖回去。所以写完盘要把合并结果也交给它。
+     它只按脚本 id / 名字 / 正文决定重启，data 变了不重启；开关变了的那几个脚本会被启停（用户在旧预设里就是这么设的）。 */
+  function syncHelperStore(merged) {
+    var th = null;
+    try { th = HOST.TavernHelper || null; } catch (e) { th = null; }
+    if (!th && typeof TavernHelper !== 'undefined') { th = TavernHelper; }
+    var ext = merged && merged.extensions && merged.extensions.tavern_helper;
+    if (!th || !ext) { log('⚠ 继承：拿不到酒馆助手或合并结果里没有脚本，跳过同步'); return false; }
+    var ok = true;
+    try { if (Array.isArray(ext.scripts) && typeof th.replaceScriptTrees === 'function') { th.replaceScriptTrees(JSON.parse(JSON.stringify(ext.scripts)), { type: 'preset' }); } }
+    catch (e) { ok = false; log('⚠ 继承：同步脚本树到酒馆助手失败：' + ((e && e.message) || e)); }
+    try { if (ext.variables && typeof ext.variables === 'object' && typeof th.replaceVariables === 'function') { th.replaceVariables(JSON.parse(JSON.stringify(ext.variables)), { type: 'preset' }); } }
+    catch (e) { ok = false; log('⚠ 继承：同步预设变量到酒馆助手失败：' + ((e && e.message) || e)); }
+    log('继承：已把合并后的脚本树与预设变量交给酒馆助手' + (ok ? '' : '（有一部分没成功）'));
+    return ok;
+  }
+
+  /* 继承完成后的收尾（新旧面板共用）：只把「继承自」两项写进本脚本已继承来的变量里（不能用 saveVars——
+     它会拿本脚本内存里的现值盖掉旧预设搬来的标签处理等设置），然后刷新页面，让每个脚本按搬来的设置重新启动。
+     刷新前停掉本脚本后续的变量写入。 */
+  var INHERIT_RELOAD_MS = 3000;
+  var inheritReloading = false;
+  function finishInherit(oldName) {
+    inheritFromName = oldName || '';
+    inheritAtText = nowText();
+    try {
+      if (typeof getVariables === 'function' && typeof replaceVariables === 'function') {
+        var all = getVariables({ type: 'script' }) || {};
+        var mine = (all[VARS_KEY] && typeof all[VARS_KEY] === 'object') ? all[VARS_KEY] : {};
+        mine.inheritFrom = inheritFromName;
+        mine.inheritAt = inheritAtText;
+        all[VARS_KEY] = mine;
+        replaceVariables(all, { type: 'script' });
+      }
+    } catch (e) { log('写「继承自」失败：' + ((e && e.message) || e)); }
+    inheritReloading = true;
+    if (saveTimer) { try { clearTimeout(saveTimer); } catch (e) { } saveTimer = null; }
+    toast('success', '已从「' + inheritFromName + '」继承设置，' + Math.round(INHERIT_RELOAD_MS / 1000) + ' 秒后刷新页面生效');
+    setTimeout(function () { try { HOST.location.reload(); } catch (e) { try { location.reload(); } catch (e2) { } } }, INHERIT_RELOAD_MS);
+  }
+
   function applyInheritedToLive(merged, targetName) {
     if (disposed || savingBusy()) { return { ok: false, msg: disposed ? '脚本已关闭' : SAVE_BUSY }; }
     if (!merged || typeof merged !== 'object') { return { ok: false, msg: '合并结果不是一份预设' }; }
@@ -3548,6 +3586,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     }
     /* 写完之后把酒馆的预设选择钉回当前这一份（保存通道自己会挪它） */
     var sel = restorePresetSelection(ctx, r.name || targetName);
+    syncHelperStore(merged);
     log('继承写盘完成：覆盖 ' + changed.length + ' 个字段（' + (changed.join('、') || '无变化') +
       '）→ 酒馆自己的通道落到「' + (r.name || targetName) + '」' +
       (sel.checked ? ('；预设选择=' + (sel.ok ? '正确' : '没拨回来')) : ''));
@@ -3892,9 +3931,10 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   }
   function saveVars() {
     if (saveTimer) { try { clearTimeout(saveTimer); } catch (e) { } }
+    if (inheritReloading) { return; }
     saveTimer = setTimeout(function () {
       saveTimer = null;
-      if (disposed) { return; }
+      if (disposed || inheritReloading) { return; }
       try {
         if (typeof replaceVariables !== 'function') { return; }
         var all = (typeof getVariables === 'function') ? (getVariables({ type: 'script' }) || {}) : {};

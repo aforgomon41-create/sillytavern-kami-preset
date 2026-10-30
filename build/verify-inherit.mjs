@@ -126,7 +126,12 @@ ok(panel.indexOf('sourceLabel') >= 0 && panel.indexOf('这一份继承自') >= 0
   '⑥ 面板里写明「这一份继承自」哪份旧预设（用户点名）');
 ok(/inheritFrom: inheritFromName \|\| null/.test(panelCode) && /saved\.inheritFrom/.test(panelCode),
   '⑥ 这个来源跟着预设走（存进脚本变量，而脚本变量写在预设文件里）');
-ok(panel.indexOf('inheritFromName = r.oldName') >= 0, '⑥ 继承成功后把来源记下来');
+ok(panel.indexOf('inheritFromName = oldName') >= 0 && (panel.match(/finishInherit\(r\.oldName\)/g) || []).length >= 3, '⑥ 继承成功后把来源记下来（新旧面板三条路都走 finishInherit）');
+/* ⑦ 2026-10-30 预览版用户报「继承不了」：写盘后要同步酒馆助手内存里的脚本树 / 预设变量，否则它会把旧的写回去；然后刷新页面 */
+ok(/syncHelperStore\(merged\)/.test(inheritedWrite) && /replaceScriptTrees\([\s\S]{0,80}type: 'preset'/.test(panelCode) && /replaceVariables\([\s\S]{0,80}type: 'preset'/.test(panelCode),
+  '⑦ 继承写盘后把脚本树与预设变量同步给酒馆助手');
+ok(/location\.reload\(\)/.test(panelCode.slice(panelCode.indexOf('function finishInherit('))) && /inheritReloading/.test(panelCode),
+  '⑦ 继承完成后刷新页面，刷新前停掉本脚本的变量写入');
 
 console.log('');
 console.log(bad ? '★ 验证失败 ' + bad + ' 条' : '继承旧预设设置验证全部通过（产物 ' + path.basename(p) + '）');

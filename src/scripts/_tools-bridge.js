@@ -162,10 +162,7 @@ export function toolsNotify() {
           }
           var w = applyInheritedToLive(r.merged, r.targetName);
           if (!w.ok) { return { ok: false, text: INHERIT_COPY.failHead + w.msg }; }
-          inheritFromName = r.oldName || '';
-          inheritAtText = nowText();
-          saveVars();
-          toast('success', '已从「' + r.oldName + '」继承设置，立刻生效');
+          finishInherit(r.oldName);
           return { ok: true, text: inheritSummaryText(r, w) };
         }, function (e) { return { ok: false, text: INHERIT_COPY.failHead + ((e && e.message) || e) }; })
           .then(function (out) { toolsNotify(); return out; });
