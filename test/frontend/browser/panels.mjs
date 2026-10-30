@@ -122,6 +122,10 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   await page.goto(URL0 + '?tab=other'); await page.waitForTimeout(600);
   t = await text(page);
   ok(['自动标签处理', '常驻附加指令', '导出纯净正文'].every((x) => t.includes(x)), '其他功能：三项都在');
+  const folds = await inLayer(page, (r) => [...r.querySelectorAll('[data-k="card"][data-role="collapse"]')].map((c) => c.getAttribute('data-state')));
+  ok(folds.length === 3 && folds.every((x) => x === 'closed'), '其他功能：三个互不相干的小工具各是一张折叠卡片，默认收起', folds);
+  const unfold = () => inLayer(page, (r) => { [...r.querySelectorAll('[data-k="card"][data-role="collapse"]:not([data-state="open"]) > [data-k-part="head"]')].forEach((h) => h.click()); });
+  await unfold(); await page.waitForTimeout(300);
   await inLayer(page, (r) => [...r.querySelectorAll('[data-k="switch"]')].find((s) => /常驻附加指令/.test(s.getAttribute('aria-label'))).click()); await page.waitForTimeout(150);
   const god = await inLayer(page, (r) => ({ on: [...r.querySelectorAll('[data-k="switch"]')].find((s) => /常驻附加指令/.test(s.getAttribute('aria-label'))).getAttribute('data-state'), toast: (r.querySelector('[data-k="toast"]') || {}).textContent || '' }));
   ok(god.on === 'unchecked' && god.toast.includes('内容还是空的'), '常驻指令内容为空时打不开（用户给定的提示语）', god);
@@ -136,6 +140,7 @@ for (const [label, opts] of [["电脑 1280", { viewport: { width: 1280, height: 
   for (const scheme of ['light', 'dark']) {
     for (const tab of ['compress', 'search', 'other', 'update']) {
       await page.goto(URL0 + '?scheme=' + scheme + '&tab=' + tab); await page.waitForTimeout(450);
+      if (tab === 'other') { await inLayer(page, (r) => { [...r.querySelectorAll('[data-k="card"][data-role="collapse"]:not([data-state="open"]) > [data-k-part="head"]')].forEach((h) => h.click()); }); await page.waitForTimeout(400); }
       checked += await audit(page, scheme + '/' + tab, bad);
       if (await overflow(page)) { bad.push(scheme + '/' + tab + ' 横向溢出'); }
     }

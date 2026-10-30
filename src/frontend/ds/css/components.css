@@ -250,6 +250,8 @@
 [data-k="setting-section"] > [data-k-part="head"] > [data-k-part="title"] { font-size: var(--k-fs-md); }
 [data-k="setting-section"] > [data-k-part="head"] > [data-k-part="aside"] { margin-left: auto; }
 [data-k="setting-section"] > [data-k-part="body"] { gap: var(--k-gap-item); }
+/* 并列的设置分区：后一个分区顶上一条分隔线、再留一段距离——关联不强的功能区一眼分开，不至于读成一整块 */
+[data-k="setting-section"] ~ [data-k="setting-section"] { border-top: var(--k-border-w) solid var(--k-divider); padding-top: var(--k-gap-section); }
 [data-k="setting-row"] { gap: var(--k-space-3); min-height: 40px; }
 [data-k="setting-row"] > [data-k-part="text"] > [data-k-part="description"] { color: var(--k-on-muted); font-size: var(--k-fs-sm); }
 [data-k="choice-grid"] { gap: var(--k-space-2); --k-grid-min: 170px; }

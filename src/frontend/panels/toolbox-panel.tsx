@@ -480,6 +480,9 @@ export function ManualSearchDialog({ manual, onClose }: { manual: ManualApi; onC
 }
 
 /* ───────── 其他功能 ───────── */
+/* 三个互不相干的小工具：各自一张可折叠卡片，标题旁显示当前状态；展开哪几张在本次打开期间记住（切页签不丢） */
+let OTHER_OPEN: Set<string> = new Set();
+const CardStack = ({ children }: { children: React.ReactNode }): React.JSX.Element => <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-item)' }}>{children}</div>;
 
 function Other({ api, notify }: { api: OtherApi | undefined; notify: Notify }): React.JSX.Element {
   useLive(api);
@@ -488,14 +491,17 @@ function Other({ api, notify }: { api: OtherApi | undefined; notify: Notify }): 
   const [to, setTo] = React.useState('');
   const [scope, setScope] = React.useState('all');
   const [exp, setExp] = React.useState<{ busy: boolean; text: string; ok: boolean }>({ busy: false, text: '', ok: true });
+  const [folds, setFolds] = React.useState<Set<string>>(OTHER_OPEN);
   if (!api) { return <Missing what="「🌟 预设设置」脚本（标签处理、常驻附加指令、导出都由它管）" />; }
   const s = api.get();
   const T = api.copy.tag, G = api.copy.god, E = api.copy.exp;
   const off = s.tag.mode === 'off';
+  const fold = (id: string): { open: boolean; onOpenChange: (v: boolean) => void } => ({ open: folds.has(id), onOpenChange: (v) => { setFolds((cur) => { const n = new Set(cur); if (v) { n.add(id); } else { n.delete(id); } OTHER_OPEN = n; return n; }); } });
   return (
     <Stack>
-      <SettingSection title={T['title']!} badge={<Badge>{(api.copy.modes.find((m) => m.id === s.tag.mode)?.label || '') + (s.tag.all ? ' · ' + T['allChip'] : '')}</Badge>} aside={info(T['title']!, T['note']!)}>
-        <SettingRow label={T['modeLabel']!} description={T['modeHint']}
+      <CollapseCard title={T['title']!} meta={(api.copy.modes.find((m) => m.id === s.tag.mode)?.label || '') + (s.tag.all ? ' · ' + T['allChip'] : '')} {...fold('tag')}>
+        <CardStack>
+        <SettingRow label={T['modeLabel']!} description={T['modeHint']} info={info(T['title']!, T['note']!)}
           control={<Segmented label={T['modeLabel']!} size="sm" options={api.copy.modes.map((m) => ({ value: m.id, label: m.label }))} value={s.tag.mode} onValueChange={(v) => api.setTagMode(v)} />} />
         <SettingRow label={T['allLabel']!} description={T['allHint']} control={<Switch checked={s.tag.all} onCheckedChange={(v) => api.setTagAll(v)} aria-label={T['allLabel']!} disabled={off} />} />
         <Field label={T['customLabel']!} hint={s.tag.all ? T['allChip'] + '：' + T['allHint'] : T['customHint']} disabled={off || s.tag.all}>
@@ -503,7 +509,8 @@ function Other({ api, notify }: { api: OtherApi | undefined; notify: Notify }): 
         </Field>
         <SettingRow label={T['manualLabel']!} description={T['manualHint'] + ' · ' + T['statLabel'] + '：' + s.tag.stat}
           control={<Button size="sm" disabled={off} onClick={() => { const r = api.scanTag(); if (!r.ok || r.nothing) { notify(r.message); return; } setScan(r); }}>{T['manualBtn']}</Button>} />
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
       <Dialog open={!!scan} onOpenChange={(v) => { if (!v) { setScan(null); } }} title={T['manualBtn'] + (scan ? '（第 ' + scan.floor + ' 楼）' : '')} size="sm"
         footer={<><Button variant="ghost" onClick={() => setScan(null)}>{T['confirmCancel']}</Button><Button variant="primary" onClick={() => { const tk = scan!.token; setScan(null); swallow(api.applyTag(tk)); }}>{T['confirmOk']}</Button></>}>
         {scan ? (
@@ -520,16 +527,19 @@ function Other({ api, notify }: { api: OtherApi | undefined; notify: Notify }): 
         ) : null}
       </Dialog>
 
-      <SettingSection title={G['title']!} badge={<Badge tone={s.god.on ? 'success' : 'neutral'}>{s.god.on ? G['modeOn'] : G['modeOff']}</Badge>} aside={info(G['title']!, G['note']!)}>
-        <SettingRow label={G['switchLabel']!} description={s.god.on ? G['modeOn'] : G['modeOff']}
+      <CollapseCard title={G['title']!} meta={s.god.on ? '已开启' : '未开启'} {...fold('god')}>
+        <CardStack>
+        <SettingRow label={G['switchLabel']!} description={s.god.on ? G['modeOn'] : G['modeOff']} info={info(G['title']!, G['note']!)}
           control={<Switch checked={s.god.on} aria-label={G['title']! + G['switchLabel']} onCheckedChange={(v) => { api.setGod(v); }} />} />
         <Field label={G['textLabel']!} hint={G['textHint']}>
           <CommitText multiline rows={4} label={G['textLabel']!} value={s.god.text} readOnly={s.god.on} onCommit={(v) => api.setGodText(v)} />
         </Field>
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
 
-      <SettingSection title={E['title']!} aside={info(E['title']!, E['note'] + '\n' + E['goodPath'])}>
-        <SettingRow label={E['rangeLabel']!} description="留空表示全部" control={
+      <CollapseCard title={E['title']!} meta={exp.busy ? '处理中' : '导出 txt'} {...fold('exp')}>
+        <CardStack>
+        <SettingRow label={E['rangeLabel']!} description="留空表示全部" info={info(E['title']!, E['note'] + '\n' + E['goodPath'])} control={
           <Row>
             <span style={{ width: 90 }}><TextField inputMode="numeric" aria-label={E['rangeLabel'] + '（起始）'} placeholder={E['rangeFromHint']} value={from} onChange={(e) => setFrom(e.target.value)} /></span>
             <span aria-hidden="true">–</span>
@@ -545,7 +555,8 @@ function Other({ api, notify }: { api: OtherApi | undefined; notify: Notify }): 
           }}>{E['btn']}</Button>
         </Row>
         {exp.text ? <Note {...(exp.ok ? {} : { tone: 'danger' as const })}>{exp.text}</Note> : null}
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
     </Stack>
   );
 }

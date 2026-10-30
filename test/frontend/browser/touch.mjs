@@ -92,7 +92,9 @@ ok(allVisible, '连续向左翻页：当前页签始终在页签条可见范围�
 /* 最后一页 = 页签条里的最后一个（「关于」2026-10-29 挪去工具箱后是预设里的最后一页） */
 const lastTab = await page.evaluate(() => { const t = [...document.querySelector('kami-layer').shadowRoot.querySelectorAll('[data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')]; return t[t.length - 1].textContent; });
 ok((await active()) === lastTab, '翻到最后一页后停住（不循环）', { now: await active(), lastTab });
-for (let n = 0; n < 9; n++) { await touchPath(Array.from({ length: 8 }, (_, i) => [70 + i * 30, y])); await page.waitForTimeout(300); }
+/* 往回滑时落点取当前页第一个分区标题（输入框上横滑按设计不翻页，固定高度可能正好落在输入框上） */
+const titleY = () => page.evaluate((fb) => { const r = document.querySelector('kami-layer').shadowRoot; const h = [...r.querySelectorAll('[data-k="tabs"] [role="tabpanel"][data-state="active"] [data-k="setting-section"] > [data-k-part="head"]')].find((x) => x.getClientRects().length); if (!h) { return fb; } const b = h.getBoundingClientRect(); return b.y + b.height / 2; }, y);
+for (let n = 0; n < 9; n++) { const yy = await titleY(); await touchPath(Array.from({ length: 8 }, (_, i) => [70 + i * 30, yy])); await page.waitForTimeout(300); }
 ok((await inView()) && (await active()) === t0, '向右翻回第一页，页签条也滚回来');
 
 /* ③ 选择卡（找一个有长名字的页签：推理选项） */

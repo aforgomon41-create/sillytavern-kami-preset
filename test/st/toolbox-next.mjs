@@ -106,6 +106,10 @@ await page.evaluate((v) => window.KamiToolbox.bridge().search.configure({ enable
 
 /* ⑤ 其他功能 */
 await toTab('其他功能');
+const folds = await inLayer((r) => [...r.querySelectorAll('[data-k="card"][data-role="collapse"]')].filter((c) => c.getClientRects().length).map((c) => c.getAttribute('data-state')));
+ok(folds.length === 3 && folds.every((x) => x === 'closed'), '其他功能：三张折叠卡片，默认收起', folds);
+await inLayer((r) => { [...r.querySelectorAll('[data-k="card"][data-role="collapse"]:not([data-state="open"]) > [data-k-part="head"]')].filter((h) => h.getClientRects().length).forEach((h) => h.click()); });
+await page.waitForTimeout(500);
 const t0 = await page.evaluate(() => window.KamiPreset.toolsBridge().get().tag.mode);
 await inLayer((r, m) => { const s = [...r.querySelectorAll('[data-k="segmented"]')].find((x) => x.getAttribute('aria-label') === '处理方式'); [...s.querySelectorAll('[data-k-part="item"]')].find((i) => i.textContent === (m === 'close' ? '删除' : '补全')).click(); }, t0);
 await page.waitForTimeout(400);

@@ -344,6 +344,8 @@ function Search({ notify }: { notify: Notify }): React.JSX.Element {
 
 /* ───────── 其他功能 ───────── */
 
+const CardStack = ({ children }: { children: React.ReactNode }): React.JSX.Element => <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-item)' }}>{children}</div>;
+
 function Other({ notify }: { notify: Notify }): React.JSX.Element {
   const [tagMode, setTagMode] = React.useState('close');
   const [all, setAll] = React.useState(false);
@@ -357,8 +359,9 @@ function Other({ notify }: { notify: Notify }): React.JSX.Element {
   const [scope, setScope] = React.useState('all');
   return (
     <Stack>
-      <SettingSection title={TAG.title} aside={info(TAG.title, TAG.note)}>
-        <SettingRow label={TAG.modeLabel} description={TAG.modeHint}
+      <CollapseCard title={TAG.title} meta={({ off: '关闭', close: '补全', remove: '删除' } as Record<string, string>)[tagMode] + (all ? ' · ' + TAG.allChip : '')}>
+        <CardStack>
+        <SettingRow label={TAG.modeLabel} description={TAG.modeHint} info={info(TAG.title, TAG.note)}
           control={<Segmented label={TAG.modeLabel} size="sm" options={[{ value: 'off', label: '关闭' }, { value: 'close', label: '补全' }, { value: 'remove', label: '删除' }]} value={tagMode} onValueChange={setTagMode} />} />
         <SettingRow label={TAG.allLabel} description={TAG.allHint} control={<Switch checked={all} onCheckedChange={setAll} aria-label={TAG.allLabel} disabled={tagMode === 'off'} />} />
         <Field label={TAG.customLabel} hint={all ? TAG.allChip + '：' + TAG.allHint : TAG.customHint} disabled={tagMode === 'off' || all}>
@@ -366,7 +369,8 @@ function Other({ notify }: { notify: Notify }): React.JSX.Element {
         </Field>
         <SettingRow label={TAG.manualLabel} description={TAG.manualHint + ' · ' + TAG.statLabel + '：' + (stat || TAG.statNone)}
           control={<Button size="sm" onClick={() => setConfirm(true)}>{TAG.manualBtn}</Button>} />
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
       <Dialog open={confirm} onOpenChange={setConfirm} title={TAG.manualBtn} size="sm"
         footer={<><Button variant="ghost" onClick={() => setConfirm(false)}>{TAG.confirmCancel}</Button><Button variant="primary" onClick={() => { setConfirm(false); setStat('补全 2 处'); notify(TAG.confirmDone); }}>{TAG.confirmOk}</Button></>}>
         <div style={{ display: 'grid', gap: 8 }}>
@@ -377,16 +381,19 @@ function Other({ notify }: { notify: Notify }): React.JSX.Element {
         </div>
       </Dialog>
 
-      <SettingSection title={GOD.title} aside={info(GOD.title, GOD.note)}>
-        <SettingRow label={GOD.switchLabel} description={god ? GOD.modeOn : GOD.modeOff}
+      <CollapseCard title={GOD.title} meta={god ? '已开启' : '未开启'}>
+        <CardStack>
+        <SettingRow label={GOD.switchLabel} description={god ? GOD.modeOn : GOD.modeOff} info={info(GOD.title, GOD.note)}
           control={<Switch checked={god} aria-label={GOD.title + GOD.switchLabel} onCheckedChange={(v) => { if (v && !godText.trim()) { notify(GOD.emptyWarn); return; } setGod(v); }} />} />
         <Field label={GOD.textLabel} hint={GOD.textHint}>
           <TextArea rows={4} value={godText} onChange={(e) => { setGodText(e.target.value); if (!e.target.value.trim()) { setGod(false); } }} />
         </Field>
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
 
-      <SettingSection title={EXPORT.title} aside={info(EXPORT.title, EXPORT.note + '\n' + EXPORT.goodPath)}>
-        <SettingRow label={EXPORT.rangeLabel} description="留空表示全部" control={
+      <CollapseCard title={EXPORT.title} meta="导出 txt">
+        <CardStack>
+        <SettingRow label={EXPORT.rangeLabel} description="留空表示全部" info={info(EXPORT.title, EXPORT.note + '\n' + EXPORT.goodPath)} control={
           <Row>
             <Num label={EXPORT.rangeLabel + '（起始）'} value={from === '' ? NaN : Number(from)} onChange={(v) => setFrom(isNaN(v) ? '' : String(v))} width={90} />
             <span aria-hidden="true">–</span>
@@ -395,7 +402,8 @@ function Other({ notify }: { notify: Notify }): React.JSX.Element {
         <SettingRow label={EXPORT.scopeLabel} description={scope === 'ai' ? EXPORT.scopeAiHint : EXPORT.scopeAllHint}
           control={<Segmented label={EXPORT.scopeLabel} size="sm" options={[{ value: 'all', label: EXPORT.scopeAll }, { value: 'ai', label: EXPORT.scopeAi }]} value={scope} onValueChange={setScope} />} />
         <div><Button variant="primary" onClick={() => notify('已导出 ' + (from && to ? Number(to) - Number(from) + 1 : 120) + ' 楼层')}>{EXPORT.btn}</Button></div>
-      </SettingSection>
+        </CardStack>
+      </CollapseCard>
     </Stack>
   );
 }

@@ -72,7 +72,7 @@ function Overview({ tabs, st, act, compact }: { tabs: Tab[]; st: State; act: Act
           {shownChips.map((c) => <span key={c.key} style={{ flex: 'none' }}><Badge tone="accent">{c.text}</Badge></span>)}
         </div>
       </SettingSection>
-      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-group)', borderTop: 'var(--k-border-w) solid var(--k-divider)', paddingTop: 'var(--k-gap-section)' }}>
         <h3 style={{ fontSize: 'var(--k-fs-lg)' }}>常用</h3>
         {mt ? <ModelPicker t={mt} st={st} act={act} withItems={false} /> : null}
         {vars.map((v) => <VarFields key={v.name} v={v} st={st} act={act} />)}
