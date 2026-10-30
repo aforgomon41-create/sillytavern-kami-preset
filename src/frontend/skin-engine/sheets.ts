@@ -35,6 +35,9 @@ export class StyleHub {
   /** 是否在用可构造样式表（否则是每个根两个 <style>） */
   get shared(): boolean { return this.constructable; }
 
+  /** 现在的设计系统与皮肤样式原文（消息前端要从里面抽出正文的规则，改写成页面 DOM 里用的样式） */
+  texts(): { ds: string; skin: string } { return { ds: this.dsText, skin: this.skinText }; }
+
   setDesignSystem(css: string): void {
     this.dsText = css;
     if (this.dsSheet) { this.dsSheet.replaceSync(css); }

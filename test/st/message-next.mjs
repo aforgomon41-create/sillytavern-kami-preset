@@ -102,7 +102,8 @@ for (let i = 0; i < 60; i++) {
     return {
       stop: !!stop && getComputedStyle(stop).display !== 'none', raw: (ctx.chat[id].mes || '').length,
       think: h ? ((h.shadowRoot.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent || '') : '',
-      rawThink: /<nyaruko_think>/.test(ctx.chat[id].mes || ''), textLen: t ? t.textContent.length : 0
+      rawThink: /<nyaruko_think>/.test(ctx.chat[id].mes || ''), textLen: t ? t.textContent.length : 0,
+      styled: t ? t.getAttribute('data-kami-msg-text') === 'stream' && t.querySelectorAll(':scope > p[data-k-part="para"]').length : 0
     };
   });
   samples.push(x);
@@ -113,7 +114,8 @@ const live = samples.filter((x) => x.stop);
 ok(live.length >= 5, '取到了生成中的样本', samples.length + ' 个样本，其中生成中 ' + live.length);
 ok(live.some((x) => /奈亚子思考中/.test(x.think)), '生成中思维链显示「奈亚子思考中」（读「💭 思维链」正在搬的内容）', [...new Set(live.map((x) => x.think))].join(' / '));
 ok(live.every((x) => !x.rawThink), '思维链没有进正文（「💭 思维链」流式时就扣走了）');
-ok(live.some((x) => x.textLen > 20), '生成中正文由酒馆照常逐步显示', live.map((x) => x.textLen).join(','));
+ok(live.some((x) => x.textLen > 20), '生成中正文逐步显示', live.map((x) => x.textLen).join(','));
+ok(live.some((x) => x.styled > 0), '生成中正文就按我们的排版（段落已标记、套上正文样式）', live.map((x) => x.styled).join(','));
 await notGenerating();
 await page.waitForTimeout(2000);
 
@@ -146,6 +148,14 @@ const info = await page.evaluate(() => {
     math: body ? [...body.querySelectorAll('[data-kami-math]')].map((x) => x.getAttribute('data-kami-math') + ':' + !!x.querySelector('math')) : [],
     texLeft: body ? body.querySelectorAll('code[data-kami-tex]').length : -1,
     price: body ? body.textContent.includes('$5 和 $10') : false,
+    typo: (() => {
+      if (!body) { return null; }
+      const p = body.querySelector(':scope > [data-k-part="para"]'), cs = p ? getComputedStyle(p) : null;
+      const th = body.querySelector('[data-k-part="thought"]');
+      return { mode: body.getAttribute('data-kami-msg-text'), indent: cs && cs.textIndent, font: cs && cs.fontFamily, lead: p ? /^[\s\u3000]/.test(p.textContent) : null,
+        scene: body.querySelectorAll('hr[data-k-part="scene-break"]').length, term: (body.querySelector('[data-k-part="term"]') || {}).textContent,
+        thoughtFont: th ? getComputedStyle(th).fontFamily : null, dialogue: body.querySelectorAll('[data-k-part="dialogue"]').length };
+    })(),
     thIframes: [...text.querySelectorAll('.TH-render')].map((th) => (th.hasAttribute('data-kami-msg-hidden') ? 'hidden:' + th.getAttribute('data-kami-msg-hidden') : 'shown') + (body && body.contains(th) ? '@body' : '')),
     htmlCard: (() => { const f = body && [...body.querySelectorAll('.TH-render iframe')][0]; return f ? f.getBoundingClientRect().height : 0; })()
   };
@@ -155,10 +165,16 @@ ok(/^奈亚子思考了\s*\d+\s*字/.test((info.thinkHead || '').trim()) && info
 ok(info.nativeShown === false, '原生思维链块藏起来（由新前端代为显示，不重复）', info.nativeShown);
 ok(/参考了 2 个来源/.test(info.search || ''), '搜索资料：换掉 iframe，一行摘要', info.search);
 ok(info.opts === 6, '行动选项：换掉 iframe，6 个', info.opts);
-ok(info.bodyInText && info.slot && info.bodyParas >= 3 && /\d+ 字/.test(info.bodyShadowHead || '') && !info.leak, '正文：酒馆渲染的段落留在 .mes_text 里（slot 显示），外壳只加头部；注释与标记不外露', info);
+ok(info.bodyInText && info.slot && info.bodyParas >= 3 && /\d+ 字/.test(info.bodyShadowHead || '') && !info.leak, '正文节点留在 .mes_text 里（插件找得到），头部有字数；注释与标记不外露', info);
+ok(info.typo && info.typo.mode === 'body' && parseFloat(info.typo.indent) > 10 && !info.typo.lead && /Songti|Serif|serif/.test(info.typo.font) && info.typo.scene === 1 && info.typo.term === '【马什旧宅】' && /Kaiti|KaiTi|楷/.test(info.typo.thoughtFont || '') && info.typo.dialogue >= 1,
+  '正文由我们排版：皮肤字体（碎光：宋体 / 心理描写楷体）、两字缩进、场景转换、专有名词、对白', info.typo);
 ok(info.quote === info.quoteWant && info.em === info.emWant && info.para === info.paraWant, '对白 / 心理描写 / 正文颜色 = 酒馆的字体颜色设置', { q: [info.quote, info.quoteWant], em: [info.em, info.emWant], p: [info.para, info.paraWant] });
 ok(info.math.filter((x) => x === 'inline:true').length === 2 && info.math.includes('block:true') && info.texLeft === 0 && info.price, '公式：行内 2 个 + 独立 1 个渲染成 MathML；价格「$5 和 $10」不误伤', { math: info.math, left: info.texLeft, price: info.price });
 ok(info.thIframes.filter((x) => x.startsWith('hidden')).length === 2 && info.thIframes.includes('shown@body') && info.htmlCard > 10, '酒馆助手 iframe：搜索资料 / 行动选项的藏起，正文里的 HTML 美化照常显示', info);
+
+/* 更早的楼层（正文正则只作用于最后两条，没有正文标记）：整段按我们的排版 */
+const older = await page.evaluate(() => { const ms = [...document.querySelectorAll('#chat .mes[is_user="false"] .mes_text[data-kami-msg-text="all"]')]; return { n: ms.length, paras: ms.length ? ms[0].querySelectorAll(':scope > p[data-k-part="para"]').length : 0 }; });
+ok(older.n >= 1 && older.paras >= 1, '更早的楼层也按我们的排版（没有正文标记时整段当正文）', older);
 
 /* ③ 插件兼容：往正文里插节点（模拟生图按钮类插件），重扫后还在原位 */
 const plug = await page.evaluate(async () => {
@@ -254,9 +270,9 @@ const off = await page.evaluate(() => ({
   active: window.KamiChatFrontend.active(), hosts: document.querySelectorAll('#chat [data-kami-msg-host]').length,
   hidden: document.querySelectorAll('#chat [data-kami-msg-hidden]').length,
   oldBody: document.querySelectorAll('#chat [data-kami-body-host]').length, oldThink: document.querySelectorAll('#chat [data-kami-native-think]').length,
-  ls: localStorage.getItem('kami.msgfe')
+  ls: localStorage.getItem('kami.msgfe'), styled: document.querySelectorAll('#chat [data-kami-msg-text], #chat .mes_text [data-k-part]').length, sheet: !!document.getElementById('kami-msg-body-style')
 }));
-ok(sw === 'checked' && !off.active && off.hosts === 0 && off.hidden === 0 && off.ls === '0', '显示面板关掉「消息前端」：宿主全部移除、iframe 恢复', { sw, ...off });
+ok(sw === 'checked' && !off.active && off.hosts === 0 && off.hidden === 0 && off.ls === '0' && off.styled === 0 && !off.sheet, '显示面板关掉「消息前端」：宿主、排版标记与样式全部移除，iframe 恢复——交回酒馆渲染', { sw, ...off });
 ok(off.oldBody > 0 && off.oldThink > 0, '……「📄 正文外壳」「💭 思维链」的装饰接回', off);
 await page.evaluate(() => { const l = document.querySelector('kami-layer'); const s = [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端'); s.click(); });
 await page.waitForTimeout(1500);

@@ -23,6 +23,7 @@ import * as React from 'react';
 import type { StyleHub } from '../skin-engine/sheets';
 import { mountSurface } from '../surfaces/messages';
 import { typesetTex } from './math';
+import { TEXT_ATTR, bodyCss, markBody, tokenRule, unmarkBody } from './body-style';
 import { splitReply, takeTag } from './parse';
 import { MsgBodyShell, MsgOptions, MsgPart, MsgSearch, MsgThink, type OptionItem, type OptionMode, type ThinkActions } from './view';
 import { cleanCopyText } from '../../scripts/_copy-clean.js';
@@ -70,6 +71,7 @@ const NATIVE_THINK = 'data-kami-msg-native-think'; /* .mes 上：原生思维链
 const MARK_START = 'data-kami-body-start';
 const MARK_END = 'data-kami-body-end';
 const STYLE_ID = 'kami-msg-host-style';
+const BODY_STYLE_ID = 'kami-msg-body-style';   /* 正文排版（从设计系统与皮肤里抽出来的正文规则，见 body-style.ts） */
 const OPT_FOLD_KEY = 'kami.options.folded';
 const EDITING_THINK = '.reasoning_edit_textarea';
 
@@ -103,6 +105,11 @@ export class ChatFrontend {
   private scheduled = false;
   private busy = false;
   private mode: OptionMode;
+  /** 正文排版样式用到的令牌；tokensFrom：令牌值是从哪个渲染面读的（还没有渲染面时先空着，挂上第一个后补） */
+  private bodyTokens: string[] = [];
+  private tokensFrom: Element | null = null;
+  /** 已经标过的正文：内容没变就不再走一遍 */
+  private readonly marked = new WeakMap<Element, string>();
   private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.refresh(); } };
   /** 统计：累计挂载次数（测试与排障用） */
   mounts = 0;
@@ -133,11 +140,34 @@ export class ChatFrontend {
       st.id = STYLE_ID; st.textContent = HOST_CSS;
       this.o.doc.head.appendChild(st);
     }
+    this.bodyStyle();
     const win = this.o.doc.defaultView as Window & typeof globalThis;
     this.observer = new win.MutationObserver(() => { if (!this.busy) { this.schedule(); } });
     this.observer.observe(chat, { childList: true, subtree: true, characterData: true });
     try { win.addEventListener('storage', this.onStorage); } catch (e) { /* 没有 storage 事件 */ }
     this.scan();
+  }
+
+  /** 正文排版样式：设计系统 + 当前皮肤里的正文规则，改写后放进宿主文档；令牌值从一个已挂好的渲染面读 */
+  private bodyStyle(): void {
+    const doc = this.o.doc;
+    let st = doc.getElementById(BODY_STYLE_ID);
+    if (!st) { st = doc.createElement('style'); st.id = BODY_STYLE_ID; doc.head.appendChild(st); }
+    const t = this.o.hub.texts();
+    const { css, tokens } = bodyCss(doc.defaultView as Window & typeof globalThis, [t.ds, t.skin]);
+    this.bodyTokens = tokens;
+    let src: Element | null = null;
+    for (const s of this.surfaces.values()) { const el = s.host.shadowRoot && s.host.shadowRoot.querySelector('[data-k-surface]'); if (el && el.isConnected) { src = el; break; } }
+    this.tokensFrom = src;
+    st.textContent = css + '\n' + tokenRule(src, tokens);
+  }
+
+  private mark(root: Element, mode: 'body' | 'stream' | 'all'): void {
+    if (root.getAttribute(TEXT_ATTR) !== mode) { root.setAttribute(TEXT_ATTR, mode); this.marked.delete(root); }
+    const sig = root.childElementCount + ':' + (root.textContent || '').length;
+    if (this.marked.get(root) === sig) { return; }
+    markBody(root);
+    this.marked.set(root, root.childElementCount + ':' + (root.textContent || '').length);
   }
 
   /** 外部事件（生成结束、切换回复、编辑完成……）或设置变了：重画一次 */
@@ -186,14 +216,21 @@ export class ChatFrontend {
       this.think(mes, text, id, msg, streaming);
       if (text.querySelector('textarea')) { continue; }   /* 酒馆正在编辑这条：不碰 .mes_text */
       if (streaming) {
-        /* 生成中：只藏起已经出现的 iframe 前端（结束后在原位换成我们的），别的不碰——每个片段酒馆都会重写 .mes_text */
+        /* 生成中：藏起已经出现的 iframe 前端（结束后在原位换成我们的）；正文按我们的排版逐步显示——
+           酒馆每个片段都重写 .mes_text，标记在这个微任务里补上，赶在绘制之前 */
         for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd) { th.setAttribute(HIDE_ATTR, kd); } }
+        this.mark(text, 'stream');
         continue;
       }
       this.iframes(text, id, msg, id === latest);
       this.body(text, id, msg);
       typesetTex(text);
+      const bodyHost = text.querySelector('[' + HOST_ATTR + '="body"]');
+      if (bodyHost) { if (text.hasAttribute(TEXT_ATTR)) { unmarkBody(text); } this.mark(bodyHost, 'body'); }
+      else { this.mark(text, 'all'); }   /* 没有正文标记的楼层（老消息、正文正则只作用于最后两条）：整段当正文排 */
     }
+    /* 令牌值还没读过（刚启动时一个渲染面都没有）：现在有了就补上 */
+    if (!this.tokensFrom || !this.tokensFrom.isConnected) { if (this.surfaces.size) { this.bodyStyle(); } }
   }
 
   /* ───── 思维链：放在 .mes_text 前面（不在 .mes_text 里，流式重写冲不掉） ───── */
@@ -332,7 +369,9 @@ export class ChatFrontend {
       if (el) { for (const [n, v] of Object.entries(a)) { el.setAttribute(n, v); } }
       s.last = '';
     }
+    this.bodyStyle();
     this.scan();
+    this.bodyStyle();   /* 换了配色：令牌值要按新的重读 */
   }
 
   get size(): number { return this.surfaces.size; }
@@ -344,6 +383,7 @@ export class ChatFrontend {
     this.surfaces.clear();
     const chat = this.o.chat();
     if (chat) {
+      for (const el of Array.from(chat.querySelectorAll('[' + TEXT_ATTR + ']'))) { unmarkBody(el); }
       /* 正文放回原处，两个标记也放回去（「📄 正文外壳」或之后重新开启的我们还能认出来） */
       for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + '="body"]'))) {
         const a = this.o.doc.createElement('div'), b = this.o.doc.createElement('div');
@@ -357,7 +397,6 @@ export class ChatFrontend {
       for (const el of Array.from(chat.querySelectorAll('[' + HIDE_ATTR + ']'))) { el.removeAttribute(HIDE_ATTR); }
       for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + ']'))) { el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); }
     }
-    const st = this.o.doc.getElementById(STYLE_ID);
-    if (st) { st.remove(); }
+    for (const sid of [STYLE_ID, BODY_STYLE_ID]) { const st = this.o.doc.getElementById(sid); if (st) { st.remove(); } }
   }
 }
