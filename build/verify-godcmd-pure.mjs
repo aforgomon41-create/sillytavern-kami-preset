@@ -83,21 +83,19 @@ ok(!/data\.chat\s*=/.test(bareWrap), '⑥ 源码里不许出现 data.chat = 整�
 ok(/shouldInject\(/.test(wrapCode), '⑥ 注入前先问 shouldInject（最后一条必须是 user）');
 ok(/appendGodCmd\(/.test(wrapCode), '⑥ 追加走 appendGodCmd（幂等，一轮派发两次不叠段）');
 
-/* ⑦ 面板卡片：挂在「其他功能」页，默认折叠，用现成零件 */
-ok(barePanel.indexOf('data-kami-godcmd-on') >= 0 && barePanel.indexOf('data-kami-godcmd-text') >= 0,
-  '⑦ 面板有输入框与开关的钩子（data-kami-godcmd-*）');
-ok(barePanel.indexOf('kami-collapse') >= 0, '⑦ 那张卡是折叠卡（contract §4.3 现成机制）');
+/* ⑦ 面板卡片：2026-10-30 起由运行库的工具箱面板画（src/frontend/panels/toolbox-panel.tsx），
+     开关与输入框经 40 号的工具桥（_tools-bridge.js 的 setGod / setGodText）写回。 */
+const tbx = fs.readFileSync(path.join(ROOT, 'src', 'frontend', 'panels', 'toolbox-panel.tsx'), 'utf8');
+ok(/api\.setGod\(/.test(tbx) && /api\.setGodText\(/.test(tbx), '⑦ 新面板的开关与输入框接到了 setGod / setGodText');
 
 /* ⑧ **钩子在、没人听**也算没接上 —— 2026-10-01 真机就是这么炸的：卡片渲染出来了，
-     toggleGodCmd / setGodCmdText 也写好了，可全项目没有任何一处调用它们，
-     表现是「开关点不动、内容关掉面板就丢」。所以下面数的是**调用次数**：
-     定义算一次，至少还要再有一次真调用（addEventListener 里那次）。 */
+     toggleGodCmd / setGodCmdText 也写好了，可全项目没有任何一处调用它们。
+     所以下面数的是**调用次数**：定义算一次，至少还要再有一次真调用（工具桥里那次）。 */
 const callToggle = (barePanel.match(/toggleGodCmd\(/g) || []).length;
 const callSetText = (barePanel.match(/setGodCmdText\(/g) || []).length;
 ok(callToggle >= 2, '⑧ toggleGodCmd 有真调用（不是只有定义）', '出现 ' + callToggle + ' 次');
 ok(callSetText >= 2, '⑧ setGodCmdText 有真调用（不是只有定义）', '出现 ' + callSetText + ' 次');
-ok(/addEventListener\('change'/.test(barePanel) && /addEventListener\('input'/.test(barePanel),
-  '⑧ 开关挂了 change、输入框挂了 input/change（只写函数不挂事件同样不生效）');
+ok(/setGod:\s*function/.test(barePanel) && /setGodText:\s*function/.test(barePanel), '⑧ 40 号的工具桥导出了 setGod / setGodText');
 
 console.log(bad ? ('★ 验证失败 ' + bad + ' 条') : '常驻附加指令接线验证全部通过（产物 ' + path.basename(p) + '）');
 process.exit(bad ? 1 : 0);

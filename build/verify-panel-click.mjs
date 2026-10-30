@@ -37,23 +37,21 @@ if (!panel) { console.log('\n没有面板脚本，后面的检查无从谈起');
 const code = String(panel.content || '');
 ok(code.length > 10000, '① 面板脚本内容非空', code.length + ' 字');
 
-/* ② 点击委托的每个分支：每一条都对应一类控件，少一条就有一类点不动 */
+/* ② 交互接线：2026-10-30 起面板由运行库的 PresetPanel 画（src/frontend/panels/preset-panel.tsx），
+     每类控件经 40 号的预设桥（_preset-bridge.js）落到命令式的写入函数。两头都要在：
+     桥上有出口、面板里真有调用，少一个就有一类控件点不动。 */
+const ui = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src', 'frontend', 'panels', 'preset-panel.tsx'), 'utf8');
 const BRANCHES = [
-  ['条目卡（所有开关）', "t.getAttribute('data-kami-item') && t.tagName === 'BUTTON'", 'toggleItem(t)'],
-  ['模型卡片头（切模型）', "t.getAttribute('data-kami-model') && t.tagName === 'BUTTON'", 'selectModel('],
-  ['注释标记 ⓘ', "t.getAttribute('data-kami-note-mark')", 'toggleNote(t)'],
-  ['tab 切换', "t.getAttribute('data-kami-tab')", 'setTab('],
-  ['关闭面板', "t.getAttribute('data-kami-act') === 'close'", 'setOpen(false)'],
-  ['检查更新', "t.getAttribute('data-kami-act') === 'check-update'", 'runUpdateCheck('],
-  ['合并页一键选边', "t.getAttribute('data-kami-act') === 'merge-all-mine'", 'setMergeAll('],
-  ['合并页提交', "t.getAttribute('data-kami-act') === 'merge-apply'", 'applyMergeReview('],
+  ['条目卡（所有开关）', /toggle:\s*function \(id, groupName\)[\s\S]{0,3000}commit\(pairs\)/, 'api.toggle('],
+  ['模型卡片头（切模型）', /selectModel:\s*function \(name\)[\s\S]{0,400}selectModel\(m\.emoji\)/, 'api.selectModel('],
+  ['变量输入框', /setVar:\s*function \(key, value\)[\s\S]{0,400}commitVars\(/, 'api.setVar('],
+  ['读当前预设', /view:\s*function \(\)/, 'api.view('],
 ];
-for (const [label, needle, action] of BRANCHES) {
-  const hasBranch = code.indexOf(needle) >= 0;
-  const hasAction = code.indexOf(action) >= 0;
-  ok(hasBranch && hasAction, '② 点击委托分支：' + label, hasBranch ? (hasAction ? '齐全' : '缺动作 ' + action) : '**整行不见了**');
+for (const [label, bridge, call] of BRANCHES) {
+  const hasBridge = bridge.test(code);
+  const hasCall = ui.indexOf(call) >= 0;
+  ok(hasBridge && hasCall, '② 交互接线：' + label, hasBridge ? (hasCall ? '齐全' : '面板里没调用 ' + call) : '**桥上的出口不见了**');
 }
-
 /* ③ 「🎛 运行模式」层级的接线（2026-10-15 重做：它现在是预设最后面一个**自然层级**，
       解析器照常给它出 tab，面板不需要任何特例。这里查的是「对话模式的特殊逻辑」还在不在）。 */
 ok(code.indexOf('DIALOG_MODE_ID') >= 0 && code.indexOf('PLAY_MODE_ID') >= 0, '③ 两个模式条目按 identifier 认（不按中文名）');

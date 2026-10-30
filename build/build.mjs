@@ -240,10 +240,17 @@ const scripts = meta.map(m => {
   code = expandRuntime(ROOT, code);
   code = expandRuntimeNext(ROOT, code);
   code = expandSkinsNext(ROOT, code);
-  /* 面板手势（src/scripts/_panel-gestures.js）内联进脚本，两个面板共用一份实现 */
+  /* 共享模块（_tools-bridge / _search-* / _custom-style-ui 等）统一从这里内联 */
   code = expandPanelGestures(ROOT, code);
   /* 引导文案（design/copy/guide-copy.json）内联进引导脚本，文案只有一份真相 */
   code = expandGuideCopy(ROOT, code);
+  /* ⚠️ 酒馆助手把脚本放进 iframe 的 <script type="module"> 里（srcdoc）。HTML 解析器在脚本正文里
+     见到「<!--」之后又见到「<script」，就进入双重转义状态，真正的「</script>」不再结束元素 ——
+     整条脚本一行都不执行，而且不报错（2026-10-30 两个运行库合成一条后撞上：新运行库里有 <!-- 正则、
+     旧运行库里有 "<script>" 字符串，分开时各自都没事）。这些写法只出现在字符串 / 正则字面量里，
+     统一改写成 \x3C，语义不变。 */
+  code = code.replace(/<!--/g, '\\x3C!--').replace(/<(\/?)script/gi, '\\x3C$1script');
+  if (/<!--|<\/?script/i.test(code)) { throw new Error(m.file + '：脚本正文里还有 <!-- 或 <script，会让酒馆助手的 iframe 不执行它'); }
   return {
     type: 'script',
     enabled: m.enabled !== false,
@@ -424,13 +431,6 @@ if (dry) {
     execFileSync(process.execPath, [path.join(__dirname, 'verify-inherit.mjs'), outPath], { stdio: 'inherit' });
   } catch (e) {
     console.error('  [中止] 继承旧预设设置验证未通过，产物已写出但请不要使用，先修。');
-    process.exit(1);
-  }
-  /* 面板舞台移动端：高度下限内联、兜底皮肤不塌、窄屏判定换信号。 */
-  try {
-    execFileSync(process.execPath, [path.join(__dirname, 'verify-panel-mobile.mjs'), outPath], { stdio: 'inherit' });
-  } catch (e) {
-    console.error('  [中止] 面板舞台移动端验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
   /* 压缩纯逻辑内联：解析器与对账器来自构建期内联，漏了只有真机点开面板才会炸。 */

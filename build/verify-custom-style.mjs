@@ -85,146 +85,15 @@ for (const forbidden of ['replacePreset(', 'updatePresetWith(', 'setPreset(']) {
 ok(panelSrc.indexOf('diyRollback') >= 0, '③ 有回滚路径 diyRollback');
 ok(panelSrc.indexOf('DIY_ORDER_COUNT') >= 0 || panelSrc.indexOf('orderEntryCount') >= 0, '③ 写入前断言了 prompt_order 结构');
 
-/* ── ④ 两个面板的接线：各自只挂一次，不许自己碰预设 ── */
-ok(panelSrc.indexOf('customStyleBlock(') >= 0, '④ 40 号调用了共享模块');
-ok(panelSrc.indexOf('api: { customStyles') >= 0, '④ 40 号把自己的两个方法注入给模块（同一次调用栈，不跨层互调）');
-/* 50 本来就会直读 prompt_order（liveEnabledMap 就是），所以这里不能按"出现字符串"判，
-   要按**写口**判：不许出现任何写盘/写预设的调用。 */
-
-/* ── ④c 只许有一份实现（用户 2026-10-02 点名的硬要求）──
-   判据不是"看起来像"，而是四条一起：模块存在且自洽、两个脚本都留了同一个占位符、
-   两个脚本都没有自己的第二份实现、内联后各脚本里模块恰好出现一次。 */
-ok(fs.existsSync(path.join(ROOT, 'src/scripts/_custom-style-ui.js')), '④c 共享模块文件存在');
-const placeholders = ['/* @@KAMI_CUSTOM_STYLE_UI@@ */'];
-ok(count(panelSrc, placeholders[0]) === 1, '④c 40 号留了恰好一个模块占位符', String(count(panelSrc, placeholders[0])));
-ok(count(uiSrc, placeholders[0]) === 0, '④c 模块自己不含那个占位符（否则内联会自我复制）');
-/* 两个脚本里都不许再有第二份实现：文案对象、状态机、DOM 构建、CSS 常量 */
-for (const [label, needle] of [['文案对象', 'CUSTOM_STYLE_COPY = {'], ['状态机 csState', 'var csState'],
-  ['DOM 构建 csPaint', 'function csPaint'], ['编辑器 csForm', 'function csForm'], ['样式常量', 'CUSTOM_STYLE_CSS = [']]) {
-  ok(panelSrc.indexOf(needle) < 0, '④c 40 号里没有第二份' + label, needle);
-}
-ok(count(uiSrc, 'CUSTOM_STYLE_COPY = {') === 1, '④c 文案对象在模块里只有一份');
-ok(count(uiSrc, 'function customStyleBlock(') === 1, '④c 模块只导出一个块工厂');
-/* 全仓唯一性：文案对象与块工厂只许出现在模块里 */
-const copySites = allSrc.filter(f => f.text.indexOf('CUSTOM_STYLE_COPY = {') >= 0).map(f => f.rel);
-ok(copySites.length === 1 && copySites[0].indexOf('_custom-style-ui.js') >= 0,
-  '④c CUSTOM_STYLE_COPY 全仓只有一处定义', copySites.join(', ') || '一处都没有');
-const factorySites = allSrc.filter(f => f.text.indexOf('function customStyleBlock(') >= 0).map(f => f.rel);
-ok(factorySites.length === 1 && factorySites[0].indexOf('_custom-style-ui.js') >= 0,
-  '④c customStyleBlock 全仓只有一处定义', factorySites.join(', ') || '一处都没有');
-/* 两个面板都要注入模块自带的样式，否则同一块 UI 两边长相会分叉 */
-ok(panelSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 40 号注入了模块样式');
-/* 构建侧：占位符得有人展开，否则内联根本不会发生 */
-ok(docSrc.indexOf('CUSTOM_STYLE_UI_MARK') >= 0, '④c build/kami-doc.mjs 里有模块占位符常量');
-ok(docSrc.indexOf('expandCustomStyleUi') >= 0, '④c build/kami-doc.mjs 里有展开函数');
-ok(expandPanelGestures(ROOT, '/* @@KAMI_CUSTOM_STYLE_UI@@ */').includes('function customStyleBlock('),
-  '④c 展开函数挂在 expandPanelGestures 里（build.mjs 与 server.mjs 都只调它）');
-/* 模块自身的内联前提：与 preset-parse.mjs 同一条规则 */
-ok(uiSrc.indexOf('import ') < 0, '④c 模块零 import（内联前提）');
-ok(uiSrc.split('\n').filter(l => /^\s+export\s/.test(l)).length === 0, '④c 模块没有缩进的 export');
-ok(uiSrc.split('\n').filter(l => l.startsWith('export ')).length >= 2, '④c 模块有行首 export 可去');
-
-/* ── ④d mount 的实参必须是"专属容器"，不许是页面级容器 ──
-   2026-10-03 真机回归：两个面板都曾把**整页容器**（40 的 pane / 50 的 panelBody）直接传进
-   csBlock.mount()，而模块的 mount 会先清空容器再重画 → 预设自带的文风刚画完就被整片抹掉，
-   用户看到的是"写作指导读不出预设自带的文风了"。
-   光靠注释提醒挡不住下一次，所以这里把**这一类错误**钉死：
-     (a) 实参名不许是任何页面级容器名；
-     (b) 实参必须是紧邻几行内新建的 div（类名恰好 kami-cs-host）；
-     (c) 挂载前必须先把这个专属容器 appendChild 进页面容器。
-   顺带把"为什么会踩"也钉住：模块的 mount 确实会清空容器（清空逻辑还在，规则就还得在）。 */
-const PAGE_CONTAINERS = ['pane', 'panelBody', 'panelDrop', 'panelRoot', 'body', 'document', 'HDOC'];
-function mountArgAudit(src, label) {
-  const hits = [...src.matchAll(/csBlock\.mount\(\s*([A-Za-z_$][\w$]*)\s*\)/g)];
-  ok(hits.length === 1, label + '：恰好一处 csBlock.mount(变量)', hits.length + ' 处');
-  if (hits.length !== 1) { return; }
-  const arg = hits[0][1];
-  const at = hits[0].index;
-  ok(PAGE_CONTAINERS.indexOf(arg) < 0, label + '：mount 的实参不是页面级容器', arg);
-  const before = src.slice(Math.max(0, at - 600), at);
-  const decl = new RegExp('var\\s+' + arg + "\\s*=\\s*[\\w$.]+\\(\\s*'div'\\s*,\\s*'kami-cs-host'\\s*\\)");
-  ok(decl.test(before), label + '：实参是紧邻新建的 kami-cs-host 专属容器', arg);
-  const app = before.match(new RegExp('([\\w$.]+)\\.appendChild\\(\\s*' + arg + '\\s*\\)'));
-  ok(!!app, label + '：挂载前先把专属容器 appendChild 进页面容器');
-  if (app) { ok(PAGE_CONTAINERS.indexOf(app[1].split('.').pop()) >= 0, label + '：appendChild 的目标是页面容器', app[1]); }
-}
-mountArgAudit(panelSrc, '④d 40 号');
-/* 为什么会踩：模块的 mount 会清空容器 —— 这条规则的前提，前提没了规则也该重审 */
-ok(uiSrc.indexOf('root = container') >= 0, '④d 模块的 mount 接收容器（前提仍在）');
-ok(uiSrc.indexOf('while (root.firstChild) { root.removeChild(root.firstChild); }') >= 0,
-  '④d 模块确实会清空传进来的容器（这就是必须传专属容器的原因）');
-/* 反向自证：这套判据必须能抓住"出过事的那种写法"，否则它只是装饰 */
-(function () {
-  const mountRe = /csBlock\.mount\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
-  const badHits = [..."csBlock.mount(pane);".matchAll(mountRe)];
-  ok(badHits.length === 1 && PAGE_CONTAINERS.indexOf(badHits[0][1]) >= 0,
-    '④d 反向自证：判据能抓住 csBlock.mount(pane) 这种写法');
-  const goodHits = [..."var csHost = mk('div', 'kami-cs-host'); csBlock.mount(csHost);".matchAll(mountRe)];
-  ok(goodHits.length === 1 && PAGE_CONTAINERS.indexOf(goodHits[0][1]) < 0,
-    '④d 反向自证：判据不会误伤 csBlock.mount(csHost)');
-})();
-note('④d 是按源码形态判的：能挡住"顺手把 pane 传进去"，挡不住有人把专属容器再包一层再用同一份 DOM');
-
-/* ── ④e 自定义块排在卡片组**之前**（2026-10-03 用户点名：放在页面最上面，不是最下面）──
-   为什么要有这条：位置这种东西改一次就悄悄回去了，而且"回去"以后界面照样能跑、
-   测试照样全绿，只有用户看得出不对。所以按源码里的先后顺序钉死。 */
-function sliceBetween(src, from, to) {
-  const a = src.indexOf(from);
-  if (a < 0) { return null; }
-  const b = src.indexOf(to, a + from.length);
-  return (b < 0) ? null : src.slice(a, b);
-}
-const panelTabBody = sliceBetween(panelSrc, 'function renderTab(pane, tab) {', 'function mountCustomStyleBlock(');
-ok(!!panelTabBody, '④e 40 号：截到了 renderTab 的函数体');
-if (panelTabBody) {
-  const at = panelTabBody.indexOf('mountCustomStyleBlock(pane)');
-  ok(at >= 0, '④e 40 号：这个 tab 确实挂了自定义块');
-  ok(at >= 0 && at < panelTabBody.indexOf('cardEl(tab, '), '④e 40 号：自定义块排在卡片组 **之前**');
-  ok(at >= 0 && at < panelTabBody.indexOf('itemsGrid(tab.own'), '④e 40 号：自定义块排在裸放条目前面');
-  /* 空态是给"卡片组"的：它在自定义块之后，不会被顶掉 */
-  const emptyAt = panelTabBody.indexOf('这个层级里没有可开关的条目');
-  ok(emptyAt >= 0 && at >= 0 && emptyAt > at, '④e 40 号：空态仍在自定义块之后（它是给卡片组的）');
-  /* 用户原话是"页面最上面"，40 那边指的是**这个 tab 的最前**：先过几个特判 return 才轮到这儿 */
-  ok(panelTabBody.indexOf("tab.special === 'err'") < at,
-    '④e 40 号：自定义块在特判 return 之后（是"这个 tab 的最前"，不是整块面板的最前）');
-}
-/* 反向自证：判据必须能区分"排前面"和"排后面"，否则它只是装饰 */
-(function () {
-  const before = 'renderCustomStyleBlock(); ... for (var g = 0; ...';
-  ok(before.indexOf('renderCustomStyleBlock()') < before.indexOf('for (var g = 0;'),
-    '④e 反向自证：排在前面时判据放行');
-  const after = 'for (var g = 0; ... ... renderCustomStyleBlock();';
-  ok(!(after.indexOf('renderCustomStyleBlock()') < after.indexOf('for (var g = 0;')),
-    '④e 反向自证：排在后面时判据会 FAIL');
-})();
-note('④e 判的是"源码里谁先出现"，不是运行时 DOM 顺序；运行时的 DOM 顺序由这两个函数体的书写顺序决定，所以这条等价');
-
-/* ── ④b 用户 2026-10-02 点名的两条补丁（现在都长在共享模块里）── */
-/* (1) 分区收尾标记读不到 → 硬拒绝写入（功能不可用是看得见的毛病，条目插到分区外是看不见的毛病） */
-ok(panelSrc.indexOf('NO_SECTION_END') >= 0, '④b 40 号在收尾标记缺失时硬拒绝写入');
-ok(panelSrc.indexOf('if (!sec.closeIdentifier)') >= 0, '④b 那道硬闸就在 applyCustomStyles 里');
-ok(uiSrc.indexOf('closeOk') >= 0, '④b 模块按 closeOk 收起写入口（只让看不让改）');
-/* (2) 掉出组的条目要有明确提示（否则用户只会看到"我的文风不见了"） */
-ok(uiSrc.indexOf('data-kami-cs-orphan') >= 0, '④b 模块给掉组的行打了标记');
-ok(uiSrc.indexOf('orphanNote') >= 0, '④b 模块在列表上方给出掉组解释');
-ok(uiSrc.indexOf(".orphanNote.replace('{n}'") >= 0, '④b 掉组提示带条数（{n} 会被替换）');
-
-/* ── ④f 「标记删除 → 保存 → 两个数组同删」这条链（用户 2026-10-03 报「删除没有用」）──
-   这条链横跨三处，任何一处断了症状都是"点了删除、保存了，条目还在"，而且**全程没有报错**：
-     界面标记 → save() 收进 req.removes → 40 号算计划并真的从两个数组里删 → 写前断言"删掉的不许还在"。
-   所以四段各钉一条，谁断了都能一眼看出是哪一段。 */
-ok(uiSrc.indexOf('st.removes[ent.identifier] = true') >= 0, '④f 界面「删除」只是打标记（保存才落）');
-ok(/for \(k in st\.removes\)[\s\S]{0,220}req\.removes\.push\(k\)/.test(uiSrc), '④f save() 把 removes 的键收进 req.removes');
-ok(/for \(k in st\.edits\)[\s\S]{0,220}if \(st\.removes\[k\]\) \{ continue; \}/.test(uiSrc),
-  '④f 同一批里被删的条目不再当 update 提交（先改后删不打架）');
-ok(uiSrc.indexOf('delete st.removes[ent.identifier]') >= 0, '④f 删除标记可以撤销（撤销要把键清掉）');
-ok(panelSrc.indexOf('var hasWork = plan.report.added.length || plan.report.updated.length || plan.report.removed.length') >= 0,
-  '④f 40 号的 hasWork 把 removed 也算作"有活"（删一条不会被当成 nothing 静默返回）');
-ok(panelSrc.indexOf('if (indexOfIdentifier(livePrompts, probe) || indexOfIdentifier(liveOrder, probe))') >= 0,
-  '④f 40 号写前断言"删掉的条目不许还在"（两个数组都查）');
-ok(panelSrc.indexOf('删除条目还留着') >= 0, '④f 那道断言失败时会给明确错误');
-ok((0 || 0 || 1) ? true : false, '④f 反向自证：removed 非空时 hasWork 为真（不会走 nothing 分支）');
-note('④f 只钉到"代码链完整"；真机上"落盘后刷新还复活"属于酒馆保存通道能不能写进去，得真机验（见报告）');
+/* ── ④ 界面接线：2026-10-30 起自定义文风块由运行库的预设面板 / 引导面板画，
+     经 40 号的预设桥（customStyles / applyCustomStyles）读写；_custom-style-ui.js 只剩文案。 */
+const bridgeSrc = read('src/scripts/_preset-bridge.js');
+const uiPanels = ['src/frontend/panels/preset-panel.tsx', 'src/frontend/panels/preset-parts.tsx', 'src/frontend/panels/guide-panel.tsx']
+  .filter(r => fs.existsSync(path.join(ROOT, r))).map(read).join('\n');
+ok(/customStyles:\s*function/.test(bridgeSrc) && /applyCustomStyles:\s*function/.test(bridgeSrc), '④ 预设桥导出 customStyles / applyCustomStyles');
+ok(/\.customStyles\(/.test(uiPanels) && /\.applyCustomStyles!?\(/.test(uiPanels), '④ 新面板真的调用了这两个出口');
+ok(uiSrc.indexOf('export var CUSTOM_STYLE_COPY') >= 0 || uiSrc.indexOf('export const CUSTOM_STYLE_COPY') >= 0, '④ 文案只有模块里这一份');
+ok(uiSrc.indexOf('function customStyleBlock(') < 0, '④ 旧的 DOM 块工厂已删（不留第二套界面）');
 
 /* ── ④g 保存路径必须在落盘成功后叫酒馆原生面板重画 ──
    2026-10-05 用户报「删除没有用」，真根因在这里：删除本身是好的，是**酒馆原生预设面板没跟着刷新**，
@@ -293,41 +162,6 @@ if (fs.existsSync(path.join(ROOT, testRel))) {
   }
   ok(t.indexOf('④-12') >= 0, '⑤ 单测里有"新增→保存→删除→保存"整链回归');
   ok(t.indexOf('④-12 删完两个数组里都没有它') >= 0, '⑤ 那条回归断言的是"两个数组里都没有它"');
-}
-
-/* ── ⑦ 产物层（给了路径才查） ── */
-const p = process.argv[2];
-if (!p) {
-  note('没给产物路径：只查了源码。build 之后请跑 node build/verify-custom-style.mjs <产物>');
-} else if (!fs.existsSync(p)) {
-  ok(false, '⑥ 产物存在', p);
-} else {
-  console.log('');
-  console.log('=== 产物接线 ===');
-  const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
-  const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
-  const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-  const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-  ok(!!panel, '⑦ 产物里有「预设设置」脚本');
-  ok(!!guide, '⑦ 产物里有「引导」脚本');
-  ok(panel.indexOf('function parseCustomName(') >= 0, '⑦ 解析器内联进了 40 号');
-  ok(guide.indexOf('function parseCustomName(') >= 0, '⑦ 解析器内联进了 50 号');
-  ok(panel.indexOf('function planCustomStyleWrite(') >= 0, '⑦ 写入计划内联进了 40 号');
-  ok(panel.indexOf('applyCustomStyles') >= 0, '⑦ 40 号有 applyCustomStyles');
-  /* 共享模块：两个脚本里各内联一份，且**恰好一份** —— 这就是"只许有一份实现"的产物级证据 */
-  ok(count(panel, 'function customStyleBlock(') === 1, '⑦ 共享模块内联进 40 号且只有一份', String(count(panel, 'function customStyleBlock(')));
-  ok(count(guide, 'function customStyleBlock(') === 1, '⑦ 共享模块内联进 50 号且只有一份', String(count(guide, 'function customStyleBlock(')));
-  ok(count(panel, 'CUSTOM_STYLE_COPY = {') === 1, '⑦ 40 号里文案对象只有一份');
-  ok(count(guide, 'CUSTOM_STYLE_COPY = {') === 1, '⑦ 50 号里文案对象只有一份');
-  ok(count(panel, 'CUSTOM_STYLE_CSS = [') === 1 && count(guide, 'CUSTOM_STYLE_CSS = [') === 1,
-    '⑦ 两个脚本里样式常量各只有一份');
-  /* 顺序也要活到产物里（④e 查的是源码，这里查产物，防止展开/替换把顺序打乱） */
-  const gAt = guide.indexOf('renderCustomStyleBlock()'), gLoop = guide.indexOf('for (var g = 0;');
-  ok(gAt >= 0 && gLoop >= 0 && gAt < gLoop, '⑦ 产物：引导页自定义块排在卡片组之前');
-  const pAt = panel.indexOf('mountCustomStyleBlock(pane)'), pLoop = panel.indexOf('cardEl(tab, ');
-  ok(pAt >= 0 && pLoop >= 0 && pAt < pLoop, '⑦ 产物：预设面板自定义块排在卡片组之前');
-  const dupMarker = count(panel, "' | diy_write_style'") + count(guide, "' | diy_write_style'");
-  ok(dupMarker <= 2, '⑦ 标记字面量只随解析器各内联一份（40 一份、50 一份）', dupMarker + ' 处');
 }
 
 console.log('');

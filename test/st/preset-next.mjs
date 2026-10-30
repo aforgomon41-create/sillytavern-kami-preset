@@ -1,9 +1,9 @@
-// 「🧪 预设设置」脚本（新预设设置面板 + 40 号读写桥）在真实酒馆里的验证：
+// 「🌟 预设设置」脚本（新预设设置面板 + 40 号读写桥，2026-10-30 起同一条脚本）在真实酒馆里的验证：
 //   node test/st/preset-next.mjs [--mobile] [--shots]
 // 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包，见 test/st/README.md
 // 核对：只有一颗 🌟 且打开的是新面板；页签 = 概览 + 预设解析出的层级；
 //       多选条目点一下写进酒馆的 prompt_order、撤销能复原；单选组切换时同组其它条关掉；
-//       选模型走 40 号原来的路径；改变量写进预设正文；写作指导页有自定义文风；对比度；注销后按钮交回旧面板。
+//       选模型走 40 号原来的路径；改变量写进预设正文；写作指导页有自定义文风；对比度；注销后按钮、面板、全局 API 全部收回。
 import { createRequire } from 'node:module';
 import { auditInPage } from '../frontend/browser/audit-lib.mjs';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
@@ -57,14 +57,14 @@ const clickCard = (title) => inLayer((r, t) => {
 
 /* ① 按钮与面板 */
 const bt = await buttons();
-ok(bt.filter((x) => x.startsWith('🌟')).length === 1, '按钮条只有一颗 🌟（旧预设设置让位）', bt);
+ok(bt.filter((x) => x.startsWith('🌟')).length === 1, '按钮条只有一颗 🌟', bt);
 ok(await clickBtn('🌟 预设设置'), '找到「🌟 预设设置」按钮');
 await page.waitForTimeout(900);
 const v0 = await view();
 const panel = await inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); return p ? { title: p.querySelector('[data-k-part="title"]').textContent, tabs: [...p.querySelectorAll('[data-k="nav"] [data-k-part="item"], [data-k="tabs"] > [data-k-part="list"] [data-k-part="tab"]')].map((x) => x.textContent) } : null; });
 ok(v0.ok && v0.tabs.length >= 3, '读写桥解析出当前预设：' + v0.tabs.length + ' 个页签（' + v0.name + '）', v0.error);
 ok(panel && panel.title.includes('预设设置') && panel.tabs.length === v0.tabs.length + 1 && panel.tabs[0] === '概览', '打开新面板：概览 + 预设的层级', panel);
-ok(await page.evaluate(() => !window.KamiPreset.status().panelOpen), '旧预设设置面板没有被打开');
+ok(await page.evaluate(() => window.KamiPreset.status().panelOpen === true && !document.getElementById('kami-preset-panel')), 'KamiPreset.status 读的是新面板，页面上没有旧面板 DOM');
 
 /* ② 多选条目：点一下写进酒馆，撤销复原 */
 const layer = v0.tabs.find((t) => t.kind === 'layer' && (t.groups || []).some((g) => g.mode === 'any' && g.items.some((i) => !i.locked)));
@@ -148,10 +148,12 @@ await page.waitForTimeout(3500);
 const gone = await page.evaluate(() => ({ api: !!window.KamiPresetNext, open: !!document.querySelector('kami-layer').shadowRoot.querySelector('[data-k="panel"]') }));
 const bt2 = await buttons();
 ok(!gone.api && !gone.open, '注销后面板与全局 API 收回', gone);
-ok(bt2.filter((x) => x.startsWith('🌟')).length === 1, '按钮交回旧预设设置（仍是一颗 🌟）', bt2);
-await clickBtn('🌟 预设设置');
-await page.waitForTimeout(800);
-ok(await page.evaluate(() => window.KamiPreset.status().panelOpen), '点它打开的是旧预设设置');
+ok(await page.evaluate(() => window.KamiPreset.status().panelOpen === false), '界面注销后 KamiPreset 报告面板已关');
+await page.evaluate(() => window.KamiPreset.shutdown());
+await page.waitForTimeout(3500);
+const gone2 = await page.evaluate(() => ({ preset: !!window.KamiPreset, next: !!window.KamiPresetNext }));
+const bt3 = await buttons();
+ok(!gone2.preset && !gone2.next && bt3.filter((x) => x.startsWith('🌟')).length === 0, '整条脚本注销后不留 🌟 按钮与全局 API', { gone2, bt3 });
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 await b.close();
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));

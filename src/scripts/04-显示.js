@@ -101,7 +101,7 @@
         alive: function () { return !disposed; },
         label: function () { return HUB_NAME; },
         ready: function () { return !!mgr; },
-        absent: '显示面板还没就绪（🧪 新前端运行库 是否开着？）',
+        absent: '显示面板还没就绪（🧩 运行库 是否开着？）',
         click: function () { toggle(); }
       };
       defs.push(ownDef);
@@ -130,7 +130,7 @@
     if (disposed) { return; }
     var r = HOST.KamiRuntimeNext;
     if (r && r.SkinManager && r.panels) { boot(r); return; }
-    if ((waited += 100) > 15000) { log('⚠ 等不到新运行库（🧪 新前端运行库 是否开着？）'); return; }
+    if ((waited += 100) > 15000) { log('⚠ 等不到新运行库（🧩 运行库 是否开着？）'); return; }
     timer = setTimeout(wait, 100);
   }
 

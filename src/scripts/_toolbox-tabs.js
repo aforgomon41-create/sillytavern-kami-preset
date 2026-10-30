@@ -1,22 +1,7 @@
-/* 工具箱导航。复用原压缩窗口、保存位置和面板手势，不创建第二个窗口或独立脚本。 */
-  var toolboxTab = 'compress', toolboxPanes = {};
-  var otherToolsOwner = null, otherToolsDispose = null, SEARCH = null, MANUAL_SEARCH_UI = null;
-export function mountOtherToolsPage() {
-    var pane = toolboxPanes.other, owner = HOST.KamiPreset;
-    if (!pane) { return; }
-    if (owner && typeof owner.mountOtherTools === 'function') {
-      if (otherToolsOwner === owner) { return; }
-      if (otherToolsDispose) { try { otherToolsDispose(); } catch (e) { } }
-      otherToolsOwner = owner;
-      otherToolsDispose = owner.mountOtherTools(pane);
-      return;
-    }
-    if (otherToolsOwner && otherToolsDispose) { try { otherToolsDispose(); } catch (e2) { } }
-    otherToolsOwner = null; otherToolsDispose = null;
-    pane.textContent = '';
-    pane.appendChild(mk('div', 'kami-card-note', '请启用预设设置脚本，以使用标签处理、常驻指令和正文导出。'));
-  }
-  function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi(); if (n) { n.open(toolboxTab); } }
+/* 工具箱入口与服务装配：界面由运行库的工具箱面板画（本脚本第二段「界面接线」），这里只留全局 API 与搜索服务。 */
+  var toolboxTab = 'compress';
+  var SEARCH = null, MANUAL_SEARCH_UI = null;
+export function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi(); if (n) { n.open(toolboxTab); } }
   function toggleToolbox() { togglePanel(); }
 
   function exposeToolbox() {
@@ -26,7 +11,6 @@ export function mountOtherToolsPage() {
       status: function () { return { open: isOpen(), tab: toolboxTab, compression: status(), search: SEARCH ? SEARCH.status() : null }; },
       manualSearch: function () { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.open(); } },
       bridge: function () { return toolboxBridge(); },
-      refreshOtherTools: function () { if (toolboxTab === 'other') { mountOtherToolsPage(); } },
       shutdown: teardown
     };
     HOST.KamiToolbox = api;
@@ -118,18 +102,11 @@ export function mountOtherToolsPage() {
       if (target && target.closest && target.closest('.prompt-manager-toggle-action, [id$="prompt_manager_popup_entry_form_save"]')) { HOST.setTimeout(function () { if (SEARCH && !disposed) { SEARCH.syncTask(); } }, 0); }
     };
     HDOC.addEventListener('click', promptChanged, true); unsubs.push({ stop: function () { HDOC.removeEventListener('click', promptChanged, true); } });
-    var ready = function () { if (!disposed && toolboxTab === 'other') { mountOtherToolsPage(); } };
-    try {
-      HOST.addEventListener('kami-tools-ready', ready);
-      unsubs.push({ stop: function () { HOST.removeEventListener('kami-tools-ready', ready); } });
-    } catch (e) { }
   }
 
   function disposeToolboxServices() {
     if (MANUAL_SEARCH_UI) { try { MANUAL_SEARCH_UI.dispose(); } catch (e) { } MANUAL_SEARCH_UI = null; }
     if (SEARCH) { try { SEARCH.shutdown(); } catch (e) { } SEARCH = null; }
-    if (otherToolsDispose) { try { otherToolsDispose(); } catch (e2) { } }
-    otherToolsOwner = null; otherToolsDispose = null;
     try { delete HOST.KamiToolbox; } catch (e3) { }
     try { delete window.KamiToolbox; } catch (e4) { }
   }

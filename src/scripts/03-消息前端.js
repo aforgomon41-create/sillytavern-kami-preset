@@ -141,7 +141,7 @@
     if (disposed) { return; }
     var rt = HOST.KamiRuntimeNext;
     if (rt && rt.chatFrontend) { boot(rt); return; }
-    if ((waited += 100) > 15000) { log('⚠ 等不到新运行库（🧪 新前端运行库 是否开着？）'); return; }
+    if ((waited += 100) > 15000) { log('⚠ 等不到新运行库（🧩 运行库 是否开着？）'); return; }
     timer = setTimeout(wait, 100);
   }
 

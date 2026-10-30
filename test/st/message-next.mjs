@@ -199,14 +199,18 @@ const plug = await page.evaluate(async () => {
 ok(plug.found && plug.visible, '插件往正文里插的按钮：在 .mes_text 里、看得见、重扫后不丢', plug);
 
 /* ④ 展开思维链：特效、Markdown、公式、编辑走原生按钮 */
+/* 特效只给看得见的元素放：先把思维链块捲进画面（曾因长聊天时它在视口上方而 0 片） */
+await inPart('think', (r, _a, h) => { h.scrollIntoView({ block: 'center' }); return true; });
+await page.waitForTimeout(300);
 const fx0 = await inPart('think', (r) => { r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]').click(); return true; });
 /* 特效只持续几百毫秒：轮询取最大片数，不靠一次固定时刻的采样（曾在 90ms 那一刻偶发 0 片） */
-let fxShown = 0;
-for (let i = 0; i < 12 && !fxShown; i++) {
-  await page.waitForTimeout(50);
-  fxShown = await inPart('think', (r) => [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length);
+let fxShown = 0, fxInfo = null;
+for (let i = 0; i < 30 && !fxShown; i++) {
+  await page.waitForTimeout(40);
+  fxInfo = await inPart('think', (r, _a, h) => { const rc = h.getBoundingClientRect(); return { n: [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length, layers: r.querySelectorAll('[data-k-fx-layer]').length, top: Math.round(rc.top), bottom: Math.round(rc.bottom), vh: innerHeight }; });
+  fxShown = fxInfo ? fxInfo.n : 0;
 }
-ok(fx0 && fxShown > 0, '展开思维链有碎光特效（' + fxShown + ' 片）', fxShown);
+ok(fx0 && fxShown > 0, '展开思维链有碎光特效（' + fxShown + ' 片）', fxInfo);
 await page.waitForTimeout(500);
 const th = await inPart('think', (r, a, h) => { const c = h.querySelector('[slot="content"][data-k-content="think"]'); return {
   h: c ? [...c.querySelectorAll('h1, h2, h3, h4, h5, h6')].map((x) => x.textContent) : [], li: c ? c.querySelectorAll('li').length : 0,

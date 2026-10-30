@@ -19,6 +19,8 @@
 import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const p = process.argv[2];
 if (!p) { console.error('用法：node build/verify-inherit.mjs <产物路径>'); process.exit(2); }
@@ -61,16 +63,16 @@ ok(up.indexOf('plan.inherit = true') >= 0, '① 合并计划上带了 inherit �
 ok(up.indexOf('base = ' + "'认不出（退化模式）'") >= 0 || up.indexOf('认不出（退化模式）') >= 0,
   '① 认不出旧预设版本时走退化模式（取不到 base 也能合并，宁可少动）');
 
-/* ② 40 号：卡片、三层退路、非卡密警告、取消、写回 */
-ok(panel.indexOf('function renderInheritCard') >= 0, '② 40 号里有「继承旧预设设置」这张卡');
-ok(/renderInheritCard\(pane\)/.test(panel), '② 它被挂进「关于」页（不是写了不用）');
+/* ② 界面：2026-10-30 起「继承旧预设设置」卡由运行库的工具箱面板画（src/frontend/panels/toolbox-panel.tsx），
+     经 40 号的工具桥（_tools-bridge.js 的 updateBridge）调 70 号；40 号旧的 DOM 面板已删。 */
+const tbx = fs.readFileSync(path.join(ROOT, 'src', 'frontend', 'panels', 'toolbox-panel.tsx'), 'utf8');
+ok(/api\.inherit\(|startInherit\(/.test(tbx) && tbx.indexOf("I['sourceLabel']") >= 0, '② 新面板里有「继承旧预设设置」这张卡（含来源一行）');
 ok(panel.indexOf('otherPresetNames()') >= 0 && panel.indexOf('isKamiName(') >= 0,
   '② 清单与「是不是卡密预设」都问 70 号（不在面板里另造一份判断）');
-ok(panel.indexOf('warnThenStart') >= 0 && panel.indexOf("'继承（非卡密）'") >= 0,
+ok(tbx.indexOf("'（非卡密）'") >= 0 && /if \(!api\.isKami\(chosen\)\) \{ setWarn\(true\)/.test(tbx),
   '② 挑到非卡密预设时先警告再问（用户点名的那句提示）');
-ok(panel.indexOf("'仍然继承'") >= 0 && panel.indexOf("'换一个'") >= 0, '② 警告里给出「仍然继承 / 换一个」两条路');
-ok(panel.indexOf("mk('button', 'kami-btn', '取消')") >= 0, '② 清单里有取消键（防误触）');
-ok(panel.indexOf('INHERIT_COPY.degrade') >= 0 && /if \(!up\) \{/.test(panel),
+ok(tbx.indexOf('>仍然继承<') >= 0 && tbx.indexOf('>换一个<') >= 0, '② 警告里给出「仍然继承 / 换一个」两条路');
+ok(tbx.indexOf("I['degrade']") >= 0 && panel.indexOf('INHERIT_COPY.degrade') >= 0,
   '② 远程更新脚本没在跑时降级成一句说明，不给点了没反应的按钮');
 ok(panel.indexOf('function applyInheritedToLive') >= 0, '② 40 号负责最后一棒：把结果覆盖到当前预设');
 ok(/savePresetFile\(ctx, s, null, function \(\) \{/.test(panelCode),
@@ -78,13 +80,9 @@ ok(/savePresetFile\(ctx, s, null, function \(\) \{/.test(panelCode),
 ok(panel.indexOf('INHERIT_COPY.failHead') >= 0 && panel.indexOf('cancelled') >= 0,
   '② 失败与「你在裁决页里没完成」都有人话提示');
 
-/* ③ 裁决页措辞：继承时「我的」其实指旧预设，必须换一套说法 */
-ok(panel.indexOf('function mergeWords') >= 0, '③ 裁决页措辞抽成了一处（mergeWords）');
-ok(panel.indexOf("mine: '保留旧预设', next: '用现在这份'") >= 0, '③ 继承那套说「保留旧预设 / 用现在这份」');
-ok(panel.indexOf("mine: '保留我的', next: '用新版'") >= 0, '③ 远程更新那套说「保留我的 / 用新版」');
-ok(/var W = mergeWords\(\);/.test(panel) && (panel.match(/var W = mergeWords\(\);/g) || []).length >= 2,
-  '③ 卡片与页头都读同一处措辞（不是改一处漏一处）');
-ok(panel.indexOf("inh ? '🔀 继承旧预设' : '🔀 更新合并'") >= 0, '③ 那一页的标题也跟着换');
+/* ③ 裁决页措辞：继承时「我的」其实指旧预设，必须换一套说法（裁决窗在新面板里） */
+ok(tbx.indexOf("mine: '保留旧预设', next: '用现在这份'") >= 0, '③ 继承那套说「保留旧预设 / 用现在这份」');
+ok(tbx.indexOf("mine: '保留我的', next: '用新版'") >= 0, '③ 远程更新那套说「保留我的 / 用新版」');
 
 /* ④ 文案：用户点名要的几句必须在产物里 */
 [['卡片标题', '继承旧预设设置'], ['使用时机', '手动导入新版本后'], ['非卡密警告', '这个看起来不是卡密预设'],
@@ -126,7 +124,7 @@ ok(panel.indexOf('sourceLabel') >= 0 && panel.indexOf('这一份继承自') >= 0
   '⑥ 面板里写明「这一份继承自」哪份旧预设（用户点名）');
 ok(/inheritFrom: inheritFromName \|\| null/.test(panelCode) && /saved\.inheritFrom/.test(panelCode),
   '⑥ 这个来源跟着预设走（存进脚本变量，而脚本变量写在预设文件里）');
-ok(panel.indexOf('inheritFromName = oldName') >= 0 && (panel.match(/finishInherit\(r\.oldName\)/g) || []).length >= 3, '⑥ 继承成功后把来源记下来（新旧面板三条路都走 finishInherit）');
+ok(panel.indexOf('inheritFromName = oldName') >= 0 && (panel.match(/finishInherit\(r\.oldName\)/g) || []).length >= 1, '⑥ 继承成功后把来源记下来（工具桥那条路走 finishInherit）');
 /* ⑦ 2026-10-30 预览版用户报「继承不了」：写盘后要同步酒馆助手内存里的脚本树 / 预设变量，否则它会把旧的写回去；然后刷新页面 */
 ok(/syncHelperStore\(merged\)/.test(inheritedWrite) && /replaceScriptTrees\([\s\S]{0,80}type: 'preset'/.test(panelCode) && /replaceVariables\([\s\S]{0,80}type: 'preset'/.test(panelCode),
   '⑦ 继承写盘后把脚本树与预设变量同步给酒馆助手');

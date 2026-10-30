@@ -73,37 +73,27 @@ ok(lostTags.length === 0, '⑤ 标签登记表与预设「🧩 标签格式」�
 ok(code.indexOf("['medium', 'medium_content', 'details']") >= 0,
   '⑥ HTML 卡片区进了排除名单（medium / medium_content / details）');
 
-/* ⑦ 工具迁入工具箱；40 仍提供同一套渲染与事件。 */
-ok(code.includes('mountOtherTools: mountOtherTools') && code.includes('renderToolboxTab(container)'), '⑦ 其他功能通过共享挂载接口提供');
+/* ⑦ 界面：2026-10-30 起「自动标签处理」卡由运行库的工具箱面板画（src/frontend/panels/toolbox-panel.tsx），
+     经 40 号的工具桥（_tools-bridge.js）读写；40 号旧的 DOM 渲染与确认弹窗已删。 */
+const tbx = fs.readFileSync(path.join(ROOT, 'src', 'frontend', 'panels', 'toolbox-panel.tsx'), 'utf8');
 ok(!code.includes('out.push(toolboxTab())'), '⑦ 预设设置不再重复显示其他功能页');
-ok(code.indexOf("data-kami-tagfix") >= 0 && code.indexOf('setTagFixMode(') >= 0,
-  '⑦ 三档开关接上了（data-kami-tagfix → setTagFixMode）');
-ok(code.indexOf("'tagfix-floor'") >= 0 && code.indexOf('tagFixCurrentFloor') >= 0,
-  '⑦ 手动「处理当前楼层」接上了');
-/* ⑦-b 用户 2026-09-30 的两条追加要求：说明折叠进 ⓘ、自定义标签可填 */
-ok(code.indexOf('noteMark(TAGFIX_COPY.note)') >= 0 && code.indexOf('noteText(TAGFIX_COPY.note)') >= 0,
-  '⑦ 说明折叠进 ⓘ（用与预设条目注释同一套 noteMark / noteText）');
-ok(code.indexOf("'data-kami-tagfix-custom'") >= 0 && code.indexOf('setTagFixCustom(') >= 0,
+ok(/setTagMode:\s*function \(id\) \{ setTagFixMode\(id\)/.test(code) && /api\.setTagMode\(/.test(tbx),
+  '⑦ 三档开关接上了（新面板 → setTagMode → setTagFixMode）');
+ok(/scanTag:\s*function/.test(code) && /applyTag:\s*async function/.test(code) && /api\.scanTag\(\)/.test(tbx) && /api\.applyTag\(/.test(tbx),
+  '⑦ 手动「处理当前楼层」接上了（先扫 scanTag → 面板里确认 → applyTag 写）');
+ok(/setTagCustom:\s*function \(text\) \{ var l = setTagFixCustom\(text\)/.test(code) && /api\.setTagCustom\(/.test(tbx),
   '⑦ 自定义标签输入框接上了');
 ok(code.indexOf('specsWithCustom(tagFixCustom)') >= 0 && code.indexOf('parseCustomTags(') >= 0,
   '⑦ 自定义标签并进登记表（parseCustomTags → specsWithCustom）');
 ok(code.indexOf('tagFixCustom: tagFixCustom.slice()') >= 0 && code.indexOf('saved[TAGFIX_CUSTOM_VAR]') >= 0,
   '⑦ 自定义标签存进脚本变量（读回来 + 写回去都在）');
-/* ⑦-c 确认窗：先扫一遍、报这一次**实际会改**的条目（用户 2026-09-30 点名），再抬到面板上层 */
-ok(code.indexOf('tagFixAsk(') >= 0 && code.indexOf('describeChanges(res, 8)') >= 0,
-  '⑦ 确认窗拼的是扫描结果（describeChanges），不是登记表');
-ok(code.indexOf('tagFixGroupHtml(TAGFIX_COPY.closeLead') >= 0 &&
-  code.indexOf('tagFixGroupHtml(TAGFIX_COPY.removeLead') >= 0,
-  '⑦ 窗里分「要补上的结尾 / 要删掉的标签」两组列条目');
-ok(code.indexOf('res.changes') >= 0 && code.indexOf('tagFixListText') < 0,
-  '⑦ 已经不再往窗里塞「我管哪些标签」那张表');
-ok(code.indexOf('root.style.zIndex = \'1\'') >= 0,
-  '⑦ 弹确认窗时把面板临时压到下面（否则同层级 + DOM 顺序在后 = 被盖住，用户实测点名）');
-ok(code.indexOf("tagFixAsk.lastReason = 'noPopup'") >= 0 && code.indexOf('TAGFIX_COPY.noPopup') >= 0,
-  '⑦ 拿不到弹窗时**什么都不改**并把原因说出来（不许没问过用户就动聊天记录）');
-ok(code.includes('if (disposed || !container)') && code.includes('renderToolboxTab(container)'),
-  '⑦ 其他功能挂载不依赖预设条目解析');
-ok(code.indexOf('strayNote.replace') >= 0, '⑦ 有落单的结尾标签时在窗里说明没动它们');
+/* ⑦-c 确认：先扫一遍、报这一次**实际会改**的条目（用户 2026-09-30 点名） */
+ok(code.indexOf('describeChanges(res, 8)') >= 0, '⑦ 确认列表拼的是扫描结果（describeChanges），不是登记表');
+ok(code.indexOf('TAGFIX_COPY.closeLead') >= 0 && code.indexOf('TAGFIX_COPY.removeLead') >= 0,
+  '⑦ 确认里分「要补上的结尾 / 要删掉的标签」两组列条目');
+ok(/p\.seq !== token/.test(code) && /tagFixSameChat\(p\.stamp/.test(code),
+  '⑦ 写之前核对：确认期间楼层或聊天变了就不写');
+ok(tbx.indexOf("T['strayNote']") >= 0 && /stray:/.test(code), '⑦ 有落单的结尾标签时在确认里说明没动它们');
 
 /* ⑧ 自动那一条路：事件、Promise、写回、重画 */
 ok(code.indexOf('tavern_events.MESSAGE_RECEIVED') >= 0, '⑧ 挂在 MESSAGE_RECEIVED 上');
@@ -131,14 +121,14 @@ ok(code.includes("register('tag-references', 20") && code.includes('createTagRef
   '⑩ 引用保护在响应交给酒馆前接入共享管线');
 ok(code.includes('tagReferenceRelease(); tagReferenceRelease = null') && code.includes('protectReasoningReferences(text)'),
   '⑩ 关闭/注销移除自有处理器，后置手动处理复用同一保护器');
-ok(code.indexOf('data-kami-tagfix-all') >= 0 && code.indexOf('setTagFixAll(') >= 0,
-  '⑩ 覆盖开关接上了（data-kami-tagfix-all → setTagFixAll）');
+ok(/setTagAll:\s*function \(on\) \{ setTagFixAll\(on\)/.test(code) && /api\.setTagAll\(/.test(tbx),
+  '⑩ 覆盖开关接上了（新面板 → setTagAll → setTagFixAll）');
 ok(code.indexOf('saved[TAGFIX_ALL_VAR]') >= 0 && code.indexOf('tagFixAll: tagFixAll') >= 0,
   '⑩ 覆盖开关存进脚本变量（读回来 + 写回去都在）');
-ok(code.indexOf('TAGFIX_COPY.allHint') >= 0,
-  '⑩ 覆盖开关的说明文案被用上（TAGFIX_COPY.allHint）');
-ok(code.indexOf('kami-switch-input') >= 0,
-  '⑩ 开关复用契约里登记过的控件（kami-switch-input）');
+ok(tbx.indexOf("T['allHint']") >= 0,
+  '⑩ 覆盖开关的说明文案被用上（allHint）');
+ok(/<Switch checked=\{s\.tag\.all\}/.test(tbx),
+  '⑩ 开关复用设计系统的 Switch 控件');
 ok((code.match(/tagFixAll/g) || []).length >= 4,
   '⑩ 覆盖开关在产物里多处出现（状态 / 渲染 / 事件 / 存读，不是只写了个字符串）',
   '出现 ' + ((code.match(/tagFixAll/g) || []).length) + ' 次');

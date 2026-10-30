@@ -140,7 +140,7 @@ function devScript(file) {
   /* 与 build.mjs 一致：兜底皮肤（src/skin/base.css）与预设解析器（test/harness/preset-parse.mjs） */
   code = expandBaseCssJs(ROOT, code);
   code = expandPresetParse(ROOT, code);
-  /* 与 build.mjs 一致：面板手势共享模块（src/scripts/_panel-gestures.js） */
+  /* 与 build.mjs 一致：共享模块统一入口（名字沿用 expandPanelGestures） */
   code = expandPanelGestures(ROOT, code);
   /* 运行库（React + Radix）：与 build.mjs 一致，把 bundle 内联进「00-运行库.js」。
      漏了它预览台里 KamiRuntime 不存在，所有面板都会走「运行库未加载」分支。 */

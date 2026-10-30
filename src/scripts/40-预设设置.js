@@ -54,27 +54,12 @@
   'use strict';
   /* @@KAMI_UI@@ */
 
-  var VERSION = '0.9';
-  var HUB_NAME = '🌟 预设设置';   /* 2026-10-29 用户定：按钮统一「图标 + 空格 + 名字」，名字与面板标题一致 */
-  /* 按钮条排布（2026-09-21 用户裁定）：引导(10) → 皮肤(20) → 预设(30) → 压缩(40) → 反截断(50) */
-  var HUB_ORDER = 30;
-  var PANEL_ID = 'kami-preset-panel';
-  var CSS_ID = 'kami-preset-css';
-  var API_NAME = 'KamiPreset';
+  var VERSION = '0.9'; var API_NAME = 'KamiPreset';
   var VARS_KEY = 'kami-preset';
   /* 产物号：构建时把 @@KAMI_BUILD_N@@ 换成真实编号（源码必须能独立编译，所以写成字符串）。
      与 50-引导.js 用的是同一个占位符 —— 「关于」页拿它给预设版本做交叉核对。 */
   var BUILD_N = parseInt('@@KAMI_BUILD_N@@', 10) || 0;
-  var CHAR_ID = 100001;          // 酒馆 preset 的 prompt_order 主键（这份预设就是 100001）
-  var Z = 30000;
-  /* 面板几何的上下限：与拖动/缩放时的夹取共用同一组常量（照搬皮肤管理面板） */
-  /* 面板默认尺寸（2026-10-24 统一）：与皮肤管理、工具箱、全部皮肤一致，按视口自动夹取。 */
-var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
-  var STATUS_ROLE = 'status';
-  var SWIPE_AXIS = 12;    // 判定「横向滑动」的位移（小于它不判方向，避免误触）
-  var SWIPE_SWITCH = 48;  // 切上一个/下一个 tab 的位移阈值
-  var SHEET_CLOSE_DY = 90; // 贴底抽屉下拉关闭的距离（与皮肤管理面板一致）
-  var TAP_SLOP = 6;       // 拖动 tab 行时允许的「按下不动」容差
+  var CHAR_ID = 100001;     // 拖动 tab 行时允许的「按下不动」容差
 
   /* 「继承旧预设设置」这一张卡的文案（2026-09-28 由 Gemini 出稿，用户点名的流程）。
      它干的事：用户自己手动下载导入新版（网络到 GitHub 不通时只能这样），
@@ -104,16 +89,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   var inheritFromName = '';
   var inheritAtText = '';
 
-  /* 面板手势（标题栏下拉收回 / 内容区滚到顶下拉收回 / 左右滑切 tab）只有一份实现：
-     src/scripts/_panel-gestures.js，构建期内联到这里（见 build/kami-doc.mjs）。
-     两个面板共用同一份，手势行为不会再各走各的。 */
-  /* @@KAMI_PANEL_GESTURES@@ */
-
-  /* 模型卡 / 条目卡（含角标、ⓘ 标记、注释外包层）的结构只有一份实现：
-     src/scripts/_preset-cards.js，构建期内联到这里（build/kami-doc.mjs 的 expandPresetCards）。
-     引导面板的模型页内联的是**同一份**，两块面板的卡片不会再各写一套（契约 §4.4）。 */
-  /* @@KAMI_PRESET_CARDS@@ */
-
   /* 「用户自定义文风」整块（渲染 + 交互 + 状态机 + 文案 + 样式）只有一份实现：
      src/scripts/_custom-style-ui.js，构建期内联到这里（build/kami-doc.mjs 的 expandCustomStyleUi）。
      引导面板内联的是**同一份**，两块面板不会再各写一套（用户 2026-10-02 点名要预设面板也有）。 */
@@ -130,12 +105,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
    * ── 预设结构解析器（规则真相：test/harness/preset-parse.mjs，构建期内联） ── */
   /* @@KAMI_PRESET_PARSE@@ */
 
-  /* ── 兜底皮肤（唯一真相：src/skin/base.css，构建期内联成字符串常量） ──
-     皮肤管理没运行时（html 上没有 data-kami-skin）它才生效，所以这里无条件注入一份：
-     面板自己的外观、以及面板的定位（.kami-drop 的 left/top/width/height 就是用
-     --kami-panel-* 令牌算的）都来自它。 */
-  /* @@KAMI_BASE_CSS_JS@@ */
-
   /* ── 「自动标签处理」的纯逻辑（唯一真相：src/scripts/_tags-pure.js，构建期内联） ──
      为什么要它：「🧰 其他功能」页上的开关要能检测 AI 回复里没闭合的标签并补上/删掉。
      认标签、决定补在哪儿、删哪一段全在那份模块里，这里是它的唯一消费者；
@@ -149,6 +118,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 「只复制干净的正文」的取文本规则（src/scripts/_copy-clean.js）。
      🧰 其他功能页的「导出纯净正文」与两个前端的复制按钮用的是**同一套换行规则**，
      所以这里也要内联一份 —— 不许在导出那边再抄一遍换行逻辑。 */
+
+  /* 「导出纯净正文」要用的换行规则（src/scripts/_copy-clean.js 的 tidyCopyText），与消息前端的复制按钮同一套。 */
   /* @@KAMI_COPY_CLEAN@@ */
 
   /* 「导出纯净正文」的纯逻辑（src/scripts/_export-clean.js）：楼层范围解析、role 前缀、
@@ -197,14 +168,9 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* ───────── 状态 ───────── */
 
   var disposed = false;
-  var panelRoot = null, panelDrop = null, panelHead = null;
-  var shellRoot = null;   /* 面板骨架的 React 根（2026-10-26 迁移） */
-  var GESTURES = null;
-  var liveData = null;              // 最近一次「读活设置 + 解析」的结果
+  var panelRoot = null;  var liveData = null;              // 最近一次「读活设置 + 解析」的结果
   var view = [];                    // tab 模型（渲染用）
-  var tabKey = null;                // 当前 tab
-  var cardMap = {};                 // 卡片键 -> { tabKey, items }
-  var aboutEls = null;              // 「关于」页的元素句柄（检查更新的结果就地写，不重画面板）
+  var tabKey = null;              // 「关于」页的元素句柄（检查更新的结果就地写，不重画面板）
   var geom = { x: null, y: null, w: null, h: null };  // 面板位置与大小（拖动/缩放时存回脚本变量 kami-preset）
   var currentModel = null;          // 当前模型（模型 emoji）：存在脚本变量 kami-preset.currentModel 里
   /* 对话模式（2026-10-14）：进入「💬 对话讨论」之前，把**即将被关掉**的那些条目的开关存一份，
@@ -222,8 +188,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   var lastNameInfo = null;  // 最近一次解析到的预设名：{ name, from }
   var varWrites = 0;                    // 变量写回次数（与开关的 writeCount 分开记，读起来才不含糊）
   var emitCount = 0, emitSkipped = 0;   // OAI_PRESET_CHANGED_AFTER 的发出/跳过次数（排障用）
-  var saveTimer = null, pingTimer = null, resizeHandler = null;
-  var ownDef = null, unsubs = [];
+  var saveTimer = null, pingTimer = null;
+  var unsubs = [];
   /* v0.6：「🔄 远程更新」的裁决页。有值 = 面板最前多一页「🔀 更新合并」，
      结构 = { plan, onApply }（都由 70 号传进来）；onApply(plan) 提交、onApply(null) 放弃。 */
   var mergeCtx = null;
@@ -718,18 +684,10 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   /* 写盘失败时把面板上那几个数字框弹回原值（按 entry + 变量名找，不只管当前这一张卡） */
   function revertVarInputs(plan) {
-    if (!panelRoot) { return; }
-    for (var i = 0; i < (plan || []).length; i++) {
-      var list = [];
-      try { list = panelRoot.querySelectorAll('[data-kami-var="' + plan[i].name + '"]'); } catch (e) { list = []; }
-      for (var j = 0; j < list.length; j++) {
-        if (list[j].getAttribute('data-kami-entry') !== plan[i].identifier) { continue; }
-        list[j].value = plan[i].old;
-        list[j].setAttribute('data-kami-old', plan[i].old);
-      }
-      syncVarModel(plan[i].identifier, plan[i].name, plan[i].old);
-    }
+    for (var i = 0; i < (plan || []).length; i++) { syncVarModel(plan[i].identifier, plan[i].name, plan[i].old); }
+    toolsNotify();
   }
+
 
   /* ── 写预设文件 ────────────────────────────────────────────────────────
 
@@ -1039,50 +997,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     return '差异位置 ' + i + ' 「' + a.slice(i, a.length - k) + '」→「' + b.slice(i, b.length - k) + '」';
   }
 
-  /* 改一个变量框（原生 change：失焦或回车都会来）。
-     范围卡两个数字框**填反了自动交换**（用户裁定）；写回失败就弹回原值，界面不说谎。
-     ⑤ 一律不重建面板：成功只就地改这几个输入框的 value / data-kami-old。 */
-  function applyVar(input) {
-    if (!input || !input.getAttribute) { return; }
-    var card = null;
-    try { card = input.closest ? input.closest('[data-kami-var-card]') : null; } catch (e) { }
-    var inputs = card ? card.querySelectorAll('[data-kami-var]') : [input];
-    if (!inputs.length) { return; }
-    var i, vals = [];
-    for (i = 0; i < inputs.length; i++) {
-      var s = String(inputs[i].value).trim();
-      if (!isPureDigits(s)) { toast('warning', '变量只能填 0 以上的整数'); revertVars(inputs); return; }
-      vals.push(s);
-    }
-    if (inputs.length === 2 && Number(vals[0]) > Number(vals[1])) {
-      var tmp = vals[0]; vals[0] = vals[1]; vals[1] = tmp;      // 填反了：自动交换
-      for (i = 0; i < inputs.length; i++) { inputs[i].value = vals[i]; }
-      toast('info', '大小填反了，已自动交换');
-    }
-    var pairs = [];
-    for (i = 0; i < inputs.length; i++) {
-      var old = inputs[i].getAttribute('data-kami-old');
-      if (vals[i] !== old) {
-        pairs.push({
-          identifier: inputs[i].getAttribute('data-kami-entry'),
-          name: inputs[i].getAttribute('data-kami-var'),
-          old: old, value: vals[i]
-        });
-      }
-    }
-    if (!pairs.length) { return; }
-    var res = commitVars(pairs);
-    if (!res.ok) { toast('error', res.msg); revertVars(inputs); renderStatus(); return; }
-    for (i = 0; i < pairs.length; i++) {
-      syncVarModel(pairs[i].identifier, pairs[i].name, pairs[i].value);
-      for (var j = 0; j < inputs.length; j++) {
-        if (inputs[j].getAttribute('data-kami-var') === pairs[i].name) { inputs[j].setAttribute('data-kami-old', pairs[i].value); }
-      }
-    }
-    renderStatus();
-    log('变量已改：' + pairs.map(function (p) { return p.name + '=' + p.value; }).join('，'));
-  }
-
   /* 写成功之后把变量模型里的值同步掉（只在同一个 view 模型上改值，不重建 DOM）。
      不重建的理由与开关那一条一样：tab / 面板位置 / 尺寸 / 滚动位置都不许动。 */
   function syncVarModel(identifier, name, value) {
@@ -1095,10 +1009,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
         for (k = 0; k < c.vars.length; k++) { if (c.vars[k].name === name) { c.vars[k].value = value; } }
       }
     }
-  }
-
-  function revertVars(inputs) {
-    for (var i = 0; i < inputs.length; i++) { inputs[i].value = inputs[i].getAttribute('data-kami-old'); }
   }
 
   function nowText() {
@@ -1341,1048 +1251,20 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   function mk(tag, cls, text) {
     return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
-  }
-  function clampNum(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
-
-  /* 兜底皮肤：皮肤管理没运行时面板就靠它（同一份 base.css，不手抄） */
-  function injectCss() {
-    try {
-      if (HDOC.getElementById(CSS_ID)) { return; }
-      var st = HDOC.createElement('style');
-      st.id = CSS_ID;
-      /* 兜底皮肤 + 共享模块自带的样式（自定义文风块的 .kami-cs-* 跟着模块走，两块面板长得一样） */
-      st.textContent = ((typeof KAMI_BASE_CSS === 'string') ? KAMI_BASE_CSS : '') + CUSTOM_STYLE_CSS;
-      (HDOC.head || HDOC.documentElement).appendChild(st);
-      log('已注入兜底皮肤 ' + st.textContent.length + 'B（皮肤管理暂未就绪，有皮肤时自动失效，不影响显示）');
-    } catch (e) { log('注入兜底皮肤失败：' + ((e && e.message) || e)); }
-  }
-  function dropCss() {
-    try {
-      var st = HDOC.getElementById(CSS_ID);
-      if (st && st.parentNode) { st.parentNode.removeChild(st); }
-    } catch (e) { }
-  }
-
-  /* 面板该做成「贴底抽屉」还是「悬浮窗」：跟酒馆自己的单栏状态走
-     （酒馆在 ≤1000px 把「把侧栏钉住」的小锁藏起来 = 进单栏；读不到控件就用同一个断点兜底）。
-     与 30-皮肤管理.js 同一套判断，皮肤管理在跑时两边下的模式也一致。 */
-  function tavernSingleColumn() {
-    /* ① 酒馆自己的移动布局开关：body 被钉住 = 已进单栏
-          （public/css/mobile-styles.css:98-102，≤1000px 时 body{position:fixed}）。
-          它比「小锁被藏起来」活得长 —— 本仓库那份 1.13 的源码里已经没有藏小锁的规则，
-          真机 1.18 上小锁常显会让下面的老判定误报成「非单栏」。 */
-    try {
-      var view0 = HDOC.defaultView || HOST;
-      if (view0.getComputedStyle(HDOC.body).position === 'fixed') { return true; }
-    } catch (e) { }
-    var any = false;
-    try {
-      var ids = ['lm_button_panel_pin_div', 'rm_button_panel_pin_div'];
-      var view2 = HDOC.defaultView || HOST;
-      for (var i = 0; i < ids.length; i++) {
-        var el = HDOC.getElementById(ids[i]);
-        if (!el) { continue; }
-        any = true;
-        if (view2.getComputedStyle(el).display !== 'none') { return false; }
-      }
-    } catch (e) { }
-    if (any) { return true; }
-    try { return !!(HOST.matchMedia && HOST.matchMedia('(max-width: 1000px)').matches); } catch (e) { return false; }
-  }
-  function sheetMode() { return tavernSingleColumn(); }
-
-  /* 打开面板时把页面滚回原点（2026-09-29 iOS 修法之二，与 30 号同一处原因）：
-     舞台锚在文档原点，可视窗口漂走时面板会落在可视区外。桌面无感。 */
-  function bringViewportHome() {
-    try { if (HOST && typeof HOST.scrollTo === 'function') { HOST.scrollTo(0, 0); } } catch (e) { }
-  }
-
-  function buildPanel() {
-    if (panelRoot) { return; }
-    panelRoot = mk('div', 'kami-root');
-    panelRoot.id = PANEL_ID;
-    panelRoot.setAttribute('data-kami-comp', 'panel');
-    panelRoot.setAttribute('data-kami-container', 'panel');
-    /* 舞台是「结构」：内联保证任何皮肤下都能摆面板；外观与摆法归皮肤（契约 §4.4） */
-    panelRoot.style.position = 'fixed';
-    panelRoot.style.inset = '0';
-    panelRoot.style.zIndex = String(Z);
-    panelRoot.style.pointerEvents = 'none';
-    /* 舞台高度下限（2026-09-29 iOS 面板打不开的修法之一，与 30 号同一处坑）：
-       窄屏下酒馆把 body 钉住 ⇒ html 盒高塌成 0 ⇒ 舞台 top:0;bottom:0 归零。
-       内联兜底，dvh 不认时落回上一行 vh。 */
-    panelRoot.style.minHeight = '100vh';
-    panelRoot.style.minHeight = '100dvh';
-
-    panelDrop = mk('div', 'kami-drop kami-surface');
-    panelDrop.setAttribute('data-kami-open', '0');
-    panelDrop.style.pointerEvents = 'auto';
-    panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
-
-    panelRoot.appendChild(panelDrop);
-    HDOC.body.appendChild(panelRoot);
-
-    /* ── 面板骨架交给 React（2026-10-26 迁移）──────────────────────────
-       渲染 head / 标签条空壳 / foot / 缩放手柄，结构与类名与迁移前逐字一致。
-       标签按钮与内容页仍由命令式代码动态增删（预设结构一变就要整条重建），
-       它们插在标签条与 foot 之间 —— React 只在开头画一次、之后不再重画，
-       所以两套写法可以在同一层里共存。 */
-    var rt0 = HOST.KamiRuntime;
-    if (rt0 && rt0.createRoot) {
-      var h0 = rt0.React.createElement;
-      shellRoot = rt0.createRoot(panelDrop);
-      rt0.flushSync(function () {
-        shellRoot.render(h0(rt0.React.Fragment, null,
-          h0('div', { key: 'head', className: 'kami-head', 'data-kami-drag': '1', ref: function (n) { panelHead = n; } },
-            h0('span', { className: 'kami-dot' }),
-            h0('span', { className: 'kami-deco', 'data-kami-deco': 'd20', 'aria-hidden': 'true' }),
-            h0('span', { className: 'kami-title' }, '🌟 预设设置'),
-            h0('span', { className: 'kami-sub', 'data-kami-role': 'src' }),
-            h0('span', { className: 'kami-actions' },
-              h0('button', { type: 'button', className: 'kami-icon-btn', 'aria-label': '关闭', 'data-kami-act': 'close' }, '✕')
-            )
-          ),
-          /* 标签条只给空壳：按钮由 renderTabs 动态填，且它开头就会 textContent=''，
-             所以 React 这边不能放任何自己人的子节点，否则会被命令式代码抹掉。 */
-          h0('div', { key: 'tabs', className: 'kami-tabs', role: 'tablist', 'data-kami-role': 'tabs',
-            style: { touchAction: 'pan-x', overscrollBehaviorX: 'contain' } }),
-          h0('div', { key: 'foot', className: 'kami-foot' },
-            h0('span', { className: 'kami-sub', 'data-kami-role': STATUS_ROLE })
-          ),
-          h0('span', { key: 'rz', className: 'kami-resize', 'data-kami-act': 'resize', 'aria-hidden': 'true' })
-        ));
-      });
-      /* 皮肤按 data-kami-ui 写规则，React 渲染的元素不会自动带，这里补上 */
-      try { rt0.classifyTree(panelDrop); } catch (e0) { }
-    }
-
-    injectCss();
-    restoreGeometry();
-    bindPanelEvents();
-    log('面板已创建（' + (sheetMode() ? '窄屏抽屉' : '桌面悬浮窗') + '）');
-  }
-
-  function restoreGeometry() {
-    if (!panelRoot || !panelDrop) { return; }
-    panelDrop.setAttribute('data-kami-layout', sheetMode() ? 'sheet' : 'floating');
-    /* 窄屏抽屉的摆法由皮肤/兜底皮肤决定（贴底、78% 高），脚本不下发坐标 */
-    if (sheetMode()) {
-      panelRoot.style.removeProperty('--kami-panel-x');
-      panelRoot.style.removeProperty('--kami-panel-y');
-      panelRoot.style.removeProperty('--kami-panel-w');
-      panelRoot.style.removeProperty('--kami-panel-h');
-      return;
-    }
-    var vw = HDOC.documentElement.clientWidth, vh = HDOC.documentElement.clientHeight;
-    var w = clampNum(geom.w || PANEL_W, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24));
-    var h = clampNum(geom.h || PANEL_H, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24));
-    /* 存下来的坐标可能是在另一个宽度下拖的，一律按**当前**视口夹一次 */
-    var x = (geom.x === null || geom.x === undefined) ? Math.max(12, (vw - w) / 2) : clampNum(geom.x, -40, Math.max(-40, vw - 80));
-    var y = (geom.y === null || geom.y === undefined) ? 72 : clampNum(geom.y, 0, Math.max(0, vh - 48));
-    panelRoot.style.setProperty('--kami-panel-w', Math.round(w) + 'px');
-    panelRoot.style.setProperty('--kami-panel-h', Math.round(h) + 'px');
-    panelRoot.style.setProperty('--kami-panel-x', Math.round(x) + 'px');
-    panelRoot.style.setProperty('--kami-panel-y', Math.round(y) + 'px');
-  }
-
-  /* ── 面板事件（照搬 30-皮肤管理.js 的 pointer 分段结构：先判动作，再分派） ──
-
-     一次 pointerdown 只归一种手势：
-       · 标题栏（[data-kami-drag]）→ 移动面板            （仅悬浮窗）
-       · .kami-resize[data-kami-act="resize"] → 缩放面板 （仅悬浮窗）
-       · tab 行 → 横向拖动 tab 行                        （两种模式都有）
-       · 正文滚动区 → 横向滑动切 tab / 抽屉下拉关闭       （见 bindSwipeEvents）
-     拖动统一走 pointer 事件；正文滚动区另用 touch 事件，因为那里必须保留
-     「纵向 = 正常滚动」的默认行为（pointer + preventDefault 会把它一起掐掉）。 */
-  function bindPresetControlEvents(controlRoot) {
-    var click = function (ev) {
-      var t = ev.target;
-      while (t && t !== controlRoot) {
-        if (t.getAttribute) {
-          /* 注释标记：只弹/收注释。⚠️ 条目卡整张就是开关，这里必须先掐断事件，
-             否则同一次点击会接着翻掉开关（用户点名的坑）。 */
-          if (t.getAttribute('data-kami-note-mark')) {
-            ev.stopPropagation();
-            ev.preventDefault();
-            toggleNote(t);
-            return;
-          }
-          /* 模型卡片头：整头就是「选中这个模型」（开它名下全部条目 + 关掉别的模型专属条目） */
-          if (t.getAttribute('data-kami-model') && t.tagName === 'BUTTON') { selectModel(t.getAttribute('data-kami-model')); return; }
-          /* ① 条目卡：整卡就是开关，点一下翻转（原生 button，Enter/Space 也会走到这里） */
-          if (t.getAttribute('data-kami-item') && t.tagName === 'BUTTON') { toggleItem(t); return; }
-          if (t.getAttribute('data-kami-tab')) { setTab(t.getAttribute('data-kami-tab')); return; }
-          if (t.getAttribute('data-kami-act') === 'close') { setOpen(false); return; }
-          /* 「关于」页的检查更新：调 70-远程更新.js 的全局 API（用户主动点 = force 一次真查） */
-          if (t.getAttribute('data-kami-act') === 'check-update') { runUpdateCheck(t); return; }
-          /* v0.6 「更新合并」页：一键选边 / 逐条选边 / 提交 */
-          if (t.getAttribute('data-kami-act') === 'merge-all-mine') { setMergeAll('mine'); return; }
-          if (t.getAttribute('data-kami-act') === 'merge-all-next') { setMergeAll('next'); return; }
-          if (t.getAttribute('data-kami-act') === 'merge-apply') { applyMergeReview(); return; }
-          if (t.getAttribute('data-kami-choice')) { setMergeChoice(t, t.getAttribute('data-kami-choice')); return; }
-          /* 🧰 其他功能 → 自动标签处理：三档切换 + 手动处理当前楼层 */
-          if (t.getAttribute('data-kami-tagfix')) { setTagFixMode(t.getAttribute('data-kami-tagfix')); return; }
-          /* 折叠卡头：点一下就翻 data-kami-open（契约 §4.3；实现见 toggleFold） */
-          if (t.getAttribute('data-kami-collapse-head')) { toggleFold(t); return; }
-          if (t.getAttribute('data-kami-act') === 'tagfix-floor') { tagFixCurrentFloor(); return; }
-        }
-        t = t.parentNode;
-      }
-    };
-
-    /* 变量数字框：原生 change（失焦 / 回车都会来）就写回预设；回车另外掐一下，
-       免得在数字框里按回车被酒馆的全局快捷键接走。
-       自定义标签输入框也走同一个 change：失焦或回车就解析存盘。 */
-    var change = function (ev) {
-      var t = ev.target;
-      if (!t || !t.getAttribute) { return; }
-      if (t.getAttribute('data-kami-var')) { applyVar(t); return; }
-      if (t.getAttribute('data-kami-tagfix-custom')) { setTagFixCustom(t.value); }
-      /* 2026-10-26：开关换成 Radix 后没有 .checked，改读 aria-checked。
-         委托在冒泡阶段跑，此时 Radix 已经把 aria-checked 更新成**新值**。 */
-      if (t.getAttribute('data-kami-tagfix-all')) { setTagFixAll(t.getAttribute('aria-checked') !== 'true'); return; }
-    };
-    var keydown = function (ev) {
-      /* 契约 §4.4 硬规则 1：注释标记与预设面板逐属性同构 → 键盘也必须同构。
-         50-引导.js:731-733 认 Enter 与 Space，这里原来只认 Enter，按 Space 什么都不发生
-         （还会顺带滚一下页面）。两个 keyCode 是给老引擎的兜底。 */
-      var t = ev.target;
-      if (t && t.getAttribute && t.getAttribute('data-kami-tagfix-custom')) {
-        /* 自定义标签框只认回车：空格是标签之间的分隔符，不能当确认键 */
-        if (ev.key === 'Enter' || ev.keyCode === 13) { ev.preventDefault(); setTagFixCustom(t.value); }
-        return;
-      }
-      if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar' && ev.keyCode !== 13 && ev.keyCode !== 32) { return; }
-      if (t && t.getAttribute && t.getAttribute('data-kami-var')) { ev.preventDefault(); applyVar(t); }
-      else if (t && t.getAttribute && t.getAttribute('data-kami-note-mark')) { ev.preventDefault(); toggleNote(t); }
-    };
-    controlRoot.addEventListener('click', click);
-    controlRoot.addEventListener('change', change);
-    controlRoot.addEventListener('keydown', keydown);
-    return function () {
-      controlRoot.removeEventListener('click', click);
-      controlRoot.removeEventListener('change', change);
-      controlRoot.removeEventListener('keydown', keydown);
-    };
-  }
-
-  function bindPanelEvents() {
-    bindPresetControlEvents(panelDrop);
-
-    var drag = null;
-    panelDrop.addEventListener('pointerdown', function (ev) {
-      if (ev.button !== undefined && ev.button !== 0 && ev.pointerType === 'mouse') { return; }
-      var t = ev.target, mode = null;
-      while (t && t !== panelDrop) {
-        if (t.getAttribute) {
-          if (t.getAttribute('data-kami-drag')) { mode = 'move'; break; }
-          if (t.getAttribute('data-kami-act') === 'resize') { mode = 'size'; break; }
-          if (t.getAttribute('data-kami-role') === 'tabs') { mode = 'tabs'; break; }
-        }
-        t = t.parentNode;
-      }
-      if (!mode) { return; }
-      /* 悬浮窗专属手势：抽屉下不移动、不缩放（与皮肤管理面板一致） */
-      if (sheetMode() && (mode === 'move' || mode === 'size')) { return; }
-      /* 标题栏里的按钮（关闭）不参与拖动 */
-      if (mode === 'move' && ev.target.closest && ev.target.closest('button')) { return; }
-      var r = panelDrop.getBoundingClientRect();
-      drag = { mode: mode, sx: ev.clientX, sy: ev.clientY, l: r.left, t: r.top, w: r.width, h: r.height, moved: 0 };
-      if (mode === 'tabs') {
-        drag.scroll0 = tabsEl() ? tabsEl().scrollLeft : 0;
-        /* 记下**真正被按下的那一枚 tab**（点在 tab 行空白处就是 null）。
-           下面那行 setPointerCapture 一执行，浏览器就会把随后一串兼容鼠标事件
-           （mousedown / mouseup / click）的 target 改到 panelDrop 上，于是 click 委托里
-           「从 ev.target 往上爬找 data-kami-tab」那条路永远匹配不上 ——
-           **PC 上用鼠标点 tab 页没反应，根因就是这一行**（触屏的合成 click 不走这条捕获链，
-           所以手机上一直是好的）。pointerup 里按这里记下的键补一次切换，见那边。 */
-        drag.tabKey = tabKeyOf(ev.target);
-      }
-      try { panelDrop.setPointerCapture(ev.pointerId); } catch (e) { }
-      /* tab 行的 pointerdown 不 preventDefault：否则触屏的原生横滑也没了 */
-      if (mode !== 'tabs') { ev.preventDefault(); }
-    });
-    panelDrop.addEventListener('pointermove', function (ev) {
-      if (!drag) { return; }
-      var dx = ev.clientX - drag.sx, dy = ev.clientY - drag.sy;
-      drag.moved = Math.max(drag.moved, Math.abs(dx) + Math.abs(dy));
-      var vw = HDOC.documentElement.clientWidth, vh = HDOC.documentElement.clientHeight;
-      if (drag.mode === 'move') {
-        geom.x = Math.round(clampNum(drag.l + dx, -40, Math.max(-40, vw - 80)));
-        geom.y = Math.round(clampNum(drag.t + dy, 0, Math.max(0, vh - 48)));
-        panelRoot.style.setProperty('--kami-panel-x', geom.x + 'px');
-        panelRoot.style.setProperty('--kami-panel-y', geom.y + 'px');
-      } else if (drag.mode === 'size') {
-        /* ① 缩放：宽高一起夹取（下限 PANEL_MIN_*，上限当前视口 - 24），实时写令牌 */
-        geom.w = Math.round(clampNum(drag.w + dx, PANEL_MIN_W, Math.max(PANEL_MIN_W, vw - 24)));
-        geom.h = Math.round(clampNum(drag.h + dy, PANEL_MIN_H, Math.max(PANEL_MIN_H, vh - 24)));
-        panelRoot.style.setProperty('--kami-panel-w', geom.w + 'px');
-        panelRoot.style.setProperty('--kami-panel-h', geom.h + 'px');
-      } else if (drag.mode === 'tabs') {
-        /* ② 按住拖动 tab 行：拖多少滚多少（反过来拖也生效） */
-        var bar = tabsEl();
-        if (bar) { bar.scrollLeft = drag.scroll0 - dx; }
-        if (drag.moved > TAP_SLOP && ev.cancelable) { ev.preventDefault(); }
-      }
-    });
-    panelDrop.addEventListener('pointerup', function (ev) {
-      var was = drag ? drag.mode : null;
-      /* PC 鼠标点 tab 页：click 的 target 已经被指针捕获改到 panelDrop（原因见 pointerdown 里
-         那段说明），click 委托匹配不到 data-kami-tab，所以在这里按 pointerdown 记下的那一枚
-         补一次切换。判据是「按下后基本没动」（容差 TAP_SLOP）——按住拖动 tab 行仍旧只横向滚，
-         不会误切。触屏不补：它的合成 click 目标是对的，交给上面的 click 委托就行。 */
-      if (drag && was === 'tabs' && drag.tabKey && drag.moved <= TAP_SLOP && ev.pointerType !== 'touch') {
-        setTab(drag.tabKey);
-      }
-      if (drag && (was === 'move' || was === 'size')) { saveVars(); }
-      drag = null;
-      try { panelDrop.releasePointerCapture(ev.pointerId); } catch (e) { }
-    });
-    panelDrop.addEventListener('pointercancel', function () {
-      if (drag && (drag.mode === 'move' || drag.mode === 'size')) { saveVars(); }
-      drag = null;
-    });
-
-    /* ② 滚轮：纵向滚轮在 tab 行上转成横向滚动（浏览器默认不会这么做）。
-       只有 tab 行真的滚得动时才 preventDefault，否则把滚动还给页面。 */
-    panelDrop.addEventListener('wheel', function (ev) {
-      var bar = tabsEl();
-      if (!bar || !bar.contains(ev.target)) { return; }
-      if (bar.scrollWidth - bar.clientWidth <= 1) { return; }
-      var d = (ev.deltaX !== 0 && Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) ? ev.deltaX : ev.deltaY;
-      if (!d) { return; }
-      var before = bar.scrollLeft;
-      try { bar.scrollLeft = before + d; } catch (e) { }
-      var ok = bar.scrollLeft !== before;
-      if (!ok) {
-        /* 老 Safari 那边 scrollLeft 写不动的话退到 scrollBy；两个都不行就放行让页面自己滚 */
-        try { bar.scrollBy(d, 0); } catch (e2) { }
-        ok = bar.scrollLeft !== before;
-      }
-      if (ok && ev.cancelable) { ev.preventDefault(); }
-    }, { passive: false });
-
-    /* 面板手势（共享模块，见文件上方内联的那一份）。
-       原来是本脚本自己一份 bindTouchGestures：只有「内容区滚到顶下拉收回」和
-       「左右滑切 tab」，标题栏下拉收回缺一块。现在换成共享模块，三种手势齐了，
-       而且与皮肤管理面板逐条一致（阈值、方向判定、鼠标/触屏分工）。 */
-    if (GESTURES) { try { GESTURES.destroy(); } catch (e) { } }
-    GESTURES = bindPanelGestures({
-      root: panelDrop,
-      handle: function () { return panelHead; },
-      pane: function () { return paneEl(tabKey); },
-      tabs: tabsEl,
-      isSheet: sheetMode,
-      onClose: function () { setOpen(false); },
-      onStep: stepTab
-    });
-  }
-
-  function tabsEl() { return panelDrop ? panelDrop.querySelector('[data-kami-role="tabs"]') : null; }
-  /* 起点元素属于哪一枚 tab：落在 tab 按钮上就返回它的 data-kami-tab，落在 tab 行空白处返回 null。
-     指针捕获会改掉随后 click 的 target，所以「真正点了哪一枚」只能在 pointerdown 时问一次。 */
-  function tabKeyOf(node) {
-    try {
-      var el = (node && node.closest) ? node.closest('[data-kami-tab]') : null;
-      return el ? el.getAttribute('data-kami-tab') : null;
-    } catch (e) { return null; }
-  }
-  function paneEls() { return panelDrop ? panelDrop.querySelectorAll('[data-kami-pane]') : []; }
-  function paneEl(k) { return panelDrop ? panelDrop.querySelector('[data-kami-pane="' + k + '"]') : null; }
-
-  /* 画一枚 tab 与它对应的页面板（两处都要用：正常路径与「读不到预设」路径）。
-     页面板一律插在 .kami-foot 之前，顺序与 view 一致。 */
-  function appendTab(bar, foot, tab) {
-    var btn = mk('button', 'kami-tab', tab.title);
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('data-kami-tab', tab.key);
-    btn.setAttribute('aria-selected', 'false');
-    bar.appendChild(btn);
-    var pane = mk('div', 'kami-body kami-scroll');
-    pane.setAttribute('data-kami-pane', tab.key);
-    pane.hidden = true;
-    renderTab(pane, tab);
-    panelDrop.insertBefore(pane, foot);
-  }
-
-  /* 重建 tab 轨道与每一页（数据变了就整体重画；tab 数量级很小） */
-  function renderTabs() {
-    if (!panelDrop) { return; }
-    var bar = tabsEl();
-    if (!bar) { return; }
-    bar.textContent = '';
-    var panes = paneEls(), i;
-    for (i = 0; i < panes.length; i++) {
-      if (panes[i].parentNode) { panes[i].parentNode.removeChild(panes[i]); }
-    }
-    cardMap = {};
-
-    var foot0 = panelDrop.querySelector('.kami-foot');
-    /* 出错 / 解析不出来：面板照常打开，但只有一页人话说明，不白屏。
-       「关于」页照旧排在最后 —— 三个版本读数与检查更新都不依赖预设能不能解析。
-       「🧰 其他功能」也一样要留：它收的是**与预设结构无关**的功能入口（自动标签处理就不读预设），
-       预设读不出来时更应该让用户还能用到它，而不是跟着一起消失。 */
-    if (!liveData || !liveData.ok) {
-      var msg = (liveData && liveData.error) ? liveData.error : '读不到当前预设';
-      view = [
-        { key: 'ERR', title: '读不到预设', special: 'err', error: msg, cards: [], own: [] },
-        aboutTab()
-      ];
-      /* 「更新合并」页不依赖解析结果：正在裁决时也要在（裁决的是预设文件之间的合并，
-         不是实时面板那条读数链路） */
-      if (mergeCtx) { view.unshift(mergeTab()); }
-      /* 合并页在最前就把它选中（refresh(true) 会带着它走，这里补 tabKey 语义） */
-      if (view[0].key === 'MERGE') { tabKey = 'MERGE'; }
-      for (i = 0; i < view.length; i++) { appendTab(bar, foot0, view[i]); }
-      tabKey = 'ERR';
-      applyTab();
-      renderStatus();
-      return;
-    }
-
-    view = buildView(liveData.tree);
-    for (i = 0; i < view.length; i++) { appendTab(bar, foot0, view[i]); }
-    if (!view.length) {
-      var pane2 = mk('div', 'kami-body kami-scroll');
-      pane2.setAttribute('data-kami-pane', 'ERR');
-      pane2.appendChild(mk('div', 'kami-empty', '这份预设里没有任何可显示的层级（没有卡片、也没有变量条目）。'));
-      panelDrop.insertBefore(pane2, foot0);
-      tabKey = 'ERR';
-      renderStatus();
-      return;
-    }
-    if (!tabKey || !paneEl(tabKey)) { tabKey = view[0].key; }
-    var ok = false;
-    for (i = 0; i < view.length; i++) { if (view[i].key === tabKey) { ok = true; } }
-    if (!ok) { tabKey = view[0].key; }
-    applyTab();
-    renderStatus();
-  }
-
-  function applyTab() {
-    var btns = panelDrop.querySelectorAll('.kami-tab'), i;
-    for (i = 0; i < btns.length; i++) {
-      btns[i].setAttribute('aria-selected', btns[i].getAttribute('data-kami-tab') === tabKey ? 'true' : 'false');
-    }
-    var panes = paneEls();
-    for (i = 0; i < panes.length; i++) {
-      panes[i].hidden = panes[i].getAttribute('data-kami-pane') !== tabKey;
-    }
-    scrollTabIntoView(tabKey);
-  }
-
-  function setTab(k) {
-    tabKey = k;
-    applyTab();
-    renderStatus();
-  }
-
-  /* ③ 滑动的落点：按**当前画出来的 tab 顺序**往上/下一个。
-     没有下一个时就停在原地（不循环，免得滑一下跳回开头让人懵）。 */
-  function stepTab(dir) {
-    var i, at = -1;
-    for (i = 0; i < view.length; i++) { if (view[i].key === tabKey) { at = i; } }
-    if (at < 0) { return; }
-    var n = at + dir;
-    if (n < 0 || n >= view.length) { return; }
-    setTab(view[n].key);
-  }
-
-  /* tab 行放不下时把选中的那一枚滚进视野（滑动切 tab 之后用得上）。
-     ② 关键：**只在真的看不见时才动 scrollLeft** —— 否则用户自己滚出来/拖出来的位置
-     会被下一次 applyTab 一把拉回 0（这就是「轮滚不动」的真根因）。 */
-  function scrollTabIntoView(k) {
-    var bar = tabsEl();
-    if (!bar) { return; }
-    var btn = bar.querySelector('[data-kami-tab="' + k + '"]');
-    if (!btn) { return; }
-    if (bar.scrollWidth - bar.clientWidth <= 1) { return; }
-    var left = btn.offsetLeft, right = left + btn.offsetWidth;
-    if (left < bar.scrollLeft) { bar.scrollLeft = left - 4; }
-    else if (right > bar.scrollLeft + bar.clientWidth) { bar.scrollLeft = right - bar.clientWidth + 4; }
-  }
-
-  /* ── React 渲染（2026-10-26 迁移）──────────────────────────────
-     面板骨架已经是 React；内容页（卡片组 / 模型卡）也改成 React 渲染。
-     卡片的**状态变更与就地刷新**（toggleItem / syncItems / paintModelHeads）保持命令式 ——
-     那些行为久经考验，改写成 React 状态只会引入回归，收益为零。 */
-  function reactRt() {
-    try { var rt = HOST.KamiRuntime; if (rt && rt.createRoot) { if (typeof pcSetRuntime === 'function') { pcSetRuntime(rt); } return rt; } } catch (e) { }
-    return null;
-  }
-  function renderNodesInto(host, nodes) {
-    var rt = reactRt();
-    if (!rt) { return false; }
-    host.textContent = '';
-    var h = rt.React.createElement;
-    var root = rt.createRoot(host);
-    rt.flushSync(function () { root.render(h(rt.React.Fragment, null, nodes)); });
-    try { rt.classifyTree(host); } catch (e) { }
-    return true;
-  }
-
-  function renderTab(pane, tab) {
-    pane.textContent = '';
-    if (tab.special === 'model') { renderModelTab(pane, tab); return; }
-    if (tab.special === 'var') { renderVarTab(pane, tab); return; }
-    if (tab.special === 'about') { renderAboutTab(pane, tab); return; }
-    if (tab.special === 'merge') { renderMergeTab(pane, tab); return; }
-    if (tab.special === 'err') {
-      var rtErr = reactRt();
-      if (rtErr) {
-        var hErr = rtErr.React.createElement;
-        if (renderNodesInto(pane, [hErr('div', { key: 'e', className: 'kami-empty' },
-          (tab.error || '读不到当前预设') + '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。')])) { return; }
-      }
-      pane.appendChild(mk('div', 'kami-empty', (tab.error || '读不到当前预设') +
-        '。请确认酒馆页面里的 SillyTavern.getContext() 可用，然后重新打开本面板。'));
-      return;
-    }
-    /* ── React 路径 ──
-       写作指导分区要挂一块「用户自定义文风」（共享模块 _custom-style-ui.js）。
-       它的 mount 会先清空容器，所以先渲染一个专属的 .kami-cs-host，渲染完再往里挂；
-       ⚠️ 必须排在这一页内容的最前面（2026-10-03 用户点名）。 */
-    var rt = reactRt();
-    if (rt && typeof PresetCard === 'function') {
-      var h = rt.React.createElement;
-      var nodes = [];
-      var needCs = !!(tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0);
-      var csRef = null;
-      if (needCs) {
-        nodes.push(h('div', { key: 'cs', className: 'kami-cs-host', ref: function (n) { csRef = n; } }));
-      }
-      var drawnR = 0, ci;
-      for (ci = 0; ci < tab.cards.length; ci++) {
-        var cardR = tab.cards[ci], keyR = tab.key + '#' + ci;
-        cardMap[keyR] = { tabKey: tab.key, items: cardR.items };
-        nodes.push(h(PresetCard, { key: keyR, card: cardR, cardKey: keyR, opts: { lock: isLockedItem } }));
-        drawnR++;
-      }
-      if (tab.own && tab.own.length) {
-        nodes.push(h(ItemsGrid, { key: 'own', items: tab.own, group: { key: tab.key + '#own', mode: null }, opts: { lock: isLockedItem } }));
-        drawnR++;
-      }
-      if (!drawnR) {
-        nodes.push(h('div', { key: 'empty', className: 'kami-empty' }, '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
-      }
-      if (renderNodesInto(pane, nodes)) {
-        if (needCs && csRef) { mountCustomStyleBlock(pane, csRef); }
-        return;
-      }
-    }
-    /* ── 兜底：运行库不可用（单测沙箱走这条路）── */
-    if (tab.title && tab.title.indexOf(DIY_LAYER_HINT) >= 0) { mountCustomStyleBlock(pane); }
-    var drawn = 0, i;
-    for (i = 0; i < tab.cards.length; i++) { pane.appendChild(cardEl(tab, tab.cards[i], i)); drawn++; }
-    if (tab.own && tab.own.length) {
-      pane.appendChild(itemsGrid(tab.own, { mode: null }, tab.key + '#own'));
-      drawn++;
-    }
-    if (!drawn) {
-      pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可开关的条目（卡片都在解析时降级了）。'));
-    }
-  }
-
-  /* 「用户自定义文风」在预设面板里的唯一接线段：给模块文档对象 + KamiPreset + 保存后重画。
-     写入走的是本脚本自己暴露的 applyCustomStyles（同一次调用栈，不跨层互调）。 */
-  var csBlock = null;
-  function mountCustomStyleBlock(pane, hostEl) {
-    csBlock = customStyleBlock({
-      doc: HDOC,
-      api: { customStyles: readCustomStyleState, applyCustomStyles: applyCustomStyles },
-      toast: toast,
-      log: log,
-      onSaved: function () { refresh(true); }
-    });
-    /* ⚠️ mount 会先清空容器，直接挂 pane 会把这一页里预设自带的文风条目全抹掉。
-       所以必须有一个只属于这块的容器。
-       2026-10-26 迁移：走 React 时容器已经由 React 渲染好了（hostEl 传进来），
-       兜底路径才是这里自己建一个再 append。 */
-    var csHost = hostEl || mk('div', 'kami-cs-host');
-    if (!hostEl) { pane.appendChild(csHost); }
-    csBlock.mount(csHost);
-  }
-
-  /* 一张卡片组：卡片头（名字 + 计数 + 单选/任选）+ 卡片体里一层条目网格 */
-  function cardEl(tab, card, index) {
-    var key = tab.key + '#' + index;
-    var box = mk('div', 'kami-card');
-    box.setAttribute('data-kami-card-key', key);
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', card.name));
-    head.appendChild(mk('span', 'kami-chip', card.items.length + ' 条'));
-    /* 「 选一」的卡片给出「单选」语义的视觉区分（不新增契约里没有的类名） */
-    if (card.mode === '单选') { head.appendChild(mk('span', 'kami-chip', '单选')); }
-    else if (card.mode === '多选') { head.appendChild(mk('span', 'kami-chip', '任选')); }
-    /* 注释标记：挂在卡片名后面（卡片头不是开关，点了不会翻任何东西） */
-    var mark = noteMark(card.note);
-    if (mark) { head.appendChild(mark); }
-    box.appendChild(head);
-    var txt = noteText(card.note);
-    if (txt) { box.appendChild(txt); }
-    var body = mk('div', 'kami-card-body');
-    body.appendChild(itemsGrid(card.items, card, key));
-    box.appendChild(body);
-    cardMap[key] = { tabKey: tab.key, items: card.items };
-    return box;
-  }
-
-  /* 条目网格 = 共享模块的 buildItemsGrid（src/scripts/_preset-cards.js）：
-     div.kami-grid 里一排 button.kami-item.kami-card，结构只有一份实现。
-     lock 用面板自己的模型闸门（非当前模型的专属条目原生 disabled 锁死）。 */
-  function itemsGrid(items, card, cardKey) {
-    return buildItemsGrid(HDOC, items, { key: cardKey, mode: card ? card.mode : null }, { lock: isLockedItem });
-  }
-
-  /* 「🤖 模型」tab：顶部图例（不可开关）+ 一个模型一张卡片（卡片头 = 选中这个模型）。
-     条目是**镜像**：同一条也留在它原本所属的卡片里（两处是同一个开关）。 */
-  function renderModelTab(pane, tab) {
-    var rt = reactRt();
-    if (rt && typeof ModelCard === 'function') {
-      var h = rt.React.createElement;
-      var nodes = [];
-      if (tab.legend) {
-        nodes.push(h('div', { key: 'lg', className: 'kami-card' },
-          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '模型切换说明')),
-          h('div', { className: 'kami-card-body' }, tab.legend)));
-      }
-      var mi;
-      for (mi = 0; mi < tab.cards.length; mi++) {
-        var mc = tab.cards[mi];
-        cardMap[mc.key] = { tabKey: tab.key, items: mc.items };
-        nodes.push(h(ModelCard, {
-          key: 'm' + mi, model: mc, currentEmoji: currentModel,
-          opts: { cardKey: mc.key, lock: isLockedItem }
-        }));
-      }
-      if (!tab.cards.length) {
-        nodes.push(h('div', { key: 'empty', className: 'kami-empty' },
-          '这份预设里没有登记任何模型（📋 支持模型列表 | model 是空的）。'));
-      }
-      if (renderNodesInto(pane, nodes)) { return; }
-    }
-    /* 兜底：运行库不可用 */
-    if (tab.legend) {
-      var box = mk('div', 'kami-card');
-      var lgHead = mk('div', 'kami-card-head');
-      lgHead.appendChild(mk('span', 'kami-card-title', '模型切换说明'));
-      box.appendChild(lgHead);
-      box.appendChild(mk('div', 'kami-card-body', tab.legend));
-      pane.appendChild(box);
-    }
-    var i;
-    for (i = 0; i < tab.cards.length; i++) { pane.appendChild(modelCardEl(tab, tab.cards[i])); }
-    if (!tab.cards.length) {
-      pane.appendChild(mk('div', 'kami-empty', '这份预设里没有登记任何模型（📋 支持模型列表 | model 是空的）。'));
-    }
-  }
-
-  /* ── 角色名样式这一行 ──
+  } /* ── 面板事件（照搬 30-皮肤管理.js 的 pointer 分段结构：先判动作，再分派） ──
+ ── 角色名样式这一行 ──
      ⚠️ 2026-09-28 用户裁定：它**不在这块面板里了**，搬去了「🎨 皮肤管理面板 → 显示」那张卡
      （理由：两件事都是显示相关，不涉及预设本身的调整）。实现与 API 见 src/scripts/35-提示词发送修改.js，
      它的界面归 30-皮肤管理.js 的 nameWrapRow()。这里一个字都不留，免得两处各长一份。 */
 
-  /* 一张模型卡片：整张卡由共享模块的 buildModelCard 建（src/scripts/_preset-cards.js），
-     结构 = div.kami-card + 可点卡头 button.kami-card-head.kami-btn--ghost（含「当前」小标签）
-     + 卡内 .kami-card-body > .kami-grid 的条目卡。引导面板的模型页调的是同一个函数。
-     这里只补面板自己的登记：cardMap 记下这张卡里有哪些条目（单选联动要用）。 */
-  function modelCardEl(tab, card) {
-    var box = buildModelCard(HDOC, card, currentModel, { cardKey: card.key, lock: isLockedItem });
-    cardMap[card.key] = { tabKey: tab.key, items: card.items };
-    return box;
-  }
-
   /* 条目卡本体、角标（emoji 摘取）、ⓘ 标记、注释外包层的结构**全部在共享模块里**：
      src/scripts/_preset-cards.js（构建期内联，见文件头的 buildItemsGrid / buildItemCard）。
      引导面板的模型页用的是同一份 —— 同一颗卡片在两块面板里不会再各写一套（契约 §4.4）。 */
-
-  /* ── 注释查看（用户裁定：不是角标，挂名字后面；没有注释就什么都别显示） ──
-     做法：
-       · 标记 = 名字后面一枚 ⓘ，占一格的宽度（.kami-card-note 是契约 §4.2 已登记的类名，
-         用 data-kami-note-mark 与展开出来的正文区分，不新增类名）；
-       · 没有注释的条目/卡片**一枚记号都不加**（不显示成灰色不可点，免得用户困惑）；
-       · 结构 = **条目名（卡本体）作标题栏，注释正文是标题栏下方那个独立容器**：条目卡外面
-         包一层 .kami-item-note（契约 §4.2 已登记），正文不再是按钮的一部分；卡片组 / 变量卡
-         则放在卡片头与正文之间。四套皮肤对 .kami-card-head 与 .kami-card-note 都各自有样式，
-         正文容器直接用现成的 .kami-card-note；
-       · 展开/收起只切 hidden 属性，容器始终留在 DOM 里（契约 §4.3）；
-       · ⚠️ 条目卡整张就是一个开关：标记的 click 必须 stopPropagation + preventDefault，
-         否则注释一弹出来的同时开关也被翻掉。卡片头不是开关，没有这个坑。 */
-  /* 标记与正文的结构在共享模块里（noteMarkEl / noteBoxEl）：契约 §4.4 硬规则 1 要求
-     「ⓘ 与预设面板逐属性同构」，那就只有一份实现，两个函数只负责把 HDOC 传进去。 */
-  function noteMark(note) { return noteMarkEl(HDOC, note); }
-  function noteText(note) { return noteBoxEl(HDOC, note); }
-  /* 点标记：只切它所在那一组里的注释正文，别的一律不动（也不重画面板） */
-  /* 点折叠卡头：翻转它所在那张卡的开合状态。
-     ⚠️ 必须读 DOM 上**当前**的 data-kami-open 再翻，不能读渲染时算出来的值 ——
-     老坑（交接.md:263）：照闭包里的初始态取反，表现是「只能开合一次，
-     必须切走再切回来才能再折」。首版不记状态：每次进页都是收起的。 */
-  function toggleFold(headEl) {
-    var card = (headEl && headEl.closest) ? headEl.closest('.kami-collapse') : null;
-    if (!card) { return; }
-    var open = card.getAttribute('data-kami-open') === '1';
-    card.setAttribute('data-kami-open', open ? '0' : '1');
-  }
-
-  function toggleNote(el) {
-    /* 注释正文有两个落点：条目卡外面包的那一层 `.kami-item-note` 里（标题栏下方），
-       以及卡片组 / 变量卡的 `.kami-card` 里（卡片头下面、正文上面）。两种都认。 */
-    var host = null;
-    try {
-      if (el.closest) { host = el.closest('.kami-item-note') || el.closest('.kami-card'); }
-    } catch (e) { }
-    if (!host) { return; }
-    var txt = host.querySelector('[data-kami-note]');
-    if (!txt) { return; }
-    var open = txt.hasAttribute('hidden');
-    if (open) { txt.removeAttribute('hidden'); } else { txt.setAttribute('hidden', 'hidden'); }
-    el.setAttribute('aria-expanded', open ? 'true' : 'false');
-    el.setAttribute('aria-label', open ? '收起注释' : '查看注释');
-  }
-
-  /* 「🧩 设置变量」tab：一张变量卡 = 卡片头（条目名 + 数字/范围 + 有注释才有的 ⓘ）+ 一个数字框。
-     范围卡是两个数字框（_min / _max 一对），填反了自动交换（用户裁定）。 */
-  function renderVarTab(pane, tab) {
-    var rt = reactRt();
-    if (rt && typeof ItemsGrid === 'function') {
-      var h = rt.React.createElement;
-      var nodes = [], drawnR = 0, ci;
-      for (ci = 0; ci < tab.cards.length; ci++) {
-        nodes.push(h(VarCardView, { key: 'v' + ci, rt: rt, card: tab.cards[ci] }));
-        drawnR++;
-      }
-      if (tab.own && tab.own.length) {
-        nodes.push(h(ItemsGrid, { key: 'own', items: tab.own, group: { key: tab.key + '#own', mode: null }, opts: { lock: isLockedItem } }));
-        drawnR++;
-      }
-      if (!drawnR) {
-        nodes.push(h('div', { key: 'empty', className: 'kami-empty' }, '这个层级里没有可设置的数字变量（变量的值必须是一串纯数字）。'));
-      }
-      if (renderNodesInto(pane, nodes)) { return; }
-    }
-    /* 兜底 */
-    var i, drawn = 0;
-    for (i = 0; i < tab.cards.length; i++) { pane.appendChild(varCardEl(tab, tab.cards[i])); drawn++; }
-    if (tab.own && tab.own.length) {
-      pane.appendChild(itemsGrid(tab.own, { mode: null }, tab.key + '#own'));
-      drawn++;
-    }
-    if (!drawn) {
-      pane.appendChild(mk('div', 'kami-empty', '这个层级里没有可设置的数字变量（变量的值必须是一串纯数字）。'));
-    }
-  }
-
-  /* 变量卡（React）。数字框用**非受控** defaultValue —— 变更委托直接读 .value。 */
-  function VarCardView(props) {
-    var rt = props.rt, card = props.card;
-    var h = rt.React.createElement;
-    var chips = [h('span', { key: 'k', className: 'kami-chip' }, card.kind === 'range' ? '范围' : '数字')];
-    if (card.multi) { chips.push(h('span', { key: 'm', className: 'kami-chip' }, card.label)); }
-    if (card.note) { chips.push(h(NoteMark, { key: 'mark', note: card.note })); }
-    var inputs = [];
-    for (var i = 0; i < card.vars.length; i++) {
-      var v = card.vars[i];
-      if (i > 0) { inputs.push(h('span', { key: 'd' + i, className: 'kami-card-note' }, '–')); }
-      inputs.push(h('input', {
-        key: 'i' + i, className: 'kami-number', type: 'number', min: '0', step: '1',
-        defaultValue: String(v.value),
-        'data-kami-var': v.name,
-        'data-kami-entry': card.entry || '',
-        'data-kami-old': v.value,
-        'aria-label': v.name
-      }));
-    }
-    return h('div', { className: 'kami-card', 'data-kami-card-key': card.key, 'data-kami-var-card': card.key },
-      h('div', { className: 'kami-card-head' },
-        h('span', { className: 'kami-card-title' }, card.name), chips),
-      h(NoteBox, { note: card.note }),
-      h('div', { className: 'kami-card-body' },
-        h('div', { className: 'kami-field' },
-          h('span', { className: 'kami-field-label' }, card.label),
-          h('span', { className: 'kami-field-value' }, inputs))))
-    ;
-  }
-
-  function varCardEl(tab, card) {
-    var box = mk('div', 'kami-card');
-    box.setAttribute('data-kami-card-key', card.key);
-    box.setAttribute('data-kami-var-card', card.key);
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', card.name));
-    head.appendChild(mk('span', 'kami-chip', card.kind === 'range' ? '范围' : '数字'));
-    if (card.multi) { head.appendChild(mk('span', 'kami-chip', card.label)); }
-    var mark = noteMark(card.note);
-    if (mark) { head.appendChild(mark); }
-    box.appendChild(head);
-    var txt = noteText(card.note);
-    if (txt) { box.appendChild(txt); }
-    var body = mk('div', 'kami-card-body');
-    var field = mk('div', 'kami-field');
-    field.appendChild(mk('span', 'kami-field-label', card.label));
-    var val = mk('span', 'kami-field-value');
-    for (var i = 0; i < card.vars.length; i++) {
-      if (i > 0) { val.appendChild(mk('span', 'kami-card-note', '–')); }
-      val.appendChild(varInput(card.vars[i], card.entry));
-    }
-    field.appendChild(val);
-    body.appendChild(field);
-    box.appendChild(body);
-    return box;
-  }
-
-  /* 一个变量 = 一个原生数字输入框（.kami-number 是契约 §4.2 已登记的类名）。
-     data-kami-old 记着**当前预设里的值**：只有真的变了才写、才保存（与开关一样的幂等口径）。 */
-  function varInput(v, entry) {
-    var inp = mk('input', 'kami-number');
-    inp.type = 'number';
-    inp.setAttribute('min', '0');
-    inp.setAttribute('step', '1');
-    inp.value = v.value;
-    inp.setAttribute('data-kami-var', v.name);
-    inp.setAttribute('data-kami-entry', entry || '');
-    inp.setAttribute('data-kami-old', v.value);
-    inp.setAttribute('aria-label', v.name);
-    return inp;
-  }
-
-  /* ───────── 「🔀 更新合并」页（v0.6；远程更新 v1.4 的三方合并裁决） ─────────
+ /* ───────── 「🔀 更新合并」页（v0.6；远程更新 v1.4 的三方合并裁决） ─────────
      数据（plan）由 70 号算好带进来：{ degraded, stats, conflicts:[{key,kind,id,name,fields}] }。
      本页只做三件事：列出待裁决项（每项一张卡）、一键选边、提交 onApply(plan)。
      不内联合并引擎 —— 计算、备份、写盘都在 70 号那边。
      类名只用契约已登记的（卡片 / 字段行 / 分段切换 / 按钮），不新增皮肤类名。 */
-
-  function mergeKindLabel(kind) {
-    return { prompt: '两边都改过', delete: '删除与新版改动撞了', order: '排列两边都调过',
-      regex: '正则两边都改过' }[kind] || '两边都改过';
-  }
-
-  /* 裁决页的措辞有两套（2026-09-28 加「继承旧预设设置」时抽出来的）：
-     · 平时（远程更新）：theirs = 你现在这份，next = 刚下载的新版 → 「保留我的 / 用新版」；
-     · 继承旧预设：theirs = 你挑的那份**旧**预设，next = 现在这份 →
-       再说「保留我的」会让人以为现在这份才是「我的」，必须换成「保留旧预设 / 用现在这份」。
-     两份措辞只在这里定义一次，卡片与页头都读它，免得改一处漏一处。 */
-  function mergeWords() {
-    var inh = !!(mergeCtx && mergeCtx.plan && mergeCtx.plan.inherit);
-    if (inh) {
-      return {
-        title: '合并到当前预设',
-        mine: '保留旧预设', next: '用现在这份',
-        allMine: '全部保留旧预设', allNext: '全部用现在这份',
-        lead: '每一项二选一：保留旧预设 / 用现在这份。',
-        tail: '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你挑的那份旧预设为准，' +
-          '不会被现在这份覆盖。'
-      };
-    }
-    return {
-      title: '合并到新版本',
-      mine: '保留我的', next: '用新版',
-      allMine: '全部保留我的', allNext: '全部用新版',
-      lead: '每一项二选一：保留我的 / 用新版。',
-      tail: '没有列进来的（开关、采样参数、脚本设置、正则开关、新增/删除的条目）一律以你现在' +
-        '的预设为准，不会被新版覆盖。'
-    };
-  }
-
-  /* 一张待裁决卡：条目名 + 「改了什么」+ 二选一分段（默认保留我的）。
-     update-plan 后只就地配料（paintMergeCard），不重画整页。 */
-  function mergeCardEl(c) {
-    var W = mergeWords();
-    var box = mk('div', 'kami-card');
-    box.setAttribute('data-kami-conflict', c.key);
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', c.name || c.id));
-    head.appendChild(mk('span', 'kami-chip', mergeKindLabel(c.kind)));
-    box.appendChild(head);
-    var body = mk('div', 'kami-card-body');
-    var fs = (c.fields && c.fields.length) ? c.fields.join('、') : '';
-    if (fs) { body.appendChild(mk('div', 'kami-card-note', '改了：' + fs)); }
-    var seg = mk('div', 'kami-seg');
-    seg.setAttribute('role', 'group');
-    seg.setAttribute('aria-label', c.name || c.id);
-    var opts = [['mine', W.mine], ['next', W.next]];
-    for (var i = 0; i < opts.length; i++) {
-      var choice = (c.choice || 'mine') === opts[i][0];
-      var btn = mk('button', 'kami-seg-item' + (choice ? ' is-on' : ''), opts[i][1]);
-      btn.type = 'button';
-      btn.setAttribute('data-kami-choice', opts[i][0]);
-      btn.setAttribute('aria-pressed', choice ? 'true' : 'false');
-      seg.appendChild(btn);
-    }
-    body.appendChild(seg);
-    box.appendChild(body);
-    return box;
-  }
-
-  function renderMergeTab(pane) {
-    var rt = reactRt();
-    var plan = mergeCtx ? mergeCtx.plan : null;
-    if (rt) {
-      var h = rt.React.createElement;
-      if (!plan) {
-        if (renderNodesInto(pane, [h('div', { key: 'e', className: 'kami-empty' }, '现在没有进行中的合并。')])) { return; }
-      } else {
-        var W = mergeWords();
-        var nodes = [];
-        var headKids = [h('span', { key: 't', className: 'kami-card-title' }, W.title)];
-        if (plan.degraded) { headKids.push(h('span', { key: 'd', className: 'kami-chip' }, '旧版认不出')); }
-        nodes.push(h('div', { key: 'sum', className: 'kami-card' },
-          h('div', { className: 'kami-card-head' }, headKids),
-          h('div', { className: 'kami-card-body' },
-            '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W.lead + W.tail +
-            (plan.degraded ? '（你的旧版认不出来，所有差异都当成「两边都改过」处理，宁可少更新也不动你的东西。）' : ''))));
-        nodes.push(h('div', { key: 'bar', className: 'kami-card' },
-          h('div', { className: 'kami-card-body' },
-            h('div', { className: 'kami-field' },
-              h('span', { className: 'kami-field-label' }, '一键'),
-              h('span', { className: 'kami-field-value' },
-                h('button', { type: 'button', className: 'kami-btn', 'data-kami-act': 'merge-all-mine' }, W.allMine),
-                h('button', { type: 'button', className: 'kami-btn', 'data-kami-act': 'merge-all-next' }, W.allNext))))));
-        for (var mi = 0; mi < plan.conflicts.length; mi++) {
-          nodes.push(h(MergeCardView, { key: 'c' + mi, rt: rt, c: plan.conflicts[mi] }));
-        }
-        if (!plan.conflicts.length) {
-          nodes.push(h('div', { key: 'none', className: 'kami-empty' }, '没有需要你裁决的差异 —— 其余全部自动按口径合并。'));
-        }
-        nodes.push(h('div', { key: 'foot', className: 'kami-card' },
-          h('div', { className: 'kami-card-body' },
-            h('div', { className: 'kami-field' },
-              h('span', { className: 'kami-field-label' }, '确认'),
-              h('span', { className: 'kami-field-value' },
-                h('button', { type: 'button', className: 'kami-btn kami-btn--primary', 'data-kami-act': 'merge-apply' }, '应用并完成更新'))))));
-        if (renderNodesInto(pane, nodes)) { return; }
-      }
-    }
-    /* 兜底：运行库不可用 */
-    if (!plan) { pane.appendChild(mk('div', 'kami-empty', '现在没有进行中的合并。')); return; }
-    var W2 = mergeWords();
-    var box = mk('div', 'kami-card');
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', W2.title));
-    if (plan.degraded) { head.appendChild(mk('span', 'kami-chip', '旧版认不出')); }
-    box.appendChild(head);
-    box.appendChild(mk('div', 'kami-card-body', '要你裁决的差异 ' + plan.conflicts.length + ' 项。' + W2.lead + W2.tail));
-    pane.appendChild(box);
-    for (var i = 0; i < plan.conflicts.length; i++) { pane.appendChild(mergeCardEl(plan.conflicts[i])); }
-    if (!plan.conflicts.length) { pane.appendChild(mk('div', 'kami-empty', '没有需要你裁决的差异 —— 其余全部自动按口径合并。')); }
-  }
-
-  /* 一条待裁决差异（React）：卡片 + 两选分段按钮（点击仍走 data-kami-choice 委托） */
-  function MergeCardView(props) {
-    var rt = props.rt, c = props.c;
-    var h = rt.React.createElement;
-    var W = mergeWords();
-    var fs = (c.fields && c.fields.length) ? c.fields.join('、') : '';
-    var opts = [['mine', W.mine], ['next', W.next]];
-    return h('div', { className: 'kami-card', 'data-kami-conflict': c.key },
-      h('div', { className: 'kami-card-head' },
-        h('span', { className: 'kami-card-title' }, c.name || c.id),
-        h('span', { className: 'kami-chip' }, mergeKindLabel(c.kind))),
-      h('div', { className: 'kami-card-body' },
-        fs ? h('div', { className: 'kami-card-note' }, '改了：' + fs) : null,
-        h('div', { className: 'kami-seg', role: 'group', 'aria-label': c.name || c.id },
-          opts.map(function (o) {
-            var choice = (c.choice || 'mine') === o[0];
-            return h('button', {
-              key: o[0], type: 'button',
-              className: 'kami-seg-item' + (choice ? ' is-on' : ''),
-              'data-kami-choice': o[0],
-              'aria-pressed': choice ? 'true' : 'false'
-            }, o[1]);
-          }))))
-    ;
-  }
-
-  /* 找计划里一枚冲突项的现状（就地刷新时按 key 找） */
-  function mergePlanOf() { return mergeCtx ? mergeCtx.plan : null; }
-  function mergeConflictAt(key) {
-    var plan = mergePlanOf();
-    if (!plan) { return null; }
-    for (var i = 0; i < plan.conflicts.length; i++) {
-      if (plan.conflicts[i].key === key) { return plan.conflicts[i]; }
-    }
-    return null;
-  }
-
-  /* 点一枚分段：改 plan 里那一项的 choice → 只重画这一张卡（不重画整页，不丢滚动位置） */
-  function setMergeChoice(btn, val) {
-    var plan = mergePlanOf();
-    if (!btn) { return; }
-    var card = btn.closest ? btn.closest('[data-kami-conflict]') : null;
-    if (!card) { return; }
-    var c = mergeConflictAt(card.getAttribute('data-kami-conflict'));
-    if (!c) { return; }
-    if (mergeCtx) { c.choice = val; }
-    paintMergeCard(card);
-    log('合并裁决「' + (c.name || c.id) + '」→ ' + (val === 'next' ? '用新版' : '保留我的'));
-  }
-
-  function paintMergeCard(card) {
-    var plan = mergePlanOf();
-    if (!card || !plan) { return; }
-    var c = mergeConflictAt(card.getAttribute('data-kami-conflict'));
-    if (!c) { return; }
-    var choice = (c.choice || 'mine');
-    var items = card.querySelectorAll('[data-kami-choice]');
-    for (var i = 0; i < items.length; i++) {
-      var on = items[i].getAttribute('data-kami-choice') === choice;
-      items[i].classList.toggle('is-on', on);
-      items[i].setAttribute('aria-pressed', on ? 'true' : 'false');
-    }
-  }
-
-  function paintMergeAll() {
-    if (!panelRoot) { return; }
-    var cards = panelRoot.querySelectorAll('[data-kami-conflict]');
-    for (var i = 0; i < cards.length; i++) { paintMergeCard(cards[i]); }
-  }
-
-  /* 一键全保留 / 全覆盖：改 plan 里的 choice + 就地重画所有卡 */
-  function setMergeAll(val) {
-    var plan = mergePlanOf();
-    if (!plan) { return; }
-    for (var i = 0; i < plan.conflicts.length; i++) { plan.conflicts[i].choice = val; }
-    paintMergeAll();
-    log('一键裁决：' + (val === 'next' ? '全部用新版' : '全部保留我的') + '（' + plan.conflicts.length + ' 处）');
-  }
-
-  /* 应用并完成更新：把决定交回 70 号（合并、备份、写盘都在那边），然后收掉这一页。 */
-  function applyMergeReview() {
-    var ctxNow = mergeCtx;
-    if (!ctxNow) { return; }
-    mergeCtx = null;    // 先清：onApply 里若再开面板 / 关面板都会重画
-    try { if (typeof ctxNow.onApply === 'function') { ctxNow.onApply(ctxNow.plan); } } catch (e) {
-      log('裁决回调出错（合并流程那边的日志为准）：' + ((e && e.message) || e));
-    }
-    refresh(true);
-    setOpen(false);
-  }
-
-  /* ──────────────────────── v0.6 的 API：openMergeReview ─────────────────────
-     打开「更新合并」页。面板本来没建就建；建不好（异常）返回 false 让 70 号退化。
-     页面排在 tab 最前。裁决完成 / 应用后关闭；用户点 ✕ = 放弃（onApply(null)）。 */
-  function openMergeReview(plan, onApply) {
-    if (disposed) { return false; }
-    if (!plan || !Array.isArray(plan.conflicts) || typeof onApply !== 'function') { return false; }
-    var old = mergeCtx;
-    mergeCtx = { plan: plan, onApply: onApply };
-    try {
-      if (!panelRoot) { buildPanel(); }
-      refresh(true);
-      if (!paneEl('MERGE')) { mergeCtx = old || null; return false; }
-      tabKey = 'MERGE';
-      applyTab();
-      renderStatus();
-      setOpen(true);
-      log('「更新合并」裁决页已打开：待裁决 ' + plan.conflicts.length + ' 项' +
-        (plan.degraded ? '（旧版认不出，退化模式）' : ''));
-      return true;
-    } catch (e) {
-      log('打开裁决页失败：' + ((e && e.message) || e));
-      mergeCtx = old || null;
-      return false;
-    }
-  }
-
   /* ───────── 「ℹ️ 关于」页（固定的最后一页） ─────────
 
      三个版本读数各有来源与兜底，**任何一条读不到都只显示「读不到」，绝不假装**：
@@ -2460,17 +1342,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       if (n && n !== '当前预设') { return n; }
     } catch (e) { }
     return '';
-  }
-
-  /* 一行「标签 ＋ 值（＋可选小标签）」。用的都是契约 §4.2 已登记的类名，不新增。 */
-  function aboutRow(label, value, chip) {
-    var row = mk('div', 'kami-field');
-    row.appendChild(mk('span', 'kami-field-label', label));
-    var val = mk('span', 'kami-field-value');
-    val.textContent = value || '读不到';
-    if (chip) { val.appendChild(mk('span', 'kami-chip', chip)); }
-    row.appendChild(val);
-    return row;
   }
 
   /* 「🔄 远程更新」脚本的全局 API（它挂在宿主窗口上；拿不到就返回 null） */
@@ -2740,116 +1611,9 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     log('第 ' + idx + ' 楼：已合并续写的重复外层标签');
   }
 
-  /* 弹窗里的文本要转义：确认窗走酒馆原生弹窗，内容是 HTML。
-     尖括号必须转义（标签名里就有），管道符与花括号按 70 号那条经验一并换成全角（斜杠命令会咬它们）。 */
-  function tagFixEsc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/\|/g, '｜').replace(/\{/g, '｛').replace(/\}/g, '｝');
-  }
-
   /* 确认窗：必须在预设面板**上面**。酒馆原生弹窗的层级与面板同为 30000，
      而面板是脚本后挂进 body 的、DOM 顺序在后面 —— 不处理就会被盖住（用户实测点名）。
      做法：弹窗期间把面板舞台临时压到 1，弹完恢复。只动自己那个元素的层级，不碰酒馆 DOM。
-
-     ⚠️ 拿不到弹窗接口时**返回 false（什么都不改）**，不返回 true —— 确认窗是用户点名的硬要求，
-     「问不到就不动手」比「没问就改了他的聊天记录」安全。面板上会写一句为什么没动
-     （用户 2026-09-30 的第三条意见：窗里报实际改动，前提是**真有窗**）。
-     调用方拿到的除了布尔值，还可以调 tagFixAsk.lastReason 看是哪条路退化的。 */
-  function tagFixAsk(html) {
-    tagFixAsk.lastReason = '';
-    var root = panelRoot, oldZ = '';
-    try {
-      if (root) { oldZ = root.style.zIndex; root.style.zIndex = '1'; }
-    } catch (e) { }
-    var restore = function () {
-      try { if (root) { root.style.zIndex = oldZ || String(Z); } } catch (e) { }
-    };
-    var c = stCtx();
-    if (!c || typeof c.callPopup !== 'function') {
-      restore();
-      /* 只有宿主真有 confirm 时才算「问到了」；没有就只能放弃这次手动处理 */
-      if (HOST && typeof HOST.confirm === 'function') {
-        return Promise.resolve(!!HOST.confirm(html.replace(/<[^>]*>/g, '')));
-      }
-      tagFixAsk.lastReason = 'noPopup';
-      return Promise.resolve(false);
-    }
-    return Promise.resolve(c.callPopup(html, 'confirm', null,
-      { okButton: TAGFIX_COPY.confirmOk, cancelButton: TAGFIX_COPY.confirmCancel }))
-      ['catch'](function (e) { tagFixAsk.lastReason = 'popupError'; log('确认窗出错：' + ((e && e.message) || e)); return false; })
-      .then(function (r) { restore(); return !!r; }, function (e) { restore(); throw e; });
-  }
-
-  /* 手动「处理当前楼层」：**先扫一遍** → 把这一次实际会改的标签列给用户看 → 确认才写。
-     用户 2026-09-30 点名：「确认窗是改成先扫描一遍，确认好这一次实际上会改哪些标签跟用户说一声，
-     而不是告诉用户会扫哪些标签」。所以窗里拼的是 res.changes（真实改动），不是登记表。 */
-  async function tagFixCurrentFloor() {
-    if (disposed) { return; }
-    var stamp = tagFixChatStamp();
-    if (tagFixMode === 'off') { return; }
-    if (!tagFixApiReady()) { toast('warning', TAGFIX_COPY.needApi); return; }
-    var idx = currentFloorId();
-    if (idx < 0) { toast('warning', TAGFIX_COPY.noFloor); return; }
-    var m = chatMsgAt(idx);
-    if (!m) { toast('warning', TAGFIX_COPY.noFloor); return; }
-    var res = tagFixText(m.message);
-    /* 扫出来没东西要改：不弹窗，只在面板上说一句 */
-    if (!res) {
-      if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.nothing); }
-      toast('success', TAGFIX_COPY.nothing);
-      return;
-    }
-    var rows = describeChanges(res, 8), closes = [], removes = [], references = [], i;
-    for (i = 0; i < rows.length; i++) {
-      if (rows[i].kind === 'close') { closes.push(rows[i]); } else if (rows[i].kind === 'reference') { references.push(rows[i]); } else { removes.push(rows[i]); }
-    }
-    var ask = '<div style="text-align:left;line-height:1.65;">';
-    ask += '<div>' + tagFixEsc(TAGFIX_COPY.scanLead) + '</div>';
-    if (closes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.closeLead, closes); }
-    if (removes.length) { ask += tagFixGroupHtml(TAGFIX_COPY.removeLead, removes); }
-    if (references.length) { ask += tagFixGroupHtml(TAGFIX_COPY.referenceLead, references); }
-    if (res.strayLeft && res.strayLeft.length) {
-      ask += '<div style="opacity:.8;">' + tagFixEsc(TAGFIX_COPY.strayNote.replace('%n%', String(res.strayLeft.length))) + '</div>';
-    }
-    ask += '<div style="margin-top:8px;opacity:.72;font-size:12px;">' + tagFixEsc(TAGFIX_COPY.confirmNote) + '</div>';
-    ask += '</div>';
-    var yes = await tagFixAsk(ask);
-    if (disposed || !tagFixSameChat(stamp, tagFixChatStamp())) { return; }
-    if (!yes) {
-      /* 没确认就不动手。区分「用户点了取消」与「根本弹不出窗」：后者要告诉用户为什么没反应 */
-      if (tagFixAsk.lastReason === 'noPopup' || tagFixAsk.lastReason === 'popupError') {
-        toast('warning', TAGFIX_COPY.noPopup);
-        if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.noPopup); }
-        log('手动处理中止：' + tagFixAsk.lastReason);
-      }
-      return;
-    }
-    try {
-      var latest = chatMsgAt(idx);
-      if (!latest || latest.message !== m.message) { toast('warning', '这条消息已变化，请重新处理'); return; }
-      await setChatMessages([{ message_id: idx, message: res.text }], { refresh: 'affected' });
-      tagFixStat.fixed++;
-      tagFixStat.lastFloor = idx;
-      tagFixStat.lastText = describeFix(res);
-      paintTagFixStat();
-      toast('success', TAGFIX_COPY.confirmDone);
-      log('手动处理第 ' + idx + ' 楼：' + tagFixStat.lastText);
-    } catch (e) {
-      toast('error', TAGFIX_COPY.confirmFail + ((e && e.message) || e));
-      if (tagFixEls && tagFixEls.stat) { paintTagFixStat(TAGFIX_COPY.confirmFail + ((e && e.message) || e)); }
-    }
-  }
-
-  /* 确认窗里的一组条目：引子 + 逐条「标签 + 用途」 */
-  function tagFixGroupHtml(lead, rows) {
-    var h = '<div style="margin:6px 0 0;">' + tagFixEsc(lead) + '</div><ul style="margin:2px 0 0 18px;padding:0;">';
-    for (var i = 0; i < rows.length; i++) {
-      h += '<li style="margin:1px 0;">' + tagFixEsc(rows[i].text) +
-        (rows[i].label ? ('　' + tagFixEsc(rows[i].label)) : '') + '</li>';
-    }
-    return h + '</ul>';
-  }
 
   /* 确认窗里那份「这次会处理哪些标签」= 当前登记表（含自定义）逐个人话列出。
      2026-09-30 用户裁定后**不再用它**：窗里改成报这一次实际会改的条目（describeChanges 的结果）。
@@ -2983,30 +1747,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     paintGodCmdCard();
   }
 
-  /* @@KAMI_OTHER_TOOLS_UI@@ */
   /* @@KAMI_TOOLS_BRIDGE@@ */
   /* @@KAMI_PRESET_BRIDGE@@ */
-
-  var otherToolsRoot = null, otherToolsUnbind = null;
-  function mountOtherTools(container) {
-    if (disposed || !container) { return null; }
-    if (otherToolsRoot === container) { return null; }
-    if (otherToolsUnbind) { otherToolsUnbind(); }
-    otherToolsRoot = container;
-    injectCss();
-    container.textContent = '';
-    renderToolboxTab(container);
-    otherToolsUnbind = bindPresetControlEvents(container);
-    return function () {
-      if (otherToolsRoot !== container) { return; }
-      if (otherToolsUnbind) { otherToolsUnbind(); otherToolsUnbind = null; }
-      container.textContent = '';
-      otherToolsRoot = null;
-      tagFixEls = null;
-      godcmdEls = null;
-    };
-  }
-
   /* ───────── 🧰 「导出纯净正文」 ─────────
      用户要的：导出干净正文 TXT，可选楼层范围（默认全部）、可选是否只导 AI 消息。
      他点名问的难点是"酒馆一般不会渲染那么多楼层，怎么保证正常且高性能"——
@@ -3081,399 +1823,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
          用 disabled 反而顶不掉皮肤给 readonly 的样式。 */
       godcmdEls.txt.readOnly = cur.on;
     }
-  }
-
-  /* 一行「标签 + 值」（React 版，与命令式 aboutRow 同构） */
-  /* 「继承旧预设设置」卡（React 版，2026-10-26 迁移）
-     它有交互状态（清单开合 / 忙碌 / 结果文本 / 待确认的预设名），所以交给 React 状态管，
-     不再手工 textContent='' + appendChild。业务逻辑与命令式版逐句对应，一个字没改。 */
-  function InheritCardView(props) {
-    var rt = props.rt, up = props.up;
-    var h = rt.React.createElement, React = rt.React;
-    var stSrc = React.useState(inheritFromName || '');
-    var stAt = React.useState(inheritAtText || '');
-    var stOut = React.useState('还没用过');
-    var stMode = React.useState('idle');
-    var stInfo = React.useState({ names: [], current: '' });
-    var stWarn = React.useState('');
-    var stBusy = React.useState(false);
-    var srcName = stSrc[0], setSrcName = stSrc[1];
-    var srcAt = stAt[0], setSrcAt = stAt[1];
-    var outText = stOut[0], setOutText = stOut[1];
-    var mode = stMode[0], setMode = stMode[1];
-    var info = stInfo[0], setInfo = stInfo[1];
-    var warnName = stWarn[0], setWarnName = stWarn[1];
-    var busy = stBusy[0], setBusy = stBusy[1];
-
-    /* 把结果讲清楚：搬了哪几类、有没有需要裁决、预设选择有没有被挪走 */
-    function summarize(r, w) {
-      var rep = (r && r.report) || {};
-      var kinds = { prompts: '条目内容', prompt_order: '条目开关与顺序', extensions: '脚本设置与正则开关' };
-      var names = [];
-      for (var i = 0; i < ((w && w.changed) || []).length; i++) { names.push(kinds[w.changed[i]] || w.changed[i]); }
-      var s = INHERIT_COPY.done + '（从「' + r.oldName + '」搬来：' + (names.join('、') || '没有变化') + '；先备份成「' + r.backupName + '」）';
-      s += rep.conflicts > 0
-        ? (' ' + INHERIT_COPY.asked.replace('{n}', String(rep.conflicts)) + '（保留旧预设 ' + (rep.decidedMine || 0) + ' / 用现在这份 ' + (rep.decidedNext || 0) + '）')
-        : (' ' + INHERIT_COPY.noAsk);
-      if (r.decidedVia === 'popup' || r.decidedVia === 'popup-failed') { s += '（裁决走的是酒馆原生弹窗）'; }
-      if (w && w.sel && w.sel.checked && !w.sel.ok) { s += ' ' + INHERIT_COPY.selFailed; }
-      else if (w && w.sel && w.sel.moved && w.sel.ok) { s += ' ' + INHERIT_COPY.selMoved; }
-      return s;
-    }
-
-    function start(name) {
-      setBusy(true); setMode('idle');
-      setOutText(INHERIT_COPY.working + '（' + name + '）');
-      var p = null;
-      try { p = up.inheritFrom(name); } catch (e) { p = Promise.reject(e); }
-      Promise.resolve(p).then(function (r) {
-        setBusy(false);
-        if (!r || !r.ok) {
-          if (r && r.cancelled) { setOutText('你在裁决页里没有完成，这次什么都不会写。'); return; }
-          setOutText(INHERIT_COPY.failHead + ((r && r.msg) || '没拿到结果'));
-          return;
-        }
-        var w = applyInheritedToLive(r.merged, r.targetName);
-        if (!w.ok) { setOutText(INHERIT_COPY.failHead + w.msg); return; }
-        finishInherit(r.oldName);
-        setSrcName(inheritFromName);
-        setSrcAt(inheritAtText);
-        setOutText(summarize(r, w));
-      })['catch'](function (e) {
-        setBusy(false);
-        setOutText(INHERIT_COPY.failHead + ((e && e.message) || e));
-      });
-    }
-
-    function openPick() {
-      var inf = { names: [], current: '' };
-      try { inf = up.otherPresetNames() || inf; } catch (e) { }
-      setInfo(inf);
-      setMode('pick');
-    }
-
-    var srcText = srcName ? (srcName + (srcAt ? ('（' + srcAt + '）') : '')) : INHERIT_COPY.sourceNone;
-    var body = [
-      aboutRowView(h, INHERIT_COPY.sourceLabel, srcText, '', null, 'src'),
-      h('div', { key: 'sn', className: 'kami-card-note' }, INHERIT_COPY.sourceNote)
-    ];
-
-    if (!up) {
-      body.push(h('div', { key: 'no', className: 'kami-field' },
-        h('span', { className: 'kami-field-label' }, '手动导入新版之后'),
-        h('span', { className: 'kami-field-value' }, '不可用')));
-      body.push(h('div', { key: 'dg', className: 'kami-card-note' }, INHERIT_COPY.degrade));
-    } else {
-      body.push(h('div', { key: 'row', className: 'kami-field' },
-        h('span', { className: 'kami-field-label' }, '手动导入新版之后'),
-        h('span', { className: 'kami-field-value' },
-          h('button', {
-            type: 'button', className: 'kami-btn kami-btn--primary',
-            disabled: busy || undefined,
-            onClick: function () { if (mode === 'idle') { openPick(); } else { setMode('idle'); } }
-          }, '选择旧预设'))));
-
-      if (mode === 'pick') {
-        var rows = [];
-        rows.push(h('div', { key: 'hint', className: 'kami-card-note' },
-          INHERIT_COPY.pickHint + (info.current ? ('（当前这一份是「' + info.current + '」，不列在下面）') : '')));
-        var names = info.names || [];
-        if (!names.length) {
-          rows.push(h('div', { key: 'none', className: 'kami-empty' }, INHERIT_COPY.noOthers));
-        } else {
-          for (var ni = 0; ni < names.length; ni++) {
-            (function (n, idx) {
-              var kami = true;
-              try { kami = up.isKamiName(n) === true; } catch (e) { kami = true; }
-              rows.push(h('div', { key: 'n' + idx, className: 'kami-field' },
-                h('span', { className: 'kami-field-label' }, n),
-                h('span', { className: 'kami-field-value' },
-                  h('button', { type: 'button', className: 'kami-btn',
-                    onClick: function () { if (kami) { start(n); } else { setWarnName(n); setMode('warn'); } } },
-                    kami ? '继承' : '继承（非卡密）'))));
-            })(names[ni], ni);
-          }
-        }
-        rows.push(h('div', { key: 'cancel', className: 'kami-field' },
-          h('span', { className: 'kami-field-label' }, '不继承了'),
-          h('span', { className: 'kami-field-value' },
-            h('button', { type: 'button', className: 'kami-btn',
-              onClick: function () { setMode('idle'); setOutText('还没用过'); } }, '取消'))));
-        body.push(h('div', { key: 'pick', className: 'kami-card-note',
-          style: { maxHeight: '42vh', overflowY: 'auto' } }, rows));
-      }
-
-      if (mode === 'warn') {
-        body.push(h('div', { key: 'warn', className: 'kami-card-note' },
-          h('div', { key: 'w', className: 'kami-card-note' }, INHERIT_COPY.notKamiWarn),
-          h('div', { key: 'r', className: 'kami-field' },
-            h('span', { className: 'kami-field-label' }, warnName),
-            h('span', { className: 'kami-field-value' },
-              h('button', { type: 'button', className: 'kami-btn kami-btn--primary',
-                onClick: function () { start(warnName); } }, '仍然继承'),
-              h('button', { type: 'button', className: 'kami-btn',
-                onClick: function () { openPick(); } }, '换一个')))));
-      }
-    }
-
-    body.push(aboutRowView(h, '继承结果', outText, '', null, 'out'));
-
-    return h('div', { className: 'kami-card' },
-      h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, INHERIT_COPY.title)),
-      h('div', { className: 'kami-card-note' }, INHERIT_COPY.note),
-      h('div', { className: 'kami-card-body' }, body));
-  }
-
-  function aboutRowView(h, label, value, chip, valRef, key) {
-    return h('div', { key: key, className: 'kami-field' },
-      h('span', { className: 'kami-field-label' }, label),
-      h('span', { className: 'kami-field-value', ref: valRef || undefined },
-        value || '读不到',
-        chip ? h('span', { className: 'kami-chip' }, chip) : null));
-  }
-
-  function renderAboutTab(pane) {
-    aboutEls = null;
-    var rt = reactRt();
-    var api = kamiUpdateApi();
-    var snap = null;
-    try { snap = api ? api.status() : null; } catch (e) { snap = null; }
-    var pv = presetVersionOf(presetNameNow());
-    var rows = [
-      ['酒馆版本', tavernVersionText(), ''],
-      ['酒馆助手', callGlobal('getTavernHelperVersion'), ''],
-      ['预设版本', pv ? (pv.date ? (pv.label + '（' + pv.date + '）') : pv.label) : '名称里认不出编号', BUILD_N ? ('构建 ' + BUILD_N) : '']
-    ];
-    var repoText = '「🔄 远程更新」脚本没在运行';
-    if (snap) { repoText = (snap.repo && snap.repo.configured) ? (snap.repo.owner + '/' + snap.repo.repo) : '还没配置仓库'; }
-    if (rt) {
-      var h = rt.React.createElement;
-      var refs = { btn: null, out: null, last: null };
-      var nodes = [
-        h('div', { key: 'ver', className: 'kami-card' },
-          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '版本信息')),
-          h('div', { className: 'kami-card-body' },
-            rows.map(function (r, i) { return aboutRowView(h, r[0], r[1], r[2], null, 'r' + i); }))),
-        h('div', { key: 'upd', className: 'kami-card' },
-          h('div', { className: 'kami-card-head' }, h('span', { className: 'kami-card-title' }, '检查更新')),
-          h('div', { className: 'kami-card-body' },
-            aboutRowView(h, '远程仓库', repoText, '', null, 'a'),
-            aboutRowView(h, '上次检查', (snap && snap.lastCheckedAt) ? snap.lastCheckedAt : '本次会话还没查过', '', function (n) { refs.last = n; }, 'b'),
-            h('div', { key: 'btnrow', className: 'kami-field' },
-              h('span', { className: 'kami-field-label' }, '手动检查'),
-              h('span', { className: 'kami-field-value' },
-                h('button', { key: 'b', type: 'button', className: 'kami-btn kami-btn--primary',
-                  'data-kami-act': 'check-update', ref: function (n) { refs.btn = n; } }, '检查更新'))),
-            aboutRowView(h, '检查结果', '还没查过', '', function (n) { refs.out = n; }, 'c'))),
-        h(InheritCardView, { key: 'inherit', rt: rt, up: api })
-      ];
-      if (renderNodesInto(pane, nodes)) {
-        aboutEls = { btn: refs.btn, out: refs.out, last: refs.last };
-        return;
-      }
-    }
-    /* 兜底：运行库不可用（单测沙箱走这条） */
-    var i;
-    var box = mk('div', 'kami-card');
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', '版本信息'));
-    box.appendChild(head);
-    var body = mk('div', 'kami-card-body');
-    for (i = 0; i < rows.length; i++) { body.appendChild(aboutRow(rows[i][0], rows[i][1], rows[i][2])); }
-    box.appendChild(body);
-    pane.appendChild(box);
-    var box2 = mk('div', 'kami-card');
-    var head2 = mk('div', 'kami-card-head');
-    head2.appendChild(mk('span', 'kami-card-title', '检查更新'));
-    box2.appendChild(head2);
-    var body2 = mk('div', 'kami-card-body');
-    body2.appendChild(aboutRow('远程仓库', repoText, ''));
-    var lastRow = aboutRow('上次检查', (snap && snap.lastCheckedAt) ? snap.lastCheckedAt : '本次会话还没查过', '');
-    body2.appendChild(lastRow);
-    var btn = mk('button', 'kami-btn kami-btn--primary', '检查更新');
-    btn.type = 'button';
-    btn.setAttribute('data-kami-act', 'check-update');
-    var rowBtn = mk('div', 'kami-field');
-    rowBtn.appendChild(mk('span', 'kami-field-label', '手动检查'));
-    var valBtn = mk('span', 'kami-field-value');
-    valBtn.appendChild(btn);
-    rowBtn.appendChild(valBtn);
-    body2.appendChild(rowBtn);
-    var outRow = aboutRow('检查结果', '还没查过', '');
-    body2.appendChild(outRow);
-    box2.appendChild(body2);
-    pane.appendChild(box2);
-    aboutEls = { btn: btn, out: outRow.querySelector('.kami-field-value'), last: lastRow.querySelector('.kami-field-value') };
-    renderInheritCard(pane);
-  }
-
-  /* ── 「继承旧预设设置」这一张卡 ──
-     交互三层，每层都有退路（用户点名要「取消键防误触」）：
-       闲置 → 点「选择旧预设」展开清单 → 点某个预设（非卡密预设先弹一句警告）→ 真的开始搬。
-     搬的三步都在 70 号：算合并计划 → 打开裁决页（47 项以内一般没有）→ 先备份再交回来。
-     本脚本只负责最后一棒：把结果**覆盖到当前预设**并用酒馆自己的保存通道写盘。 */
-  function renderInheritCard(pane) {
-    var up = kamiUpdateApi();
-    var box = mk('div', 'kami-card');
-    var head = mk('div', 'kami-card-head');
-    head.appendChild(mk('span', 'kami-card-title', INHERIT_COPY.title));
-    box.appendChild(head);
-    box.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.note));
-
-    var body = mk('div', 'kami-card-body');
-    /* 「这一份继承自」——用户 2026-09-28 点名要写在这里，免得看标题栏的预设名时误会 */
-    var srcRow = aboutRow(INHERIT_COPY.sourceLabel, inheritFromName
-      ? (inheritFromName + (inheritAtText ? ('（' + inheritAtText + '）') : ''))
-      : INHERIT_COPY.sourceNone, '');
-    body.appendChild(srcRow);
-    body.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.sourceNote));
-    var outRow = aboutRow('继承结果', '还没用过', '');
-    var out = outRow.querySelector('.kami-field-value');
-
-    if (!up) {
-      var row0 = mk('div', 'kami-field');
-      row0.appendChild(mk('span', 'kami-field-label', '手动导入新版之后'));
-      row0.appendChild(mk('span', 'kami-field-value', '不可用'));
-      body.appendChild(row0);
-      body.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.degrade));
-      body.appendChild(outRow);
-      box.appendChild(body);
-      pane.appendChild(box);
-      return;
-    }
-
-    var btn = mk('button', 'kami-btn kami-btn--primary', '选择旧预设');
-    btn.type = 'button';
-    var row = mk('div', 'kami-field');
-    row.appendChild(mk('span', 'kami-field-label', '手动导入新版之后'));
-    var val = mk('span', 'kami-field-value');
-    val.appendChild(btn);
-    row.appendChild(val);
-    body.appendChild(row);
-
-    /* 清单容器：默认收起。用现成的 .kami-card-note 包外框，列表本身只给滚动用的内联排版
-       （契约里没有「可滚动清单」这一类，不为一次性的东西新增类名）。 */
-    var pick = mk('div', 'kami-card-note');
-    pick.hidden = true;
-    pick.style.maxHeight = '42vh';
-    pick.style.overflowY = 'auto';
-    body.appendChild(pick);
-    body.appendChild(outRow);
-    box.appendChild(body);
-    pane.appendChild(box);
-
-    function say(text) { out.textContent = text; }
-    function closePick() { pick.hidden = true; pick.textContent = ''; btn.disabled = false; }
-
-    /* 把结果讲清楚：搬了哪几类东西、有没有需要裁决的条目、预设选择有没有被挪走。
-       用户真机上问过「怎么没问我要不要保留条目修改」—— 没问就是**本来就没冲突**，
-       那就得说出来，不能让人以为是漏问了。 */
-    function summarize(r, w) {
-      var rep = (r && r.report) || {};
-      var kinds = { prompts: '条目内容', prompt_order: '条目开关与顺序', extensions: '脚本设置与正则开关' };
-      var names = [];
-      for (var i = 0; i < ((w && w.changed) || []).length; i++) {
-        names.push(kinds[w.changed[i]] || w.changed[i]);
-      }
-      var s = INHERIT_COPY.done + '（从「' + r.oldName + '」搬来：' + (names.join('、') || '没有变化') +
-        '；先备份成「' + r.backupName + '」）';
-      s += rep.conflicts > 0
-        ? (' ' + INHERIT_COPY.asked.replace('{n}', String(rep.conflicts)) +
-          '（保留旧预设 ' + (rep.decidedMine || 0) + ' / 用现在这份 ' + (rep.decidedNext || 0) + '）')
-        : (' ' + INHERIT_COPY.noAsk);
-      if (r.decidedVia === 'popup' || r.decidedVia === 'popup-failed') { s += '（裁决走的是酒馆原生弹窗）'; }
-      if (w && w.sel && w.sel.checked && !w.sel.ok) { s += ' ' + INHERIT_COPY.selFailed; }
-      else if (w && w.sel && w.sel.moved && w.sel.ok) { s += ' ' + INHERIT_COPY.selMoved; }
-      return s;
-    }
-
-    /* 真的开搬。整个流程里按钮一律禁用，避免连点开两份合并。 */
-    function start(name) {
-      btn.disabled = true;
-      closePick();
-      say(INHERIT_COPY.working + '（' + name + '）');
-      var p = null;
-      try { p = up.inheritFrom(name); } catch (e) { p = Promise.reject(e); }
-      Promise.resolve(p).then(function (r) {
-        btn.disabled = false;
-        if (!r || !r.ok) {
-          if (r && r.cancelled) { say('你在裁决页里没有完成，这次什么都不会写。'); return; }
-          say(INHERIT_COPY.failHead + ((r && r.msg) || '没拿到结果'));
-          return;
-        }
-        var w = applyInheritedToLive(r.merged, r.targetName);
-        if (!w.ok) { say(INHERIT_COPY.failHead + w.msg); return; }
-        /* 记下「这一份是从哪继承来的」——跟着预设走（脚本变量就写在预设文件里），然后刷新页面 */
-        finishInherit(r.oldName);
-        try { srcRow.querySelector('.kami-field-value').textContent = inheritFromName + '（' + inheritAtText + '）'; } catch (e) { }
-        say(summarize(r, w));
-      })['catch'](function (e) {
-        btn.disabled = false;
-        say(INHERIT_COPY.failHead + ((e && e.message) || e));
-      });
-    }
-
-    /* 非卡密预设先警告一句（用户点名：「如果不是卡密预设，用户点击需要提示一下」） */
-    function warnThenStart(name) {
-      pick.textContent = '';
-      var w = mk('div', 'kami-card-note', INHERIT_COPY.notKamiWarn);
-      pick.appendChild(w);
-      var wrow = mk('div', 'kami-field');
-      wrow.appendChild(mk('span', 'kami-field-label', name));
-      var wval = mk('span', 'kami-field-value');
-      var go = mk('button', 'kami-btn kami-btn--primary', '仍然继承');
-      go.type = 'button';
-      go.addEventListener('click', function () { start(name); });
-      var back = mk('button', 'kami-btn', '换一个');
-      back.type = 'button';
-      back.addEventListener('click', function () { openPick(); });
-      wval.appendChild(go);
-      wval.appendChild(back);
-      wrow.appendChild(wval);
-      pick.appendChild(wrow);
-      pick.hidden = false;
-    }
-
-    function openPick() {
-      pick.textContent = '';
-      var info = { names: [], current: '' };
-      try { info = up.otherPresetNames() || info; } catch (e) { }
-      var names = info.names || [];
-      pick.appendChild(mk('div', 'kami-card-note', INHERIT_COPY.pickHint +
-        (info.current ? ('（当前这一份是「' + info.current + '」，不列在下面）') : '')));
-      if (!names.length) {
-        pick.appendChild(mk('div', 'kami-empty', INHERIT_COPY.noOthers));
-        pick.hidden = false;
-        return;
-      }
-      for (var i = 0; i < names.length; i++) {
-        (function (n) {
-          var kami = true;
-          try { kami = up.isKamiName(n) === true; } catch (e) { kami = true; }
-          var brow = mk('div', 'kami-field');
-          brow.appendChild(mk('span', 'kami-field-label', n));
-          var bval = mk('span', 'kami-field-value');
-          var b = mk('button', 'kami-btn', kami ? '继承' : '继承（非卡密）');
-          b.type = 'button';
-          b.addEventListener('click', function () { if (kami) { start(n); } else { warnThenStart(n); } });
-          bval.appendChild(b);
-          brow.appendChild(bval);
-          pick.appendChild(brow);
-        })(names[i]);
-      }
-      var crow = mk('div', 'kami-field');
-      crow.appendChild(mk('span', 'kami-field-label', '不继承了'));
-      var cval = mk('span', 'kami-field-value');
-      var cancel = mk('button', 'kami-btn', '取消');
-      cancel.type = 'button';
-      cancel.addEventListener('click', function () { closePick(); say('还没用过'); });
-      cval.appendChild(cancel);
-      crow.appendChild(cval);
-      pick.appendChild(crow);
-      pick.hidden = false;
-    }
-
-    btn.addEventListener('click', function () { if (pick.hidden) { openPick(); } else { closePick(); } });
   }
 
   /* 写完之后核对：酒馆自己的预设选择有没有被挪走。
@@ -3609,36 +1958,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     return '检查完成';
   }
 
-  function runUpdateCheck(btn) {
-    var els = aboutEls;
-    if (!els || els.btn !== btn) { return; }
-    var api = kamiUpdateApi();
-    if (!api) {
-      els.out.textContent = '「🔄 远程更新」脚本没在运行，检查不了';
-      return;
-    }
-    if (btn.getAttribute('data-kami-busy') === '1') { return; }
-    btn.setAttribute('data-kami-busy', '1');
-    btn.disabled = true;
-    els.out.textContent = '正在检查…';
-    log('手动检查更新（KamiUpdate.check(true)）');
-    Promise.resolve(api.check(true))['then'](function (r) {
-      btn.removeAttribute('data-kami-busy');
-      btn.disabled = false;
-      /* 面板重画过（aboutEls 换了一份）就别往旧节点上写了 */
-      if (aboutEls !== els) { return; }
-      els.out.textContent = updateResultText(r);
-      try {
-        var s = api.status();
-        if (s && s.lastCheckedAt) { els.last.textContent = s.lastCheckedAt; }
-      } catch (e) { }
-    })['catch'](function (e) {
-      btn.removeAttribute('data-kami-busy');
-      btn.disabled = false;
-      if (aboutEls === els) { els.out.textContent = '检查失败：' + ((e && e.message) || e); }
-    });
-  }
-
   /* ⑤ 就地改一张条目卡的样子（不重建 DOM：不重排、不丢焦点、滚动位置不动） */
   function paintItem(el, on) {
     if (!el) { return; }
@@ -3653,51 +1972,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     var list;
     try { list = panelRoot.querySelectorAll('[data-kami-item="' + identifier + '"]'); } catch (e) { return; }
     for (var i = 0; i < list.length; i++) { paintItem(list[i], value); }
-  }
-
-  /* 锁死/解锁：走 HTML 原生的 disabled（条目卡本来就是 <button>），外观交给皮肤 */
-  function setLocked(el, locked) {
-    if (!el) { return; }
-    if (locked) {
-      el.disabled = true;
-      el.setAttribute('aria-disabled', 'true');
-    } else {
-      el.disabled = false;
-      el.removeAttribute('aria-disabled');
-    }
-  }
-
-  /* 当前模型一变，所有条目的可开关状态都可能变：就地按模型重刷一遍 disabled（不重建 DOM） */
-  function paintLocks() {
-    if (!panelRoot) { return; }
-    var list = panelRoot.querySelectorAll('[data-kami-item]'), i;
-    for (i = 0; i < list.length; i++) {
-      var it = modelItemById(list[i].getAttribute('data-kami-item'));
-      setLocked(list[i], it ? isLockedItem(it) : false);
-    }
-  }
-
-  function modelItemById(identifier) {
-    var found = null;
-    eachItem(function (it) { if (!found && it.identifier === identifier) { found = it; } });
-    return found;
-  }
-
-  /* 模型卡片头的选中态就地改（.is-on + 「当前」小标签），同样不重建 DOM */
-  function paintModelHeads() {
-    if (!panelRoot) { return; }
-    var list = panelRoot.querySelectorAll('[data-kami-model]'), i;
-    for (i = 0; i < list.length; i++) {
-      var el = list[i], on = el.getAttribute('data-kami-model') === currentModel;
-      el.setAttribute('aria-pressed', on ? 'true' : 'false');
-      if (on) { el.classList.add('is-on'); } else { el.classList.remove('is-on'); }
-      var chip = el.querySelector('[data-kami-role="cur"]');
-      if (on && !chip) {
-        var c = mk('span', 'kami-chip', '当前');
-        c.setAttribute('data-kami-role', 'cur');
-        el.appendChild(c);
-      } else if (!on && chip && chip.parentNode) { chip.parentNode.removeChild(chip); }
-    }
   }
 
   /* 点模型卡片头 = 选中这个模型：开它名下全部条目 + 关掉归属集合与它毫无交集的条目。
@@ -3730,11 +2004,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     if (!res.ok) { toast('error', res.msg); renderStatus(); return; }
     currentModel = emoji;
     for (i = 0; i < pairs.length; i++) {
-      paintItemAll(pairs[i].identifier, pairs[i].value);
       syncModel(pairs[i].identifier, pairs[i].value);
     }
-    paintLocks();
-    paintModelHeads();
     saveVars();
     renderStatus();
     log('选中模型 ' + emoji + '（改动 ' + pairs.length + ' 条，当前模型闸门已重刷）' +
@@ -3810,88 +2081,15 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     return pairs;
   }
 
-  /* 点一下条目卡 = 翻转它。单选卡片组：开一条就自动关掉同组其它条（写之前一起提交）。 */
-  function toggleItem(el) {
-    if (el.disabled) { return; }                            // 锁死：disabled 收不到 click，这是双保险
-    if (el.getAttribute('aria-disabled') === 'true') { return; }
-    var id = el.getAttribute('data-kami-item');
-    if (!id) { return; }
-    var on = el.getAttribute('aria-pressed') !== 'true';   // 目标状态 = 当前状态取反
-    var pairs = [{ identifier: id, value: on }];
-    if (on && el.getAttribute('data-kami-single') === '1') {
-      var rec = cardMap[el.getAttribute('data-kami-card') || ''];
-      if (rec) {
-        for (var i = 0; i < rec.items.length; i++) {
-          var it = rec.items[i];
-          if (it.identifier !== id && it.enabled !== false) { pairs.push({ identifier: it.identifier, value: false }); }
-        }
-      }
-    }
-    /* ── 对话模式联动（2026-10-15 重做）──
-       只对「🎛 运行模式」层级里那**两个**条目生效（按 identifier 认，不按名字）：
-         选「💬 对话讨论」→ 存快照 + 关掉跑团专属的那些组；
-         选「🎲 剧情游玩」→ 按快照恢复。
-       两边的 pairs 合并成**一次** commit，免得出现「模式开了但组没关」的中间态。
-       ⚠️ 这段必须待在 toggleItem 里、commit 之前。 */
-    try {
-      if (isModeLayerEntry(id)) {
-        var extra = isDialogModeEntry(id) ? enterDialogMode() : leaveDialogMode();
-        for (var mi = 0; mi < extra.length; mi++) {
-          var dup = false, pi;
-          for (pi = 0; pi < pairs.length; pi++) { if (pairs[pi].identifier === extra[mi].identifier) { dup = true; break; } }
-          if (!dup) { pairs.push(extra[mi]); }
-        }
-        /* 切回剧情游玩且真的恢复了：快照作废，下次进入重新存 */
-        if (!isDialogModeEntry(id) && dialogSaved && extra.length) { dialogSaved = null; saveVars(); }
-      }
-    } catch (e0) { log('对话模式联动出错（不拦写入）：' + ((e0 && e0.message) || e0)); }
-    var res = commit(pairs);
-    if (!res.ok) {
-      /* 写失败：把这一张卡弹回原样（不重画面板，只说真话），别让界面说谎 */
-      toast('error', res.msg);
-      for (var j = 0; j < pairs.length; j++) {
-        if (pairs[j].identifier === id) { paintItem(el, !on); }
-      }
-      renderStatus();
-      return;
-    }
-    /* 成功：**只就地更新受影响的这几张卡**（自己 + 同组被联动关掉的 + 它们在原卡片/模型
-       tab 里的镜像），不重新渲染整个面板 —— 当前 tab、面板位置/大小、滚动位置一律不动。
-       内存里的卡片模型同步改掉，下一次单选判断读到的才是新状态。 */
-    for (var k = 0; k < pairs.length; k++) {
-      var p = pairs[k];
-      paintItemAll(p.identifier, p.value);
-      syncModel(p.identifier, p.value);
-    }
-    renderStatus();
-  }
-
   /* 把一次写入的结果同步进条目模型（只改 enabled，不动结构）。
      cardMap 里的 items 就是 view 里那些对象的同一份引用，所以遍历 view 就够了。 */
   function syncModel(identifier, value) {
     eachItem(function (it) { if (it.identifier === identifier) { it.enabled = !!value; } });
   }
 
-  function renderStatus() {
-    if (!panelDrop) { return; }
-    var sub = panelDrop.querySelector('[data-kami-role="src"]');
-    var st = panelDrop.querySelector('[data-kami-role="' + STATUS_ROLE + '"]');
-    if (!liveData || !liveData.ok) {
-      if (sub) { sub.textContent = '读不到预设'; }
-      if (st) { st.textContent = (liveData && liveData.error) ? liveData.error : '读不到当前预设'; }
-      return;
-    }
-    var tree = liveData.tree;
-    if (sub) { sub.textContent = liveData.preset.name; }
-    if (!st) { return; }
-    /* 这一行必须短：皮肤给 .kami-sub 的是 white-space:nowrap，长了会被 .kami-drop 的
-       overflow:hidden 裁掉（320px 的抽屉下尤其明显）。完整数字在 KamiPreset.status() 里。 */
-    var c = totalCounts();
-    var leak = lockedShown();
-    st.textContent = '卡片 ' + c.cards + ' · 条目 ' + c.items +
-      (leak.length ? (' · ⚠ 锁定 ' + leak.length + ' 条在面板') : (' · 锁定 ' + tree.locked.length + ' 不在面板')) +
-      ' · 写入 ' + writeCount + ' 次';
-  }
+  /* 界面由运行库的 PresetPanel 画：状态变了就通知它重读 */
+  function renderStatus() { toolsNotify(); }
+
 
   /* ───────── 面板位置持久化（脚本变量 kami-preset；读全量→改一个键→整体写回） ───────── */
 
@@ -3957,31 +2155,13 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   /* ───────── 开关 ───────── */
 
-  function setOpen(v) {
-    if (disposed) { return; }
-    if (!panelRoot) { buildPanel(); }
-    var open = !!v;
-    panelDrop.setAttribute('data-kami-open', open ? '1' : '0');
-    panelRoot.style.display = open ? '' : 'none';
-    if (open) {
-      restoreGeometry();
-      bringViewportHome();
-      refresh(true);
-      /* 读不到设置时，除了面板里的说明再补一次 toast：绝不静默失败 */
-      if (liveData && !liveData.ok) { toast('warning', liveData.error); }
-      log('面板已打开（' + (liveData && liveData.ok ? liveData.preset.name + ' · tab ' + view.length : '读不到预设') + '）');
-    } else if (mergeCtx) {
-      /* v0.6：裁决期间关掉面板 = 用户放弃这次裁决 → 通知 70 号（本次更新暂停导入） */
-      var ctxNow = mergeCtx;
-      mergeCtx = null;
-      log('面板在裁决期间被关闭 → 本次更新暂停（70 那边记 merge-cancelled）');
-      try { if (typeof ctxNow.onApply === 'function') { ctxNow.onApply(null); } } catch (e) { }
-    }
-  }
-  function openPanel() { setOpen(true); }
-  function closePanel() { setOpen(false); }
-  function isOpen() { return !!(panelDrop && panelDrop.getAttribute('data-kami-open') === '1'); }
-  function togglePanel() { setOpen(!isOpen()); }
+  /* 面板由本脚本末尾的「界面接线」一段画（运行库的 PresetPanel，经 HOST.KamiPresetNext 开关）；
+     2026-10-30 脚本整理：原来这里自己用 DOM 拼的旧面板（窗口、页签、卡片、几何、手势）已删除。 */
+  function nextUi() { try { var n = HOST.KamiPresetNext; return n && n.alive() ? n : null; } catch (e) { return null; } }
+  function openPanel() { var n = nextUi(); if (n) { n.open(); } }
+  function closePanel() { var n = nextUi(); if (n) { n.close(); } }
+  function isOpen() { var n = nextUi(); return !!(n && n.isOpen && n.isOpen()); }
+  function togglePanel() { var n = nextUi(); if (n) { n.toggle(); } }
 
   /* 重新读活设置 + 重解析 + 重画（外部换预设、resize 之类的整体刷新走这里）。
      ⑤ 这条路径**不再由开关触发**（开关只就地改卡片）；但真要走它时也要尽量不打断用户：
@@ -3996,109 +2176,19 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       if (modelChanged) { saveVars(); }
     } else { view = []; }
     toolsNotify();
-    if (!panelRoot && !force) { return; }
-    /* 顺手核对一次几何与「贴底抽屉 / 悬浮窗」：尺寸变化事件偶尔会漏（预览台的模拟视口就是这样），
-       每次重读都过一遍这段代码，面板不会停在上一次的布局模式上。 */
-    if (panelRoot) {
-      var keepScroll = captureScroll();
-      restoreGeometry();
-      renderTabs();
-      restoreScroll(keepScroll);
-    }
     updateDef();
   }
-
-  /* 每一页各自的滚动位置：重画前抓、重画后放回去 */
-  function captureScroll() {
-    var out = {}, i, list = paneEls();
-    for (i = 0; i < list.length; i++) {
-      var k = list[i].getAttribute('data-kami-pane');
-      if (k && list[i].scrollTop) { out[k] = list[i].scrollTop; }
-    }
-    return out;
-  }
-  function restoreScroll(map) {
-    if (!map) { return; }
-    for (var k in map) {
-      if (!Object.prototype.hasOwnProperty.call(map, k)) { continue; }
-      var el = paneEl(k);
-      if (el) { el.scrollTop = map[k]; }
-    }
-  }
-
   /* ───────── 登记按钮 ───────── */
 
   function updateDef() {
-    if (!ownDef) { return; }
     try { if (HOST.__hub && typeof HOST.__hub.paint === 'function') { HOST.__hub.paint(); } } catch (e) { }
-  }
-
-  function registerButton() {
-    try {
-      var w = HOST;
-      /* 先清掉可能残留的同名登记（脚本重载时不留幽灵按钮） */
-      var defs = w.__hubDefs || (w.__hubDefs = []);
-      /* 只清掉同名的死登记（上一份实例）：支线上「🧪 预设设置」用同一个按钮名，它的登记要留着 */
-      for (var i = defs.length - 1; i >= 0; i -= 1) {
-        if (defs[i] && defs[i].name === HUB_NAME) {
-          var dead = true;
-          try { dead = typeof defs[i].alive === 'function' ? !defs[i].alive() : true; } catch (e0) { dead = true; }
-          if (dead || defs[i].__kamiOld) { defs.splice(i, 1); }
-        }
-      }
-      ownDef = {
-        name: HUB_NAME,
-        __kamiOld: true,
-        order: HUB_ORDER,
-        tip: '预设设置（点击展开面板）',
-        ping: Date.now(),
-        /* 支线上「🧪 预设设置」在运行时让位：同名按钮由它接管（它注销后这份登记重新生效） */
-        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiPresetNext && HOST.KamiPresetNext.alive()); } catch (e) { return true; } },
-        /* 读不到设置时按钮文字带个 ⚠，别让用户以为面板是空的 */
-        label: function () { return HUB_NAME + ((liveData && !liveData.ok) ? '⚠' : ''); },
-        /* ready 恒为 true：面板本身就是「读不到设置」时的报错界面，
-           这里返回 false 会让中转站只弹个提示、面板根本打不开（那就成了静默失败）。
-           错误同样写进 absent，任何走 absent 的路径都会说出真实原因。 */
-        ready: function () { return true; },
-        absent: '预设设置拿不到酒馆设置（SillyTavern.getContext 不可用），读不到当前预设',
-        click: function () { togglePanel(); }
-      };
-      defs.push(ownDef);
-      try {
-        var ev = w.document.createEvent('Event');
-        ev.initEvent('kami-hub-def', false, false);
-        w.dispatchEvent(ev);
-      } catch (e) { }
-      log('已向按钮中转站登记按钮 ' + HUB_NAME);
-    } catch (e) {
-      console.warn('[预设] 向中转站登记按钮失败（可用控制台 KamiPreset.open() 手动打开）', e);
-    }
   }
 
   /* ───────── 全局 API ───────── */
 
-  function lockedShown() {
-    var out = [], i, j;
-    if (!liveData || !liveData.ok || !panelRoot) { return out; }
-    var ids = {}, locked = liveData.tree.locked;
-    for (i = 0; i < locked.length; i++) { ids[locked[i].identifier] = locked[i].name; }
-    var drawn = inspectedIdentifiers();
-    for (j = 0; j < drawn.length; j++) { if (ids[drawn[j]]) { out.push(ids[drawn[j]]); } }
-    return out;
-  }
-  function inspectedIdentifiers() {
-    var out = [];
-    if (!panelRoot) { return out; }
-    try {
-      /* 每条可点条目就是一张 .kami-item 卡片，它带 data-kami-item（不再有 input） */
-      var list = panelRoot.querySelectorAll('[data-kami-item]');
-      for (var i = 0; i < list.length; i++) {
-        var v = list[i].getAttribute('data-kami-item');
-        if (v && out.indexOf(v) < 0) { out.push(v); }
-      }
-    } catch (e) { }
-    return out;
-  }
+  /* 旧面板时代用来自查「锁定条目有没有画进面板」；面板改由运行库画后这里恒为空 */
+  function lockedShown() { return []; }
+  function inspectedIdentifiers() { return []; }
 
   function status() {
     var c = totalCounts();
@@ -4151,7 +2241,6 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   function expose() {
     var api = {
-      mountOtherTools: mountOtherTools,
       toolsBridge: toolsBridge,
       updateBridge: updateBridge,
       presetBridge: presetBridge,
@@ -4163,7 +2252,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       setEnabled: function (identifier, value) {
         var v = !!value;
         var r = commit([{ identifier: identifier, value: v }]);
-        if (r.ok && panelRoot) { paintItemAll(identifier, v); syncModel(identifier, v); renderStatus(); }
+        if (r.ok) { syncModel(identifier, v); renderStatus(); }
         return r;
       },
       /* 用户自定义文风（引导的「文风」页用）。
@@ -4230,13 +2319,11 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
          plan = 合并引擎算好的计划（conflicts[].choice 是决策位）；
          onApply(settledPlan) = 提交所有决策（合并、备份、写盘在 70 号那侧）；
          onApply(null) = 用户放弃（关掉了面板）。返回 false = 面板建不出来（70 号会退化成原生弹窗）。 */
-      openMergeReview: function (plan, onApply) { return openMergeReview(plan, onApply); },
-      closeMergeReview: function () { if (mergeCtx) { setOpen(false); } return true; },
+      closeMergeReview: function () { return true; },
       shutdown: function () { teardown(); }
     };
     try { HOST[API_NAME] = api; } catch (e) { }
     try { window[API_NAME] = api; } catch (e) { }
-    try { var toolsReady = HDOC.createEvent('Event'); toolsReady.initEvent('kami-tools-ready', false, false); HOST.dispatchEvent(toolsReady); } catch (e) { }
   }
 
   /* ───────── 注销（零残留：逐项对照登记与自建的东西） ───────── */
@@ -4248,7 +2335,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     if (tagReferenceRelease) { tagReferenceRelease(); tagReferenceRelease = null; }
     unbindChatFloorWatch();
     tagFixCurFloor = -1; tagFixSelection = null;
-    log('正在注销：摘监听 / 拆面板 / 收样式 / 撤登记 / 删全局');
+    log('正在注销：摘监听 / 删全局');
     /* 裁决没完成就注销（脚本被关 / 重挂）：同样通知 70 号放弃，别让它干等回 */
     if (mergeCtx) { var mc = mergeCtx; mergeCtx = null; try { if (typeof mc.onApply === 'function') { mc.onApply(null); } } catch (e) { } }
     try { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } } catch (e) { }
@@ -4258,34 +2345,14 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     try { cancelSavePatches(); } catch (e) { }
     for (var i = 0; i < unsubs.length; i++) { try { if (unsubs[i] && unsubs[i].stop) { unsubs[i].stop(); } } catch (e) { } }
     unsubs = [];
-    try { if (resizeHandler) { HOST.removeEventListener('resize', resizeHandler); } } catch (e) { }
-    resizeHandler = null;
     try { if (hideHandler) { window.removeEventListener('pagehide', hideHandler); } } catch (e) { }
     try { if (hideHandler && HOST !== window) { HOST.removeEventListener('pagehide', hideHandler); } } catch (e) { }
     hideHandler = null;
-    /* 自注入的兜底皮肤 */
-    dropCss();
-    /* 面板 DOM */
-    try { if (GESTURES) { GESTURES.destroy(); } } catch (e) { }
-    GESTURES = null;
-    if (shellRoot) { try { shellRoot.unmount(); } catch (er) { } shellRoot = null; }
-    try { if (panelRoot && panelRoot.parentNode) { panelRoot.parentNode.removeChild(panelRoot); } } catch (e) { }
-    panelRoot = null; panelDrop = null; panelHead = null; cardMap = {}; view = [];
-    /* 按钮登记：__hubDefs 里自己那一份 + 中转站里的登记 */
-    try {
-      var defs = HOST.__hubDefs || [];
-      for (var j = defs.length - 1; j >= 0; j -= 1) {
-        if (defs[j] === ownDef || (defs[j] && defs[j].name === HUB_NAME)) { defs.splice(j, 1); }
-      }
-      if (HOST.__hub && typeof HOST.__hub.unregister === 'function') { HOST.__hub.unregister(HUB_NAME); }
-    } catch (e) { }
-    ownDef = null;
+    view = [];
+    /* 按钮登记归末尾的「界面接线」管（它有自己的 pagehide 注销），这里不碰中转站 */
     /* 全局 API（只删自己这一份） */
     try { if (HOST[API_NAME]) { delete HOST[API_NAME]; } } catch (e) { }
     try { if (window[API_NAME]) { delete window[API_NAME]; } } catch (e) { }
-    if (otherToolsUnbind) { otherToolsUnbind(); otherToolsUnbind = null; }
-    if (otherToolsRoot) { otherToolsRoot.textContent = ''; otherToolsRoot = null; }
-    try { var toolsGone = HDOC.createEvent('Event'); toolsGone.initEvent('kami-tools-ready', false, false); HOST.dispatchEvent(toolsGone); } catch (e) { }
     log('注销完成：面板、样式、登记、全局 API 都已收回；预设文件与酒馆设置没有被改动');
   }
 
@@ -4347,17 +2414,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       ? ('预设「' + liveData.preset.name + '」· prompt_order ' + liveData.order.order.length + ' 条 · tab ' + view.length)
       : ('失败 —— ' + liveData.error)));
     expose();
-    registerButton();
     bindTagFixEvents();
-    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);
-    resizeHandler = function () {
-      if (!panelDrop) { return; }
-      restoreGeometry();
-      log('尺寸变化 → layout=' + panelDrop.getAttribute('data-kami-layout') +
-        ' 视口=' + HDOC.documentElement.clientWidth + 'x' + HDOC.documentElement.clientHeight);
-      if (isOpen()) { renderStatus(); }
-    };
-    try { HOST.addEventListener('resize', resizeHandler); } catch (e) { }
     hideHandler = function () { try { teardown(); } catch (e) { } };
     try { window.addEventListener('pagehide', hideHandler); } catch (e) { }
     if (HOST !== window) { try { HOST.addEventListener('pagehide', hideHandler); } catch (e) { } }
@@ -4365,4 +2422,104 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   }
 
   try { boot(); } catch (e) { console.error('[预设] 启动失败', e); }
+})();
+
+/* ────────────────────────────────────────────────────────────────────
+ * 界面接线（2026-10-30 脚本整理：原「🧪 预设设置 v0.1」并入本脚本）
+ * 面板由「🧩 运行库」的 PresetPanel 画：解析当前预设、开关条目（单选联动、对话模式联动、模型闸门）、
+ * 改变量、选模型、自定义文风的读写，全部走上面那一段的 KamiPreset.presetBridge()。
+ * 「关于」「其他功能」两页在「🧰 工具箱」里（经 toolsBridge / updateBridge）。
+ * 按钮条上的「🌟 预设设置」由这一段登记；pagehide 时注销——按钮登记、面板、全局 API 全部收回。
+ * ──────────────────────────────────────────────────────────────────── */
+(function () {
+  var VERSION = '1.0';
+  var HUB_NAME = '🌟 预设设置';
+  var HUB_ORDER = 30;
+  var LAYER_ID = 'kami-preset';
+  var HOST = (function () {
+    try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
+    return window;
+  })();
+  var disposed = false, rt = null, ownDef = null, timer = null, isOpen = false, pingTimer = null;
+  function log(msg) { try { console.log('[预设设置·界面] ' + msg); } catch (e) { } }
+  function toast(kind, msg) {
+    try { if (typeof toastr !== 'undefined' && toastr[kind]) { toastr[kind](msg, '预设设置'); return; } } catch (e) { }
+    log(msg);
+  }
+  function bridge() {
+    try { if (HOST.KamiPreset && typeof HOST.KamiPreset.presetBridge === 'function') { return HOST.KamiPreset.presetBridge(); } } catch (e) { }
+    return null;
+  }
+
+  function open() {
+    if (disposed || !rt) { return; }
+    var api = bridge();
+    if (!api) { toast('warning', '预设设置还没就绪，面板读不到预设'); return; }
+    try { api.reload(); } catch (e) { }
+    rt.layer().open(LAYER_ID, rt.React.createElement(rt.panels.PresetPanel, { api: api, styleCopy: api.copy, onClose: close }));
+    isOpen = true;
+  }
+  function close() {
+    isOpen = false;
+    try { if (rt) { rt.layer().close(LAYER_ID); } } catch (e) { }
+  }
+  function toggle() { if (isOpen) { close(); } else { open(); } }
+
+  function registerButton() {
+    try {
+      var defs = HOST.__hubDefs || (HOST.__hubDefs = []);
+      for (var i = defs.length - 1; i >= 0; i -= 1) { if (defs[i] && defs[i].__kamiNext === HUB_NAME) { defs.splice(i, 1); } }
+      ownDef = {
+        name: HUB_NAME,
+        __kamiNext: HUB_NAME,
+        order: HUB_ORDER,
+        tip: '预设设置（点击展开面板）',
+        ping: Date.now(),
+        alive: function () { return !disposed; },
+        label: function () { return HUB_NAME; },
+        ready: function () { return !!rt; },
+        absent: '预设设置还没就绪（🧩 运行库 是否开着？）',
+        click: function () { toggle(); }
+      };
+      defs.push(ownDef);
+      try { var ev = HOST.document.createEvent('Event'); ev.initEvent('kami-hub-def', false, false); HOST.dispatchEvent(ev); } catch (e) { }
+    } catch (e) { log('⚠ 登记按钮失败：' + e.message); }
+  }
+
+  function boot(r) {
+    if (disposed) { return; }
+    rt = r;
+    try { HOST.KamiPresetNext = { version: VERSION, alive: function () { return !disposed; }, open: open, close: close, toggle: toggle, isOpen: function () { return isOpen; }, shutdown: shutdown }; } catch (e) { }
+    registerButton();
+    pingTimer = setInterval(function () { if (ownDef && !disposed) { ownDef.ping = Date.now(); } }, 2500);
+    log('启动 v' + VERSION);
+  }
+
+  var waited = 0;
+  function wait() {
+    if (disposed) { return; }
+    var r = HOST.KamiRuntimeNext;
+    if (r && r.panels && r.panels.PresetPanel) { boot(r); return; }
+    if ((waited += 100) > 15000) { log('⚠ 等不到运行库（🧩 运行库 是否开着？）'); return; }
+    timer = setTimeout(wait, 100);
+  }
+
+  function shutdown() {
+    if (disposed) { return; }
+    disposed = true;
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+    close();
+    try {
+      var defs = HOST.__hubDefs || [];
+      for (var j = defs.length - 1; j >= 0; j -= 1) { if (defs[j] === ownDef) { defs.splice(j, 1); } }
+      var ev = HOST.document.createEvent('Event'); ev.initEvent('kami-hub-def', false, false); HOST.dispatchEvent(ev);
+    } catch (e) { }
+    ownDef = null;
+    try { if (HOST.KamiPresetNext && HOST.KamiPresetNext.shutdown === shutdown) { delete HOST.KamiPresetNext; } } catch (e) { }
+    try { window.removeEventListener('pagehide', shutdown); } catch (e) { }
+    log('已注销');
+  }
+  try { window.addEventListener('pagehide', shutdown); } catch (e) { }
+  wait();
 })();

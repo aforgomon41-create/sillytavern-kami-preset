@@ -1093,7 +1093,7 @@
   }
 
   /* 待裁决的呈现：
-     · 主路径：🌟 面板的「更新合并」页（KamiPreset.openMergeReview，该脚本没跑时走不到）；
+     · 主路径：🧰 工具箱 登记的逐条裁决窗口（KamiUpdateUi.review）；
      · 退化：原生弹窗给摘要 + 一键「全部保留我的 / 全部用新版」。 */
   /* 待裁决内容在弹窗里的正文：列出每项的名字与改了什么字段。 */
   function mergePopupHtml(plan) {
@@ -1140,36 +1140,7 @@
         if (!okNext) { askMergePopup(plan).then(function (r) { resolve(r); }); }
       });
     }
-    var P = null;
-    try { if (HOST.KamiPreset && typeof HOST.KamiPreset.openMergeReview === 'function') { P = HOST.KamiPreset; } } catch (e0) { }
-    if (P) {
-      log('待裁决 ' + plan.conflicts.length + ' 处 → 打开「🌟 预设设置」面板的「更新合并」页让你逐条决策');
-      return new Promise(function (resolve) {
-        var okAsk = false;
-        /* ⚠️ 2026-10-10 修：先收掉更新进度窗口再开裁决页。
-           那个窗口是 **position:fixed; left:50%; top:50%; z-index:100000** 的不透明遮罩，
-           而「更新合并」页在 🌟 面板里（z-index 只有三万上下）——
-           两者一起开着，进度窗口正好压在裁决页的**正中间**，用户既看不全也点不到，
-           表现就是"询问是否合并的弹窗把面板挡住了"。 */
-        yieldScreen('要让出屏幕给「更新合并」裁决页');
-        try {
-          okAsk = P.openMergeReview(plan, function (settledPlan) {
-            if (settledPlan === null) {
-              log('你在面板里没有完成裁决（关掉了面板），本次更新暂停导入；' +
-                '下次启动或手动检查更新可以重新来一次');
-              resolve(null);
-              return;
-            }
-            log('裁决完成（面板）：逐项开始合并写入');
-            resolve({ plan: settledPlan, via: 'panel' });
-          }) !== false;
-        } catch (e1) { okAsk = false; }
-        if (!okAsk) {
-          log('面板裁决页没打开成 → 退化成原生弹窗一键裁决');
-          askMergePopup(plan).then(function (r) { resolve(r); });
-        }
-      });
-    }
+    /* 新界面不在（🧰 工具箱 没开）：退化成原生弹窗一键裁决。（2026-10-30：旧 🌟 面板的「更新合并」页随旧面板删除） */
     return askMergePopup(plan);
   }
 

@@ -254,15 +254,6 @@ export function expandPresetParse(root, code) {
   return code.replace(PRESET_PARSE_MARK, () => presetParseSource(root));
 }
 
-/* ────────────────────────────────────────────────────────────
- * 面板手势共享模块（src/scripts/_panel-gestures.js）：两个面板脚本
- * （30-皮肤管理 / 40-预设设置）都要用同一套「标题栏下拉收回 / 滚到顶下拉收回 /
- * 左右滑切 tab」，所以和解析器一样，构建期把**源码**内联进脚本，只有一份真相。
- * 它也不是独立脚本：src/scripts/meta.json 里没有它，不会被组装成单独的 content。
- * 内联规则与 presetParseSource 完全一致：只去掉**行首**的 export 前缀。
- * ──────────────────────────────────────────────────────────── */
-export const PANEL_GESTURES_MARK = '/* @@KAMI_PANEL_GESTURES@@ */';
-
 /** 把一段 ESM 源码去行首 export 变成可直接内联的普通声明 */
 function inlineModuleSource(raw, label) {
   const lines = raw.split(NL);
@@ -276,11 +267,6 @@ function inlineModuleSource(raw, label) {
   if (left.length) { throw new Error(label + ' 里还有 ' + left.length + ' 行行首 export 没被去掉（可能缩进了）'); }
   if (out.join(NL).indexOf('import ') >= 0) { throw new Error(label + ' 里出现了 import，不能再内联进脚本'); }
   return out.join(NL);
-}
-
-export function panelGesturesSource(root) {
-  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_panel-gestures.js'), 'utf8');
-  return inlineModuleSource(raw, '_panel-gestures.js');
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -333,33 +319,6 @@ export function expandRuntime(root, code) {
 }
 
 /* ────────────────────────────────────────────────────────────
- * 预设卡片共享模块（src/scripts/_preset-cards.js）：模型卡 / 条目卡的结构
- * 只有一份实现，40-预设设置.js 与 50-引导.js 都内联它（两个脚本里各留一个占位注释）。
- * 与手势模块同一条内联规则：只去掉**行首**的 export 前缀。它也不是独立脚本
- * （src/scripts/meta.json 里没有它），不会被组装成单独的 content。
- * ──────────────────────────────────────────────────────────── */
-export const PRESET_CARDS_MARK = '/* @@KAMI_PRESET_CARDS@@ */';
-
-export function presetCardsSource(root) {
-  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_preset-cards.js'), 'utf8');
-  return inlineModuleSource(raw, '_preset-cards.js');
-}
-
-/** 把脚本源码里的卡片占位换成 _preset-cards.js 的源码（已去掉行首 export）。
- *  占位不存在时原样返回（幂等）——build.mjs 与本模块的手势入口都会调它一次。
- *  ⚠️ 硬检查：模块源码里若出现占位符字面量（例如写在注释里），内联后会**自我复制**，
- *  第二次展开就把整份模块嵌进自己的注释里。撞上直接报错，不写坏产物。 */
-export function expandPresetCards(root, code) {
-  if (code.indexOf(PRESET_CARDS_MARK) < 0) { return code; }
-  const src = presetCardsSource(root);
-  if (src.indexOf(PRESET_CARDS_MARK) >= 0) {
-    throw new Error('_preset-cards.js 里出现了自己的占位符 ' + PRESET_CARDS_MARK +
-      '（内联会自我复制）：请在注释里避开这串字面量');
-  }
-  return code.replace(PRESET_CARDS_MARK, () => src);
-}
-
-/* ────────────────────────────────────────────────────────────
  * 用户自定义文风 · 共享 UI 模块（src/scripts/_custom-style-ui.js）：
  * 整块（渲染 + 交互 + 状态机 + 文案）只有一份，40-预设设置.js 与 50-引导.js
  * 都内联它（两个脚本里各留一个占位注释）。规则与 _preset-cards.js 完全一致：
@@ -374,7 +333,7 @@ export function customStyleUiSource(root) {
 }
 
 /** 把脚本源码里的自定义文风占位换成模块源码（已去掉行首 export）。
- *  占位不存在时原样返回（幂等）。与 expandPresetCards 同一条硬检查：
+ *  占位不存在时原样返回（幂等）。硬检查：
  *  模块源码里若出现自己的占位符字面量，内联后会自我复制，撞上直接报错。 */
 export function expandCustomStyleUi(root, code) {
   if (code.indexOf(CUSTOM_STYLE_UI_MARK) < 0) { return code; }
@@ -396,7 +355,6 @@ export function expandPanelGestures(root, code) {
   code = expandSearchPure(root, code);
   for (const [marker, file] of [
     ['/* @@KAMI_COMPRESS_UI@@ */', '_compress-ui.js'],
-    ['/* @@KAMI_OTHER_TOOLS_UI@@ */', '_toolbox-other-ui.js'],
     ['/* @@KAMI_TOOLS_BRIDGE@@ */', '_tools-bridge.js'],
     ['/* @@KAMI_PRESET_BRIDGE@@ */', '_preset-bridge.js'],
     ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
@@ -435,7 +393,6 @@ export function expandPanelGestures(root, code) {
   const snapshotMark = '/* @@KAMI_PRESET_SNAPSHOT@@ */';
   if (code.includes(snapshotMark)) { code = code.replace(snapshotMark, () => inlineModuleSource(fs.readFileSync(path.join(root,'src/scripts/_preset-snapshot.js'),'utf8'),'_preset-snapshot.js')); }
   code = expandScriptTrees(root, code);
-  code = expandPresetCards(root, code);
   code = expandCustomStyleUi(root, code);
   code = expandPresetMerge(root, code);
   code = expandSummarizePure(root, code);
@@ -453,13 +410,7 @@ export function expandPanelGestures(root, code) {
   code = expandStatusView(root, code);
   code = expandIconStatus(root, code);
   code = expandIconsUi(root, code);
-  /* ⚠️ 图标展开必须排在下面那条提前 return **之前**：
-     @@KAMI_ICONS@@ 要进的是 30-皮肤管理.js（通用素材），而皮肤管理脚本里
-     没有 @@KAMI_PANEL_GESTURES@@ 占位符 —— 挂在 return 之后的话，
-     这个展开器对那份脚本永远不生效（实测踩到：30 号返回"展开不全"，
-     于是整个预览台连带状态栏都装不进去）。 */
-  if (code.indexOf(PANEL_GESTURES_MARK) < 0) { return code; }
-  return code.replace(PANEL_GESTURES_MARK, () => panelGesturesSource(root));
+  return code;
 }
 
 /* ────────────────────────────────────────────────────────────
