@@ -28,6 +28,8 @@ export interface DisplayPrefs {
   optionsFolded?: { get: () => boolean; set: (v: boolean) => boolean };
   /** 点行动选项时：填入 / 发送（localStorage kami-option-mode；消息里的切换按钮改的是同一个） */
   optionMode?: { get: () => 'fill' | 'send'; set: (v: 'fill' | 'send') => boolean };
+  /** 消息前端用皮肤的字体颜色（默认开，覆盖酒馆的字体颜色设置；关 = 跟酒馆的，底色让出来。localStorage kami.msg.skincolors） */
+  skinColors?: { get: () => boolean; set: (v: boolean) => boolean };
   /** 消息前端总开关（「🧪 消息前端」脚本：localStorage kami.msgfe；关掉后回到酒馆原样与旧前端） */
   chatFrontend?: { get: () => boolean; set: (v: boolean) => boolean };
 }
@@ -291,12 +293,14 @@ function MessagePrefs({ prefs, notify }: { prefs: DisplayPrefs; notify: Ctx['not
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   const off = <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>脚本未运行</span>;
   const write = (ok: boolean): void => { if (!ok) { notify('写不进去，设置没变。'); } force(); };
-  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode, fe = prefs.chatFrontend;
+  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode, fe = prefs.chatFrontend, sc = prefs.skinColors;
   const cur = nw ? nw.modes.find((m) => m.id === nw.get()) : undefined;
   return (
     <SettingSection title="消息" badge={<Badge>所有皮肤</Badge>}>
-      <SettingRow label="消息前端" description="用新前端显示回复：思维链、正文外壳、搜索资料、行动选项。正文仍由酒馆渲染，字体颜色跟酒馆的设置走。关掉后回到酒馆原样。"
+      <SettingRow label="消息前端" description="用新前端排版回复：正文、思维链、搜索资料、行动选项。Markdown、公式、HTML 美化、其他插件插进正文的按钮都照常。关掉后交回酒馆原样渲染。"
         control={fe ? <Switch checked={fe.get()} aria-label="消息前端" onCheckedChange={(v) => write(fe.set(v))} /> : off} />
+      <SettingRow label="皮肤字体颜色" description="开：消息用皮肤自己的字体颜色与底色（覆盖酒馆的字体颜色设置）。关：跟酒馆的字体颜色设置，皮肤的底色也让出来。"
+        control={sc ? <Switch checked={sc.get()} aria-label="皮肤字体颜色" onCheckedChange={(v) => write(sc.set(v))} /> : off} />
       <SettingRow label="角色名样式" description={NAME_WRAP_NOTE + (cur ? '（现在：' + cur.demo + '）' : '')}
         control={nw ? <Segmented label="角色名样式" size="sm" options={nw.modes.map((m) => ({ value: m.id, label: m.label }))} value={nw.get()} onValueChange={(v) => write(nw.set(v))} /> : off} />
       <SettingRow label="行动选项默认" description="行动选项在消息里的默认状态。选项头部随时可以单独展开或收起。"

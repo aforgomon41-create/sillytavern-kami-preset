@@ -99,6 +99,22 @@
 [data-k="msg-view"] { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--k-read-measure); min-width: 0; }
 [data-k="msg-view"][data-k-kind] { max-width: none; }   /* 酒馆里单独的一块：与酒馆正文同宽 */
 [data-k="msg-view"] > * { min-width: 0; }
+/* 显示面板关掉「皮肤字体颜色」：消息前端跟酒馆的字体颜色设置，底色让出来（放在 lock 层，皮肤改不掉——不然皮肤的底色配酒馆的字色，深色主题上会看不清） */
+[data-k-surface][data-k-colors="tavern"] [data-k="msg-view"] {
+  background-color: transparent; background-image: none; box-shadow: none;
+  border: var(--k-border-w) solid color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 18%, transparent);
+  color: var(--SmartThemeBodyColor, currentColor);
+  --k-on: var(--SmartThemeBodyColor, currentColor);
+  --k-on-muted: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 72%, transparent);
+  --k-on-subtle: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 55%, transparent);
+  --k-divider: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 18%, transparent);
+  --k-border: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 32%, transparent);
+  --k-link: var(--SmartThemeQuoteColor, currentColor);
+  --k-msg-dialogue: var(--SmartThemeQuoteColor, inherit);
+  --k-msg-thought: var(--SmartThemeEmColor, inherit);
+}
+/* 酒馆正在编辑这一楼：外壳整个让开 */
+[data-k="msg-view"][data-editing] { background: none; padding: 0; border: 0; box-shadow: none; }
 
 /* 折叠外壳（思维链 / 搜索资料）：行高 0fr ↔ 1fr 过渡，收起也有动画；收完再藏起来（visibility 延后切换），动效关闭时由上面的规则变成瞬间 */
 :is([data-k="msg-think"], [data-k="msg-search"], [data-k="msg-options"]) > [data-k-part="fold"] {

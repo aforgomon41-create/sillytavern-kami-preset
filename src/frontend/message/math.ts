@@ -53,6 +53,19 @@ export function splitMath(text: string): MathPiece[] {
   return out;
 }
 
+/** 交给酒馆的 messageFormatting 之前：把公式包进 <code data-kami-tex>（markdown 不动 code 里的内容），渲染后再由 typesetTex 换成 MathML */
+export function protectMath(md: string): string {
+  if (!maybeMath(md)) { return md; }
+  MATH_RE.lastIndex = 0;
+  return md.replace(MATH_RE, (all, b1?: string, b2?: string, i1?: string, i2?: string) => {
+    const display = b1 !== undefined || b2 !== undefined;
+    const tex = (b1 ?? b2 ?? i1 ?? i2 ?? '').trim();
+    if (!tex) { return all; }
+    const esc = tex.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<code data-kami-tex="' + (display ? 'b' : 'i') + '">' + esc + '</code>';
+  });
+}
+
 /** 文字里有没有像公式的东西（便宜的预检，省得每段都跑正则） */
 export const maybeMath = (s: string): boolean => s.includes('$') || s.includes('\\(') || s.includes('\\[');
 

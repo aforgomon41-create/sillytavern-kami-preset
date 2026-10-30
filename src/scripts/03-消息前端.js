@@ -10,7 +10,7 @@
  */
 (function () {
   /* @@KAMI_SKINS_NEXT@@ */
-  var VERSION = '0.2';
+  var VERSION = '0.4';
   var ENABLE_KEY = 'kami.msgfe';   /* localStorage：'0' = 关（显示面板「消息前端」开关） */
   var HOST = (function () {
     try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
@@ -97,6 +97,13 @@
         var r = m.extra && typeof m.extra.reasoning === 'string' ? m.extra.reasoning : '';
         return { mes: String(m.mes || ''), isUser: !!m.is_user, isSystem: !!m.is_system, reasoning: r };
       },
+      /* 统一管线：思维链 / 搜索资料 / 行动选项的内容交给酒馆自己的渲染（Markdown、HTML 美化、正则与正文一致） */
+      format: function (md, o) {
+        var c = ctx();
+        if (!c || typeof c.messageFormatting !== 'function') { return null; }
+        try { var m = c.chat[o.id]; return String(c.messageFormatting(md, m ? m.name : '', false, false, o.id, {}, !!o.reasoning)); } catch (e) { return null; }
+      },
+      skinColors: function () { try { return HOST.localStorage.getItem('kami.msg.skincolors') !== '0'; } catch (e) { return true; } },
       liveThink: function () { try { return HOST.KamiCot && typeof HOST.KamiCot.live === 'function' ? HOST.KamiCot.live() : null; } catch (e) { return null; } },
       count: function () { var c = ctx(); return c ? c.chat.length : 0; },
       /* 「正在生成」以停止键为准：酒馆统计提示词（dry run）时也发 GENERATION_STARTED，却没有对应的结束事件，

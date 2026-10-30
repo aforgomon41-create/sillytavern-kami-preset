@@ -65,6 +65,10 @@
         get: function () { try { return s.getItem('kami.options.folded') === '1'; } catch (e) { return false; } },
         set: function (v) { try { s.setItem('kami.options.folded', v ? '1' : '0'); chatRefresh(); return true; } catch (e) { return false; } }
       };
+      p.skinColors = {
+        get: function () { try { return s.getItem('kami.msg.skincolors') !== '0'; } catch (e) { return true; } },
+        set: function (v) { try { s.setItem('kami.msg.skincolors', v ? '1' : '0'); chatRefresh(); return true; } catch (e) { return false; } }
+      };
       p.optionMode = {
         get: function () { try { return s.getItem('kami-option-mode') === 'send' ? 'send' : 'fill'; } catch (e) { return 'fill'; } },
         set: function (v) { try { s.setItem('kami-option-mode', v); chatRefresh(); return true; } catch (e) { return false; } }

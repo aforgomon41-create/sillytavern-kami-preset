@@ -1,30 +1,28 @@
 /**
- * 酒馆聊天前端 v0.2（2026-10-29 按用户实测意见重做）：**内容留在酒馆的 DOM 里，我们只加外壳**。
+ * 酒馆聊天前端 v0.4：依附于消息的前端（正文 / 思维链 / 搜索资料 / 行动选项，以及以后的）**渲染逻辑统一**（用户 2026-10-30）。
  *
- * 为什么（用户 2026-10-29）：v0.1 把 .mes_text 整个藏起来、自己从原文重画，结果
- *   · 其他插件往正文里插的按钮 / 生图标记全没了，正文里的 HTML 美化也不显示；
- *   · 对白 / 心理描写的颜色不跟酒馆的字体颜色设置走；
- *   · 思维链没走 main 的做法（「💭 思维链」把它从正文流里搬进酒馆原生思维链块）。
- * 现在与 main 的「📄 正文外壳」同一个思路：
- *   · 正文：正则「前端|正文」把 <content> 换成两个空标记夹住的正文，酒馆照常渲染；这里把两个标记之间的节点**原样**搬进
- *     我们的宿主元素。宿主挂 Shadow DOM，里面是头部（字数 / 看原文 / 复制）和一个 <slot>——正文节点仍是页面 DOM 的一部分
- *     （仍在 .mes_text 里），插件照常找得到、照常插；字体颜色由酒馆的样式决定。公式见 math.ts。
- *   · 思维链：内容来自酒馆原生思维链块（extra.reasoning，「💭 思维链」流式时搬进去的）；老楼层正文里内联的思维链也认。
- *     我们在 .mes_text 前面放一块自己的思维链（Shadow DOM），原生块藏起来；编辑 / 删除按钮点的是酒馆原生的那两个，
- *     酒馆进入编辑状态时反过来：显示原生块、藏起我们的。生成中显示「思考中 N 字」（读「💭 思维链」正在扣的内容）。
- *   · 搜索资料 / 行动选项：酒馆助手把对应正则渲染成 iframe（.TH-render）。认出是哪一种后藏起 iframe，在原位置换成我们的；
- *     行动选项只有最新一条回复渲染（拍板 D）。
- *   · 生成中的那一楼只更新思维链；正文 / 搜索资料 / 行动选项等生成结束、酒馆最后一次渲染之后再接管（酒馆流式时每个片段都重写
- *     .mes_text，放进去的东西会被冲掉——main 的正文外壳也是这么处理的）。
- *   · stop()：正文节点搬回原处、标记放回，iframe 取消隐藏，宿主与样式全部移除——酒馆、「📄 正文外壳」「💭 思维链」原样接手。
+ * 一条管线（body-style.ts）：内容由酒馆渲染（Markdown、HTML 美化、正则与酒馆一致；公式先保护再换成 MathML）→ 内容留在页面 DOM 里
+ * （插件插的节点不丢、之后的插件也找得到）→ 原地加结构标记 → 用设计系统与皮肤的内容排版。外壳（头部、折叠、按钮）在 Shadow DOM 里，
+ * 内容经 slot 显示在外壳里——所以皮肤的底色、纸纹、令牌、字体颜色对四块都一样生效。
+ *
+ * 每一块挂在哪：
+ *   · 思维链、搜索资料：.mes_text 前面各一个宿主（不在 .mes_text 里，流式重写冲不掉）；内容 = messageFormatting 的结果，放在宿主的
+ *     子节点里（slot="content"）。思维链来自酒馆原生思维链（extra.reasoning，「💭 思维链」流式时搬进去的；原生块藏起，编辑 / 删除点原生按钮，
+ *     酒馆编辑时让回原生块）；老楼层正文里内联的思维链、生成中正在搬的思维链也认。
+ *   · 正文：**.mes_text 本身就是宿主**——Shadow DOM 里是外壳（头部 + slot），酒馆每次重写 .mes_text 的内容，外壳都还在；
+ *     所以生成中、更早的楼层、生成结束是同一个外壳、同一套排版。酒馆编辑这一楼时外壳让开。
+ *   · 行动选项：.mes_text 后面一个宿主，只有最新一条回复有（拍板 D）；按钮在影子树里，标题与内容经 slot 进来。
+ *   · 酒馆助手渲染的 iframe（思维链 / 搜索资料 / 行动选项三种正则前端）一律藏起——由我们的这几块代替。正文里的 HTML 美化照常显示。
+ * 颜色：默认用皮肤的字体颜色与底色；显示面板关掉「皮肤字体颜色」时跟酒馆的字体颜色设置、底色让出来（lock.css）。
+ * stop()：标记、样式、宿主全部移除；.mes_text 的影子树去不掉，只留一个空 slot（显示与没有时一样）——酒馆、「📄 正文外壳」「💭 思维链」原样接手。
  * 原文只从聊天数据读（契约 8.3）；酒馆的控件和交互一个都不动（契约 8.4）。
  */
 import * as React from 'react';
 import type { StyleHub } from '../skin-engine/sheets';
 import { mountSurface } from '../surfaces/messages';
-import { typesetTex } from './math';
-import { TEXT_ATTR, bodyCss, markBody, tokenRule, unmarkBody } from './body-style';
-import { splitReply, takeTag } from './parse';
+import { protectMath, typesetTex } from './math';
+import { TEXT_ATTR, bodyCss, markBody, unmarkBody } from './body-style';
+import { splitReply, takeTag, siteOf, type SearchRecord } from './parse';
 import { MsgBodyShell, MsgOptions, MsgPart, MsgSearch, MsgThink, type OptionItem, type OptionMode, type ThinkActions } from './view';
 import { cleanCopyText } from '../../scripts/_copy-clean.js';
 
@@ -50,6 +48,10 @@ export interface ChatFrontendOptions {
   generating: () => boolean;
   /** 生成中正在搬的思维链（「💭 思维链」的 KamiCot.live()）；没有在搬时返回 null */
   liveThink?: () => { diverting: boolean; text: string } | null;
+  /** 酒馆的渲染（messageFormatting）：Markdown → 净化过的 HTML。拿不到时返回 null（退回内置的 Markdown） */
+  format?: (md: string, o: { id: number; reasoning?: boolean }) => string | null;
+  /** 用皮肤的字体颜色（默认是）；否则跟酒馆的字体颜色设置 */
+  skinColors?: () => boolean;
   /** 点行动选项：填入 / 发送由调用方实现 */
   onPick: (item: OptionItem, mode: OptionMode) => void;
   /** 思维链标题里的名字 */
@@ -61,53 +63,47 @@ export interface ChatFrontendOptions {
   saveMode?: (m: OptionMode) => void;
 }
 
-interface Surface { host: HTMLElement; render: (node: React.ReactNode) => void; dispose: () => void; last: string }
-type Kind = 'think' | 'search' | 'options' | 'body';
+interface Surface { host: HTMLElement; surface: Element | null; render: (node: React.ReactNode) => void; dispose: () => void; last: string; body: boolean }
+type Kind = 'think' | 'search' | 'options';
 
 const MES_ATTR = 'data-kami-msg';
-const HOST_ATTR = 'data-kami-msg-host';          /* 我们的宿主元素，值是种类 */
-const HIDE_ATTR = 'data-kami-msg-hidden';        /* 被我们换掉的酒馆助手 iframe（.TH-render） */
+const HOST_ATTR = 'data-kami-msg-host';          /* 我们的宿主元素（.mes_text 之外的几块），值是种类 */
+const BODY_ATTR = 'data-kami-msg-body';          /* .mes_text 当了正文宿主 */
+const HIDE_ATTR = 'data-kami-msg-hidden';        /* 被我们代替的酒馆助手 iframe（.TH-render） */
 const NATIVE_THINK = 'data-kami-msg-native-think'; /* .mes 上：原生思维链块由我们代为显示 */
-const MARK_START = 'data-kami-body-start';
-const MARK_END = 'data-kami-body-end';
 const STYLE_ID = 'kami-msg-host-style';
-const BODY_STYLE_ID = 'kami-msg-body-style';   /* 正文排版（从设计系统与皮肤里抽出来的正文规则，见 body-style.ts） */
+const BODY_STYLE_ID = 'kami-msg-body-style';
 const OPT_FOLD_KEY = 'kami.options.folded';
 const EDITING_THINK = '.reasoning_edit_textarea';
 
-/* 宿主文档里的唯一一条样式：只藏 / 显我们接手的东西，外加公式的排版（公式在页面 DOM 里，影子样式管不到）。不改酒馆任何外观 */
+/* 宿主文档里的一条样式：只藏 / 显我们接手的东西，外加几块的间距。不改酒馆任何外观 */
 const HOST_CSS = [
   '#chat [' + HIDE_ATTR + '] { display: none !important; }',
   '#chat .mes[' + NATIVE_THINK + ']:not(:has(' + EDITING_THINK + ')) .mes_reasoning_details { display: none !important; }',
   '#chat .mes:has(' + EDITING_THINK + ') [' + HOST_ATTR + '="think"] { display: none !important; }',
-  '#chat [' + HOST_ATTR + '] { display: block; }',
-  /* 思维链在 .mes_text 外面：右边留出与 .mes_text 一样的空，和正文同宽 */
-  '#chat [' + HOST_ATTR + '="think"] { margin: 4px var(--mes-right-spacing, 0) 4px 0; }',
-  '#chat [' + HOST_ATTR + '="search"], #chat [' + HOST_ATTR + '="options"] { margin: 6px 0; text-indent: 0; }',
-  '#chat [data-kami-math="block"] { display: block; overflow-x: auto; overflow-y: hidden; margin: .4em 0; text-indent: 0; }',
-  '#chat [data-kami-math] math { font-size: 1.05em; }'
+  '#chat [' + HOST_ATTR + '] { display: block; margin: 4px var(--mes-right-spacing, 0) 4px 0; text-indent: 0; }',
+  '#chat [' + HOST_ATTR + '="options"] { margin-top: 6px; }'
 ].join('\n');
 
-/** 酒馆助手渲染的 iframe 前端是哪一种：看它保留的源码（隐藏的 <pre><code>）里的组件标记 */
-function thKind(th: Element): 'think' | 'search' | 'options' | null {
+const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** 酒馆助手渲染的 iframe 前端是哪一种：看它保留的源码里元素上的组件标记（不认样式表里的选择器——基础样式里三种都有） */
+function thKind(th: Element): Kind | null {
   const code = th.querySelector(':scope > pre code, :scope > pre');
   const src = code ? code.textContent || '' : '';
-  /* 认元素上的标记（<div class="kami-root" data-kami-comp="…">），不认样式表里的选择器——基础样式里三种组件的选择器都有 */
   const m = /<div class="kami-root" data-kami-comp="(think|search|options)"/.exec(src);
-  return m ? (m[1] as 'think' | 'search' | 'options') : null;
+  return m ? (m[1] as Kind) : null;
 }
 
 export class ChatFrontend {
   private readonly o: ChatFrontendOptions;
-  /** 每个宿主元素一个渲染面 */
   private readonly surfaces = new Map<HTMLElement, Surface>();
   private observer: MutationObserver | null = null;
   private scheduled = false;
   private busy = false;
   private mode: OptionMode;
-  /** 正文排版样式用到的令牌；tokensFrom：令牌值是从哪个渲染面读的（还没有渲染面时先空着，挂上第一个后补） */
-  private bodyTokens: string[] = [];
-  private tokensFrom: Element | null = null;
+  /** 内容容器上次写进去的源（没变就不重写——插件插进去的节点留着） */
+  private readonly written = new WeakMap<Element, string>();
   /** 已经标过的正文：内容没变就不再走一遍 */
   private readonly marked = new WeakMap<Element, string>();
   private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.refresh(); } };
@@ -132,6 +128,8 @@ export class ChatFrontend {
     try { return this.o.doc.defaultView!.localStorage.getItem(OPT_FOLD_KEY) !== '1'; } catch (e) { return true; }
   }
 
+  private colors(): 'skin' | 'tavern' { return !this.o.skinColors || this.o.skinColors() ? 'skin' : 'tavern'; }
+
   start(): void {
     const chat = this.o.chat();
     if (!chat || this.observer) { return; }
@@ -148,32 +146,20 @@ export class ChatFrontend {
     this.scan();
   }
 
-  /** 正文排版样式：设计系统 + 当前皮肤里的正文规则，改写后放进宿主文档；令牌值从一个已挂好的渲染面读 */
+  /** 内容排版样式：设计系统 + 当前皮肤里的内容规则，改写后放进宿主文档 */
   private bodyStyle(): void {
     const doc = this.o.doc;
     let st = doc.getElementById(BODY_STYLE_ID);
     if (!st) { st = doc.createElement('style'); st.id = BODY_STYLE_ID; doc.head.appendChild(st); }
     const t = this.o.hub.texts();
-    const { css, tokens } = bodyCss(doc.defaultView as Window & typeof globalThis, [t.ds, t.skin]);
-    this.bodyTokens = tokens;
-    let src: Element | null = null;
-    for (const s of this.surfaces.values()) { const el = s.host.shadowRoot && s.host.shadowRoot.querySelector('[data-k-surface]'); if (el && el.isConnected) { src = el; break; } }
-    this.tokensFrom = src;
-    st.textContent = css + '\n' + tokenRule(src, tokens);
-  }
-
-  private mark(root: Element, mode: 'body' | 'stream' | 'all'): void {
-    if (root.getAttribute(TEXT_ATTR) !== mode) { root.setAttribute(TEXT_ATTR, mode); this.marked.delete(root); }
-    const sig = root.childElementCount + ':' + (root.textContent || '').length;
-    if (this.marked.get(root) === sig) { return; }
-    markBody(root);
-    this.marked.set(root, root.childElementCount + ':' + (root.textContent || '').length);
+    st.textContent = bodyCss(doc.defaultView as Window & typeof globalThis, [t.ds, t.skin]);
   }
 
   /** 外部事件（生成结束、切换回复、编辑完成……）或设置变了：重画一次 */
   refresh(): void {
     this.reloadMode();
-    for (const s of this.surfaces.values()) { s.last = ''; }
+    const c = this.colors();
+    for (const s of this.surfaces.values()) { s.last = ''; if (s.surface) { s.surface.setAttribute('data-k-colors', c); } }
     this.schedule();
   }
 
@@ -209,32 +195,61 @@ export class ChatFrontend {
       const id = Number(mes.getAttribute('mesid'));
       const msg = this.o.getMessage(id);
       if (!msg || msg.isUser || msg.isSystem || mes.getAttribute('is_user') === 'true' || mes.getAttribute('is_system') === 'true') { continue; }
-      const text = mes.querySelector('.mes_text');
-      if (!text) { continue; }
+      const text = mes.querySelector('.mes_text') as HTMLElement | null;
+      if (!text || !text.parentElement) { continue; }
       mes.setAttribute(MES_ATTR, '');
       const streaming = generating && id === lastId;
+      const editing = !!text.querySelector('textarea');
+      for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd) { th.setAttribute(HIDE_ATTR, kd); } }
+      const reply = splitReply(msg.mes);
       this.think(mes, text, id, msg, streaming);
-      if (text.querySelector('textarea')) { continue; }   /* 酒馆正在编辑这条：不碰 .mes_text */
-      if (streaming) {
-        /* 生成中：藏起已经出现的 iframe 前端（结束后在原位换成我们的）；正文按我们的排版逐步显示——
-           酒馆每个片段都重写 .mes_text，标记在这个微任务里补上，赶在绘制之前 */
-        for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd) { th.setAttribute(HIDE_ATTR, kd); } }
-        this.mark(text, 'stream');
-        continue;
-      }
-      this.iframes(text, id, msg, id === latest);
-      this.body(text, id, msg);
-      typesetTex(text);
-      const bodyHost = text.querySelector('[' + HOST_ATTR + '="body"]');
-      if (bodyHost) { if (text.hasAttribute(TEXT_ATTR)) { unmarkBody(text); } this.mark(bodyHost, 'body'); }
-      else { this.mark(text, 'all'); }   /* 没有正文标记的楼层（老消息、正文正则只作用于最后两条）：整段当正文排 */
+      this.search(text, id, reply.search, streaming && reply.searchPending);
+      this.body(text, id, msg, reply.body ? reply.body.text : '', streaming, editing);
+      this.options(text, id, id === latest ? reply.options : null, streaming);
     }
-    /* 令牌值还没读过（刚启动时一个渲染面都没有）：现在有了就补上 */
-    if (!this.tokensFrom || !this.tokensFrom.isConnected) { if (this.surfaces.size) { this.bodyStyle(); } }
   }
 
-  /* ───── 思维链：放在 .mes_text 前面（不在 .mes_text 里，流式重写冲不掉） ───── */
-  private think(mes: Element, text: Element, id: number, msg: TavernMessage, streaming: boolean): void {
+  /* ───── 宿主：.mes_text 外面的几块，按「思维链 → 搜索资料 → .mes_text → 行动选项」的顺序 ───── */
+  private hostFor(text: HTMLElement, kind: Kind): HTMLElement {
+    const parent = text.parentElement!;
+    let host = parent.querySelector(':scope > [' + HOST_ATTR + '="' + kind + '"]') as HTMLElement | null;
+    if (!host) { host = this.o.doc.createElement('div'); host.setAttribute(HOST_ATTR, kind); }
+    if (kind === 'options') { if (text.nextElementSibling !== host) { text.after(host); } }
+    else {
+      const search = kind === 'think' ? parent.querySelector(':scope > [' + HOST_ATTR + '="search"]') : null;
+      const anchor = search || text;
+      if (host.nextElementSibling !== anchor) { anchor.before(host); }
+    }
+    return host;
+  }
+  private dropKind(text: HTMLElement, kind: Kind): void {
+    const host = text.parentElement!.querySelector(':scope > [' + HOST_ATTR + '="' + kind + '"]') as HTMLElement | null;
+    if (host) { this.drop(host); }
+  }
+
+  /** 统一管线：把一段 Markdown 交给酒馆渲染、写进内容容器、加标记、排公式。返回 false = 拿不到酒馆的渲染 */
+  private fill(box: Element, md: string, id: number, kind: string, reasoning = false): boolean {
+    if (!this.o.format) { return false; }
+    if (this.written.get(box) !== md) {
+      const html = this.o.format(protectMath(md), { id, reasoning });
+      if (html === null) { return false; }
+      box.innerHTML = html;
+      this.written.set(box, md);
+    }
+    box.setAttribute(TEXT_ATTR, kind);
+    markBody(box);
+    typesetTex(box);
+    return true;
+  }
+  /** 宿主下某个 slot 的内容容器（宿主的子节点，页面 DOM） */
+  private box(host: HTMLElement, slot: string, tag = 'div'): HTMLElement {
+    let b = Array.from(host.children).find((c) => c.getAttribute('slot') === slot) as HTMLElement | undefined;
+    if (!b) { b = this.o.doc.createElement(tag); b.setAttribute('slot', slot); host.appendChild(b); }
+    return b;
+  }
+
+  /* ───── 思维链 ───── */
+  private think(mes: Element, text: HTMLElement, id: number, msg: TavernMessage, streaming: boolean): void {
     const native = (msg.reasoning || '').trim();
     let src = native;
     let live = false;
@@ -242,18 +257,11 @@ export class ChatFrontend {
     if (!src && streaming && this.o.liveThink) {
       const l = this.o.liveThink();
       if (l && (l.diverting || l.text)) { src = l.text; live = l.diverting; }
-      if (l && l.diverting && !src) { src = ''; live = true; }
     }
     const details = mes.querySelector('.mes_reasoning_details');
     if (native && details) { mes.setAttribute(NATIVE_THINK, ''); } else { mes.removeAttribute(NATIVE_THINK); }
-    let host = text.parentElement!.querySelector(':scope > [' + HOST_ATTR + '="think"]') as HTMLElement | null;
-    if (!src && !live) { if (host) { this.drop(host); } return; }
-    if (!host || host.nextElementSibling !== text) {
-      if (host) { this.drop(host); }
-      host = this.o.doc.createElement('div');
-      host.setAttribute(HOST_ATTR, 'think');
-      text.before(host);
-    }
+    if (!src && !live) { this.dropKind(text, 'think'); return; }
+    const host = this.hostFor(text, 'think');
     const actions: ThinkActions = {};
     if (native && details) {
       const click = (sel: string) => (): void => {
@@ -265,81 +273,105 @@ export class ChatFrontend {
       if (details.querySelector('.mes_reasoning_edit')) { actions.edit = click('.mes_reasoning_edit'); }
       if (details.querySelector('.mes_reasoning_delete')) { actions.remove = click('.mes_reasoning_delete'); }
     }
-    this.paint(host, 'think|' + src.length + ':' + src.slice(-48) + '|' + live + '|' + !!actions.edit,
-      <MsgPart kind="think"><MsgThink text={src} streaming={live} actions={actions} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} /></MsgPart>);
+    const slotted = this.fill(this.box(host, 'content'), src, id, 'think', true);
+    this.paint(host, 'think|' + src.length + ':' + src.slice(-48) + '|' + live + '|' + !!actions.edit + '|' + slotted,
+      <MsgPart kind="think"><MsgThink text={src} streaming={live} actions={actions} slotted={slotted} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} /></MsgPart>);
   }
 
-  /* ───── 酒馆助手渲染的 iframe：思维链（老楼层）直接藏；搜索资料 / 行动选项换成我们的 ───── */
-  private iframes(text: Element, id: number, msg: TavernMessage, latest: boolean): void {
-    let reply: ReturnType<typeof splitReply> | null = null;
-    const get = (): ReturnType<typeof splitReply> => (reply ||= splitReply(msg.mes));
-    let optsTh = false;
-    for (const th of Array.from(text.querySelectorAll('.TH-render'))) {
-      const kind = thKind(th);
-      if (!kind) { continue; }
-      th.setAttribute(HIDE_ATTR, kind);
-      if (kind === 'think') { continue; }
-      let host = th.previousElementSibling as HTMLElement | null;
-      if (!host || host.getAttribute(HOST_ATTR) !== kind) {
-        host = this.o.doc.createElement('div');
-        host.setAttribute(HOST_ATTR, kind);
-        th.before(host);
+  /* ───── 搜索资料：事实逐条走统一管线，来源是链接 ───── */
+  private search(text: HTMLElement, id: number, records: SearchRecord[], pending: boolean): void {
+    if (!records.length && !pending) { this.dropKind(text, 'search'); return; }
+    const host = this.hostFor(text, 'search');
+    const key = JSON.stringify(records);
+    const box = this.box(host, 'content');
+    let slotted = !!this.o.format;
+    if (slotted && this.written.get(box) !== key) {
+      const fmt = (s: string): string => this.o.format!(protectMath(s), { id }) ?? esc(s);
+      box.innerHTML = records.map((r) => {
+        const num = new Map(r.sources.map((s, i) => [s.id, i + 1]));
+        const scope = r.world ? '<p data-k-part="scope">范围' + (r.origin === 'native' ? '（模型自带搜索）' : '') + '：' + esc(r.world) + '</p>' : '';
+        const facts = r.facts.length
+          ? '<ol data-k-part="facts">' + r.facts.map((f) => '<li data-k-part="fact">' + fmt(f.text) + f.source_ids.map((sid) => '<sup data-k-part="ref">[' + (num.get(sid) ?? '?') + ']</sup>').join('') + '</li>').join('') + '</ol>'
+          : '<p data-k-part="status">' + (r.status === 'not_found' ? '本次没有找到可用资料。' : r.status === 'budget_exceeded' ? '资料超过本轮长度预算，未加入新事实。' : '本次没有需要补充的新事实。') + '</p>';
+        const sources = r.sources.length
+          ? '<ol data-k-part="sources">' + r.sources.map((s, i) => {
+            const ok = /^https?:\/\//i.test(s.url);
+            const title = esc(s.title || siteOf(s.url));
+            return '<li data-k-part="source" value="' + (i + 1) + '">' + (ok ? '<a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + title + '</a>' : title) + ' <span>' + esc(siteOf(s.url)) + '</span></li>';
+          }).join('') + '</ol>'
+          : '';
+        return '<div ' + TEXT_ATTR + '="search">' + scope + facts + sources + '</div>';
+      }).join('');
+      this.written.set(box, key);
+      for (const c of Array.from(box.children)) { markBody(c); typesetTex(c); }
+    }
+    if (!this.o.format) { slotted = false; box.innerHTML = ''; }
+    this.paint(host, 'search|' + key.length + '|' + pending + '|' + slotted,
+      <MsgPart kind="search"><MsgSearch records={records} pending={pending} slotted={slotted} /></MsgPart>);
+  }
+
+  /* ───── 正文：.mes_text 本身当宿主 ───── */
+  private body(text: HTMLElement, id: number, msg: TavernMessage, raw: string, streaming: boolean, editing: boolean): void {
+    text.setAttribute(BODY_ATTR, '');
+    if (!editing) {
+      if (text.getAttribute(TEXT_ATTR) !== 'body') { text.setAttribute(TEXT_ATTR, 'body'); this.marked.delete(text); }
+      const sig = text.childElementCount + ':' + (text.textContent || '').length;
+      if (this.marked.get(text) !== sig) {
+        markBody(text);
+        typesetTex(text);
+        this.marked.set(text, text.childElementCount + ':' + (text.textContent || '').length);
       }
-      if (kind === 'search') {
-        const r = get();
-        if (!r.search.length) { this.drop(host); th.removeAttribute(HIDE_ATTR); continue; }
-        this.paint(host, 'search|' + msg.mes.length, <MsgPart kind="search"><MsgSearch records={r.search} pending={false} /></MsgPart>);
-      } else {
-        optsTh = true;
-        const r = get();
-        const open = this.optionsOpen();
-        if (!latest || !r.options || !r.options.items.length) {
-          /* 不是最新一条：选项不显示（iframe 也藏着）；解析不出选项时把 iframe 还回去 */
-          if (latest) { th.removeAttribute(HIDE_ATTR); }
-          this.drop(host);
-          continue;
+    } else { text.removeAttribute(TEXT_ATTR); this.marked.delete(text); }
+    const src = raw || msg.mes;
+    this.paint(text, 'body|' + src.length + ':' + src.slice(-48) + '|' + streaming + '|' + editing,
+      <MsgPart kind="body" editing={editing}><MsgBodyShell raw={src} streaming={streaming} copy={() => cleanCopyText(text)} /></MsgPart>, true);
+  }
+
+  /* ───── 行动选项（只有最新一条）：标题与内容逐个走统一管线 ───── */
+  private options(text: HTMLElement, id: number, opts: { items: OptionItem[]; closed: boolean } | null, streaming: boolean): void {
+    const pending = !!opts && streaming && !opts.closed;
+    if (!opts || (!opts.items.length && !pending)) { this.dropKind(text, 'options'); return; }
+    const host = this.hostFor(text, 'options');
+    let slotted = !!this.o.format;
+    if (slotted) {
+      opts.items.forEach((it, i) => {
+        const strip = (h: string): string => h.replace(/^\s*<p>([\s\S]*)<\/p>\s*$/, '$1');
+        for (const [slot, md] of [['o' + i + '-label', it.title], ['o' + i + '-text', it.content]] as const) {
+          const b = this.box(host, slot, 'span');
+          if (this.written.get(b) !== md) {
+            const h = this.o.format!(protectMath(md), { id });
+            if (h === null) { slotted = false; continue; }
+            b.innerHTML = strip(h);
+            this.written.set(b, md);
+          }
+          b.setAttribute(TEXT_ATTR, 'option');
+          markBody(b); typesetTex(b);
         }
-        this.paint(host, 'options|' + msg.mes.length + '|' + this.mode + '|' + open,
-          <MsgPart kind="options"><MsgOptions items={r.options.items} pending={false} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} /></MsgPart>);
-      }
+      });
+      /* 选项变少了：多出来的容器收掉 */
+      for (const c of Array.from(host.children)) { const m = /^o(\d+)-/.exec(c.getAttribute('slot') || ''); if (m && Number(m[1]) >= opts.items.length) { c.remove(); } }
     }
-    /* 行动选项的正则只作用在最后两条（maxDepth 1）：更早渲染的楼层里没有选项 iframe。删掉最新回复后，新的「最新一条」
-       就没有地方可换——这时把选项接在 .mes_text 末尾；不再是最新一条时收掉 */
-    const tailHost = text.querySelector(':scope > [' + HOST_ATTR + '="options"][data-kami-msg-tail]') as HTMLElement | null;
-    const r = latest && !optsTh ? get() : null;
-    if (r && r.options && r.options.items.length) {
-      let host = tailHost;
-      if (!host) { host = this.o.doc.createElement('div'); host.setAttribute(HOST_ATTR, 'options'); host.setAttribute('data-kami-msg-tail', ''); text.appendChild(host); }
-      const open = this.optionsOpen();
-      this.paint(host, 'options|' + msg.mes.length + '|' + this.mode + '|' + open,
-        <MsgPart kind="options"><MsgOptions items={r.options.items} pending={false} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} /></MsgPart>);
-    } else if (tailHost) { this.drop(tailHost); }
+    const open = this.optionsOpen();
+    this.paint(host, 'options|' + JSON.stringify(opts.items).length + '|' + pending + '|' + this.mode + '|' + open + '|' + slotted,
+      <MsgPart kind="options"><MsgOptions items={opts.items} pending={pending} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} slotted={slotted} /></MsgPart>);
   }
 
-  /* ───── 正文：两个标记之间的节点原样搬进宿主（slot 显示），标记收掉 ───── */
-  private body(text: Element, id: number, msg: TavernMessage): void {
-    const start = text.querySelector('[' + MARK_START + ']');
-    const end = text.querySelector('[' + MARK_END + ']');
-    if (start && end && start.parentNode === end.parentNode) {
-      const host = this.o.doc.createElement('div');
-      host.setAttribute(HOST_ATTR, 'body');
-      let n = start.nextSibling;
-      while (n && n !== end) { const nx = n.nextSibling; host.appendChild(n); n = nx; }
-      start.before(host);
-      start.remove(); end.remove();
-    }
-    for (const host of Array.from(text.querySelectorAll('[' + HOST_ATTR + '="body"]')) as HTMLElement[]) {
-      const raw = (takeTag(msg.mes, 'content') || { text: '' }).text;
-      this.paint(host, 'body|' + raw.length + ':' + raw.slice(-48),
-        <MsgBodyShell raw={raw} copy={() => cleanCopyText(host)} />);
-    }
-  }
-
-  private paint(host: HTMLElement, key: string, node: React.ReactNode): void {
+  private paint(host: HTMLElement, key: string, node: React.ReactNode, body = false): void {
     let s = this.surfaces.get(host);
     if (!s) {
       const m = mountSurface(host, this.o);
-      s = { host, render: m.render, last: '', dispose: () => { try { m.root.unmount(); } catch (e) { /* 已卸载 */ } if (m.off) { m.off(); } m.detach(); } };
+      const surface = m.shadow.querySelector('[data-k-surface]');
+      if (surface) { surface.setAttribute('data-k-colors', this.colors()); }
+      s = {
+        host, surface, render: m.render, last: '', body,
+        dispose: () => {
+          try { m.root.unmount(); } catch (e) { /* 已卸载 */ }
+          if (m.off) { m.off(); }
+          m.detach();
+          /* .mes_text 的影子树去不掉：只留一个空 slot，显示与没有影子树时一样 */
+          if (body && host.shadowRoot) { host.shadowRoot.replaceChildren(host.ownerDocument.createElement('slot')); }
+        }
+      };
       this.surfaces.set(host, s);
       this.mounts++;
     }
@@ -361,17 +393,16 @@ export class ChatFrontend {
     this.refresh();
   }
 
-  /** 皮肤属性变化：同步到所有渲染面根并重画 */
+  /** 皮肤属性变化：同步到所有渲染面根、重建内容样式并重画 */
   refreshAttrs(): void {
     const a = this.o.attrs ? this.o.attrs() : {};
+    const c = this.colors();
     for (const s of this.surfaces.values()) {
-      const el = s.host.shadowRoot && s.host.shadowRoot.querySelector('[data-k-surface]');
-      if (el) { for (const [n, v] of Object.entries(a)) { el.setAttribute(n, v); } }
+      if (s.surface) { for (const [n, v] of Object.entries(a)) { s.surface.setAttribute(n, v); } s.surface.setAttribute('data-k-colors', c); }
       s.last = '';
     }
     this.bodyStyle();
     this.scan();
-    this.bodyStyle();   /* 换了配色：令牌值要按新的重读 */
   }
 
   get size(): number { return this.surfaces.size; }
@@ -383,19 +414,12 @@ export class ChatFrontend {
     this.surfaces.clear();
     const chat = this.o.chat();
     if (chat) {
-      for (const el of Array.from(chat.querySelectorAll('[' + TEXT_ATTR + ']'))) { unmarkBody(el); }
-      /* 正文放回原处，两个标记也放回去（「📄 正文外壳」或之后重新开启的我们还能认出来） */
-      for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + '="body"]'))) {
-        const a = this.o.doc.createElement('div'), b = this.o.doc.createElement('div');
-        a.setAttribute(MARK_START, ''); b.setAttribute(MARK_END, '');
-        host.before(a);
-        while (host.firstChild) { host.before(host.firstChild); }
-        host.before(b);
-        host.remove();
-      }
+      for (const el of Array.from(chat.querySelectorAll('.mes_text[' + TEXT_ATTR + ']'))) { unmarkBody(el); }
       for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + ']'))) { host.remove(); }
       for (const el of Array.from(chat.querySelectorAll('[' + HIDE_ATTR + ']'))) { el.removeAttribute(HIDE_ATTR); }
-      for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + ']'))) { el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); }
+      for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + '], [' + BODY_ATTR + ']'))) {
+        el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); el.removeAttribute(BODY_ATTR);
+      }
     }
     for (const sid of [STYLE_ID, BODY_STYLE_ID]) { const st = this.o.doc.getElementById(sid); if (st) { st.remove(); } }
   }

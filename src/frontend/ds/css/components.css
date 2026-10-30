@@ -291,18 +291,57 @@
 /* 酒馆里单独的一块（思维链 / 搜索资料 / 行动选项各自一个宿主）：与酒馆正文同宽，上下留白收紧（收起时只是一行头部） */
 [data-k="msg-view"][data-k-kind] { padding: var(--k-space-2) var(--k-space-3); }
 
-/* 正文：阅读令牌；段首两字缩进（电脑、手机一样，用户拍板 C）；段距。text 里只有行内排版，没有别的组件 */
-[data-k="msg-body"] > [data-k-part="text"] { font-size: var(--k-read-size); line-height: var(--k-read-lh); }
-[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="para"] { text-indent: 2em; margin: 0 0 var(--k-read-para); }
-[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="para"]:last-child { margin-bottom: 0; }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="dialogue"] { font-weight: 500; }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="quote"] { color: var(--k-on-muted); font-weight: var(--k-fw); }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="thought"] { font-style: italic; color: var(--k-on-muted); }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="name"] { font-weight: var(--k-fw-strong); }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="keyword"] { font-weight: 700; }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="term"] { text-decoration: underline; text-decoration-color: var(--k-divider); text-underline-offset: .28em; }
-[data-k="msg-body"] > [data-k-part="text"] > [data-k-part="scene-break"] { width: 30%; margin: 1.4em auto; border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
-[data-k="msg-body"] > [data-k-part="text"] [data-k-part="caret"] { display: inline-block; width: .55em; height: .55em; margin-left: .25em; vertical-align: .05em; background: var(--k-accent); text-indent: 0; animation: k-msg-caret 1s steps(2, jump-none) infinite; }
+/* ───── 消息内容的排版（正文 / 思维链 / 搜索资料 / 选项内容，统一一套；用户 2026-10-30）─────
+   内容区一律是 [data-k-content="种类"]：影子树里（预览、面板）直接生效；消息前端的内容在页面 DOM 里（酒馆渲染、插件可插入），
+   运行时把这里所有以 [data-k-content 开头的规则抽出来、加上 #chat 前缀放进页面（message/body-style.ts）。
+   所以内容规则必须以 [data-k-content 开头写；容器的字体等写在「> *」上（页面里内容经 slot 继承的是影子树，不是容器）。
+   颜色：默认用皮肤的（继承所在块的 --k-on）；对白 / 心理描写可由皮肤用 --k-msg-dialogue / --k-msg-thought 指定；
+   显示面板关掉「皮肤字体颜色」时，这几个令牌改成酒馆的字体颜色设置（lock.css）。 */
+[data-k-content="body"] > * { font-size: var(--k-read-size); line-height: var(--k-read-lh); }
+[data-k-content="body"] > [data-k-part="para"] { text-indent: 2em; margin: 0 0 var(--k-read-para); }
+[data-k-content="body"] > [data-k-part="para"]:last-child { margin-bottom: 0; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 30%; margin: 1.4em auto; border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+[data-k-content="body"] :is(ul, ol, table, blockquote, pre, .TH-render) { text-indent: 0; }
+[data-k-content="body"] :is(ul, ol) { padding-left: 1.6em; margin: 0 0 var(--k-read-para); }
+[data-k-content="body"] ul { list-style: disc; }
+[data-k-content="body"] ol { list-style: decimal; }
+[data-k-content="body"] blockquote { margin: 0 0 var(--k-read-para); padding-left: .9em; border-left: 2px solid var(--k-divider); }
+[data-k-content="body"] .TH-render { margin: 0 0 var(--k-read-para); }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 500; color: var(--k-msg-dialogue, inherit); }
+[data-k-content] [data-k-part="quote"] { color: var(--k-on-muted); font-weight: var(--k-fw); }
+[data-k-content] [data-k-part="thought"] { font-style: italic; color: var(--k-msg-thought, var(--k-on-muted)); }
+[data-k-content] [data-k-part="name"] { font-weight: var(--k-fw-strong); }
+[data-k-content] [data-k-part="keyword"] { font-weight: 700; }
+[data-k-content] [data-k-part="term"] { text-decoration: underline; text-decoration-color: var(--k-divider); text-underline-offset: .28em; }
+[data-k-content] [data-k-part="caret"] { display: inline-block; width: .55em; height: .55em; margin-left: .25em; vertical-align: .05em; background: var(--k-accent); text-indent: 0; animation: k-msg-caret 1s steps(2, jump-none) infinite; }
+[data-k-content] a { color: var(--k-link); text-underline-offset: 2px; }
+[data-k-content] code { font-family: var(--k-font-mono); font-size: .92em; }
+[data-k-content] pre { overflow-x: auto; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-sm); background: var(--k-sunken); color: var(--k-on-sunken); }
+[data-k-content] table { border-collapse: collapse; margin: 0 0 .8em; }
+[data-k-content] :is(th, td) { padding: .3em .6em; border: var(--k-border-w) solid var(--k-divider); }
+[data-k-content] [data-kami-math="block"] { display: block; overflow-x: auto; overflow-y: hidden; margin: .4em 0; text-indent: 0; }
+[data-k-content] [data-kami-math] math { font-size: 1.05em; }
+/* 思维链：边注，字小一号（字号、颜色来自折叠区） */
+[data-k-content="think"] > * { margin: 0 0 .6em; }
+[data-k-content="think"] > :last-child { margin-bottom: 0; }
+[data-k-content="think"] :is(ul, ol) { padding-left: 1.4em; }
+[data-k-content="think"] ul { list-style: disc; }
+[data-k-content="think"] ol { list-style: decimal; }
+[data-k-content="think"] :is(h1, h2, h3, h4, h5, h6) { font-size: 1em; color: var(--k-on); }
+[data-k-content="think"] strong { color: var(--k-on); }
+[data-k-content="think"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); }
+[data-k-content="think"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
+/* 搜索资料 */
+[data-k-content="search"] > [data-k-part="scope"] { margin: 0 0 var(--k-space-2); color: var(--k-on-muted); }
+[data-k-content="search"] > :is([data-k-part="facts"], [data-k-part="sources"]) { margin: 0 0 var(--k-space-3); padding-left: 1.6em; }
+[data-k-content="search"] > [data-k-part="facts"] { list-style: disc; }
+[data-k-content="search"] > [data-k-part="sources"] { list-style: decimal; font-size: var(--k-fs-xs); }
+[data-k-content="search"] > [data-k-part="facts"] > [data-k-part="fact"] { margin-bottom: var(--k-space-1); }
+[data-k-content="search"] > [data-k-part="facts"] > [data-k-part="fact"] p { display: inline; margin: 0; }
+[data-k-content="search"] > [data-k-part="facts"] > [data-k-part="fact"] > [data-k-part="ref"] { margin-left: 2px; color: var(--k-link); font-size: .75em; }
+[data-k-content="search"] > [data-k-part="sources"] > [data-k-part="source"] > span { color: var(--k-on-muted); }
+/* 选项的标题与内容（按钮在影子树里，文字经 slot 进来） */
+[data-k-content="option"] p { display: inline; margin: 0; }
 @keyframes k-msg-caret { 0% { opacity: 1; } 100% { opacity: .15; } }
 [data-k="msg-body"] > [data-k-part="raw"], [data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="raw"] {
   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--k-font-mono); font-size: var(--k-fs-sm); line-height: 1.7;
@@ -316,19 +355,10 @@
   [data-k="msg-body"]:hover > [data-k-part="head"] > [data-k-part="tools"], [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"]:focus-within { opacity: 1; }
 }
 @media (hover: none) { [data-k="msg-body"] > [data-k-part="head"] > [data-k-part="tools"] { opacity: .7; } }
-/* 酒馆里的正文外壳（message/tavern.tsx）：正文由酒馆渲染、通过 slot 显示——字体与颜色都跟酒馆的设置走（用户 2026-10-29），
-   不铺底色；头部的字数与按钮也用酒馆的正文颜色（淡一些），保证在任何酒馆主题上都看得清 */
-[data-k="msg-body"][data-k-source="tavern"] {
-  --k-on: var(--SmartThemeBodyColor, currentColor);
-  --k-on-muted: color-mix(in srgb, var(--SmartThemeBodyColor, currentColor) 72%, transparent);
-  color: var(--SmartThemeBodyColor, inherit); font-family: var(--mainFontFamily, inherit); font-size: var(--mainFontSize, inherit);
-}
-[data-k="msg-body"][data-k-source="tavern"] > [data-k-part="head"] { margin-bottom: 0; }
+/* 酒馆里的正文外壳：头部（字数 / 看原文 / 复制）+ slot；看原文时藏起 slot */
 [data-k="msg-body"][data-k-source="tavern"] > [data-k-part="slot"][hidden] { display: none; }
-[data-k="msg-body"][data-k-source="tavern"] > [data-k-part="raw"] { color: inherit; }
-/* 公式（我们自己渲染的地方：思维链、搜索资料、行动选项） */
-[data-kami-math="block"] { display: block; overflow-x: auto; overflow-y: hidden; margin: .4em 0; text-indent: 0; }
-[data-kami-math] math { font-size: 1.05em; }
+/* 酒馆正在编辑这一楼：外壳让开，只剩酒馆的编辑框 */
+[data-k="msg-view"][data-editing] > [data-k="msg-body"] > [data-k-part="head"] { display: none; }
 
 /* 思维链 / 搜索资料：边注，收起时只是一行摘要 */
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--k-space-2); min-height: 32px; }
@@ -350,26 +380,6 @@
 /* 上下留白用首末子元素的外边距（折叠时被一起收进 0 高度里；内边距收不掉） */
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] > :first-child { margin-top: var(--k-space-2); }
 :is([data-k="msg-think"], [data-k="msg-search"]) > [data-k-part="fold"] > [data-k-part="body"] > :last-child { margin-bottom: var(--k-space-2); }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] > * { margin: 0 0 .6em; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] > :last-child { margin-bottom: 0; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] :is(ul, ol) { padding-left: 1.4em; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] ul { list-style: disc; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] ol { list-style: decimal; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] :is(h4, h5, h6) { font-size: 1em; color: var(--k-on); }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] strong { color: var(--k-on); }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] blockquote { padding-left: var(--k-space-3); border-left: 2px solid var(--k-divider); }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] code { font-family: var(--k-font-mono); font-size: .92em; }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] pre { overflow-x: auto; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-r-sm); background: var(--k-sunken); color: var(--k-on-sunken); }
-[data-k="msg-think"] > [data-k-part="fold"] > [data-k-part="body"] > [data-k-part="markdown"] hr { border: 0; border-top: var(--k-border-w) solid var(--k-divider); }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="scope"] { margin: 0 0 var(--k-space-2); color: var(--k-on-muted); }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > :is([data-k-part="facts"], [data-k-part="sources"]) { margin: 0 0 var(--k-space-3); padding-left: 1.6em; }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] { list-style: disc; }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] { list-style: decimal; }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] { margin-bottom: var(--k-space-1); }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="facts"] > [data-k-part="fact"] > [data-k-part="ref"] { margin-left: 2px; color: var(--k-link); font-size: .75em; }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] { font-size: var(--k-fs-xs); }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > a { color: var(--k-link); text-underline-offset: 2px; }
-[data-k="msg-search"] > [data-k-part="fold"] > [data-k-part="body"] > div > [data-k-part="sources"] > [data-k-part="source"] > span { color: var(--k-on-muted); }
 
 /* 行动选项：轻量列表，按下时才有存在感 */
 [data-k="msg-options"] > [data-k-part="head"] { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); margin-bottom: var(--k-space-2); font-size: var(--k-fs-sm); }

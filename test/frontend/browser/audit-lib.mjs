@@ -15,7 +15,10 @@ export function serve(root) {
 
 /* 在页面里执行的审计函数：返回 { checked, failures[] } */
 export function auditInPage(scopeSel) {
-  const parse = (c) => { const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) { return null; } const p = m[1].split(/[\s,\/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
+  const parse = (c) => {
+    const s = /color\(srgb ([^)]+)\)/.exec(c);
+    if (s) { const p = s[1].split(/[\s\/]+/).filter(Boolean).map(Number); return { r: p[0] * 255, g: p[1] * 255, b: p[2] * 255, a: p.length > 3 ? p[3] : 1 }; }
+    const m = /rgba?\(([^)]+)\)/.exec(c); if (!m) { return null; } const p = m[1].split(/[\s,\/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
   const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
   const lum = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
@@ -38,6 +41,7 @@ export function auditInPage(scopeSel) {
   const failures = []; let checked = 0;
   const check = (el, fgColor, min, what) => {
     const bg = effectiveBg(el); const fg = parse(fgColor);
+    if (!fg) { failures.push({ el: desc(el), what, problem: '颜色解析不了：' + fgColor }); return; }
     if (!bg) { failures.push({ el: desc(el), what, problem: '一路透明到宿主页（没有铺底的表面）' }); return; }
     const f = fg.a < 1 ? over(fg, bg) : fg; const r = ratio(f, bg); checked++;
     if (r < min - 0.01) { failures.push({ el: desc(el), what, ratio: Math.round(r * 100) / 100, min, text: (el.textContent || '').trim().slice(0, 20) }); }

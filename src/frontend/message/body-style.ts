@@ -1,27 +1,19 @@
 /**
- * 正文前端的排版（v0.3，用户 2026-10-29：正文前端开着时由我们渲染，样式是我们的；关掉才交回酒馆）。
+ * 消息内容的统一渲染（v0.4，用户 2026-10-30：正文、思维链、搜索资料、行动选项以及以后依附于消息的前端，渲染逻辑统一）。
  *
- * 渲染分工：markdown / 正则 / HTML 美化交给酒馆（借用酒馆的渲染，插件插的按钮也在这份 DOM 里），
- * 我们在酒馆渲染出的节点上**原地**加结构标记（段落、对白、心理描写、关键词、专有名词、场景转换、公式），
- * 再用我们的样式排版。原地做而不是另建一份 DOM：在我们之前插进去的插件节点不会丢，之后的插件也照常找得到正文。
- *
- * 样式从哪来：设计系统与当前皮肤里写给 [data-k="msg-body"] > [data-k-part="text"] 的规则——和预览里那套正文排版是同一份。
- * 这里把它们抽出来，前缀改写成「#chat [data-kami-msg-text]」放进宿主文档（只作用于我们标记过的正文，不碰酒馆别处）。
- * 颜色按用户的意思用酒馆的字体颜色设置：正文 / 对白 / 心理描写分别是 SmartThemeBodyColor / QuoteColor / EmColor。
- *
- * [data-kami-msg-text] 有三种：
- *   body   我们的正文宿主（Shadow DOM 里是头部 + slot，正文节点是它的子节点）；令牌从影子树经 slot 继承下来
- *   stream 生成中的那一楼的 .mes_text（酒馆每个片段都重写它，标记在下一个微任务里补上，赶在绘制之前）
- *   all    没有正文标记的楼层（老消息、正文正则只作用于最后两条）：整段 .mes_text 当正文排
- *   stream / all 不在影子树里，拿不到令牌：把令牌的当前值写进一条规则（见 tokenRule）。
+ * 一条管线：
+ *   ① 内容由酒馆渲染（正文：酒馆渲染好的 .mes_text；其他：酒馆的 messageFormatting）——Markdown、HTML 美化、正则都和酒馆一致；
+ *      公式先保护成 <code data-kami-tex>（math.ts），渲染后换成 MathML；
+ *   ② 内容留在页面 DOM 里（经 slot 显示在我们的外壳里），插件插的节点不会丢、之后的插件也找得到；
+ *   ③ markBody 在节点上原地加结构标记（段落、对白、心理描写、关键词、专有名词、场景转换）；
+ *   ④ 样式：设计系统与皮肤里以 [data-k-content 开头的内容规则——影子树（预览、面板）里直接生效；页面里的内容由这里抽出来、
+ *      加 #chat 前缀放进宿主文档（只作用于标了 data-k-content 的内容）。令牌、颜色、字体经 slot 从外壳继承。
  */
 
-export const TEXT_ATTR = 'data-kami-msg-text';
-const PREFIX = '[data-k="msg-body"] > [data-k-part="text"]';
-const SCOPE = '#chat [' + TEXT_ATTR + ']';
+export const TEXT_ATTR = 'data-k-content';
 
-/** 不当正文排的东西：酒馆助手的 iframe、我们的其他宿主、代码、公式、插件常用的按钮容器 */
-const SKIP = '.TH-render, [data-kami-msg-host]:not([' + TEXT_ATTR + ']), pre, code, script, style, textarea, iframe, math, [data-kami-math], button';
+/** 不当正文排的东西：酒馆助手的 iframe、我们的其他宿主、代码、公式、插件常用的按钮 */
+const SKIP = '.TH-render, [data-kami-msg-host], pre, code, script, style, textarea, iframe, math, [data-kami-math], button';
 
 /** 按最外层逗号切选择器（:is(a, b) 里的逗号不切） */
 function splitSelectors(sel: string): string[] {
@@ -40,46 +32,22 @@ type RuleList = { cssRules: CSSRuleList };
 
 function collect(list: RuleList, out: string[]): void {
   for (const r of Array.from(list.cssRules)) {
-    const anyR = r as CSSRule & { selectorText?: string; style?: CSSStyleDeclaration; cssRules?: CSSRuleList; media?: MediaList; conditionText?: string };
+    const anyR = r as CSSRule & { selectorText?: string; style?: CSSStyleDeclaration; cssRules?: CSSRuleList; media?: MediaList };
     if (anyR.selectorText !== undefined && anyR.style) {
-      const picked = splitSelectors(anyR.selectorText).filter((x) => x.startsWith(PREFIX));
-      if (!picked.length) { continue; }
-      const sels = picked.map((x) => {
-        const rest = x.slice(PREFIX.length);
-        /* 容器本身的规则（字体、字号、行高）：落到它的子节点上——宿主的子节点经 slot 继承的是影子树，不是宿主 */
-        return rest.trim() ? SCOPE + rest : SCOPE + ' > :not([data-kami-msg-host])';
-      });
-      out.push(sels.join(', ') + ' { ' + anyR.style.cssText + ' }');
+      const picked = splitSelectors(anyR.selectorText).filter((x) => x.startsWith('[data-k-content'));
+      if (picked.length) { out.push(picked.map((x) => '#chat ' + x).join(', ') + ' { ' + anyR.style.cssText + ' }'); }
     } else if (anyR.cssRules) {
       const inner: string[] = [];
       collect(anyR as unknown as RuleList, inner);
       if (!inner.length) { continue; }
       if (anyR.media) { out.push('@media ' + anyR.media.mediaText + ' { ' + inner.join('\n') + ' }'); }
-      else if (anyR.conditionText !== undefined && r.constructor.name.includes('Supports')) { out.push('@supports ' + anyR.conditionText + ' { ' + inner.join('\n') + ' }'); }
-      else { out.push(...inner); }   /* @layer 块：拆开放平（宿主文档里不用层，靠 #chat 的权重压过酒馆的 .mes_text 规则） */
+      else { out.push(...inner); }   /* @layer 块：拆开放平（页面里不用层，靠 #chat 的权重压过酒馆的 .mes_text 规则） */
     }
   }
 }
 
-/** 我们自己的补充：颜色用酒馆设置；段落里的块级内容（列表、表格、引用）不缩进；插件与 iframe 不受段落规则影响 */
-const OWN = [
-  SCOPE + ' > :not([data-kami-msg-host]) { color: var(--SmartThemeBodyColor, inherit); }',
-  SCOPE + ' [data-k-part="dialogue"] { color: var(--SmartThemeQuoteColor, inherit); }',
-  SCOPE + ' [data-k-part="thought"] { color: var(--SmartThemeEmColor, inherit); }',
-  SCOPE + ' :is(ul, ol, table, blockquote, pre, .TH-render) { text-indent: 0; }',
-  SCOPE + ' :is(ul, ol) { padding-left: 1.6em; margin: 0 0 var(--k-read-para, .8em); }',
-  SCOPE + ' blockquote { margin: 0 0 var(--k-read-para, .8em); padding-left: .9em; border-left: 2px solid color-mix(in srgb, currentColor 30%, transparent); }',
-  SCOPE + ' table { border-collapse: collapse; margin: 0 0 var(--k-read-para, .8em); }',
-  SCOPE + ' :is(th, td) { padding: .3em .6em; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); }',
-  SCOPE + ' .TH-render { margin: 0 0 var(--k-read-para, .8em); }',
-  SCOPE + ' > [data-k-part="para"]:last-child { margin-bottom: 0; }'
-];
-
-/**
- * 生成宿主文档里的正文样式。texts：设计系统、皮肤的样式原文（StyleHub.texts()）。
- * 返回样式与用到的令牌名（stream / all 两种拿不到影子树的令牌，要另写值）。
- */
-export function bodyCss(win: Window & typeof globalThis, texts: string[]): { css: string; tokens: string[] } {
+/** 宿主文档里的内容样式。texts：设计系统、皮肤的样式原文（StyleHub.texts()） */
+export function bodyCss(win: Window & typeof globalThis, texts: string[]): string {
   const out: string[] = [];
   for (const t of texts) {
     if (!t) { continue; }
@@ -89,28 +57,21 @@ export function bodyCss(win: Window & typeof globalThis, texts: string[]): { css
       collect(sheet, out);
     } catch (e) { /* 样式表解析失败：这一份跳过 */ }
   }
-  out.push(...OWN);
-  const css = out.join('\n');
-  const tokens = [...new Set(Array.from(css.matchAll(/var\((--k-[\w-]+)/g), (m) => m[1]!))];
-  return { css, tokens };
+  return out.join('\n');
 }
 
-/** stream / all 两种用的令牌：从一个已挂好的渲染面上读当前值，写成一条规则 */
-export function tokenRule(src: Element | null, tokens: string[]): string {
-  if (!src) { return ''; }
-  const cs = (src.ownerDocument.defaultView as Window).getComputedStyle(src);
-  const decl = tokens.map((t) => { const v = cs.getPropertyValue(t).trim(); return v ? t + ': ' + v + ';' : ''; }).filter(Boolean).join(' ');
-  return decl ? '#chat [' + TEXT_ATTR + '="stream"], #chat [' + TEXT_ATTR + '="all"] { ' + decl + ' }' : '';
+/** el 在 root 里面是不是落在「不排」的东西里（root 外面的祖先不算——内容容器本身就挂在我们的宿主下） */
+function skipIn(root: Element, el: Element): boolean {
+  const m = el.closest(SKIP);
+  return !!m && m !== root && root.contains(m);
 }
-
-const skip = (el: Element): boolean => !!el.closest(SKIP);
 const LEAD = /^[\s　]+/;
 const TERM = /【[^【】\n]{1,40}】/g;
 
 /** 段首的全角空格去掉（缩进交给 text-indent，和预览里同一种排法；酒馆渲染的段落里原样带着「　　」） */
-function stripLead(p: Element): void {
+function stripLead(root: Element, p: Element): void {
   let n: Node | null = p.firstChild;
-  while (n && n.nodeType === 1 && (n as Element).firstChild && !skip(n as Element)) { n = (n as Element).firstChild; }
+  while (n && n.nodeType === 1 && (n as Element).firstChild && !skipIn(root, n as Element)) { n = (n as Element).firstChild; }
   if (n && n.nodeType === 3 && LEAD.test(n.nodeValue || '')) { n.nodeValue = (n.nodeValue || '').replace(LEAD, ''); }
 }
 
@@ -121,11 +82,11 @@ function stripLead(p: Element): void {
 export function markBody(root: Element): void {
   for (const el of Array.from(root.children)) {
     if (el.hasAttribute('data-k-part') || el.matches(SKIP)) { continue; }
-    if (el.tagName === 'P') { el.setAttribute('data-k-part', 'para'); stripLead(el); }
+    if (el.tagName === 'P') { el.setAttribute('data-k-part', 'para'); stripLead(root, el); }
     else if (el.tagName === 'HR') { el.setAttribute('data-k-part', 'scene-break'); }
   }
   const tag = (sel: string, part: string): void => {
-    for (const el of Array.from(root.querySelectorAll(sel + ':not([data-k-part])'))) { if (!skip(el)) { el.setAttribute('data-k-part', part); } }
+    for (const el of Array.from(root.querySelectorAll(sel + ':not([data-k-part])'))) { if (!skipIn(root, el)) { el.setAttribute('data-k-part', part); } }
   };
   tag('q', 'dialogue');
   tag('em, i', 'thought');
@@ -138,7 +99,7 @@ export function markBody(root: Element): void {
     const t = n as Text;
     if (!t.nodeValue || !t.nodeValue.includes('【')) { continue; }
     const pe = t.parentElement;
-    if (!pe || skip(pe) || pe.closest('[data-k-part="term"]')) { continue; }
+    if (!pe || skipIn(root, pe) || pe.closest('[data-k-part="term"]')) { continue; }
     TERM.lastIndex = 0;
     if (TERM.test(t.nodeValue)) { hits.push(t); }
   }
@@ -163,6 +124,6 @@ export function markBody(root: Element): void {
 /** 收回标记（关掉前端时）：属性去掉，专有名词的包裹拆掉。段首空格已经去掉的不补回（酒馆下次渲染这一楼时自然恢复） */
 export function unmarkBody(root: Element): void {
   for (const el of Array.from(root.querySelectorAll('[data-k-part="term"]'))) { el.replaceWith(root.ownerDocument.createTextNode(el.textContent || '')); }
-  for (const el of Array.from(root.querySelectorAll('[data-k-part]'))) { if (!el.closest('[data-kami-msg-host]:not([' + TEXT_ATTR + '])')) { el.removeAttribute('data-k-part'); } }
+  for (const el of Array.from(root.querySelectorAll('[data-k-part]'))) { el.removeAttribute('data-k-part'); }
   root.removeAttribute(TEXT_ATTR);
 }

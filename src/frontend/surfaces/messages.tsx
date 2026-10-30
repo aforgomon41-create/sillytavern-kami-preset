@@ -48,7 +48,9 @@ export function nthTag(tag: string): (raw: string, index: number) => string | un
 export function mountSurface(el: Element, o: { doc: Document; hub: StyleHub; attrs?: () => Record<string, string>; icons?: () => Record<string, string>; onRoot?: (root: ShadowRoot) => () => void }): {
   root: Root; shadow: ShadowRoot; detach: () => void; off: (() => void) | null; render: (node: React.ReactNode) => void;
 } {
-  const shadow = el.attachShadow({ mode: 'open' });
+  /* 已经有影子树的（消息前端关掉又打开时的 .mes_text：影子树去不掉）就清空重用 */
+  const shadow = el.shadowRoot || el.attachShadow({ mode: 'open' });
+  shadow.replaceChildren();
   const detach = o.hub.attach(shadow);
   const surface = o.doc.createElement('div');
   surface.setAttribute('data-k-surface', 'message');

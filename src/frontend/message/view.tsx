@@ -74,7 +74,7 @@ export function MsgBody({ text, streaming }: { text: string; streaming: boolean 
         )}
       </div>
       {raw ? <pre {...part('raw')}>{text.trim()}</pre> : (
-        <div {...part('text')}>
+        <div {...part('text')} data-k-content="body">
           {blocks.map((b, i) => (b.t === 'scene'
             ? <hr key={i} {...part('scene-break')} />
             : <p key={i} {...part('para')}>{renderInline(b.kids, 'p' + i)}{streaming && i === last ? <span {...part('caret')} aria-hidden="true" /> : null}</p>))}
@@ -102,7 +102,11 @@ function Fold({ open, id, children }: { open: boolean; id: string; children: Rea
 /** 思维链头部的原生操作：思维链存在酒馆原生思维链块里时，编辑 / 删除交给酒馆自己的按钮（用户：原生入口要保留） */
 export interface ThinkActions { edit?: () => void; remove?: () => void }
 
-export function MsgThink({ text, streaming, thinker = '奈亚子', actions }: { text: string; streaming: boolean; thinker?: string; actions?: ThinkActions }): React.JSX.Element {
+export function MsgThink({ text, streaming, thinker = '奈亚子', actions, slotted }: {
+  text: string; streaming: boolean; thinker?: string; actions?: ThinkActions;
+  /** 内容由宿主的页面 DOM 经 slot 提供（酒馆里：酒馆渲染、统一管线）；否则用内置的 Markdown 渲染（预览） */
+  slotted?: boolean;
+}): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
   const [raw, setRaw] = React.useState(false);
   const id = React.useId();
@@ -128,7 +132,7 @@ export function MsgThink({ text, streaming, thinker = '奈亚子', actions }: { 
         ) : null}
       </div>
       <Fold open={open} id={id}>
-        {raw ? <pre {...part('raw')}>{text}</pre> : <div {...part('markdown')}><Markdown text={text} /></div>}
+        {raw ? <pre {...part('raw')}>{text}</pre> : slotted ? <slot name="content" /> : <div {...part('markdown')} data-k-content="think"><Markdown text={text} /></div>}
       </Fold>
     </section>
   );
@@ -136,7 +140,7 @@ export function MsgThink({ text, streaming, thinker = '奈亚子', actions }: { 
 
 /* ───────── 搜索资料 ───────── */
 
-export function MsgSearch({ records, pending }: { records: SearchRecord[]; pending: boolean }): React.JSX.Element {
+export function MsgSearch({ records, pending, slotted }: { records: SearchRecord[]; pending: boolean; slotted?: boolean }): React.JSX.Element {
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
   const sources = records.flatMap((r) => r.sources);
@@ -153,10 +157,10 @@ export function MsgSearch({ records, pending }: { records: SearchRecord[]; pendi
       </button>
       </div>
       <Fold open={open} id={id}>
-          {records.map((r, ri) => {
+          {slotted ? <slot name="content" /> : records.map((r, ri) => {
             const num = new Map(r.sources.map((s, i) => [s.id, i + 1]));
             return (
-              <div key={ri}>
+              <div key={ri} data-k-content="search">
                 {r.world ? <p {...part('scope')}>范围{r.origin === 'native' ? '（模型自带搜索）' : ''}：{r.world}</p> : null}
                 {r.facts.length ? (
                   <ol {...part('facts')}>
@@ -183,8 +187,10 @@ const TONE: Record<string, 'accent' | 'info' | 'success' | 'warning' | 'danger' 
   行动: 'accent', 性格: 'info', 推进: 'success', 信息: 'info', 搞笑: 'warning', nsfw: 'danger', NSFW: 'danger'
 };
 
-export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen = true }: {
+export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen = true, slotted }: {
   items: OptionItem[]; pending: boolean; mode: OptionMode; onMode: (m: OptionMode) => void; onPick: (item: OptionItem, mode: OptionMode) => void;
+  /** 标题与内容由宿主的页面 DOM 经 slot 提供（o{序号}-label / o{序号}-text） */
+  slotted?: boolean;
   /** 默认展开还是收起（显示面板「行动选项默认」；用户 2026-10-29 要求放进显示面板）。改了设置，已渲染的选项跟着变 */
   defaultOpen?: boolean;
 }): React.JSX.Element {
@@ -213,9 +219,9 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
                 {/* 类型标签 + 标题一起作为头部，内容在下面占满整个宽度（用户 2026-10-28） */}
                 <span {...part('item-head')}>
                   <span {...part('type')}><Badge tone={TONE[it.type] || 'neutral'}>{it.type === 'nsfw' ? 'NSFW' : it.type}</Badge></span>
-                  <span {...part('label')}><InlineMarkdown text={it.title} /></span>
+                  <span {...part('label')}>{slotted ? <slot name={'o' + i + '-label'} /> : <span data-k-content="option"><InlineMarkdown text={it.title} /></span>}</span>
                 </span>
-                <span {...part('text')}><InlineMarkdown text={it.content} /></span>
+                <span {...part('text')}>{slotted ? <slot name={'o' + i + '-text'} /> : <span data-k-content="option"><InlineMarkdown text={it.content} /></span>}</span>
               </button>
             </li>
           ))}
@@ -233,9 +239,11 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
  * 外壳只加一个头部（字数 / 看原文 / 复制）。正文节点留在页面的 DOM 里，通过 <slot> 显示在这里，
  * 所以字体、颜色（对白、心理描写）都跟酒馆的设置走（用户 2026-10-29：直接用酒馆的字体颜色设置）。
  */
-export function MsgBodyShell({ raw, copy }: {
+export function MsgBodyShell({ raw, copy, streaming }: {
   /** 正文原文（<content> 里的那段，字数与「看原文」用） */
   raw: string;
+  /** 生成中：头部只显示字数 */
+  streaming?: boolean;
   /** 复制：取渲染后的干净正文（由调用方从页面 DOM 里取） */
   copy: () => string;
 }): React.JSX.Element {
@@ -246,13 +254,13 @@ export function MsgBodyShell({ raw, copy }: {
     <section {...k('msg-body', { view: showRaw ? 'raw' : 'rendered' })} data-k-source="tavern">
       <div {...part('head')}>
         <span {...part('count')}>{countChars(raw)} 字</span>
-        <span {...part('tools')}>
+        {streaming ? null : <span {...part('tools')}>
           <IconButton size="sm" variant="ghost" label={showRaw ? '看排版' : '看原文'} aria-pressed={showRaw} onClick={() => setShowRaw(!showRaw)}><IconCode width={16} height={16} /></IconButton>
           <IconButton ref={ref} size="sm" variant="ghost" label={done ? '已复制' : '复制正文'}
             onClick={() => { void copyText(ref.current!.ownerDocument, copy()).then((ok) => { setDone(ok); window.setTimeout(() => setDone(false), 1500); }); }}>
             <IconCopy width={16} height={16} />
           </IconButton>
-        </span>
+        </span>}
       </div>
       {showRaw ? <pre {...part('raw')}>{raw.trim()}</pre> : null}
       <div {...part('slot')} hidden={showRaw}><slot /></div>
@@ -261,8 +269,8 @@ export function MsgBodyShell({ raw, copy }: {
 }
 
 /** 思维链 / 搜索资料 / 行动选项各自一块：自己铺底色（酒馆主题可能是深色、皮肤是浅色，不铺底就保证不了对比度） */
-export function MsgPart({ kind, children }: { kind: string; children: React.ReactNode }): React.JSX.Element {
-  return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind}>{children}</div>;
+export function MsgPart({ kind, editing, children }: { kind: string; editing?: boolean; children: React.ReactNode }): React.JSX.Element {
+  return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind} data-editing={editing ? '' : undefined}>{children}</div>;
 }
 
 /* ───────── 一整条回复 ───────── */
