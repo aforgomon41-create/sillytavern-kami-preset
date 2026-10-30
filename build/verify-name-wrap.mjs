@@ -91,7 +91,7 @@ ok(rc.indexOf('所有出现的角色名必须使用反引号包裹') < 0, '③ �
 
 /* ④ 代码：35 号 */
 const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
-const wrap = scripts.find(s => String(s.name).indexOf('提示词发送修改') >= 0);
+const wrap = scripts.find(s => String(s.name).indexOf('提示词发送修改') >= 0 && String(s.name).indexOf('🧪') < 0);
 const wc = wrap ? String(wrap.content || '') : '';
 ok(!!wrap, '④ 产物里有「✍️ 提示词发送修改」脚本', wrap ? wrap.name : '找不到');
 ok(wrap && wrap.enabled !== false, '④ 它是开着的（默认关掉的话这功能就等于不存在）');
@@ -110,7 +110,7 @@ ok(wc.indexOf('IMAGE_TASK_RE') >= 0, '④ 文生图块按行首完整块识别�
 /* ④b 代码：30 号（皮肤面板「显示」卡的入口）与 50 号（引导入口）
    ⚠️ 2026-09-28 用户裁定：这一行从「🌟 预设设置」搬到了「🎨 皮肤管理面板 → 显示」那张卡，
    所以守的是 30 号，**同时守「40 号里不许再留一份」**（两处各长一份是这项目的常见病）。 */
-const skin = String((scripts.find(s => String(s.name).indexOf('皮肤管理') >= 0) || {}).content || '');
+const skin = String((scripts.find(s => String(s.name).indexOf('皮肤管理') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 ok(skin.indexOf('function nameWrapRow') >= 0, '④ 30 号里有「角色名样式」那一行的构造');
 /* 2026-10-26：30 号的「皮肤」页改成 React 渲染后，挂载写法从
    g.appendChild(nameWrapRow()) 变成 h(NameWrapRow)。两种都认 ——
@@ -120,11 +120,11 @@ ok(/g\.appendChild\(nameWrapRow\(\)\)/.test(skin) || /h\(NameWrapRow\)/.test(ski
 ok(skin.indexOf('KamiNameWrap') >= 0, '④ 皮肤面板走的是 35 号的 API（不是自己另写一份状态）');
 ok(skin.indexOf("mk('span', 'kami-seg'") >= 0, '④ 右边用的是契约已登记的分段控件（零新增类名）');
 
-const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0) || {}).content || '');
+const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 ok(panel.indexOf('wrapCardEl') < 0 && panel.indexOf('KamiNameWrap') < 0,
   '④ 40 号（预设设置面板）里已经不留这一行了（搬家搬干净，不留第二份实现）');
 
-const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0) || {}).content || '');
+const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 ok(guide.indexOf('function buildSegRow') >= 0 && guide.indexOf('nameWrapTitle') >= 0, '④ 50 号引导页里有角色名样式那一块');
 
 /* ④c 文案：guide-copy.json 的三条必须原样出现在产物里（文案只有一份真相）。

@@ -35,7 +35,7 @@ const ok = (cond, label, extra) => {
 console.log('=== 版本身份验证（' + path.basename(p) + '） ===');
 
 const scripts = flattenScriptTrees(preset.extensions?.tavern_helper?.scripts || []);
-const byName = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0) || {}).content || '');
+const byName = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 const updater = byName('远程更新');
 const panel = byName('预设设置');
 const guide = byName('引导');

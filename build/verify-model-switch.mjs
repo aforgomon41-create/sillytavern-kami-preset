@@ -57,7 +57,7 @@ ok(taggedWithModel.length > 0, '② 其中至少有一条挂在模型名下（�
   taggedWithModel.map(e => e.name + '→' + (byId.get(e.identifier).models || []).join('')).join('、') || '一条都没有');
 
 /* ③ 代码：40 号的 selectModel 里那处跳过还在（这是真正决定行为的地方） */
-const panel = String(flattenScriptTrees((preset.extensions?.tavern_helper?.scripts) || []).find(s => String(s.name).indexOf('预设设置') >= 0)?.content || '');
+const panel = String(flattenScriptTrees((preset.extensions?.tavern_helper?.scripts) || []).find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0)?.content || '');
 ok(panel.indexOf('function isOptionalOff') >= 0, '③ 40 号里有 isOptionalOff 判定');
 ok(/if \(isOptionalOff\(it\)\) \{ skipped\.push/.test(panel), '③ 选模型时对这类条目**跳过开启**（不是只写个函数不用）');
 ok(panel.indexOf("indexOf('" + TAG + "')") >= 0, '③ 判定用的就是标题里的「' + TAG + '」标签');

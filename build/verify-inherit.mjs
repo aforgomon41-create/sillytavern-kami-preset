@@ -26,7 +26,7 @@ if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
 
 const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
-const textOf = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0) || {}).content || '');
+const textOf = (kw) => String((scripts.find(s => String(s.name).indexOf(kw) >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 const up = textOf('远程更新');
 const panel = textOf('预设设置');
 

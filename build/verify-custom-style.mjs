@@ -327,8 +327,8 @@ if (!p) {
   console.log('=== 产物接线 ===');
   const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
   const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
-  const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0) || {}).content || '');
-  const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0) || {}).content || '');
+  const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
+  const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
   ok(!!panel, '⑦ 产物里有「预设设置」脚本');
   ok(!!guide, '⑦ 产物里有「引导」脚本');
   ok(panel.indexOf('function parseCustomName(') >= 0, '⑦ 解析器内联进了 40 号');

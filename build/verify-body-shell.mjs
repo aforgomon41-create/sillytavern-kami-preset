@@ -66,7 +66,7 @@ ok(rg.filter(r => /前端\|正文/.test(String(r.scriptName || '')) && String(r.
 
 /* ③ 外壳脚本 */
 const scripts = flattenScriptTrees(preset.extensions?.tavern_helper?.scripts || []);
-const shell = scripts.find(s => String(s.name || '').indexOf('正文外壳') >= 0);
+const shell = scripts.find(s => String(s.name || '').indexOf('正文外壳') >= 0 && String(s.name).indexOf('🧪') < 0);
 ok(!!shell, '③ 产物里有「正文外壳」脚本', shell && shell.name);
 if (shell) {
   ok(shell.enabled !== false, '③ 脚本是启用的');

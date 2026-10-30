@@ -68,7 +68,7 @@ ok(good.out.indexOf('条目卡（所有开关）') >= 0, '好产物：守卫确�
 /* ③ 把条目卡分支删掉，守卫必须拦住 */
 const j = JSON.parse(fs.readFileSync(artifact, 'utf8'));
 const scripts = flattenScriptTrees((((j.extensions || {}).tavern_helper || {}).scripts) || []);
-const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0);
+const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0);
 if (!panel) { console.error('产物里没找到面板脚本'); process.exit(2); }
 const NEEDLE = "t.getAttribute('data-kami-item') && t.tagName === 'BUTTON'";
 ok(String(panel.content).indexOf(NEEDLE) >= 0, '产物里确实有「条目卡」那条分支（不然下面的模拟是空转）');

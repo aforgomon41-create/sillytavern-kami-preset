@@ -23,7 +23,7 @@ if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
 const scripts = flattenScriptTrees((((preset.extensions || {}).tavern_helper || {}).scripts) || []);
-const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0);
+const panel = scripts.find((s) => String(s.name || '').indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0);
 
 let bad = 0;
 const ok = (cond, label, extra) => {

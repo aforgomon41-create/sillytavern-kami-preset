@@ -35,7 +35,7 @@ const ok = (cond, label, extra) => { if (!cond) { bad++; } console.log((cond ? '
 
 console.log('=== 运行库接线验证（' + path.basename(p) + '） ===');
 
-const rt = flat.find(s => String(s.name).indexOf('运行库') >= 0);
+const rt = flat.find(s => String(s.name).indexOf('运行库') >= 0 && String(s.name).indexOf('🧪') < 0);
 ok(!!rt, '① 产物里有「运行库」脚本', rt ? rt.name : '没找到');
 if (rt) {
   ok(rt.enabled !== false, '① 运行库默认开启', String(rt.enabled));

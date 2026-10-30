@@ -5,7 +5,8 @@
 import * as React from 'react';
 import { Badge, Button, ChoiceCard, ChoiceGrid, Dialog, EntryLabel, Field, InfoPopover, Select, SettingSection, TextArea, TextField, stripEmoji } from '../ds';
 
-export interface Item { id: string; name: string; on: boolean; note: string }
+/** locked：模型专属条目、当前模型不是它的模型时不能开关（旧面板的「模型闸门」） */
+export interface Item { id: string; name: string; on: boolean; note: string; locked?: boolean }
 export interface Group { name: string; mode: 'one' | 'any'; note: string; items: Item[] }
 export interface VarField { kind: 'single' | 'range'; keys: string[]; values: number[] }
 export interface VarCard { name: string; note: string; fields: VarField[] }
@@ -50,7 +51,7 @@ export function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): R
         {info(plain(g.name), g.note)}
       </span>}>
       <ChoiceGrid>
-        {shown.map((i) => <ChoiceCard key={i.id} multi={g.mode === 'any'} title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]}
+        {shown.map((i) => <ChoiceCard key={i.id} multi={g.mode === 'any'} title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} disabled={!!i.locked}
           onSelect={() => act.toggle(g, i)} info={info(plain(i.name), i.note)} />)}
       </ChoiceGrid>
     </SettingSection>
@@ -69,12 +70,22 @@ export function ModelPicker({ t, st, act, withItems }: { t: Tab; st: State; act:
       {withItems && cur ? (
         <SettingSection title={<EntryLabel name={cur.emoji + ' ' + cur.label + ' 专属条目'} />} badge={<Badge>多选</Badge>}>
           <ChoiceGrid>
-            {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
+            {cur.items.map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} disabled={!!i.locked} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
           </ChoiceGrid>
         </SettingSection>
       ) : null}
     </>
   );
+}
+
+/** 数字框：打字时只改草稿，失焦或回车才写回（真实预设每次写回都要存盘） */
+function VarInput({ value, onCommit, label }: { value: number | undefined; onCommit: (v: number) => void; label: string }): React.JSX.Element {
+  const [draft, setDraft] = React.useState(String(value ?? ''));
+  const editing = React.useRef(false);
+  React.useEffect(() => { if (!editing.current) { setDraft(String(value ?? '')); } }, [value]);
+  const commit = (): void => { editing.current = false; const n = Number(draft); if (draft.trim() !== '' && Number.isFinite(n) && n !== value) { onCommit(n); } else { setDraft(String(value ?? '')); } };
+  return <TextField type="number" inputMode="numeric" value={draft} aria-label={label} onFocus={() => { editing.current = true; }} onBlur={commit}
+    onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }} />;
 }
 
 export function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): React.JSX.Element {
@@ -85,7 +96,7 @@ export function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): 
           {f.keys.map((k, n) => (
             <label key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {f.kind === 'range' ? <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{n === 0 ? '最少' : '最多'}</span> : null}
-              <span style={{ width: 112 }}><TextField type="number" inputMode="numeric" value={String(st.vars[k] ?? '')} onChange={(e) => act.setVar(k, Number(e.target.value))} aria-label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
+              <span style={{ width: 112 }}><VarInput value={st.vars[k]} onCommit={(x) => act.setVar(k, x)} label={plain(v.name) + (f.kind === 'range' ? (n === 0 ? ' 最少' : ' 最多') : '')} /></span>
               {f.kind === 'range' && n === 0 ? <span aria-hidden="true">–</span> : null}
             </label>
           ))}
@@ -101,9 +112,13 @@ export function VarFields({ v, st, act }: { v: VarCard; st: State; act: Act }): 
 export interface CustomStyle { id: string; name: string; group: string; content: string; status: 'saved' | 'pending' | 'doomed' }
 
 export function CustomStyles({ groups, initial: init, copy: C, onSave }: {
-  groups: Group[]; initial: CustomStyle[]; copy: Record<string, string>; onSave: (list: CustomStyle[]) => void;
+  groups: Group[]; initial: CustomStyle[]; copy: Record<string, string>;
+  /** 保存：可以返回写入结果（Promise 也行）；ok 为 false 时保留未保存的改动并显示 msg */
+  onSave: (list: CustomStyle[]) => void | { ok: boolean; msg?: string } | Promise<{ ok: boolean; msg?: string }>;
 }): React.JSX.Element {
   const [list, setList] = React.useState<CustomStyle[]>(init);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState('');
   const [edit, setEdit] = React.useState<CustomStyle | null>(null);
   const dirty = list.some((s) => s.status !== 'saved');
   const g = (name: string): Group | undefined => groups.find((x) => x.name === name);
@@ -112,9 +127,16 @@ export function CustomStyles({ groups, initial: init, copy: C, onSave }: {
     <SettingSection title={C['sectionTitle']} badge={dirty ? <Badge tone="warning">{C['unsaved']}</Badge> : <Badge>{list.filter((s) => s.status !== 'doomed').length} 条</Badge>}
       aside={<span style={{ display: 'inline-flex', gap: 8 }}>
         <Button size="sm" onClick={() => setEdit({ id: 'n' + Date.now(), name: '', group: groups[0]?.name || '', content: '', status: 'pending' })}>{C['addBtn']}</Button>
-        <Button size="sm" variant="primary" disabled={!dirty} onClick={() => { const next = list.filter((s) => s.status !== 'doomed').map((s) => ({ ...s, status: 'saved' as const })); setList(next); onSave(next); }}>{C['saveBtn']}</Button>
+        <Button size="sm" variant="primary" disabled={!dirty || busy} busy={busy} onClick={() => {
+          const next = list.filter((s) => s.status !== 'doomed').map((s) => ({ ...s, status: 'saved' as const }));
+          const r = onSave(next);
+          if (!r) { setList(next); return; }
+          setBusy(true); setErr('');
+          Promise.resolve(r).then((x) => { setBusy(false); if (x.ok) { setList(next); } else { setErr(x.msg || C['errGeneric'] || ''); } }, (e: unknown) => { setBusy(false); setErr(String(e)); });
+        }}>{C['saveBtn']}</Button>
       </span>}>
       <p style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{C['intro']}</p>
+      {err ? <p role="alert" style={{ color: 'var(--k-danger)', fontSize: 'var(--k-fs-sm)' }}>{err}</p> : null}
       {list.length ? (
         <div style={{ display: 'grid', gap: 'var(--k-space-2)' }}>
           {list.map((s) => (

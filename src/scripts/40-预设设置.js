@@ -2985,6 +2985,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
 
   /* @@KAMI_OTHER_TOOLS_UI@@ */
   /* @@KAMI_TOOLS_BRIDGE@@ */
+  /* @@KAMI_PRESET_BRIDGE@@ */
 
   var otherToolsRoot = null, otherToolsUnbind = null;
   function mountOtherTools(container) {
@@ -3954,6 +3955,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       view = buildView(liveData.tree);
       if (modelChanged) { saveVars(); }
     } else { view = []; }
+    toolsNotify();
     if (!panelRoot && !force) { return; }
     /* 顺手核对一次几何与「贴底抽屉 / 悬浮窗」：尺寸变化事件偶尔会漏（预览台的模拟视口就是这样），
        每次重读都过一遍这段代码，面板不会停在上一次的布局模式上。 */
@@ -3996,15 +3998,22 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       var w = HOST;
       /* 先清掉可能残留的同名登记（脚本重载时不留幽灵按钮） */
       var defs = w.__hubDefs || (w.__hubDefs = []);
+      /* 只清掉同名的死登记（上一份实例）：支线上「🧪 预设设置」用同一个按钮名，它的登记要留着 */
       for (var i = defs.length - 1; i >= 0; i -= 1) {
-        if (defs[i] && defs[i].name === HUB_NAME) { defs.splice(i, 1); }
+        if (defs[i] && defs[i].name === HUB_NAME) {
+          var dead = true;
+          try { dead = typeof defs[i].alive === 'function' ? !defs[i].alive() : true; } catch (e0) { dead = true; }
+          if (dead || defs[i].__kamiOld) { defs.splice(i, 1); }
+        }
       }
       ownDef = {
         name: HUB_NAME,
+        __kamiOld: true,
         order: HUB_ORDER,
         tip: '预设设置（点击展开面板）',
         ping: Date.now(),
-        alive: function () { return !disposed; },
+        /* 支线上「🧪 预设设置」在运行时让位：同名按钮由它接管（它注销后这份登记重新生效） */
+        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiPresetNext && HOST.KamiPresetNext.alive()); } catch (e) { return true; } },
         /* 读不到设置时按钮文字带个 ⚠，别让用户以为面板是空的 */
         label: function () { return HUB_NAME + ((liveData && !liveData.ok) ? '⚠' : ''); },
         /* ready 恒为 true：面板本身就是「读不到设置」时的报错界面，
@@ -4105,6 +4114,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       mountOtherTools: mountOtherTools,
       toolsBridge: toolsBridge,
       updateBridge: updateBridge,
+      presetBridge: presetBridge,
       version: VERSION,
       open: openPanel, close: closePanel, toggle: togglePanel,
       refresh: function () { refresh(true); },
@@ -4256,6 +4266,12 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
       });
       if (typeof changed === 'function') { unsubs.push({ stop: changed }); }
       else if (changed && typeof changed.stop === 'function') { unsubs.push(changed); }
+      /* 新界面（读写桥）跟着预设变化重读：切预设、在酒馆原生面板里改开关，都会发这个事件 */
+      if (tavern_events.OAI_PRESET_CHANGED_AFTER) {
+        var presetChanged = eventOn(tavern_events.OAI_PRESET_CHANGED_AFTER, function () { if (!disposed) { toolsNotify(); } });
+        if (typeof presetChanged === 'function') { unsubs.push({ stop: presetChanged }); }
+        else if (presetChanged && typeof presetChanged.stop === 'function') { unsubs.push(presetChanged); }
+      }
     }
     try {
       if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined' ||

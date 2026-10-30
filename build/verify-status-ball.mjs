@@ -38,7 +38,7 @@ if (!fs.existsSync(p)) { console.error('找不到产物：' + p); process.exit(2
 
 const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
 const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
-const entry = scripts.find(s => String(s.name).indexOf('状态栏') >= 0);
+const entry = scripts.find(s => String(s.name).indexOf('状态栏') >= 0 && String(s.name).indexOf('🧪') < 0);
 const code = String((entry && entry.content) || '');
 
 let bad = 0;

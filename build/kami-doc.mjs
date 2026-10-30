@@ -398,6 +398,7 @@ export function expandPanelGestures(root, code) {
     ['/* @@KAMI_COMPRESS_UI@@ */', '_compress-ui.js'],
     ['/* @@KAMI_OTHER_TOOLS_UI@@ */', '_toolbox-other-ui.js'],
     ['/* @@KAMI_TOOLS_BRIDGE@@ */', '_tools-bridge.js'],
+    ['/* @@KAMI_PRESET_BRIDGE@@ */', '_preset-bridge.js'],
     ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
     ['/* @@KAMI_TOOLBOX_BRIDGE@@ */', '_toolbox-bridge.js'],
     ['/* @@KAMI_SEARCH_SERVICE@@ */', '_search-service.js'],
