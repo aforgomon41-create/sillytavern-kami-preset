@@ -179,7 +179,9 @@
         if (!def || !def.name) { continue; }
         name = String(def.name);
         cur = find(name);
-        if (cur) { cur._def = def; continue; }   // 登记方重启后会推入新的登记对象，跟上它
+        /* 登记方重启后会推入新的登记对象，跟上它——连同点击 / 标签等函数一起换（只换成活着的那份）：
+           同名按钮可以由两个脚本轮流接管（支线上新前端脚本在跑时，旧脚本的同名登记 alive() 让位） */
+        if (cur) { if (cur._def !== def && defAlive(def)) { var nd = normDef(def); for (var k in nd) { if (Object.prototype.hasOwnProperty.call(nd, k) && k !== 'name') { cur[k] = nd[k]; } } } continue; }
         if (!defAlive(def)) { continue; }        // 登记方已经没了 → 不收
         cur = normDef(def);
         if (!cur) { continue; }

@@ -2984,6 +2984,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   }
 
   /* @@KAMI_OTHER_TOOLS_UI@@ */
+  /* @@KAMI_TOOLS_BRIDGE@@ */
 
   var otherToolsRoot = null, otherToolsUnbind = null;
   function mountOtherTools(container) {
@@ -3069,6 +3070,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 卡片上的开关态与两个控件同步。读的是**全局变量**（唯一真值），不是内存里的影子状态。 */
   function paintGodCmdCard() {
     var cur = readGodCmd();
+    toolsNotify();
     if (!godcmdEls) { return; }
     if (godcmdEls.on) { godcmdEls.on.setChecked ? godcmdEls.on.setChecked(cur.on) : null; }
     if (godcmdEls.chip) { godcmdEls.chip.textContent = cur.on ? GODCMD_COPY.modeOn : GODCMD_COPY.modeOff; }
@@ -4101,6 +4103,8 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   function expose() {
     var api = {
       mountOtherTools: mountOtherTools,
+      toolsBridge: toolsBridge,
+      updateBridge: updateBridge,
       version: VERSION,
       open: openPanel, close: closePanel, toggle: togglePanel,
       refresh: function () { refresh(true); },

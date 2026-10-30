@@ -399,6 +399,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   /* 面板手势共享模块（构建期内联，两块面板共用同一份） */
   /* @@KAMI_PANEL_GESTURES@@ */
   /* @@KAMI_TOOLBOX_TABS@@ */
+  /* @@KAMI_TOOLBOX_BRIDGE@@ */
   /* @@KAMI_SEARCH_PROVIDERS@@ */
   /* @@KAMI_SEARCH_PURE@@ */
   /* @@KAMI_SEARCH_TASK_DEF@@ */
@@ -2543,6 +2544,7 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
   }
 
   function renderStatus() {
+    bridgeNotify();
     if (!panelDrop) { return; }
     var sub = panelDrop.querySelector('[data-kami-role="src"]');
     var stl = panelDrop.querySelector('[data-kami-role="' + STATUS_ROLE + '"]');
@@ -2598,15 +2600,22 @@ var PANEL_W = 840, PANEL_H = 1120, PANEL_MIN_W = 300, PANEL_MIN_H = 240;
     try {
       var w = HOST;
       var defs = w.__hubDefs || (w.__hubDefs = []);
+      /* 只清掉同名的死登记（上一份实例）：支线上「🧪 工具箱」用同一个按钮名，它的登记要留着 */
       for (var i = defs.length - 1; i >= 0; i -= 1) {
-        if (defs[i] && defs[i].name === HUB_NAME) { defs.splice(i, 1); }
+        if (defs[i] && defs[i].name === HUB_NAME) {
+          var dead = true;
+          try { dead = typeof defs[i].alive === 'function' ? !defs[i].alive() : true; } catch (e0) { dead = true; }
+          if (dead || defs[i].__kamiOld) { defs.splice(i, 1); }
+        }
       }
       ownDef = {
         name: HUB_NAME,
+        __kamiOld: true,
         order: HUB_ORDER,
         tip: COPY.hubTip,
         ping: Date.now(),
-        alive: function () { return !disposed; },
+        /* 支线上「🧪 工具箱」在运行时让位：同名按钮由它接管（它注销后这份登记重新生效） */
+        alive: function () { if (disposed) { return false; } try { return !(HOST.KamiToolboxNext && HOST.KamiToolboxNext.alive()); } catch (e) { return true; } },
         label: function () {
           return HUB_NAME + (pipeline.running ? '·总结中 ' + pipeline.done + '/' + pipeline.total : '') + (lastError ? '⚠' : '');
         },

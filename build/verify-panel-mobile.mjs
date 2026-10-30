@@ -29,7 +29,7 @@ const preset = JSON.parse(fs.readFileSync(p, 'utf8'));
 
 const scripts = flattenScriptTrees((preset.extensions && preset.extensions.tavern_helper && preset.extensions.tavern_helper.scripts) || []);
 const strip = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-const codeOf = (kw) => strip(String((scripts.find(s => String(s.name).indexOf(kw) >= 0) || {}).content || ''));
+const codeOf = (kw) => strip(String((scripts.find(s => String(s.name).indexOf(kw) >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || ''));
 
 let bad = 0;
 const ok = (cond, label, extra) => {

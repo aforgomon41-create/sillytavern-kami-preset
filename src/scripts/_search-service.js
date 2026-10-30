@@ -262,7 +262,7 @@ export function createKamiSearchService(env) {
       if (selected.localKey) { state = {}; state['browser:' + selected.id] = !!(await readLocalKey(selected.id)); }
       else { state = await post('/api/secrets/read', {}); }
       if (state && typeof state === 'object') { for (var key in state) { if (Object.prototype.hasOwnProperty.call(state, key)) { secretState[key] = state[key]; } } }
-      if (!disposed) { paintSecretState(); }
+      if (!disposed) { paintSecretState(); changed(); }
     }
     catch (e) { if (!disposed && selected.id === cfg.provider) { notice(selected.localKey ? errorText(e) : '暂时无法读取酒馆密钥状态'); paintSecretState(); } }
   }
@@ -943,7 +943,68 @@ export function createKamiSearchService(env) {
     });
   }
 
-  var api = { mount: mount, configure: configure, search: function (topic) { return run(topic, true); }, cancel: cancel, beforeSend: beforeSend, syncTask: syncTask,
+  /* 新前端工具箱（05 号）用的读写桥：纯数据快照 + 动作；变化经 env.changed 通知（60 号接到它的总通知上） */
+  function changed() { try { if (env.changed) { env.changed(); } } catch (e) { } }
+  function bridge() {
+    return {
+      get: function () {
+        var probe = null;
+        try { probe = env.nativeProbe ? env.nativeProbe.status() : null; } catch (e) { probe = null; }
+        return {
+          enabled: cfg.enabled, mode: cfg.mode, provider: cfg.provider,
+          providers: providers.list().map(function (p) { return { id: p.id, label: p.label, note: p.note || '', url: p.url || '', keyUrl: p.keyUrl || '', secret: p.secret || '', localKey: !!p.localKey, endpoint: !!p.endpoint, endpointKey: p.endpointKey || p.id }; }),
+          endpoints: { searxng: cfg.endpoints.searxng || '', koboldcpp: cfg.endpoints.koboldcpp || '' }, wikiLanguage: cfg.wikiLanguage,
+          limits: Object.assign({}, cfg.limits), manualLimits: Object.assign({}, manualSettings.limits),
+          hasSecret: hasSecret(), message: message, running: !!active, manualRunning: !!(active && active.manual),
+          system: cfg.system, defaultSystem: defaultSystem, shortcut: manualSettings.shortcut === true, probe: probe
+        };
+      },
+      configure: function (patch) {
+        var before = cfg.provider;
+        configure(patch || {});
+        if (cfg.provider !== before) { refreshSecrets().then(changed, changed); }
+        changed();
+      },
+      limits: function (manual, patch) { var next = configureLimits(!!manual, patch || {}); changed(); return next; },
+      saveKey: async function (value) {
+        value = String(value || '').trim();
+        if (!value) { notice('请先填写密钥'); changed(); return false; }
+        var provider = cfg.provider, sel = providers.get(provider);
+        try {
+          cancel('密钥设置已变化，旧搜索已取消', true);
+          if (sel.localKey) { await writeLocalKey(provider, value); }
+          else { await post('/api/secrets/write', { key: sel.secret, value: value, label: '卡密预设·网络搜索' }); }
+          drafts[provider] = '';
+          notice(sel.localKey ? '密钥已保存在本机浏览器' : '密钥已保存在酒馆服务端');
+          await refreshSecrets();
+          return true;
+        } catch (error) { notice(errorText(error)); return false; }
+        finally { changed(); }
+      },
+      clearKey: async function () {
+        var provider = cfg.provider;
+        try {
+          cancel('本机密钥已清除，旧搜索已取消', true);
+          await writeLocalKey(provider, '');
+          drafts[provider] = '';
+          secretState['browser:' + provider] = false;
+          notice('已清除此服务的本机密钥');
+          return true;
+        } catch (error) { notice(errorText(error)); return false; }
+        finally { changed(); }
+      },
+      refreshSecrets: function () { return refreshSecrets().then(changed, changed); },
+      probe: function () {
+        if (!env.nativeProbe) { return Promise.resolve(null); }
+        if (active) { notice('请等待当前搜索完成后再测试'); changed(); return Promise.resolve(null); }
+        return Promise.resolve(env.nativeProbe.run()).then(function (r) { changed(); return r; });
+      },
+      cancelProbe: function () { if (env.nativeProbe) { env.nativeProbe.cancel('测试已中断'); } changed(); },
+      subscribeProbe: function (fn) { return env.nativeProbe ? env.nativeProbe.subscribe(fn) : function () { }; }
+    };
+  }
+
+  var api = { mount: mount, configure: configure, bridge: bridge, search: function (topic) { return run(topic, true); }, cancel: cancel, beforeSend: beforeSend, syncTask: syncTask,
     limits: function (manual) { return Object.assign({}, manual ? manualSettings.limits : cfg.limits); }, configureLimits: configureLimits, mountLimits: mountLimits,
     manualSettings: function () { return manualSettings; },
     saveManual: function () { if (active && active.manual) { cancel('手动搜索设置已变化，旧任务已取消', true); } save(); if (env.saveNotice) { env.saveNotice(); } },

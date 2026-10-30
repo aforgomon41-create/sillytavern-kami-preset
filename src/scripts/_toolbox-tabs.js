@@ -107,6 +107,7 @@ export function buildToolboxTabs() {
       selectTab: function (key) { openToolbox(key); },
       status: function () { return { open: isOpen(), tab: toolboxTab, compression: status(), search: SEARCH ? SEARCH.status() : null }; },
       manualSearch: function () { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.open(); } },
+      bridge: function () { return toolboxBridge(); },
       refreshOtherTools: function () { if (toolboxTab === 'other') { mountOtherToolsPage(); } },
       shutdown: teardown
     };
@@ -140,7 +141,7 @@ export function buildToolboxTabs() {
         providers: { list: webSearchProviders, get: webSearchProvider, endpoint: webSearchEndpoint, request: webSearchRequest, rows: webSearchRows },
         pure: { webSearchTaskGuide: webSearchTaskGuide, webSearchLimitFields: webSearchLimitFields, normalizeWebSearchLimits: normalizeWebSearchLimits, normalizeWebSearchManualSettings: normalizeWebSearchManualSettings, parseWebSearchJSON: parseWebSearchJSON, webSearchSource: webSearchSource, webSearchTag: webSearchTag,
           readWebSearchRecords: readWebSearchRecords, normalizeWebSearchRecord: normalizeWebSearchRecord, attachWebSearchRecord: attachWebSearchRecord },
-        host: HOST, document: HDOC, context: stCtx, make: mk, components: createKamiUi(HDOC),
+        host: HOST, document: HDOC, context: stCtx, make: mk, changed: function () { bridgeNotify(); }, components: createKamiUi(HDOC),
         saveNotice: function () { renderStatus(); updateDef(); },
         profile: withTavernProfile, profiles: tavernCCProfiles,
         legacyConfigs: function () { return cfg.sumConfigs; },
@@ -188,8 +189,9 @@ export function buildToolboxTabs() {
       };
       searchEnv.nativeProbe = createKamiNativeSearchProbe(Object.assign({}, searchEnv, {pipeline:function(){return kamiResponsePipeline(HOST);},transport:createKamiResponseTransport(),canRun:function(){if(pipeline.running)return false;var ctx=stCtx(),processor=ctx&&ctx.streamingProcessor;if(processor&&processor.isFinished===false)return false;var stop=HDOC.getElementById('mes_stop');return !stop||HOST.getComputedStyle(stop).display==='none';}}));
       SEARCH = createKamiSearchService(searchEnv);
+      if (searchEnv.nativeProbe) { try { var offProbe = searchEnv.nativeProbe.subscribe(function () { bridgeNotify(); }); unsubs.push({ stop: offProbe }); } catch (e) { } }
     }
-    MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,document:HDOC,make:mk,copy:COPY,profiles:tavernCCProfiles,
+    MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,changed:function(){bridgeNotify();},document:HDOC,make:mk,copy:COPY,profiles:tavernCCProfiles,
       defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,ensureStyle:injectCss,
       ui:{section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow},toast:function(kind,text){toast(kind,text,'手动搜索');}});
     MANUAL_SEARCH_UI.ping();

@@ -730,7 +730,22 @@
   }
 
   /* 弹窗问要不要更新；返回 true = 用户点了「立即更新」 */
+  /* 支线：新前端的界面提供方（05 号「🧪 工具箱」登记 HOST.KamiUpdateUi）。
+     在跑时，「要不要更新」「进度」「逐条裁决」三处都交给它画；不在时走下面原来的路。 */
+  function updateUi() {
+    try { var u = HOST.KamiUpdateUi; if (u && typeof u.alive === 'function' && u.alive()) { return u; } } catch (e) { }
+    return null;
+  }
   function askUpdate(remote, localText) {
+    var nui = updateUi();
+    if (nui && typeof nui.ask === 'function') {
+      var asked = null;
+      try { asked = nui.ask({ name: String(remote.name || remote.version || ''), version: String(remote.version || ''), notes: String(remote.notes || '') }, String(localText || '')); } catch (e) { asked = null; }
+      if (asked) {
+        log('新界面询问是否更新到 ' + (remote.version || remote.name));
+        return Promise.resolve(asked).then(function (yes) { log('用户选择：' + (yes ? '立即更新' : '暂不更新')); return !!yes; });
+      }
+    }
     var html = buildPopupHtml(remote, localText);
     var cmd = '/popup result=true scroll=true' +
       ' okButton="立即更新"' +
@@ -1110,6 +1125,21 @@
       if (plan.conflicts[i].choice !== 'next') { plan.conflicts[i].choice = 'mine'; }
     }
     if (!plan.conflicts.length) { return Promise.resolve({ plan: plan, via: 'none' }); }
+    var nui = updateUi();
+    if (nui && typeof nui.review === 'function') {
+      yieldScreen('要让出屏幕给逐条裁决窗口');
+      return new Promise(function (resolve) {
+        var okNext = false;
+        try {
+          okNext = nui.review(plan, function (settledPlan) {
+            if (settledPlan === null) { log('你在裁决窗口里没有完成（关掉了），本次暂停导入'); resolve(null); return; }
+            log('裁决完成（新界面）：逐项开始合并写入');
+            resolve({ plan: settledPlan, via: 'panel' });
+          }) !== false;
+        } catch (e2) { okNext = false; }
+        if (!okNext) { askMergePopup(plan).then(function (r) { resolve(r); }); }
+      });
+    }
     var P = null;
     try { if (HOST.KamiPreset && typeof HOST.KamiPreset.openMergeReview === 'function') { P = HOST.KamiPreset; } } catch (e0) { }
     if (P) {
@@ -1374,6 +1404,13 @@
 
   function progressRootInner() {
     if (disposed) { return null; }
+    var nui = updateUi();
+    if (nui && typeof nui.progress === 'function') {
+      if (progEls && progEls.next) { return progEls; }
+      progEls = { root: null, reactRoot: null, next: nui, shut: function () { closeProgress(); } };
+      paintProgress();
+      return progEls;
+    }
     if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
     var el = HDOC || document;
     var rt = runtime();
@@ -1421,6 +1458,15 @@
   function paintProgress() {
     if (!progEls || !progState) { return; }
     var v = viewOf(progState);
+    if (progEls.next) {
+      try {
+        progEls.next.progress(v, {
+          retry: function () { if (!progRetry) { return; } log('用户在进度窗口上点了重试'); doUpdate(progRetry, true); },
+          close: function () { if (progEls && progEls.shut) { progEls.shut(); } }
+        });
+      } catch (en) { warn('新界面进度窗口重绘失败（不影响更新）：' + ((en && en.message) || en)); }
+      return;
+    }
     /* 这两个属性皮肤与测试都在读，保留在容器上（渲染交给 React，属性仍由脚本写）。 */
     progEls.root.setAttribute('data-kami-update-status', v.status);
     progEls.root.setAttribute('data-kami-update-stage', v.stage);
@@ -1473,6 +1519,7 @@
     hclear(progressCloseTimer); progressCloseTimer = null;
     if (progEls && progEls.reactRoot) { try { progEls.reactRoot.unmount(); } catch (eu) { } }
     if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
+    if (progEls && progEls.next) { try { progEls.next.progress(null); } catch (en) { } }
     if (documentTapCloser) {
       var cd = (HDOC || document);
       for (var evn of ['pointerdown', 'mousedown', 'click', 'touchend']) {
@@ -1487,7 +1534,7 @@
   /* 需要把屏幕让给原生弹窗时（合并裁决要开面板、写盘要触发酒馆切预设）先收掉自己。
      只在"还开着"时收，收完记一笔，免得用户以为是窗口自己没了。 */
   function yieldScreen(why) {
-    if (!progEls || !progEls.root || !progEls.root.parentNode) { return false; }
+    if (!progEls || (!progEls.next && (!progEls.root || !progEls.root.parentNode))) { return false; }
     log('先收起更新进度窗口：' + why);
     closeProgress();
     return true;
@@ -1507,7 +1554,7 @@
     }
     progRetry = remote;
     var els = progressRoot();
-    if (els) { els.retry.style.display = 'none'; els.close.style.display = 'none'; }
+    if (els && els.retry && els.close) { els.retry.style.display = 'none'; els.close.style.display = 'none'; }
     startProgressTimer();
     paintProgress();
     var hooks = {
@@ -1576,7 +1623,7 @@
          失败时**不自动关** —— 那种情况用户要看原因、还要点重试，留着才对。 */
       progressCloseTimer = hsetTimeout(function () {
         progressCloseTimer = null;
-        if (!progEls || !progEls.root) { return; }
+        if (!progEls || (!progEls.root && !progEls.next)) { return; }
         if (progState && progState.status === 'done') {
           log('更新已完成，自动收起进度窗口');
           closeProgress();
@@ -1598,7 +1645,7 @@
       stopProgressTimer();
       failProgress(progState, last.error, Date.now());
       var elsF = progressRoot();
-      if (elsF) { elsF.detail.textContent = last.error; }
+      if (elsF && elsF.detail) { elsF.detail.textContent = last.error; }
       paintProgress();
       return last;
     });

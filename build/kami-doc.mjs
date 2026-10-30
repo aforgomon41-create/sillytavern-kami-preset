@@ -397,7 +397,9 @@ export function expandPanelGestures(root, code) {
   for (const [marker, file] of [
     ['/* @@KAMI_COMPRESS_UI@@ */', '_compress-ui.js'],
     ['/* @@KAMI_OTHER_TOOLS_UI@@ */', '_toolbox-other-ui.js'],
+    ['/* @@KAMI_TOOLS_BRIDGE@@ */', '_tools-bridge.js'],
     ['/* @@KAMI_TOOLBOX_TABS@@ */', '_toolbox-tabs.js'],
+    ['/* @@KAMI_TOOLBOX_BRIDGE@@ */', '_toolbox-bridge.js'],
     ['/* @@KAMI_SEARCH_SERVICE@@ */', '_search-service.js'],
     ['/* @@KAMI_SEARCH_NATIVE_PROBE@@ */', '_search-native-probe.js'],
     ['/* @@KAMI_USER_SCOPE@@ */', '_user-scope.js'],

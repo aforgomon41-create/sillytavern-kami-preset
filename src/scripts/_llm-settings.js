@@ -186,3 +186,52 @@ var saveVars=env.save,renderContent=env.render,toast=env.toast,invalidateModelLi
 
 return {mode:toggleModelMode,modelInput:applyModelInput,saveConfig:saveConfigAs,deleteConfig:deleteCurrentConfig,promptChange:applyPromptChange,addPrompt:addPromptEntry,removePrompt:removePromptEntry,resetTask:resetTask,switchTemplate:switchPromptTpl,saveTemplate:savePromptTplAs,deleteTemplate:deletePromptTpl,currentConfig:currentSumConfig,currentTemplate:currentTpl,snapshot:snapPrompts,syncCurrent:syncCurrentTpl,cloneList:clonePromptList};
 }
+/* 新前端（05 号「🧪 工具箱」）用的模型配置 / 提示词模板读写桥：get() 给一份纯数据快照，
+   动作全部转给上面的写回控制器（状态、存盘、提示都不变）。压缩与手动搜索各建一份，互不覆盖。
+   o = { state, editor, models(cur) -> string[]|null, fetch() -> Promise, busy() -> bool, profiles() -> [{name, model}] } */
+export function createKamiLlmBridge(o){
+  function seed(){
+    var s=o.state;
+    if(s.sumModel.mode==='custom'){
+      if(!s.sumConfigs.length){s.sumConfigs.push({name:'默认',source:'custom',apiurl:'',key:'',model:''});s.sumModel.current='默认';}
+      if(!o.editor.currentConfig()){s.sumModel.current=s.sumConfigs[0].name;}
+    }
+    if(!s.promptTpls.length){var snap=o.editor.snapshot();snap.name='默认';s.promptTpls.push(snap);}
+    if(!o.editor.currentTemplate()){s.promptTplCurrent=s.promptTpls[0].name;}
+  }
+  return {
+    get:function(){
+      seed();
+      var s=o.state,cur=o.editor.currentConfig(),list=null;
+      try{list=cur?o.models(cur):null;}catch(e){list=null;}
+      var profiles=[];
+      try{profiles=(o.profiles()||[]).map(function(p){return {name:String(p.name),model:String(p.model||'')};});}catch(e){profiles=[];}
+      return {
+        mode:s.sumModel.mode==='custom'?'custom':'tavern',
+        pick:String(s.sumModel.tavernPick||''),
+        profiles:profiles,
+        configs:s.sumConfigs.map(function(c){return c.name;}),
+        current:cur?{name:cur.name,source:cur.source||'custom',apiurl:cur.apiurl||'',key:cur.key||'',model:cur.model||''}:null,
+        models:list&&list.length?list.slice():null,
+        fetching:!!o.busy(),
+        prompts:o.editor.snapshot(),
+        templates:s.promptTpls.map(function(t){return t.name;}),
+        template:String(s.promptTplCurrent||'')
+      };
+    },
+    mode:function(m){o.editor.mode(m);seed();},
+    pick:function(name){o.editor.modelInput('__pick',name);},
+    selectConfig:function(name){o.editor.modelInput('__config',name);},
+    input:function(field,value){if(field==='source'||field==='apiurl'||field==='key'||field==='model'){o.editor.modelInput(field,value);}},
+    saveConfig:function(name){o.editor.saveConfig(name);},
+    deleteConfig:function(){o.editor.deleteConfig();},
+    fetchModels:function(){return Promise.resolve(o.fetch());},
+    prompt:function(list,i,field,value){o.editor.promptChange(list,i,field,value);},
+    addPrompt:function(list){o.editor.addPrompt(list);},
+    removePrompt:function(list,i){o.editor.removePrompt(list,i);},
+    resetTask:function(){o.editor.resetTask();},
+    switchTemplate:function(name){o.editor.switchTemplate(name);},
+    saveTemplate:function(name){o.editor.saveTemplate(name);},
+    deleteTemplate:function(){o.editor.deleteTemplate();}
+  };
+}

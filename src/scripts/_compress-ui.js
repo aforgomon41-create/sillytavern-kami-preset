@@ -11,6 +11,8 @@ function toggleCard(parent,key,title,on,extraLine){var n=createKamiUi(HDOC).choi
 
   function renderContent() {
     /* 2026-10-26：页面改由 React 渲染；运行库不可用时才走下面那套命令式重建。 */
+    bridgeNotify();
+    if (!bodyEl || disposed) { return; }
     var rtRc = compressRt();
     if (rtRc) { renderContentReact(rtRc); return; }
     if (!bodyEl || disposed) { return; }

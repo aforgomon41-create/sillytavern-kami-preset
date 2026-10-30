@@ -3,18 +3,23 @@ export function createKamiManualSearchUi(env) {
   var api=env.search,doc=env.document,host=env.host,make=env.make,settingsRoot=null,editor=null,dialog=null,returnFocus=null,offProgress=null,disposed=false,definition=null;
   var fetchState='idle',fetchSeq=0,fetchAbort=null,fetchTimer=null,models=Object.create(null),lastTopic='';
   var copy={model:Object.assign({},env.copy.model,{section:'手动搜索模型',note:'此模型仅用于手动搜索。自动搜索跟随剧情连接，压缩模型独立保存。',customHint:'自定义接口请填写完整地址、密钥和模型后再搜索。'}),prompts:Object.assign({},env.copy.prompts,{section:'手动搜索提示词',task:'任务正文（结合本次查询要求）',hint:'仅手动查询使用。头部、任务正文和尾部的编辑方式与摘要提示词一致；不修改网络搜索头部任务。'}),toasts:env.copy.toasts};
+  /* 新前端工具箱（05 号）用的桥：独立的写回控制器 + 变化通知（env.changed） */
+  var bridgeEditor=null;
+  function changed(){try{if(env.changed)env.changed();}catch(e){}}
+  function llmEditor(){var state=api.manualSettings().llm;if(!bridgeEditor||bridgeEditor.__state!==state){bridgeEditor=createKamiLlmSettingsController({state:state,copy:copy,defaultTask:env.defaultTask,save:api.saveManual,render:function(){renderEditors();changed();},toast:env.toast,invalidate:invalidate});bridgeEditor.__state=state;}return bridgeEditor;}
+  function cachedModels(cur){var cached=models[cur.name];return cached&&cached.key===configKey(cur)?cached.ids:null;}
   function fold(title){var card=createKamiUi(doc).collapse({title:title});return {card:card,body:card.body};}
   function configKey(cur){return JSON.stringify([cur.source,cur.apiurl,cur.key]);}
-  function invalidate(name){delete models[name];fetchSeq++;if(fetchAbort)fetchAbort.abort();fetchAbort=null;fetchState='idle';if(fetchTimer!==null){host.clearTimeout(fetchTimer);fetchTimer=null;}if(settingsRoot){var button=settingsRoot.querySelector('[data-search-llm-act="fetch-models"]');if(button){button.disabled=false;button.textContent=copy.model.fetchModels;}for(var select of settingsRoot.querySelectorAll('select[data-search-llm-mi="model"]')){var row=select.closest('.kami-field');if(row)row.remove();}}}
+  function invalidate(name){delete models[name];fetchSeq++;if(fetchAbort)fetchAbort.abort();fetchAbort=null;fetchState='idle';if(fetchTimer!==null){host.clearTimeout(fetchTimer);fetchTimer=null;}if(settingsRoot){var button=settingsRoot.querySelector('[data-search-llm-act="fetch-models"]');if(button){button.disabled=false;button.textContent=copy.model.fetchModels;}for(var select of settingsRoot.querySelectorAll('select[data-search-llm-mi="model"]')){var row=select.closest('.kami-field');if(row)row.remove();}}changed();}
   async function fetchModels(){
-    if(disposed||fetchState==='busy'||!editor)return;var config=Object.assign({},editor.currentConfig()),key=configKey(config),seq=++fetchSeq;fetchState='busy';fetchAbort=new host.AbortController();renderEditors();
+    if(disposed||fetchState==='busy')return;var config=Object.assign({},(editor||llmEditor()).currentConfig()),key=configKey(config),seq=++fetchSeq;fetchState='busy';fetchAbort=new host.AbortController();renderEditors();
     try{var deadline=new Promise(function(_,reject){fetchTimer=host.setTimeout(function(){if(fetchAbort)fetchAbort.abort();reject(new Error('获取模型列表超时，请重试'));},30000);});var result=await Promise.race([env.fetchModels(config,fetchAbort.signal),deadline]);if(disposed||seq!==fetchSeq)return;var ids=result.data.map(function(row){return String(typeof row==='string'?row:row&&(row.id||row.name)||'').trim();}).filter(Boolean);ids=Array.from(new Set(ids)).sort();if(!ids.length)throw new Error('接口没有返回可用模型');models[config.name]={key:key,ids:ids};env.toast('success','已获取 '+ids.length+' 个模型');}
     catch(error){if(!disposed&&seq===fetchSeq){var text=error.message||String(error);if(config.key)text=text.split(config.key).join('[密钥已隐藏]');env.toast('error',text);}}
     finally{if(seq===fetchSeq){if(fetchTimer!==null)host.clearTimeout(fetchTimer);fetchTimer=null;fetchAbort=null;fetchState='idle';if(!disposed)renderEditors();}}
   }
   function modelOptions(){return {scope:'manual',state:api.manualSettings().llm,copy:copy,make:make,document:doc,section:fold,field:env.ui.field,note:env.ui.note,text:env.ui.text,select:env.ui.select,profiles:env.profiles,currentConfig:editor.currentConfig,models:function(cur){var cached=models[cur.name];return cached&&cached.key===configKey(cur)?cached.ids:null;},fetchState:fetchState,snapshot:editor.snapshot,currentTemplate:editor.currentTemplate};}
   function renderEditors(){
-    if(!settingsRoot||disposed)return;var was=[...settingsRoot.querySelectorAll('details')].map(function(row){return row.open;});settingsRoot.textContent='';
+    changed();if(!settingsRoot||disposed)return;var was=[...settingsRoot.querySelectorAll('details')].map(function(row){return row.open;});settingsRoot.textContent='';
     editor=createKamiLlmSettingsController({state:api.manualSettings().llm,copy:copy,defaultTask:env.defaultTask,save:api.saveManual,render:renderEditors,toast:env.toast,invalidate:invalidate});
     var model=createKamiUi(doc).modelConnection({render:renderKamiLlmModel,env:modelOptions()}),prompts=createKamiUi(doc).promptEditor({render:renderKamiLlmPrompts,env:modelOptions()});
     settingsRoot.appendChild(model.card);settingsRoot.appendChild(prompts.card);
@@ -32,7 +37,8 @@ export function createKamiManualSearchUi(env) {
   }
   function close(){if(!dialog)return;if(api.status().manualRunning)api.cancel('手动搜索已中断');if(offProgress){offProgress();offProgress=null;}var old=dialog;dialog=null;try{old.kami.destroy();}catch(e){}old.remove();if(returnFocus&&returnFocus.isConnected)returnFocus.focus();returnFocus=null;}
   function open(trigger){
-    if(disposed)return;if(dialog){dialog.focus();return;}var state=api.status();if(!state.enabled||state.mode!=='service'){env.toast('warning','请先开启搜索能力并选择搜索服务');return;}if(state.running&&!state.manualRunning){env.toast('warning','请先等待自动搜索完成');return;}
+    if(disposed)return;try{var nx=host.KamiToolboxNext;if(nx&&typeof nx.alive==='function'&&nx.alive()&&typeof nx.manualSearch==='function'){nx.manualSearch();return;}}catch(e){}
+    if(dialog){dialog.focus();return;}var state=api.status();if(!state.enabled||state.mode!=='service'){env.toast('warning','请先开启搜索能力并选择搜索服务');return;}if(state.running&&!state.manualRunning){env.toast('warning','请先等待自动搜索完成');return;}
     env.ensureStyle();returnFocus=trigger||doc.activeElement;dialog=createKamiUi(doc).dialog({title:'手动搜索',closable:false,onClose:function(){close();}});dialog.classList.add('kami-manual-dialog');var root=dialog.root,shell=dialog.shell,head=dialog.head;var x=make('button','kami-btn kami-btn--ghost','×');x.type='button';x.setAttribute('aria-label','关闭并中断手动搜索');var headActions=make('div','kami-actions');headActions.appendChild(x);head.appendChild(headActions);
     var body=dialog.body,inputBox=make('div'),input=make('textarea','kami-textarea');input.setAttribute('aria-label','本次搜索要求');input.placeholder='例如：整理当前年代的地理、居民、文化与规则，排除未来剧情。';input.value=lastTopic;inputBox.appendChild(make('p','','这次想查什么？'));inputBox.appendChild(input);env.ui.note(inputBox,'会参考角色卡、世界书和经过正则处理的历史；不带剧情预设条目。');body.appendChild(inputBox);
     var progressBox=make('div','kami-search-progress'),statusBox=make('div','kami-search-status'),statusIcon=make('span','kami-search-status-icon'),statusText=make('div'),eyebrow=make('p','kami-search-status-eyebrow','手动搜索进行中'),message=make('p','kami-search-status-title'),queryCount=make('p','kami-search-status-count'),steps=make('ol','kami-search-stages');
@@ -62,5 +68,9 @@ export function createKamiManualSearchUi(env) {
     try{if(host.__hub&&typeof host.__hub.unregister==='function')host.__hub.unregister(old.name);}catch(e){}
     host.dispatchEvent(new host.Event('kami-hub-def'));
   }
-  return {mount:mount,open:open,ping:syncShortcut,dispose:function(){if(disposed)return;close();invalidate('');disposed=true;unregisterShortcut();settingsRoot=null;editor=null;}};
+  return {mount:mount,open:open,ping:syncShortcut,
+    llm:function(){return createKamiLlmBridge({state:api.manualSettings().llm,editor:llmEditor(),models:cachedModels,fetch:fetchModels,busy:function(){return fetchState==='busy';},profiles:env.profiles});},
+    lastTopic:function(v){if(typeof v==='string')lastTopic=v;return lastTopic;},
+    setShortcut:function(v){api.manualSettings().shortcut=!!v;api.saveManual();syncShortcut();changed();},
+dispose:function(){if(disposed)return;close();invalidate('');disposed=true;unregisterShortcut();settingsRoot=null;editor=null;}};
 }
