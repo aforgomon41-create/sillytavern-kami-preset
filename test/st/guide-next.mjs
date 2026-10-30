@@ -1,9 +1,9 @@
-// 「🧪 引导」脚本（新引导 + 各脚本的读写桥）在真实酒馆里的验证：
+// 「🧭 引导」脚本（v1.0：引导界面 + 展示记录 + 各脚本的读写桥）在真实酒馆里的验证：
 //   node test/st/guide-next.mjs [--mobile] [--shots]
 // 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了**新的**支线测试包（新版本没看过 → 会自动弹），见 test/st/README.md
-// 核对：自动弹出的是新引导（旧向导没开）、只有一颗 🧭；免责声明确认前不能往后走；
-//       模型 / 语言写进预设，压缩写进 60 号，防截断写进 20 号（测完都改回）；完成后 50 号记下「这一版已完成」；
-//       对比度；注销后按钮与旧向导交回 50 号。
+// 核对：新版本首次加载自动弹出引导、只有一颗 🧭；免责声明确认前不能往后走；
+//       模型 / 语言写进预设，压缩写进 60 号，防截断写进 20 号（测完都改回）；完成后记下「这一版已完成」；
+//       对比度；注销后按钮与界面收回。
 import { createRequire } from 'node:module';
 import { auditInPage } from '../frontend/browser/audit-lib.mjs';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
@@ -23,12 +23,12 @@ page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && /kam
 await page.goto(ST);
 await page.waitForFunction(() => window.SillyTavern?.getContext && window.TavernHelper, null, { timeout: 60000 });
 /* 让这一版重新算「没看过」，然后刷新一次，看首次自动弹 */
-await page.waitForFunction(() => window.KamiGuide && window.KamiGuideNext, null, { timeout: 30000 }).catch(() => {});
-await page.waitForTimeout(12000);   /* 等 50 号读完展示记录、首次自动弹的判断走完，再清记录（太早清会被它随后的存盘盖掉） */
+await page.waitForFunction(() => window.KamiGuide, null, { timeout: 30000 }).catch(() => {});
+await page.waitForTimeout(12000);   /* 等引导读完展示记录、首次自动弹的判断走完，再清记录（太早清会被它随后的存盘盖掉） */
 await page.keyboard.press('Escape');
 await page.evaluate(() => window.KamiGuide.reset());
 await page.reload();
-await page.waitForFunction(() => window.KamiGuide && window.KamiGuideNext && window.KamiPreset && window.KamiPreset.presetBridge, null, { timeout: 60000 }).catch(() => {});
+await page.waitForFunction(() => window.KamiGuide && window.KamiPreset && window.KamiPreset.presetBridge, null, { timeout: 60000 }).catch(() => {});
 await page.waitForFunction(() => { const l = document.querySelector('kami-layer'); return l && l.shadowRoot.querySelector('[data-guide-step]'); }, null, { timeout: 30000 }).catch(() => {});
 await page.waitForTimeout(1000);
 
@@ -48,7 +48,7 @@ const liveOn = (id) => page.evaluate((i) => window.KamiPreset.presetBridge().vie
 
 /* ① 自动弹出的是新引导 */
 ok((await stepId()) === 'disclaimer', '新版本首次加载：自动弹出新引导，停在免责声明', await stepId());
-ok(await page.evaluate(() => !window.KamiGuide.status().open), '旧向导没有打开');
+ok(await page.evaluate(() => window.KamiGuide.status().open && window.KamiGuide.status().autoOpened), '展示记录：这一版是自动弹出的');
 const bt = await buttons();
 ok(bt.filter((x) => x.startsWith('🧭')).length === 1, '按钮条只有一颗 🧭', bt);
 const disc = await inLayer((r) => { const d = r.querySelector('[data-guide-disclaimer]'); return d ? d.textContent.length : 0; });
@@ -61,9 +61,9 @@ await footBtn('我已阅读并同意');
 await page.waitForTimeout(400);
 if ((await stepId()) === 'disclaimer') { await inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); const btn = [...p.querySelectorAll('button')].filter((x) => x.getAttribute('data-variant') === 'primary' && x.getClientRects().length).pop(); btn && btn.click(); }); await page.waitForTimeout(400); }
 ok((await stepId()) === 'skin', '确认后进入「外观」', await stepId());
-ok(await page.evaluate(() => window.KamiGuide.status().confirmed), '50 号记下已确认免责声明');
+ok(await page.evaluate(() => window.KamiGuide.status().confirmed), '记下已确认免责声明');
 const skinCards = await inLayer((r) => r.querySelectorAll('[data-guide-step="skin"] [data-k="card"][data-role="choice"]').length);
-ok(skinCards >= 1, '外观页有皮肤卡（来自「🧪 显示」）', skinCards);
+ok(skinCards >= 1, '外观页有皮肤卡（来自「🎨 显示」）', skinCards);
 const next = () => inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); const btn = [...p.querySelectorAll('button')].filter((x) => x.getAttribute('data-variant') === 'primary' && x.getClientRects().length).pop(); if (btn) { btn.click(); } return btn ? btn.textContent : null; });
 
 /* ② 模型 */
@@ -116,20 +116,17 @@ const chips = await inLayer((r) => [...r.querySelectorAll('[data-guide-summary] 
 ok(chips.some((c) => c.startsWith('模型')) && chips.some((c) => c.startsWith('皮肤')), '完成页列出这次的选择', chips);
 await next(); await page.waitForTimeout(500);
 ok(!(await stepId()), '点「完成」关掉引导');
-ok(await page.evaluate(() => window.KamiGuide.status().completed), '50 号记下这一版已完成');
+ok(await page.evaluate(() => window.KamiGuide.status().completed), '记下这一版已完成');
 ok((await page.evaluate(() => window.KamiPreset.currentModel())) === m0, '测完模型复原');
 
 /* ⑥ 按钮重开、注销 */
 await clickBtn('🧭 引导'); await page.waitForTimeout(600);
 ok((await stepId()) === 'disclaimer', '点「🧭 引导」重新打开');
-await page.evaluate(() => window.KamiGuideNext.shutdown());
+await page.evaluate(() => window.KamiGuide.shutdown());
 await page.waitForTimeout(3500);
-ok(!(await stepId()) && !(await page.evaluate(() => !!window.KamiGuideNext)), '注销后界面与全局 API 收回');
+ok(!(await stepId()) && !(await page.evaluate(() => !!window.KamiGuide)), '注销后界面与全局 API 收回');
 const bt2 = await buttons();
-ok(bt2.filter((x) => x.startsWith('🧭')).length === 1, '按钮交回旧引导（仍是一颗 🧭）', bt2);
-await clickBtn('🧭 引导'); await page.waitForTimeout(800);
-ok(await page.evaluate(() => window.KamiGuide.status().open), '点它打开的是旧向导');
-await page.evaluate(() => window.KamiGuide.close());
+ok(bt2.filter((x) => x.startsWith('🧭')).length === 0, '注销后按钮收回（旧引导已退役，不再有接手的）', bt2);
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 await b.close();
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));

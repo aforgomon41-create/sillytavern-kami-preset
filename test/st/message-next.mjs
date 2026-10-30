@@ -1,4 +1,4 @@
-// 新消息前端 v0.2（🧪 消息前端 脚本 + 新运行库 chatFrontend）在真实酒馆里的验证：
+// 消息前端（💬 消息前端 脚本 + 运行库 chatFrontend）在真实酒馆里的验证：
 //   node test/st/message-next.mjs [--mobile] [--shots]
 // 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包，见 test/st/README.md
 // v0.2 的做法（2026-10-29 用户实测意见）：内容留在酒馆的 DOM 里，我们只加外壳。核对：
@@ -7,7 +7,7 @@
 //   · 正文：仍是酒馆渲染的节点（在 .mes_text 里），对白 / 心理描写的颜色就是酒馆的字体颜色设置；其他插件插进去的节点留得住；
 //     正文里的 HTML 美化（酒馆助手 iframe）照常显示；公式渲染成 MathML；
 //   · 搜索资料 / 行动选项：换掉酒馆助手的 iframe；只有最新回复有选项；填入 / 发送；
-//   · 编辑后重新接管、重载聊天、删除消息；显示面板的「消息前端」开关（关 → 「📄 正文外壳」「💭 思维链」接回）；
+//   · 编辑后重新接管、重载聊天、删除消息；显示面板的「消息前端」开关（关 → 酒馆原生渲染、「💭 思维链」装饰接回）；
 //   · 折叠时有碎光特效；实际渲染对比度；脚本注销后不留东西。
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -81,7 +81,7 @@ const inPart = (kind, fn, arg, mesid) => page.evaluate(([kind, src, arg, mesid])
 const ITEM = '[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const notGenerating = () => page.waitForFunction(() => { const s = document.getElementById('mes_stop'); return !s || getComputedStyle(s).display === 'none'; }, null, { timeout: 60000 });
 
-ok(await page.evaluate(() => !!window.KamiChatFrontend && window.KamiChatFrontend.active() && !!window.KamiCot && !!window.KamiBodyShell), '「🧪 消息前端」启动；「💭 思维链」「📄 正文外壳」也在跑（前者负责搬、后者让位）', logs.join(' | '));
+ok(await page.evaluate(() => !!window.KamiChatFrontend && window.KamiChatFrontend.active() && !!window.KamiCot && !window.KamiBodyShell), '「💬 消息前端」启动；「💭 思维链」也在跑（负责搬）；「📄 正文外壳」已退役', logs.join(' | '));
 
 /* ① 流式生成：慢慢吐字 */
 await fetch(MOCK + '/__mock/reset', { method: 'POST' });
@@ -200,8 +200,12 @@ ok(plug.found && plug.visible, '插件往正文里插的按钮：在 .mes_text �
 
 /* ④ 展开思维链：特效、Markdown、公式、编辑走原生按钮 */
 const fx0 = await inPart('think', (r) => { r.querySelector('[data-k="msg-think"] [data-k-part="toggle"]').click(); return true; });
-await page.waitForTimeout(90);
-const fxShown = await inPart('think', (r) => [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length);
+/* 特效只持续几百毫秒：轮询取最大片数，不靠一次固定时刻的采样（曾在 90ms 那一刻偶发 0 片） */
+let fxShown = 0;
+for (let i = 0; i < 12 && !fxShown; i++) {
+  await page.waitForTimeout(50);
+  fxShown = await inPart('think', (r) => [...r.querySelectorAll('[data-k-fx-layer] > *')].filter((x) => x.style.display !== 'none').length);
+}
 ok(fx0 && fxShown > 0, '展开思维链有碎光特效（' + fxShown + ' 片）', fxShown);
 await page.waitForTimeout(500);
 const th = await inPart('think', (r, a, h) => { const c = h.querySelector('[slot="content"][data-k-content="think"]'); return {
@@ -296,7 +300,7 @@ await page.fill('#send_textarea', '');
 const optsPer = await page.evaluate(() => [...document.querySelectorAll('#chat .mes[is_user="false"]')].map((m) => m.querySelectorAll('[data-kami-msg-host="options"]').length));
 ok(optsPer[optsPer.length - 1] === 1 && optsPer.slice(0, -1).every((n) => n === 0), '只有最新一条回复显示行动选项', optsPer.join(','));
 
-/* ⑨ 显示面板的「消息前端」开关：关 → 酒馆原样 + 「📄 正文外壳」「💭 思维链」接回；开 → 重新接管 */
+/* ⑨ 显示面板的「消息前端」开关：关 → 酒馆原样（「💭 思维链」的原生块装饰接回）；开 → 重新接管 */
 await page.evaluate(() => { const el = [...document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')].find((x) => x.textContent.trim() === '🎨 显示'); el && el.click(); });
 await page.waitForTimeout(900);
 /* 手机上显示面板分页签，「消息」一组在自己的页签里 */
@@ -310,7 +314,7 @@ const off = await page.evaluate(() => ({
   ls: localStorage.getItem('kami.msgfe'), styled: document.querySelectorAll('#chat [data-k-content], #chat .mes_text [data-k-part], #chat [data-kami-msg-body]').length, bare: [...document.querySelectorAll('#chat .mes_text')].filter((t) => t.shadowRoot).every((t) => t.shadowRoot.children.length === 1 && t.shadowRoot.firstElementChild.tagName === 'SLOT'), sheet: !!document.getElementById('kami-msg-body-style')
 }));
 ok(sw === 'checked' && !off.active && off.hosts === 0 && off.hidden === 0 && off.ls === '0' && off.styled === 0 && !off.sheet && off.bare, '显示面板关掉「消息前端」：宿主、排版标记与样式全部移除（.mes_text 的影子树只剩空 slot），iframe 恢复——交回酒馆渲染', { sw, ...off });
-ok(off.oldBody > 0 && off.oldThink > 0, '……「📄 正文外壳」「💭 思维链」的装饰接回', off);
+ok(off.oldBody === 0 && off.oldThink > 0, '……正文是酒馆原生渲染（不再有正文外壳），「💭 思维链」的装饰接回', off);
 await page.evaluate(() => { const l = document.querySelector('kami-layer'); const s = [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端'); s.click(); });
 await page.waitForTimeout(1500);
 const on = await page.evaluate(() => ({

@@ -36,7 +36,6 @@ console.log('=== 用户自定义文风 · 源码守卫 ===');
 
 const parseSrc = read('test/harness/preset-parse.mjs');
 const panelSrc = read('src/scripts/40-预设设置.js');
-const guideSrc = read('src/scripts/50-引导.js');
 const uiSrc = read('src/scripts/_custom-style-ui.js');
 const docSrc = read('build/kami-doc.mjs');
 
@@ -44,7 +43,6 @@ const docSrc = read('build/kami-doc.mjs');
 const hasMarker = src => src.indexOf("' | diy_write_style'") >= 0;
 ok(hasMarker(parseSrc), '① 标记字面量在 preset-parse.mjs 里');
 ok(!hasMarker(panelSrc), '① 40 号里没有标记字面量（不许自己抄一份）');
-ok(!hasMarker(guideSrc), '① 50 号里没有标记字面量（不许自己抄一份）');
 
 const allSrc = [];
 (function walk(dir) {
@@ -88,17 +86,10 @@ ok(panelSrc.indexOf('diyRollback') >= 0, '③ 有回滚路径 diyRollback');
 ok(panelSrc.indexOf('DIY_ORDER_COUNT') >= 0 || panelSrc.indexOf('orderEntryCount') >= 0, '③ 写入前断言了 prompt_order 结构');
 
 /* ── ④ 两个面板的接线：各自只挂一次，不许自己碰预设 ── */
-ok(guideSrc.indexOf('customStyleBlock(') >= 0, '④ 50 号调用了共享模块');
-ok(guideSrc.indexOf('api: HOST.KamiPreset') >= 0, '④ 50 号把 KamiPreset 注入给模块（自己不去调）');
 ok(panelSrc.indexOf('customStyleBlock(') >= 0, '④ 40 号调用了共享模块');
 ok(panelSrc.indexOf('api: { customStyles') >= 0, '④ 40 号把自己的两个方法注入给模块（同一次调用栈，不跨层互调）');
 /* 50 本来就会直读 prompt_order（liveEnabledMap 就是），所以这里不能按"出现字符串"判，
    要按**写口**判：不许出现任何写盘/写预设的调用。 */
-ok(guideSrc.indexOf('update_oai_preset') < 0, '④ 50 号没有自己去点酒馆的保存按钮');
-ok(guideSrc.indexOf('savePresetFile') < 0, '④ 50 号没有自己写预设文件');
-ok(guideSrc.indexOf('saveSettingsDebounced') < 0, '④ 50 号没有自己写酒馆设置');
-ok(guideSrc.indexOf('replacePreset(') < 0, '④ 50 号没有碰被禁的预设 API');
-note('④ 的「50 不碰预设」是按写口 grep 判的，能挡住直接下手，挡不住把活拆碎了绕过去');
 
 /* ── ④c 只许有一份实现（用户 2026-10-02 点名的硬要求）──
    判据不是"看起来像"，而是四条一起：模块存在且自洽、两个脚本都留了同一个占位符、
@@ -106,13 +97,11 @@ note('④ 的「50 不碰预设」是按写口 grep 判的，能挡住直接下�
 ok(fs.existsSync(path.join(ROOT, 'src/scripts/_custom-style-ui.js')), '④c 共享模块文件存在');
 const placeholders = ['/* @@KAMI_CUSTOM_STYLE_UI@@ */'];
 ok(count(panelSrc, placeholders[0]) === 1, '④c 40 号留了恰好一个模块占位符', String(count(panelSrc, placeholders[0])));
-ok(count(guideSrc, placeholders[0]) === 1, '④c 50 号留了恰好一个模块占位符', String(count(guideSrc, placeholders[0])));
 ok(count(uiSrc, placeholders[0]) === 0, '④c 模块自己不含那个占位符（否则内联会自我复制）');
 /* 两个脚本里都不许再有第二份实现：文案对象、状态机、DOM 构建、CSS 常量 */
 for (const [label, needle] of [['文案对象', 'CUSTOM_STYLE_COPY = {'], ['状态机 csState', 'var csState'],
   ['DOM 构建 csPaint', 'function csPaint'], ['编辑器 csForm', 'function csForm'], ['样式常量', 'CUSTOM_STYLE_CSS = [']]) {
   ok(panelSrc.indexOf(needle) < 0, '④c 40 号里没有第二份' + label, needle);
-  ok(guideSrc.indexOf(needle) < 0, '④c 50 号里没有第二份' + label, needle);
 }
 ok(count(uiSrc, 'CUSTOM_STYLE_COPY = {') === 1, '④c 文案对象在模块里只有一份');
 ok(count(uiSrc, 'function customStyleBlock(') === 1, '④c 模块只导出一个块工厂');
@@ -125,7 +114,6 @@ ok(factorySites.length === 1 && factorySites[0].indexOf('_custom-style-ui.js') >
   '④c customStyleBlock 全仓只有一处定义', factorySites.join(', ') || '一处都没有');
 /* 两个面板都要注入模块自带的样式，否则同一块 UI 两边长相会分叉 */
 ok(panelSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 40 号注入了模块样式');
-ok(guideSrc.indexOf('CUSTOM_STYLE_CSS') >= 0, '④c 50 号注入了模块样式');
 /* 构建侧：占位符得有人展开，否则内联根本不会发生 */
 ok(docSrc.indexOf('CUSTOM_STYLE_UI_MARK') >= 0, '④c build/kami-doc.mjs 里有模块占位符常量');
 ok(docSrc.indexOf('expandCustomStyleUi') >= 0, '④c build/kami-doc.mjs 里有展开函数');
@@ -161,7 +149,6 @@ function mountArgAudit(src, label) {
   if (app) { ok(PAGE_CONTAINERS.indexOf(app[1].split('.').pop()) >= 0, label + '：appendChild 的目标是页面容器', app[1]); }
 }
 mountArgAudit(panelSrc, '④d 40 号');
-mountArgAudit(guideSrc, '④d 50 号');
 /* 为什么会踩：模块的 mount 会清空容器 —— 这条规则的前提，前提没了规则也该重审 */
 ok(uiSrc.indexOf('root = container') >= 0, '④d 模块的 mount 接收容器（前提仍在）');
 ok(uiSrc.indexOf('while (root.firstChild) { root.removeChild(root.firstChild); }') >= 0,
@@ -186,14 +173,6 @@ function sliceBetween(src, from, to) {
   if (a < 0) { return null; }
   const b = src.indexOf(to, a + from.length);
   return (b < 0) ? null : src.slice(a, b);
-}
-const guidePageBody = sliceBetween(guideSrc, 'function renderCardPage(st) {', 'function renderAttachedVar(');
-ok(!!guidePageBody, '④e 50 号：截到了 renderCardPage 的函数体');
-if (guidePageBody) {
-  const at = guidePageBody.indexOf('renderCustomStyleBlock()');
-  ok(at >= 0, '④e 50 号：这一页确实挂了自定义块');
-  ok(at >= 0 && at < guidePageBody.indexOf('kami-guide-lead'), '④e 50 号：自定义块排在页首 intro **之前**');
-  ok(at >= 0 && at < guidePageBody.indexOf('for (var g = 0;'), '④e 50 号：自定义块排在卡片组 **之前**');
 }
 const panelTabBody = sliceBetween(panelSrc, 'function renderTab(pane, tab) {', 'function mountCustomStyleBlock(');
 ok(!!panelTabBody, '④e 40 号：截到了 renderTab 的函数体');

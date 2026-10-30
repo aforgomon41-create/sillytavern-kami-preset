@@ -106,4 +106,14 @@ for (const bad of [
   [{ id: 'f', script_ids: [] }],
   [{ id: 'a', script_ids: ['a'] }],
 ]) { assert.throws(() => groupScriptTrees([script('a')], bad)); checks++; }
+/* 旧 ID 与接替它的新 ID 同时在（支线测试包用户）：开关与冲突键取旧记录，新记录独有的设置键并进来 */
+{
+  const theirs = [script('old-skin', false, { skin: 'old', shared: 'old' }), script('display', true, { 'kami-display': { skin: 'suiguang' }, shared: 'new' })];
+  const out = flattenScriptTrees(mergeScriptTrees(theirs, [script('display')], { 'old-skin': 'display' }, {}).list);
+  equal(out.map(x => x.id), ['display']);
+  equal(out[0].enabled, false);
+  equal(out[0].data, { skin: 'old', shared: 'old', 'kami-display': { skin: 'suiguang' } });
+  const rev = flattenScriptTrees(mergeScriptTrees([theirs[1], theirs[0]], [script('display')], { 'old-skin': 'display' }, {}).list);
+  equal(rev[0].data, { skin: 'old', shared: 'old', 'kami-display': { skin: 'suiguang' } });
+}
 console.log('脚本文件夹与设置迁移：' + checks + ' 项通过');

@@ -30,7 +30,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const SKIN_DIR = path.join(ROOT, 'src', 'skins');
-const SCRIPT = path.join(ROOT, 'src', 'scripts', '30-皮肤管理.js');
 const TAVERN = path.join(ROOT, 'src', 'skin', 'tavern.css');
 const dry = process.argv.includes('--dry');
 

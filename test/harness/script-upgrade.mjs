@@ -81,7 +81,7 @@ for(const failAt of [1,2]){
  eq(JSON.stringify(f.trees()),before);eq(f.applies.length,0);eq(f.host.__kamiScriptUpgrade.phase,'error');
 }
 for(const kind of ['hub','folder'])for(const failAt of [1,2]){
- const trees=mixed(),legacy=Object.keys(catalog.aliases)[0];
+ const trees=mixed(),legacy=Object.keys(catalog.aliases).find(k=>catalog.aliases[k]===catalog.carrier);
  if(kind==='hub')trees.find(x=>x.id===legacy).enabled=false;
  else trees.find(x=>x.type==='folder').enabled=false;
  const f=fixture({trees,save:async(_n,_r,i)=>{if(i===failAt)throw Error('offline');}}),before=clone(f.trees());
@@ -115,7 +115,7 @@ for(const switchAt of [1,2]){
  eq(f.files.get(f.name),before);eq(f.applies.length,0,'替换失败恢复文件和内存');
 }
 {
- const trees=mixed(),legacy=Object.keys(catalog.aliases)[0];trees.find(x=>x.id===legacy).enabled=false;
+ const trees=mixed(),legacy=Object.keys(catalog.aliases).find(k=>catalog.aliases[k]===catalog.carrier);trees.find(x=>x.id===legacy).enabled=false;
  const f=fixture({trees}),state=await runKamiScriptUpgrade(f.env);
  eq(state.repaired,true);eq(state.boot,false,'沿用用户关闭按钮中转站的状态');
  eq(flattenScriptTrees(f.files.get(f.name).extensions.tavern_helper.scripts).find(x=>x.id===catalog.carrier).enabled,false);
@@ -131,7 +131,7 @@ for(const switchAt of [1,2]){
 }
 
 {
- const trees=clone(fresh),oldFolderId=Object.keys(catalog.folder_aliases)[0],baseId=catalog.folder_aliases[oldFolderId],legacy=Object.keys(catalog.aliases)[0];
+ const trees=clone(fresh),oldFolderId=Object.keys(catalog.folder_aliases)[0],baseId=catalog.folder_aliases[oldFolderId],legacy=Object.keys(catalog.aliases).find(k=>catalog.aliases[k]===catalog.carrier);
  const legacyHub=clone(old.find(x=>x.id===legacy)); legacyHub.enabled=false;
  trees.push({type:'folder',id:oldFolderId,name:'我的基础分类',enabled:false,icon:'user-icon',color:'user-color',scripts:[legacyHub]});
  const f=fixture({trees}),state=await runKamiScriptUpgrade(f.env),base=f.trees().find(x=>x.id===baseId);
@@ -140,7 +140,7 @@ for(const switchAt of [1,2]){
  eq(base.scripts.find(x=>x.id===catalog.carrier).enabled,false);
 }
 for(const kind of ['global','character']){
- const legacy=Object.keys(catalog.aliases)[0],f=fixture({[kind]:[{id:legacy}]});
+ const legacy=Object.keys(catalog.aliases).find(k=>catalog.aliases[k]===catalog.carrier),f=fixture({[kind]:[{id:legacy}]});
  eq((await runKamiScriptUpgrade(f.env)).skipped,'非唯一的预设脚本作用域');eq(f.calls.length,0,'不接管其他作用域的旧中转站');
 }
 for(const kind of ['global','character']){

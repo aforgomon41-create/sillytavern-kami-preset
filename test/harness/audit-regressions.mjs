@@ -147,30 +147,6 @@ for (const emitChange of [false, true]) {
  vm.runInContext('bindChatFloorWatch();bindChatFloorWatch()',c);eq(listeners.size,1,'Rebinding after restart works exactly once');
 }
 
-// Skin-local settings and legacy migration, using the real metadata.
-{
-  const code = read('src/scripts/30-皮肤管理.js');
-  const skins = fs.readdirSync(path.join(ROOT, 'src/skins')).map(id => JSON.parse(read('src/skins/' + id + '/skin.json')));
-  const init = code.slice(code.indexOf('  var PREFERRED'), code.indexOf('  function findSkin'));
-  const c = vm.createContext({ SKINS: skins, VARS_KEY: 'kami-skin', saveState: noop, syncAll: noop, syncAllIframes: noop, applyTo: noop, skinRevision: 0,
-    renderPane: noop, renderFxPane: noop, renderPaneStatusOnly: noop, log: noop, HDOC: {}, panelDrop: null });
-  vm.runInContext(init + functions('src/scripts/30-皮肤管理.js', ['findSkin','curSkin','rememberSkinSettings','useSkinSettings','readState','setSkin','setParam','effectList','toggleEffect']), c);
-  vm.runInContext("useSkinSettings(state.skinId);setSkin('gemini');setParam('halo',14);setParam('__fs',1.2);setSkin('nixie')", c);
-  eq(c.state.params.halo, 55, 'Nixie uses its own percent default rather than Gemini px');
-  vm.runInContext("setParam('halo',63);setSkin('gemini')", c);
-  eq(c.state.params.halo, 14, 'Returning to Gemini restores its own edited value');
-  eq(c.state.params.__fs, 1.2, 'Font scaling remains global across skins');
-  vm.runInContext("setSkin('memo');toggleEffect('dice');setSkin('trpg')", c);
-  check(vm.runInContext("effectList().includes('dice')", c), 'Unrelated TRPG dice effect retains its own default');
-  vm.runInContext("setSkin('memo')", c);
-  check(!vm.runInContext("effectList().includes('dice')", c), 'Memo effect choice is retained');
-  c.getVariables = () => ({ 'kami-skin': { skinId: 'gemini', params: { halo: 999, __fs: 1.3 }, effects: { dice: false } } });
-  vm.runInContext("state.skinSettings={};readState()", c);
-  eq(c.state.params.halo, 14, 'Legacy parameter is clamped on startup');
-  vm.runInContext("setSkin('nixie')", c);
-  eq(c.state.params.halo, 55, 'Legacy flat values migrate ONLY into their original skin');
-  eq(c.state.params.__fs, 1.3, 'Legacy global font scaling is preserved');
-}
 
 // Real model-list adapters, request headers, parsing, errors and stale responses.
 const modelFns = ['modelConfigKey','cachedModelList','invalidateModelList','modelListRequest','modelListHeaders','fetchLlmModelCatalog','fetchModelList'];

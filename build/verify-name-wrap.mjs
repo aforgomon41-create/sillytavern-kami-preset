@@ -11,7 +11,7 @@
  *   ② 数据：`<n>` 标记配平，且**文生图条目里一个都不能有**
  *      （那条产出的 tags 会被别的插件用正则抓走当绘图提示词，混进包裹符号是灾难）；
  *   ③ 规范：「📌 输出规范」第 4 条必须是变量驱动 + `<n>` 示例，措辞与示例才不会打架；
- *   ④ 代码：35 号订阅了那个事件、三档齐全、有文生图保护；40/50 两处入口都还在。
+ *   ④ 代码：35 号订阅了那个事件、三档齐全、有文生图保护；「🎨 显示」的入口在、40 号不留第二份。
  *
  * 用法：node build/verify-name-wrap.mjs <产物路径>
  */
@@ -107,25 +107,20 @@ ok(wc.indexOf('nameWrapExceptImageTask') >= 0 && wc.indexOf('nameWrapReplace') >
   '④ 用纯逻辑只保护行首文生图块（不再整条跳过合并后的系统消息）');
 ok(wc.indexOf('IMAGE_TASK_RE') >= 0, '④ 文生图块按行首完整块识别（行内提及不算块）');
 
-/* ④b 代码：30 号（皮肤面板「显示」卡的入口）与 50 号（引导入口）
-   ⚠️ 2026-09-28 用户裁定：这一行从「🌟 预设设置」搬到了「🎨 皮肤管理面板 → 显示」那张卡，
-   所以守的是 30 号，**同时守「40 号里不许再留一份」**（两处各长一份是这项目的常见病）。 */
-const skin = String((scripts.find(s => String(s.name).indexOf('皮肤管理') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-ok(skin.indexOf('function nameWrapRow') >= 0, '④ 30 号里有「角色名样式」那一行的构造');
-/* 2026-10-26：30 号的「皮肤」页改成 React 渲染后，挂载写法从
-   g.appendChild(nameWrapRow()) 变成 h(NameWrapRow)。两种都认 ——
-   守的是「它真的被挂进显示卡」，不是某种具体语法。 */
-ok(/g\.appendChild\(nameWrapRow\(\)\)/.test(skin) || /h\(NameWrapRow\)/.test(skin),
-  '④ 它被挂进「显示」卡（不是写了不用）');
-ok(skin.indexOf('KamiNameWrap') >= 0, '④ 皮肤面板走的是 35 号的 API（不是自己另写一份状态）');
-ok(skin.indexOf("mk('span', 'kami-seg'") >= 0, '④ 右边用的是契约已登记的分段控件（零新增类名）');
+/* ④b 代码：「🎨 显示」面板的入口（2026-10-30 脚本整理：旧「🎨 皮肤管理」退役，这一行在新显示面板的「消息」页）。
+   守的是：04 号把 35 号的 KamiNameWrap 接给面板（不另写一份状态）、面板组件真的画了这一行，
+   **同时守「40 号里不许再留一份」**（两处各长一份是这项目的常见病）。 */
+const display = String((scripts.find(s => /🎨 显示/.test(String(s.name))) || {}).content || '');
+ok(!!display, '④ 产物里有「🎨 显示」脚本');
+ok(/HOST\.KamiNameWrap/.test(display) && /p\.nameWrap = \{/.test(display), '④ 显示脚本把 35 号的 KamiNameWrap 接给面板（不是自己另写一份状态）');
+const panelSrc = fs.readFileSync(path.join(ROOT, 'src', 'frontend', 'panels', 'display-panel.tsx'), 'utf8');
+ok(/<SettingRow label="角色名样式"/.test(panelSrc) && /prefs\.nameWrap/.test(panelSrc), '④ 显示面板组件里画了「角色名样式」这一行');
 
 const panel = String((scripts.find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
 ok(panel.indexOf('wrapCardEl') < 0 && panel.indexOf('KamiNameWrap') < 0,
   '④ 40 号（预设设置面板）里已经不留这一行了（搬家搬干净，不留第二份实现）');
 
-const guide = String((scripts.find(s => String(s.name).indexOf('引导') >= 0 && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-ok(guide.indexOf('function buildSegRow') >= 0 && guide.indexOf('nameWrapTitle') >= 0, '④ 50 号引导页里有角色名样式那一块');
+const guide = String((scripts.find(s => /🧭 引导/.test(String(s.name))) || {}).content || '');
 
 /* ④c 文案：guide-copy.json 的三条必须原样出现在产物里（文案只有一份真相）。
    注意比对方式：产物里内联的是 JSON 源码，正文里的换行是 `\n` 两个字符而不是真换行，
@@ -138,13 +133,13 @@ const gc = JSON.parse(fs.readFileSync(path.join(ROOT, 'design', 'copy', 'guide-c
   ok(hit, '④ 引导文案 ' + k + ' 与文案表一字不差');
 });
 
-/* ④d 用户裁定：引导页那句必须与皮肤面板那句**是同一句**（不要两套说法）。
-   皮肤面板那句写在 30 号的 NAME_WRAP_NOTE 里，这里逐字比对。 */
-const noteM = skin.match(/var NAME_WRAP_NOTE = '([^']*)'/);
+/* ④d 用户裁定：引导页那句必须与显示面板那句**是同一句**（不要两套说法）。
+   显示面板那句写在 display-panel.tsx 的 NAME_WRAP_NOTE 里，这里逐字比对。 */
+const noteM = panelSrc.match(/const NAME_WRAP_NOTE = '([^']*)'/);
 const noteText = noteM ? noteM[1] : '';
-ok(!!noteText, '④ 30 号里有那句共用说明（NAME_WRAP_NOTE）');
-ok(noteText === gc.nameWrapBody, '④ 引导页那句与皮肤面板那句一字不差（用户点名要复用）',
-  noteText === gc.nameWrapBody ? noteText : '皮肤面板「' + noteText + '」 vs 文案表「' + gc.nameWrapBody + '」');
+ok(!!noteText, '④ 显示面板里有那句共用说明（NAME_WRAP_NOTE）');
+ok(noteText === gc.nameWrapBody, '④ 引导文案那句与显示面板那句一字不差（用户点名要复用）',
+  noteText === gc.nameWrapBody ? noteText : '显示面板「' + noteText + '」 vs 文案表「' + gc.nameWrapBody + '」');
 ok(noteText.indexOf('立刻对新生成的回复生效') >= 0, '④ 那句里说清了「切换后什么时候生效」');
 
 console.log('');

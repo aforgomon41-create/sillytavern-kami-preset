@@ -43,7 +43,7 @@ const hasHome = (code) => /function bringViewportHome/.test(code) && /HOST\.scro
 console.log('=== 面板舞台移动端验证（' + path.basename(p) + '） ===');
 
 /* ① 四个面板：舞台高度下限必须内联在 buildPanel 里 */
-[['皮肤管理', '30 号'], ['预设设置', '40 号'], ['引导', '50 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
+[['预设设置', '40 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
   const code = codeOf(kw);
   ok(code.length > 0, '① 产物里有「' + kw + '」脚本');
   ok(hasMinHeight(code), '① ' + label + '：舞台高度下限已内联（100vh + 100dvh 两行都在）');
@@ -62,13 +62,13 @@ ok(stageRule.join('').indexOf('min-height: 0') < 0 && /min-height:\s*100dvh/.tes
   '② base.css 的舞台不再写 min-height:0（改成 100vh + 100dvh 两行）');
 
 /* ③ 窄屏判定：body 被钉住 = 单栏（三个有自己判定的脚本都要加上） */
-[['皮肤管理', '30 号'], ['预设设置', '40 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
+[['预设设置', '40 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
   const code = codeOf(kw);
   ok(hasSignal(code), '③ ' + label + '：窄屏判定加了「body 被钉住」这条酒馆自己的信号');
 });
 
 /* ④ 打开时把可视窗口带回原点（四个面板都要有） */
-[['皮肤管理', '30 号'], ['预设设置', '40 号'], ['引导', '50 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
+[['预设设置', '40 号'], ['工具箱', '60 号']].forEach(([kw, label]) => {
   const code = codeOf(kw);
   ok(hasHome(code), '④ ' + label + '：打开面板时把页面滚回原点');
 });

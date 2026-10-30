@@ -204,22 +204,21 @@ function noMarkup(s, label) {
 {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
   const think = read('../../src/regex/frontend-think.html');
-  const shell = read('../../src/scripts/45-正文外壳.js');
+  /* 2026-10-30：「📄 正文外壳」退役；正文复制改由消息前端（src/frontend/message/tavern.tsx）import 同一份 _copy-clean.js */
+  const msg = read('../../src/frontend/message/tavern.tsx');
   const doc = read('../../build/kami-doc.mjs');
 
-  for (const [name, src] of [['💭 思维链前端', think], ['📄 正文外壳', shell]]) {
+  for (const [name, src] of [['💭 思维链前端', think]]) {
     ok(src.indexOf('/* @@KAMI_COPY_CLEAN@@ */') >= 0, '⑥ ' + name + '：留了共享模块占位符');
     ok(src.indexOf('cleanCopyText(') >= 0, '⑥ ' + name + '：复制走 cleanCopyText');
   }
   ok(think.indexOf('copy(raw, copyBtn)') < 0, '⑥ 思维链前端：不再直接复制 raw');
-  ok(shell.indexOf('var text = rawBox.textContent') < 0, '⑥ 正文外壳：不再直接复制 rawBox');
-  ok(shell.indexOf('已复制原文') < 0, '⑥ 正文外壳：提示语不再说「原文」');
+  ok(/import \{ cleanCopyText \} from '[^']*_copy-clean\.js'/.test(msg) && msg.indexOf('cleanCopyText(text)') >= 0, '⑥ 消息前端：正文复制走同一份 cleanCopyText');
   /* 构建期必须真把这一份内联进去，否则产物里会原样留着占位符 */
   ok(doc.indexOf('COPY_CLEAN_MARK') >= 0, '⑥ build/kami-doc.mjs：有占位符常量');
   ok(doc.indexOf('expandCopyClean') >= 0, '⑥ build/kami-doc.mjs：有展开函数');
   ok(/expandForRegex[\s\S]{0,500}expandCopyClean\(root, doc\)/.test(doc), '⑥ 正则那条路展开了（酒馆 replaceString）');
   ok(/expandForPreview[\s\S]{0,500}expandCopyClean\(root, doc\)/.test(doc), '⑥ 预览台那条路展开了');
-  ok(/expandPanelGestures[\s\S]{0,900}expandCopyClean\(root, code\)/.test(doc), '⑥ 脚本那条路展开了（45-正文外壳）');
 }
 
 /* ════════════════════════════════════════════════════════════

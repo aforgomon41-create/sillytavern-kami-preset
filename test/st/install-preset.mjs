@@ -74,9 +74,9 @@ await page2.waitForSelector('#send_textarea', { timeout: 60000 });
 await page2.waitForTimeout(12000);
 const after = await page2.evaluate(() => ({
   preset: document.querySelector('#settings_preset_openai option:checked')?.textContent,
-  runtime: document.documentElement.getAttribute('data-kami-runtime'),
-  skin: document.documentElement.getAttribute('data-kami-skin'),
-  kamiButtons: Array.from(document.querySelectorAll('.qr--button, #TH-script-buttons button, [class*="script_button"], .qr--buttons button')).map(x => x.textContent.trim()).filter(Boolean).slice(0, 12),
+  runtime: !!window.KamiRuntimeNext,
+  skin: (() => { try { return window.KamiDisplay.manager.current.manifest.name; } catch (e) { return null; } })(),
+  kamiButtons: Array.from(document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')).map(x => x.textContent.trim()).filter(x => /^(🧭|🎨|🌟|🧰|反截断)/.test(x)).slice(0, 12),
 }));
 console.log('刷新后：', JSON.stringify(after, null, 1));
 console.log('相关日志：\n  ' + logs.slice(0, 25).join('\n  '));

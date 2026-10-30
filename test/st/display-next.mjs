@@ -1,6 +1,6 @@
-// 「🧪 显示」脚本（新显示面板 + SkinManager）在真实酒馆里的验证：
+// 「🎨 显示」脚本（显示面板 + SkinManager）在真实酒馆里的验证：
 //   node test/st/display-next.mjs [--mobile] [--shots]
-// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包（含「🧪 显示」），见 test/st/README.md
+// 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包（含「🎨 显示」），见 test/st/README.md
 // 核对：按钮条统一成「图标 + 空格 + 名字」、只有一颗 🎨（旧皮肤管理让位）；点「🎨 显示」打开面板；
 //       换皮肤同时套到面板和聊天里的消息前端；配色写进脚本变量、刷新后还在；
 //       「行动选项默认收起」让消息里的选项收起；角色名样式走 35 号脚本的全局变量；实际渲染对比度；注销后不留东西。
@@ -41,7 +41,7 @@ await page.waitForFunction(() => window.KamiDisplay && window.KamiDisplay.manage
 await page.waitForTimeout(3000);
 const bt = await buttons();
 ok(bt.includes('🎨 显示'), '按钮条有「🎨 显示」', bt);
-ok(bt.filter((x) => x.startsWith('🎨')).length === 1, '只有一颗 🎨（旧皮肤管理让位）', bt);
+ok(bt.filter((x) => x.startsWith('🎨')).length === 1, '只有一颗 🎨（旧皮肤管理已退役）', bt);
 ok(bt.includes('🌟 预设设置') && bt.includes('🧭 引导') && bt.some((x) => /^反截断 (开|关)$/.test(x)) && bt.some((x) => x.startsWith('🧰 工具箱')), '其他按钮统一成「图标 + 空格 + 名字」，反截断开关不带图标', bt);
 /* 心跳：按钮中转站 3 分钟收不到 ping 就撤下按钮（用户实测「显示」按钮用一会儿就掉） */
 const ping0 = await page.evaluate(() => ((window.__hubDefs || []).find((d) => d && d.name === '🎨 显示') || {}).ping || 0);
@@ -112,14 +112,14 @@ const kept = await page.evaluate(() => ({ s: window.KamiDisplay && window.KamiDi
 ok(kept.s && kept.s.scheme === 'dark' && kept.msg === 'dark', '刷新后配色还在，消息前端用的也是它（消息前端不再强套碎光）', kept);
 await page.evaluate(() => window.KamiDisplay.manager.setScheme('auto'));
 
-/* ⑥ 注销：按钮、面板、全局 API 收回，旧 🎨 回来 */
+/* ⑥ 注销：按钮、面板、全局 API 收回 */
 await page.evaluate(() => { window.KamiDisplay.open(); });
 await page.waitForTimeout(300);
 await page.evaluate(() => window.KamiDisplay.shutdown());
 await page.waitForTimeout(3500);
 const gone = await page.evaluate(() => ({ api: !!window.KamiDisplay, open: document.querySelector('kami-layer') ? !!document.querySelector('kami-layer').shadowRoot.querySelector('[data-k="panel"]') : false, defs: (window.__hubDefs || []).some((d) => d && d.name === '🎨 显示') }));
 const bt2 = await buttons();
-ok(!gone.api && !gone.open && !gone.defs && !bt2.includes('🎨 显示'), '注销后按钮、面板、全局 API 都收回', { gone, bt2 });
+ok(!gone.api && !gone.open && !gone.defs && !bt2.some((x) => x.startsWith('🎨')), '注销后按钮、面板、全局 API 都收回（不再有旧 🎨 接手）', { gone, bt2 });
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 await b.close();
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));

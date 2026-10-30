@@ -8,15 +8,14 @@
  * 这条链路有三处只有这里会查，所以单独一个守卫（`verify-frontends.mjs` 只管另外两个 iframe 前端）：
  *   ① 产物里那条正则：载荷是那对标记、保留 $1、很短、markdownOnly / placement / maxDepth 原样；
  *   ② 产物里没有残留的 iframe 版正文载荷（`@@FRONTEND:body@@` 一个都不许有）；
- *   ③ 产物里的 45 号脚本：在、启用、认的就是产物里那对标记、用的是契约类名与 data-kami-view、
- *      **没有真的造 iframe 或写 srcdoc**；
+ *   （2026-10-30 脚本整理：45 号「📄 正文外壳」退役，正文由「💬 消息前端」直接以 .mes_text 为宿主渲染；
+ *    原来查 45 号脚本、皮肤面板开关、生成期间不重画的 ③⑤⑥ 随之删除，那对标记仍保留——关掉消息前端时它们不可见、不碍事。）
  *   ④ **端到端发射检查**（正则在真输出上跑一遍 → showdown 渲一遍）：标记活下来、markdown 真的渲染、
  *      插图标签仍在正文文本里、`<content>` 不残留、没有用会在页面上露出来的文本哨兵。
  *      这一条是防「有人改回用单个 div 把正文包起来」——那样 showdown 会把正文里的 markdown 全部当原文不渲染。
  *
  * 用法：node build/verify-body-shell.mjs <产物路径>
  */
-import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +54,7 @@ if (body) {
   ok(String(body.id) === '4c1f9b26-7d05-4a53-9f18-2be7c4a0d6e1',
     '① id 没变（老用户升级时那条正则是**改写**不是新增，避免两条打架）', String(body.id));
   ok(String(body.scriptName) === '前端|正文 v0.1',
-    '① 名字保持「前端|正文 v0.1」（30-皮肤管理.js 的开关按这个名字找它）', String(body.scriptName));
+    '① 名字保持「前端|正文 v0.1」（老用户升级时按 id 与名字对位）', String(body.scriptName));
 }
 
 /* ② 不许残留 iframe 版载荷 */
@@ -63,25 +62,6 @@ ok(rg.filter(r => String(r.replaceString || '').indexOf('@@FRONTEND:body@@') >= 
   '② 没有残留的 iframe 版正文载荷');
 ok(rg.filter(r => /前端\|正文/.test(String(r.scriptName || '')) && String(r.replaceString || '').length > 400).length === 0,
   '② 没有哪条「正文」正则还挂着大载荷');
-
-/* ③ 外壳脚本 */
-const scripts = flattenScriptTrees(preset.extensions?.tavern_helper?.scripts || []);
-const shell = scripts.find(s => String(s.name || '').indexOf('正文外壳') >= 0 && String(s.name).indexOf('🧪') < 0);
-ok(!!shell, '③ 产物里有「正文外壳」脚本', shell && shell.name);
-if (shell) {
-  ok(shell.enabled !== false, '③ 脚本是启用的');
-  ok(shell.content.indexOf('data-kami-body-start') >= 0 && shell.content.indexOf('data-kami-body-end') >= 0,
-    '③ 脚本认的就是产物里那对标记（不是两处各写一套）');
-  ok(shell.content.indexOf('kami-root') >= 0 && shell.content.indexOf("'body'") >= 0,
-    '③ 外壳用的是契约里那套 .kami-root / data-kami-comp="body"');
-  ok(shell.content.indexOf('data-kami-view') >= 0, '③ 「渲染 / 原文」用的是契约既有的 data-kami-view');
-  const createsIframe = /createElement\(\s*['"]iframe['"]\s*\)/.test(shell.content);
-  const setsSrcdoc = /\.srcdoc\s*=/.test(shell.content) || /setAttribute\(\s*['"]srcdoc['"]/.test(shell.content);
-  ok(!createsIframe && !setsSrcdoc, '③ 脚本没有真的造 iframe / 写 srcdoc（正文不放进 iframe 是这条链路的前提）',
-    'createElement=' + createsIframe + ' srcdoc=' + setsSrcdoc);
-  ok(shell.content.indexOf('__hubDefs') < 0, '③ 脚本不登记按钮（用户 2026-09-26 点名去掉）');
-  ok(shell.content.indexOf('45-正文外壳') >= 0 || shell.content.indexOf('正文外壳') >= 0, '③ 脚本头注释还在（可追溯）');
-}
 
 /* ④ 端到端发射检查（正则 → showdown） */
 {
@@ -114,39 +94,6 @@ if (shell) {
     ok(html.indexOf('%%') < 0, '④ 没有用文本哨兵那种会在页面上露出来的写法');
   }
 }
-
-/* ⑤ 面板 / 引导那枚开关（原来在 .audit/check-bodyfront-artifact.mjs 里，2026-09-26 并到这里：
-      同一条链路只留一份守卫）。这几条都是真出过事的地方，别删。 */
-const skin = String((scripts.find(s => /皮肤管理/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-const guide = String((scripts.find(s => /引导/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-ok(skin.indexOf("bodyFront: '1',") >= 0, "⑤ 面板档位默认值是字符串 '1'（写布尔 true 会显示成「关」）");
-ok(skin.indexOf('r.script_name !== undefined') >= 0, '⑤ 按归一化字段名找条目（script_name，不是 scriptName）');
-ok(skin.indexOf('r.enabled = !!on;') >= 0, '⑤ 启用位写的是 enabled（不是 disabled）');
-ok(skin.indexOf("{ type: 'preset', name: 'in_use' }") >= 0, '⑤ 读、写都带 { type: preset, name: in_use }');
-ok(skin.indexOf("BODY_REGEX_NAME = '前端|正文 v0.1'") >= 0, '⑤ 皮肤面板按「前端|正文 v0.1」这个名字找它');
-const syncHits = (skin.match(/syncBodyFrontFromTavern\(\)/g) || []).length;
-ok(syncHits >= 3, '⑤ 开关位置与真实启用位对账至少挂 3 处（启动 + 补一次 + 每次开面板）', '实际 ' + syncHits + ' 处');
-ok(skin.indexOf('syncBodyFront: function ()') >= 0, '⑤ 对账接口对引导页可见');
-ok(guide.indexOf('api.syncBodyFront()') >= 0, '⑤ 引导页渲染皮肤卡之前先对一次账');
-
-/* ⑥ 流式输出时不许来回重画（2026-09-28 用户反馈的「闪」）：
-      生成期间扫都不扫，等生成结束再一次性补上；标志位必须有兜底与注销，
-      否则报错 / 中断会让刷新被永久关死。 */
-const shellSrc = String((scripts.find(s => /正文外壳/.test(String(s.name)) && String(s.name).indexOf('🧪') < 0) || {}).content || '');
-const stripC = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
-const shellCode = stripC(shellSrc);
-ok(shellSrc.indexOf('function setGenerating') >= 0, '⑥ 有「正在生成」这个标志位');
-ok(/if \((?:disposed \|\| )?generating\) \{ return; \}/.test(shellCode), '⑥ 生成期间 soon() 直接返回（重画不排队）');
-ok(/tavern_events\[pair\[0\]\]/.test(shellCode) && /'GENERATION_STARTED'/.test(shellCode) &&
-  /'GENERATION_ENDED'/.test(shellCode),
-  '⑥ 订阅了生成开始与生成结束（用的就是酒馆那两个事件）');
-ok(shellSrc.indexOf('function finishGeneration') >= 0 && /setGenerating\(false\)/.test(shellCode),
-  '⑥ 生成结束会把标志位放下来并补一次');
-ok(shellSrc.indexOf('GEN_WATCHDOG_MS') >= 0 && shellCode.indexOf('genWatchdog') >= 0,
-  '⑥ 有看门狗：结束信号没来也不会把刷新永久关死');
-ok(/shutdown: function \(\)[\s\S]{0,800}generating = false;/.test(shellCode), '⑥ 注销时把标志位与定时器都收干净');
-ok(shellSrc.indexOf('generating: generating') >= 0, '⑥ 状态读数里带上了它（排查时看得见）');
-ok(!/setTimeout\(refresh, 400\)/.test(shellCode), '⑥ 事件回调里没有那种「生成中也硬刷」的写法');
 
 console.log('');
 console.log(bad ? '★ 正文外壳链路验证失败 ' + bad + ' 条' : '正文外壳链路验证全部通过（产物 ' + path.basename(p) + '）');

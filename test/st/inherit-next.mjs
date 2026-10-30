@@ -53,6 +53,18 @@ const sendMod = scripts.find((x) => /提示词发送修改/.test(x.name)); sendM
 const toolbox = scripts.find((x) => /^🧰 工具箱/.test(x.name));
 toolbox.data = toolbox.data || {}; toolbox.data['kami-summarize'] = { ...(toolbox.data['kami-summarize'] || {}), cfg: { ...((toolbox.data['kami-summarize'] || {}).cfg || {}), threshold: 123456 } };
 const rx = d.extensions.regex_scripts[2]; rx.disabled = !rx.disabled;
+/* 旧版（main / 早期支线）才有、这一版已退役的三个脚本：带着各自的设置，继承后必须并进接替它们的新脚本，不能作为重复脚本留下 */
+const RETIRED = [
+  { id: '5495716e-39bd-4637-8034-49e77cefafec', name: '🎨 皮肤管理 v0.3', data: { 'kami-skin': { skinId: 'grokbot' } } },
+  { id: 'b7e4c1a2-3f68-4d19-9c05-8ae27f4b61d3', name: '📄 正文外壳 v0.2', data: {} },
+  { id: '92b51640-4662-4884-8792-7ca22edbe6e9', name: '🧭 引导 v0.6', data: { 'kami-guide-legacy-mark': 'from-v0.6' } }
+];
+const folder0 = d.extensions.tavern_helper.scripts.find((x) => x.type === 'folder');
+for (const r of RETIRED) {
+  folder0.scripts.push({ type: 'script', enabled: true, name: r.name, id: r.id, content: '/* retired */', info: '', button: { enabled: false, buttons: [] }, data: r.data, export_with: { data: true, button: true } });
+}
+const display0 = scripts.find((x) => /^🎨 显示/.test(x.name));
+display0.data = { ...(display0.data || {}), 'kami-display': { ...((display0.data || {})['kami-display'] || {}), inheritMark: 1 } };
 d.name = OLD;
 fs.writeFileSync(path.join(DIR, OLD + '.json'), JSON.stringify(d, null, 4));
 const exp = { flip: want, prompt: pr.identifier, sendMod: [sendMod.name, sendMod.enabled], toolbox: toolbox.name, regex: [rx.scriptName, rx.disabled] };
@@ -110,7 +122,10 @@ const live = await page.evaluate((exp) => {
     sendMod: (th.find((x) => x.name === exp.sendMod[0]) || {}).enabled,
     threshold: tb && tb.data && tb.data['kami-summarize'] && tb.data['kami-summarize'].cfg ? tb.data['kami-summarize'].cfg.threshold : null,
     regex: ((s.extensions.regex_scripts || []).find((r) => r.scriptName === exp.regex[0]) || {}).disabled,
-    newUi: th.filter((x) => /🧪/.test(x.name)).every((x) => x.enabled)
+    retired: th.filter((x) => /皮肤管理|正文外壳|引导 v0\.6/.test(x.name)).map((x) => x.name),
+    guideData: ((th.find((x) => /^🧭 引导/.test(x.name)) || {}).data || {})['kami-guide-legacy-mark'] || null,
+    displayData: Object.keys((th.find((x) => /^🎨 显示/.test(x.name)) || {}).data || {}),
+    newUi: ['🧩', '💬', '🎨 显示', '🧭', '🧰', '🌟'].every((k) => th.some((x) => x.name.startsWith(k) && x.enabled))
   };
 }, exp);
 ok(live.name === cur, '刷新后仍是当前这一份预设', live.name);
@@ -120,7 +135,10 @@ ok(live.prompt, '活设置：条目内容继承了');
 ok(live.sendMod === exp.sendMod[1], '酒馆助手：脚本开关继承了（之前被它内存里的旧脚本树盖回去）', live.sendMod);
 ok(live.threshold === 123456, '酒馆助手：脚本里的设置（压缩上限）继承了', live.threshold);
 ok(live.regex === exp.regex[1], '活设置：正则开关继承了', live.regex);
-ok(live.newUi, '支线的新前端脚本仍是开着的');
+ok(live.newUi, '新前端的各脚本仍是开着的');
+ok(live.retired.length === 0, '退役的旧脚本（皮肤管理 / 正文外壳 / 引导 v0.6）没有作为重复脚本留下', live.retired);
+ok(live.guideData === 'from-v0.6', '旧引导的脚本设置并进了新「🧭 引导」', live.guideData);
+ok(live.displayData.includes('kami-skin') && live.displayData.includes('kami-display'), '旧皮肤管理的设置并进「🎨 显示」，显示自己的设置也还在', live.displayData);
 const disk = readJson(curFile);
 const dOrder = disk.prompt_order[0].order, dScripts = walk(disk.extensions.tavern_helper.scripts);
 const dTool = dScripts.find((x) => x.name === exp.toolbox);
@@ -136,12 +154,15 @@ const backup = path.join(DIR, cur + ' · 继承前备份.json');
 fs.writeFileSync(curFile, original);
 for (const f of [path.join(DIR, OLD + '.json'), backup]) { try { fs.unlinkSync(f); } catch (e) { } }
 await page.reload(); await ready();
-/* 酒馆的活设置另存在 settings.json 里：只还原文件不够，要切走再切回当前预设，让它从（已还原的）文件重新载入 */
+/* 酒馆的活设置另存在 settings.json 里：只还原文件不够，要重新选一次当前预设，让它从（已还原的）文件重新载入。
+   ⚠ 不能先切到别的预设（比如 Default）再切回来：Default 带着自己的接口来源与地址，会把测试酒馆连假模型的设置冲掉。 */
+const conn0 = await page.evaluate(() => { const s = window.SillyTavern.getContext().chatCompletionSettings; return { src: s.chat_completion_source, url: s.custom_url }; });
 await page.evaluate(async (cur) => {
   const pm = window.SillyTavern.getContext().getPresetManager('openai');
-  pm.selectPreset(pm.findPreset('Default')); await new Promise((r) => setTimeout(r, 1500));
   pm.selectPreset(pm.findPreset(cur)); await new Promise((r) => setTimeout(r, 2500));
 }, cur);
+const conn1 = await page.evaluate(() => { const s = window.SillyTavern.getContext().chatCompletionSettings; return { src: s.chat_completion_source, url: s.custom_url }; });
+ok(JSON.stringify(conn0) === JSON.stringify(conn1), '收尾：没动接口来源与地址', { conn0, conn1 });
 const back = await page.evaluate(() => window.SillyTavern.getContext().chatCompletionSettings.temp_openai);
 ok(back === JSON.parse(original).temperature && readJson(curFile).temperature === JSON.parse(original).temperature, '收尾：当前预设的活设置与文件都回到继承前', { back, want: JSON.parse(original).temperature });
 const clean = await page.evaluate((old) => { const n = window.KamiUpdate.otherPresetNames().names; return !n.includes(old) && !n.some((x) => x.includes(old)); }, OLD);

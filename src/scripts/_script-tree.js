@@ -78,12 +78,24 @@ export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
     var identity = allRows[i].script && allRows[i].script.id;
     if (typeof identity !== 'string' || !identity.replace(/^\s+|\s+$/g, '')) { throw new Error('发现缺少标识（ID）的脚本，为保留原配置已停止合并，请先检查脚本列表'); }
   }
+  /* 同一脚本既有旧 ID 记录又有新 ID 记录（支线测试包用户：旧脚本和接替它的新脚本都装过）：
+     开关与冲突的设置键仍以旧记录为准，新记录里旧记录没有的设置键并进来（2026-10-30 脚本整理，
+     例如「🎨 皮肤管理」并入「🎨 显示」时，显示自己的 kami-display 不能丢）。 */
+  var extraData = Object.create(null);
+  function addExtra(key, row) {
+    var d = row && row.script && row.script.data;
+    if (!d || typeof d !== 'object' || Array.isArray(d)) { return; }
+    var into = extraData[key] || (extraData[key] = {});
+    for (var dk in d) { if (Object.prototype.hasOwnProperty.call(d, dk) && !Object.prototype.hasOwnProperty.call(into, dk)) { into[dk] = d[dk]; } }
+  }
   for (i = 0; i < oldRows.length; i++) {
-    if (oldById[keyOf(oldRows[i].script.id)]) {
+    var dupKey = keyOf(oldRows[i].script.id);
+    if (oldById[dupKey]) {
       report.deduplicated++;
-      if (oldRows[i].script.id !== keyOf(oldRows[i].script.id) && oldById[keyOf(oldRows[i].script.id)].script.id === keyOf(oldRows[i].script.id)) { oldById[keyOf(oldRows[i].script.id)] = oldRows[i]; }
+      if (oldRows[i].script.id !== dupKey && oldById[dupKey].script.id === dupKey) { addExtra(dupKey, oldById[dupKey]); oldById[dupKey] = oldRows[i]; }
+      else if (oldRows[i].script.id === dupKey && oldById[dupKey].script.id !== dupKey) { addExtra(dupKey, oldRows[i]); }
     }
-    else { oldById[keyOf(oldRows[i].script.id)] = oldRows[i]; }
+    else { oldById[dupKey] = oldRows[i]; }
   }
   for (i = 0; i < newRows.length; i++) {
     if (nextById[keyOf(newRows[i].script.id)]) {
@@ -106,6 +118,11 @@ export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
     if (incoming) {
       item.enabled = old.enabled !== undefined ? !!old.enabled : item.enabled !== false;
       if (old.data !== undefined) { item.data = copy(old.data); }
+      if (extraData[key]) {
+        var base = (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) ? item.data : {};
+        for (var ek in extraData[key]) { if (!Object.prototype.hasOwnProperty.call(base, ek)) { base[ek] = copy(extraData[key][ek]); } }
+        item.data = base;
+      }
       report.applied++;
     } else { report.kept++; }
     item.id = key; merged[key] = item; flat.push(item);
