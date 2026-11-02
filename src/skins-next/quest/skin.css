@@ -1,0 +1,47 @@
+/* 远征 —— 西幻冒险。羊皮纸 / 夜晚橡木酒馆；不规则纸边 + 墨线双框，罗盘角花、等高线地图底、蜡封徽章；
+   打开像卷轴从上往下展开（unroll），按下飘起几粒金尘（particles）。 */
+
+:host, [data-k-surface] { --k-fx-dir: down; --k-fx-glyphs: "✦ ·"; --k-fx-drift: up; --k-fx-size: 6px; --k-fx-glow: #c8902e; --k-fx-alt: var(--k-accent); }
+[data-k-surface] { --k-quest-ink: rgba(70, 40, 18, .55); --k-quest-line: rgba(120, 80, 30, .14); }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #f0c060; --k-quest-ink: rgba(217, 164, 65, .5); --k-quest-line: rgba(217, 164, 65, .08); }
+
+/* ───────── 墨线双框：外框实线，内框用 outline 往里缩一圈 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 1.5px solid var(--k-quest-ink); outline: 1px solid var(--k-quest-ink); outline-offset: -6px; }
+[data-k="card"] { border: 1px solid var(--k-quest-ink); border-radius: 3px 7px 4px 8px / 8px 3px 7px 4px; box-shadow: 2px 3px 0 var(--k-quest-line); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-quest-ink); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-size: 1.15em; letter-spacing: .03em; }
+
+/* ───────── 按钮：小直角，主按钮像压了金边的皮质标签 ───────── */
+[data-k="button"] { border-radius: 2px; font-family: var(--k-font-heading); letter-spacing: .05em; }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1px rgba(255, 220, 150, .35), 0 1px 0 var(--k-quest-ink); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+
+/* ───────── 页签：像书页侧边的索引签 ───────── */
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); border-radius: 4px 4px 0 0; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: var(--k-accent-soft); border-bottom: 2px solid var(--k-accent); }
+
+/* ───────── 蜡封：徽章是一枚红蜡圆印 ───────── */
+[data-k="badge"][data-tone="accent"] { border-radius: 50% 46% 52% 48%; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .15); }
+
+/* ───────── 罗盘角花 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 18px; height: 18px; background: var(--k-accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z'/%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z'/%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k-ornament="panel-head-start"] { animation: k-quest-needle 9s ease-in-out infinite; }
+@keyframes k-quest-needle { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+
+/* ───────── 地图：等高线底纹 ───────── */
+[data-k-surface][data-k-effects~="map"] [data-k-level="bg"] {
+  background-image: repeating-radial-gradient(circle at 18% 30%, transparent 0 18px, var(--k-quest-line) 18px 19px), repeating-radial-gradient(circle at 85% 80%, transparent 0 24px, var(--k-quest-line) 24px 25px);
+}
+
+[data-k="spinner"] { border-style: dotted; border-width: 2px; }
+
+/* ───────── 消息正文：书本衬线；对白深红墨，心理描写褐色斜体 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, Georgia, serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #8a2a16; --k-msg-thought: #6e4a28; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #e8b860; --k-msg-thought: #c9a988; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="name"] { font-variant: small-caps; letter-spacing: .04em; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 120px; border: 0; height: 10px; background: linear-gradient(var(--k-quest-ink), var(--k-quest-ink)) center / 100% 1px no-repeat, radial-gradient(circle, var(--k-accent) 3px, transparent 3.5px) center / 10px 10px no-repeat; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid var(--k-quest-ink); border-radius: 2px; }

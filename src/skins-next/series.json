@@ -1,0 +1,11 @@
+{
+  "//": "内置皮肤的顺序与系列分组（唯一真相）。default 是没选过皮肤的用户落到的那一套，打包时排第一；系列按这里的顺序列在显示面板里。目录里有、这里没登记的皮肤构建会报错。",
+  "default": "suiguang",
+  "series": [
+    {
+      "id": "worlds",
+      "name": "世界观",
+      "skins": ["sugar", "quest", "reborn", "yunji", "jianghu", "neon", "brief", "palace", "laurel", "vigil", "grid", "abyss", "rust", "cog", "noir"]
+    }
+  ]
+}

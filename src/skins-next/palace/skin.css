@@ -1,0 +1,55 @@
+/* 朱墙 —— 中国宫廷朝堂。绢黄 + 宫墙朱红 + 琉璃黄 + 青绿彩画 / 乌木漆 + 金；对称构图，回纹边框，标题像题签；
+   如意角饰、印玺；打开像奏折从左往右展开（unroll，--k-fx-dir: right）。 */
+
+:host, [data-k-surface] { --k-fx-dir: right; --k-fx-glow: #d4af5a; }
+[data-k-surface] { --k-palace-red: #9e2a2b; --k-palace-gold: #c9971f; --k-palace-jade: #2f6b5c; --k-palace-silk: rgba(158, 42, 43, .05); }
+[data-k-surface][data-k-scheme="dark"] { --k-palace-red: #b8423a; --k-palace-gold: #d4af5a; --k-palace-jade: #5aa58e; --k-palace-silk: rgba(212, 175, 90, .05); }
+
+/* ───────── 回纹边框（遮罩画一圈回纹） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 2px solid var(--k-palace-red); outline: 1px solid var(--k-palace-gold); outline-offset: -5px; border-radius: 2px; }
+[data-k="card"] { border: 1px solid color-mix(in srgb, var(--k-palace-gold) 55%, transparent); border-radius: 2px; box-shadow: none; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-palace-red); box-shadow: inset 0 0 0 1px var(--k-palace-red); }
+/* 标题：居中对称、两侧回纹条 */
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 0; background: var(--k-accent-soft); color: var(--k-on-accent-soft); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { color: var(--k-on-accent-soft); letter-spacing: .4em; font-weight: 400; font-size: 1.15em; }
+[data-k="panel"] > [data-k-part="head"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"]::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; pointer-events: none; background: var(--k-palace-gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; }
+
+/* ───────── 按钮：朱漆，金边 ───────── */
+[data-k="button"] { border-radius: 2px; letter-spacing: .2em; }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1px var(--k-palace-gold); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-palace-gold); justify-content: center; }
+[data-k="tabs"] [data-k-part="tab"] { letter-spacing: .2em; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { color: var(--k-palace-red); border-bottom: 2px solid var(--k-palace-red); }
+/* 印玺徽章 */
+[data-k="badge"] { border-radius: 1px; }
+[data-k="badge"][data-tone="accent"] { background: var(--k-palace-red); color: #fff3d6; box-shadow: inset 0 0 0 1.5px #fff3d6; }
+[data-k="switch"][data-state="checked"] { box-shadow: inset 0 0 0 1px var(--k-palace-gold); }
+
+/* ───────── 如意角饰（两侧对称） ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 18px; height: 14px; background: var(--k-palace-gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 20'%3E%3Cpath d='M13 2c-3 0-4 2-4 4-2-1-6-1-7 2s2 6 5 5c1 3 4 5 6 5s5-2 6-5c3 1 6-2 5-5s-5-3-7-2c0-2-1-4-4-4zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 20'%3E%3Cpath d='M13 2c-3 0-4 2-4 4-2-1-6-1-7 2s2 6 5 5c1 3 4 5 6 5s5-2 6-5c3 1 6-2 5-5s-5-3-7-2c0-2-1-4-4-4zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 回纹开关：卡片下沿一条回纹 ───────── */
+[data-k-surface][data-k-effects~="fret"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 3px; height: 6px; pointer-events: none; opacity: .4; background: var(--k-palace-gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; }
+/* 绢纹：经纬细线 */
+[data-k-surface][data-k-effects~="silk"] [data-k-level="bg"] { background-image: repeating-linear-gradient(0deg, var(--k-palace-silk) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, var(--k-palace-silk) 0 1px, transparent 1px 3px); }
+
+[data-k="spinner"] { border-color: color-mix(in srgb, var(--k-palace-gold) 30%, transparent); border-top-color: var(--k-palace-red); }
+
+/* ───────── 消息正文：宋体；对白朱红、心理描写青绿 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; letter-spacing: .04em; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #8a1f20; --k-msg-thought: #2f6152; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #e6c26e; --k-msg-thought: #8fc7b2; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; font-family: "Kaiti SC", STKaiti, KaiTi, "楷体", "AR PL UKai CN", serif; }
+[data-k-content] [data-k-part="name"] { color: var(--k-palace-red); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 96px; border: 0; height: 6px; background: var(--k-palace-gold); opacity: .7;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 2px; border: 1px solid color-mix(in srgb, var(--k-palace-gold) 55%, transparent); }

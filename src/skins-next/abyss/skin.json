@@ -1,0 +1,153 @@
+{
+  "id": "abyss",
+  "name": "深渊",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "克苏鲁 / 诡秘：深海墨绿与病态荧绿、泛黄的调查笔记；不规则的边、触须卷纹、手写批注；打开时墨水渗开。",
+  "author": "卡密预设",
+  "credits": "字体 Special Elite（Apache 2.0）、Long Cang（龙藏体，OFL）。",
+  "defaultScheme": "dark",
+  "schemes": {
+    "dark": {
+      "seeds": {
+        "neutral": "#0c1412",
+        "accent": "#6fbf73",
+        "radius": 6,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Special Elite\", \"Long Cang\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#e07a7a",
+        "success": "#6fbf73",
+        "info": "#9a86c8",
+        "warning": "#c8b46a"
+      }
+    },
+    "light": {
+      "seeds": {
+        "neutral": "#e9e1cc",
+        "accent": "#3f5f3a",
+        "radius": 6,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Special Elite\", \"Long Cang\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#8a2a2a",
+        "success": "#3f5f3a",
+        "info": "#4a3a6e",
+        "warning": "#7a5a14"
+      }
+    }
+  },
+  "modules": [
+    "ink"
+  ],
+  "effects": [
+    {
+      "id": "ink",
+      "name": "渗墨",
+      "description": "打开时墨水渗开，按下时溅出墨点。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "breathe",
+      "name": "呼吸",
+      "description": "面板边缘极缓慢地明暗起伏，像在呼吸。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "stain",
+      "name": "污渍",
+      "description": "表面有几块陈年水渍。",
+      "group": "质感",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

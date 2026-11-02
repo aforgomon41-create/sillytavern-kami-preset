@@ -16,6 +16,7 @@ import { MessageMounts, nthTag, type MessageMountOptions } from '../surfaces/mes
 import { ChatFrontend, type ChatFrontendOptions } from '../message/tavern';
 import { FALLBACK_SKIN } from './fallback-skin';
 import { Fracture } from '../fx/fracture';
+import { Motifs } from '../fx/motifs';
 import { loadFonts, probeImage, type LoadState } from './remote';
 import { SkinManager } from '../skin-engine/manager';
 import { DisplayPanel, SkinChoices } from '../panels/display-panel';
@@ -65,8 +66,10 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     return !hasToggle || composed.attrs['data-k-effects']!.split(' ').includes(id);
   };
   const onRoot = (root: ShadowRoot): (() => void) => {
-    const fx = new Fracture(root, { enabled: () => moduleOn('fracture'), motion: () => (composed.attrs['data-k-motion'] as 'full' | 'calm' | 'off') });
-    return () => fx.dispose();
+    const motion = (): 'full' | 'calm' | 'off' => composed.attrs['data-k-motion'] as 'full' | 'calm' | 'off';
+    const fx = new Fracture(root, { enabled: () => moduleOn('fracture'), motion });
+    const mf = new Motifs(root, { enabled: moduleOn, motion });
+    return () => { fx.dispose(); mf.dispose(); };
   };
   let revision = 0;
   let remoteStatus: Promise<{ fonts: Record<string, LoadState>; assets: Record<string, 'remote' | 'fallback'> }> = Promise.resolve({ fonts: {}, assets: {} });

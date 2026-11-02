@@ -1,0 +1,54 @@
+/* 云笈 —— 修仙。月白 / 玄青夜空；卡片无硬边、边缘柔光晕开，底是远山云雾渐层；
+   祥云角饰、玉牌徽章；灵气粒子缓缓上升（particles，drift up）。 */
+
+:host, [data-k-surface] { --k-fx-glyphs: "· ∘ ·"; --k-fx-drift: up; --k-fx-size: 5px; --k-fx-glow: #6fc9bd; --k-fx-alt: #d9c48a; }
+[data-k-surface] { --k-yunji-halo: rgba(47, 122, 116, .16); --k-yunji-mist: rgba(47, 122, 116, .07); --k-yunji-gold: #b08a3a; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #a8f0e2; --k-yunji-halo: rgba(143, 214, 200, .18); --k-yunji-mist: rgba(143, 214, 200, .06); --k-yunji-gold: #d9c48a; }
+
+/* ───────── 无硬边：边线隐去，用外发光晕开 ───────── */
+[data-k="card"], [data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-color: transparent; }
+[data-k="card"] { box-shadow: 0 0 0 1px var(--k-yunji-mist), 0 0 18px var(--k-yunji-halo); }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { box-shadow: 0 0 0 1px var(--k-yunji-halo), 0 0 48px var(--k-yunji-halo), var(--k-shadow-2); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 0; background: linear-gradient(180deg, var(--k-yunji-mist), transparent); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .3em; font-weight: 400; }
+[data-k="card"][data-role="choice"][data-state="selected"] { box-shadow: 0 0 0 1px var(--k-accent), 0 0 22px var(--k-yunji-halo); }
+
+/* ───────── 按钮：圆润、悬浮感；按下时微微下沉并泛光 ───────── */
+[data-k="button"] { letter-spacing: .12em; transition: box-shadow var(--k-dur) var(--k-ease), transform var(--k-dur-fast) var(--k-ease); }
+[data-k="button"][data-variant="primary"] { box-shadow: 0 0 14px var(--k-yunji-halo); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 0 22px var(--k-fx-glow); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: transparent; }
+[data-k="tabs"] [data-k-part="tab"] { letter-spacing: .14em; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom-color: transparent; background: radial-gradient(ellipse at 50% 100%, var(--k-yunji-halo), transparent 70%); text-shadow: 0 0 8px var(--k-yunji-halo); }
+/* 玉牌：徽章上下圆、左右方，带一线金 */
+[data-k="badge"] { border-radius: 40% / 50%; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-yunji-gold) 55%, transparent); }
+[data-k="switch"][data-state="checked"] { box-shadow: 0 0 10px var(--k-yunji-halo); }
+
+/* ───────── 祥云角饰 ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 22px; height: 12px; background: var(--k-accent); opacity: .75;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 24'%3E%3Cpath d='M4 18h30a6 6 0 0 0 0-12 7 7 0 0 0-13-1 5 5 0 0 0-8 3 5 5 0 0 0-9 4 3 3 0 0 0 0 6z' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M21 12a3 3 0 1 1 4 3' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 24'%3E%3Cpath d='M4 18h30a6 6 0 0 0 0-12 7 7 0 0 0-13-1 5 5 0 0 0-8 3 5 5 0 0 0-9 4 3 3 0 0 0 0 6z' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M21 12a3 3 0 1 1 4 3' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-end"] { transform: scaleX(-1); }
+
+/* ───────── 云雾：远山 + 雾带渐层；完整动效档下雾带缓缓飘 ───────── */
+[data-k-surface][data-k-effects~="mist"] [data-k-level="bg"] {
+  background-image: radial-gradient(ellipse 60% 18% at 20% 100%, var(--k-yunji-halo), transparent 70%), radial-gradient(ellipse 50% 14% at 85% 96%, var(--k-yunji-mist), transparent 70%), linear-gradient(180deg, transparent 55%, var(--k-yunji-mist));
+  background-size: 200% 100%, 200% 100%, 100% 100%;
+}
+[data-k-surface][data-k-motion="full"][data-k-effects~="mist"] [data-k-level="bg"] { animation: k-yunji-drift 40s linear infinite alternate; }
+@keyframes k-yunji-drift { from { background-position: 0 0, 100% 0, 0 0; } to { background-position: 100% 0, 0 0, 0 0; } }
+/* 祥云装饰开关：容器卡右下角一朵淡云 */
+[data-k-surface][data-k-effects~="cloud"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; right: 8px; bottom: 6px; width: 36px; height: 20px; pointer-events: none; opacity: .18; background: var(--k-accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 24'%3E%3Cpath d='M4 18h30a6 6 0 0 0 0-12 7 7 0 0 0-13-1 5 5 0 0 0-8 3 5 5 0 0 0-9 4 3 3 0 0 0 0 6z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 24'%3E%3Cpath d='M4 18h30a6 6 0 0 0 0-12 7 7 0 0 0-13-1 5 5 0 0 0-8 3 5 5 0 0 0-9 4 3 3 0 0 0 0 6z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+[data-k="spinner"] { border-color: var(--k-yunji-halo); border-top-color: var(--k-accent); box-shadow: 0 0 10px var(--k-yunji-halo); }
+
+/* ───────── 消息正文：刻本宋体，行距放宽；对白青碧，心理描写淡金 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; letter-spacing: .05em; line-height: 1.95; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #23655f; --k-msg-thought: #7f6420; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #8fd6c8; --k-msg-thought: #d9c48a; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="keyword"] { text-shadow: 0 0 10px var(--k-yunji-halo); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 40%; border: 0; height: 14px; background: radial-gradient(ellipse at center, var(--k-yunji-halo), transparent 70%); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 0; box-shadow: 0 0 0 1px var(--k-yunji-mist), 0 0 12px var(--k-yunji-mist); }

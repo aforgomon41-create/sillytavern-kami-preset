@@ -1,0 +1,153 @@
+{
+  "id": "grid",
+  "name": "光栅",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "高科技：洁白实验室 / 深空全息；1px 精密细线、点阵网格、毛玻璃、HUD 角标；打开时线条逐笔描出。",
+  "author": "卡密预设",
+  "credits": "字体 Exo 2（OFL）。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f5f7fa",
+        "accent": "#0a6cd6",
+        "radius": 4,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Exo 2\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#c8323c",
+        "success": "#0f8a5f",
+        "info": "#0a6cd6",
+        "warning": "#a86b00"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#05080d",
+        "accent": "#4cc9f0",
+        "radius": 4,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Exo 2\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff7a85",
+        "success": "#4ce0a0",
+        "info": "#4cc9f0",
+        "warning": "#f5c451"
+      }
+    }
+  },
+  "modules": [
+    "trace"
+  ],
+  "effects": [
+    {
+      "id": "trace",
+      "name": "描线",
+      "description": "打开、切换时线条逐笔描出，按下时四角闪一下。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "dots",
+      "name": "点阵",
+      "description": "表面铺一层精密点阵网格。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "hud",
+      "name": "HUD 角标",
+      "description": "面板四角的定位角标。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

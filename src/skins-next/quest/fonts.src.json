@@ -1,0 +1,13 @@
+[
+ {
+  "pkg": "im-fell-english",
+  "family": "IM Fell English"
+ },
+ {
+  "pkg": "noto-serif-sc",
+  "family": "Noto Serif SC",
+  "weights": [
+   700
+  ]
+ }
+]

@@ -1,0 +1,56 @@
+/* 夜祷 —— 黑暗哥特。深色为主：骨白字 + 血酒红 + 古金 / 浅色象牙手抄本 + 黑墨 + 朱红标题；
+   面板顶部尖拱，细铁艺花纹；正文首字下沉；烛火摇曳的光晕（candle）；按下飘起几点余烬（particles）。 */
+
+:host, [data-k-surface] { --k-fx-glyphs: "· ✝ ·"; --k-fx-drift: up; --k-fx-size: 5px; --k-fx-glow: #e8a64a; --k-fx-alt: #b8323f; }
+[data-k-surface][data-k-scheme="light"] { --k-fx-glow: #b06a1a; --k-fx-alt: #8b1e2d; }
+[data-k-surface] { --k-vigil-gold: #b8964a; --k-vigil-iron: rgba(236, 227, 211, .22); --k-vigil-candle: rgba(232, 166, 74, .14); --k-vigil-blood: #b8323f; }
+[data-k-surface][data-k-scheme="light"] { --k-vigil-gold: #8a6a2a; --k-vigil-iron: rgba(26, 20, 22, .25); --k-vigil-candle: rgba(176, 106, 26, .08); --k-vigil-blood: #8b1e2d; }
+
+/* ───────── 尖拱：面板 / 对话框顶部画一道尖拱线（伪元素）；卡片上沿是一段小尖拱 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 1px solid var(--k-vigil-iron); border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3), 0 24px 60px rgba(0, 0, 0, .5); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 0; justify-content: center; padding-top: var(--k-space-5); }
+[data-k="panel"] > [data-k-part="head"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"]::before {
+  content: ''; position: absolute; left: 50%; top: 2px; width: min(70%, 260px); height: 22px; translate: -50% 0; pointer-events: none; background: var(--k-vigil-gold); opacity: .8;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 22' preserveAspectRatio='none'%3E%3Cpath d='M0 21h70Q90 21 100 1Q110 21 130 21h70' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 22' preserveAspectRatio='none'%3E%3Cpath d='M0 21h70Q90 21 100 1Q110 21 130 21h70' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { color: var(--k-vigil-blood); font-size: 1.25em; letter-spacing: .06em; font-weight: 700; }
+[data-k-surface][data-k-scheme="dark"] [data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k-surface][data-k-scheme="dark"] [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { color: var(--k-on); }
+[data-k="card"] { border: 1px solid var(--k-vigil-iron); border-radius: 50% 50% 2px 2px / 14px 14px 2px 2px; box-shadow: none; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-vigil-blood); box-shadow: inset 0 0 0 1px var(--k-vigil-blood), 0 0 16px var(--k-vigil-candle); }
+
+/* ───────── 按钮：上沿微尖拱 ───────── */
+[data-k="button"] { border-radius: 40% 40% 2px 2px / 8px 8px 2px 2px; letter-spacing: .08em; }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1px var(--k-vigil-gold); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-vigil-iron); }
+[data-k="tabs"] [data-k-part="tab"] { border-radius: 50% 50% 0 0 / 10px 10px 0 0; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: var(--k-accent-soft); border-bottom-color: var(--k-vigil-blood); }
+[data-k="badge"][data-tone="accent"] { box-shadow: inset 0 0 0 1px var(--k-vigil-gold); }
+
+/* ───────── 角饰：十字 + 菱 ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 12px; height: 16px; background: var(--k-vigil-gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M5 0h2v4h4v2H7v10H5V6H1V4h4z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M5 0h2v4h4v2H7v10H5V6H1V4h4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 烛光：背景下方一团暖光；完整动效档下摇曳 ───────── */
+[data-k-surface][data-k-effects~="candle"] [data-k-level="bg"] { background-image: radial-gradient(ellipse 80% 50% at 50% 110%, var(--k-vigil-candle), transparent 70%); }
+[data-k-surface][data-k-motion="full"][data-k-effects~="candle"] [data-k-level="bg"] { animation: k-vigil-flicker 3.2s ease-in-out infinite; }
+@keyframes k-vigil-flicker { 0%, 100% { background-size: 100% 100%; } 30% { background-size: 104% 96%; } 55% { background-size: 98% 103%; } 80% { background-size: 102% 99%; } }
+/* 拱窗开关：容器卡顶上一枚小玫瑰窗 */
+[data-k-surface][data-k-effects~="arch"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; left: 50%; top: -1px; width: 12px; height: 12px; translate: -50% -50%; border-radius: 50%; pointer-events: none; background: var(--k-bg); border: 1px solid var(--k-vigil-gold); box-shadow: inset 0 0 0 2px var(--k-bg), inset 0 0 0 3px var(--k-vigil-blood); }
+
+[data-k="spinner"] { border-color: var(--k-vigil-iron); border-top-color: var(--k-vigil-blood); }
+
+/* ───────── 消息正文：粗宋；首字下沉（dropcap 开关）；对白骨白，心理描写暗金斜体 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, Georgia, serif; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #ece3d3; --k-msg-thought: #c9a35a; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #1a1416; --k-msg-thought: #7d5a1c; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="name"], [data-k-content] [data-k-part="keyword"] { color: var(--k-vigil-blood); }
+[data-k-surface][data-k-scheme="dark"] [data-k-content] [data-k-part="name"], [data-k-surface][data-k-scheme="dark"] [data-k-content] [data-k-part="keyword"] { color: #e07a84; }
+[data-k-surface][data-k-effects~="dropcap"] [data-k-content="body"] > p:first-of-type::first-letter { -webkit-initial-letter: 2; initial-letter: 2; margin-right: .12em; font-weight: 900; color: var(--k-vigil-blood); }
+[data-k-surface][data-k-scheme="dark"][data-k-effects~="dropcap"] [data-k-content="body"] > p:first-of-type::first-letter { color: #e07a84; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 12px; height: 12px; border: 0; background: var(--k-vigil-gold); opacity: .7;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M5 0h2v4h4v2H7v10H5V6H1V4h4z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M5 0h2v4h4v2H7v10H5V6H1V4h4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid var(--k-vigil-iron); border-radius: 2px; }

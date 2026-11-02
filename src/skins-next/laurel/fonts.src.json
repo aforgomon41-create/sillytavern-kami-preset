@@ -1,0 +1,16 @@
+[
+ {
+  "pkg": "cinzel",
+  "family": "Cinzel",
+  "weights": [
+   600
+  ]
+ },
+ {
+  "pkg": "noto-serif-sc",
+  "family": "Noto Serif SC",
+  "weights": [
+   600
+  ]
+ }
+]

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>世界观系列 · 皮肤预览</title>
+<style>
+  /* 两种模式共用一页：没有 ?skin= 是总览（每款一行，浅色 / 深色两个缩略窗）；?skin=<id> 是单款（模拟酒馆聊天页 + 真的显示面板）。
+     单款模式照消息预览模拟酒馆结构（#chat > .mes[mesid] > .mes_block > .mes_text），敌意样式照样带着验证隔离 */
+  html, body { margin: 0; height: 100%; }
+  body { background: #2b2b2e; color: #dcdcd2; font-family: "Courier New", monospace; font-size: 15px; }
+  body.single { display: flex; flex-direction: column; }
+  body.single button { background: rgb(255, 0, 0) !important; color: yellow !important; }
+  body.single p { margin: 2em 0 !important; color: magenta; }
+  #top { flex: none; height: 44px; border-bottom: 1px solid #444; display: flex; align-items: center; padding: 0 12px; gap: 12px; }
+  #top a { color: #9cf; }
+  #chat { flex: 1 1 auto; overflow-y: auto; padding: 12px 10px 24px; }
+  body.embed #top { display: none; }
+  body.embed #chat { width: 600px; flex: 1 1 auto; }
+  .mes { display: flex; gap: 10px; padding: 12px 8px; border-bottom: 1px solid #3a3a3e; }
+  .avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #555; }
+  .mes[is_user="true"] .avatar { background: #4a5d6e; }
+  .mes_block { flex: 1 1 auto; min-width: 0; }
+  .ch_name { font-weight: bold; margin-bottom: 6px; opacity: .85; }
+  .mes_text { line-height: 1.6; }
+
+  /* 总览 */
+  #gallery { max-width: 1360px; margin: 0 auto; padding: 16px 16px 48px; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #gallery h1 { font-size: 20px; margin: 8px 0 4px; }
+  #gallery .lead { color: #aaa; font-size: 13px; margin: 0 0 12px; line-height: 1.6; }
+  #gallery .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  #gallery .bar button { font: inherit; padding: 4px 12px; border-radius: 6px; border: 1px solid #555; background: #333; color: #ddd; cursor: pointer; }
+  #gallery .bar button[aria-pressed="true"] { background: #ddd; color: #222; }
+  .row { border-top: 1px solid #444; padding: 16px 0; }
+  .row h2 { font-size: 16px; margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .row h2 small { color: #999; font-weight: normal; font-size: 12px; }
+  .row h2 a { color: #9cf; font-size: 12px; font-weight: normal; }
+  .row p { color: #aaa; font-size: 13px; margin: 4px 0 10px; }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .shot { position: relative; aspect-ratio: 1280 / 760; overflow: hidden; border-radius: 8px; background: #222; }
+  .shot iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 760px; border: 0; transform-origin: 0 0; }
+  .shot span { position: absolute; left: 8px; bottom: 6px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <script src="./preview.js"></script>
+</body>
+</html>

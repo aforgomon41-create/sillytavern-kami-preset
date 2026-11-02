@@ -1,0 +1,49 @@
+/* 江湖 —— 武侠。宣纸 + 浓墨 + 朱砂；直角，边框是粗犷的笔刷痕，徽章是方形朱印；
+   打开时墨晕扩散、按下溅墨（ink），场景转换是一道斜刀光。与碎光区别：粗犷、高对比。 */
+
+:host, [data-k-surface] { --k-fx-ink: #1d1b18; --k-fx-glow: var(--k-accent); --k-fx-size: 7px; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-ink: #e8dfcc; }
+[data-k-surface] { --k-jh-ink: #1d1b18; --k-jh-wash: rgba(29, 27, 24, .06); --k-jh-cinnabar: #b8322a; }
+[data-k-surface][data-k-scheme="dark"] { --k-jh-ink: #e8dfcc; --k-jh-wash: rgba(232, 223, 204, .05); --k-jh-cinnabar: #e0604c; }
+
+/* ───────── 笔刷边：上下各一道粗细不匀的墨痕（遮罩画形） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-radius: 0; border: 0; box-shadow: 0 0 0 1px var(--k-jh-wash), var(--k-shadow-3); }
+[data-k="card"] { border-radius: 0; border: 0; border-left: 3px solid var(--k-jh-ink); box-shadow: none; background-image: linear-gradient(90deg, var(--k-jh-wash), transparent 40%); }
+[data-k="card"][data-role="choice"] { border-left-color: var(--k-jh-wash); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-left-color: var(--k-jh-cinnabar); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 0; }
+[data-k="panel"] > [data-k-part="head"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"]::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 5px; pointer-events: none; background: var(--k-jh-ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3.2C20 1 40 4.6 70 2.4s60 2.8 90 .6c18-1 30 1.6 40 2.2L198 5C160 6 120 3.6 90 5S20 4.8 0 3.2z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3.2C20 1 40 4.6 70 2.4s60 2.8 90 .6c18-1 30 1.6 40 2.2L198 5C160 6 120 3.6 90 5S20 4.8 0 3.2z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-size: 1.3em; font-weight: 400; letter-spacing: .08em; }
+
+/* ───────── 按钮：直角、墨块；按下时一顿 ───────── */
+[data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"] { border-radius: 0; }
+[data-k="button"] { font-weight: 700; letter-spacing: .1em; }
+[data-k="button"][data-variant="primary"] { background: var(--k-jh-ink); color: var(--k-bg); border-color: var(--k-jh-ink); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translate(1px, 1px); }
+[data-k="switch"], [data-k="switch"] [data-k-part="thumb"], [data-k="checkbox"] { border-radius: 0; }
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: transparent; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom: 3px solid var(--k-jh-ink); font-weight: 700; }
+/* 方形朱印徽章 */
+[data-k="badge"] { border-radius: 0; }
+[data-k="badge"][data-tone="accent"] { background: var(--k-jh-cinnabar); color: #fff8ef; box-shadow: inset 0 0 0 2px rgba(255, 248, 239, .5); }
+
+/* ───────── 朱印角饰 ───────── */
+[data-k-surface][data-k-effects~="seal"] [data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 16px; height: 16px; background: var(--k-jh-cinnabar); box-shadow: inset 0 0 0 2px var(--k-bg), inset 0 0 0 3px var(--k-jh-cinnabar); }
+[data-k-surface][data-k-effects~="seal"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; right: 10px; bottom: 10px; width: 14px; height: 14px; background: var(--k-jh-cinnabar); opacity: .75; pointer-events: none; }
+/* 笔刷开关：背景一片淡墨晕 */
+[data-k-surface][data-k-effects~="brush"] [data-k-level="bg"] { background-image: radial-gradient(ellipse 70% 40% at 100% 0, var(--k-jh-wash), transparent 70%), radial-gradient(ellipse 50% 30% at 0 100%, var(--k-jh-wash), transparent 70%); }
+
+[data-k="spinner"] { border-radius: 0; border-color: var(--k-jh-wash); border-top-color: var(--k-jh-ink); }
+
+/* ───────── 消息正文：楷体；对白浓墨加粗，心理描写淡墨；场景转换是一道斜刀光 ───────── */
+[data-k-content="body"] > * { font-family: "Kaiti SC", STKaiti, KaiTi, "楷体", "AR PL UKai CN", "Noto Serif CJK SC", serif; font-size: 1.05em; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #1d1b18; --k-msg-thought: #6a6358; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #f1e8d6; --k-msg-thought: #a89f90; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 700; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="name"], [data-k-content] [data-k-part="keyword"] { color: var(--k-jh-cinnabar); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 70%; border: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--k-jh-ink) 30%, var(--k-jh-ink) 70%, transparent); transform: rotate(-4deg); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 0; border-left: 3px solid var(--k-jh-ink); border-radius: 0; }

@@ -1,0 +1,153 @@
+{
+  "id": "rust",
+  "name": "锈土",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "末日废土：沙尘、锈橙、警示黄；铁皮铆钉、胶带修补、磨损边；灯光不稳地闪，尘土飘落。",
+  "author": "卡密预设",
+  "credits": "字体 Rubik Dirt（OFL）；铁锈与铆钉为 CSS 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#d9c7a6",
+        "accent": "#9c4414",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Rubik Dirt\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#9c2414",
+        "success": "#4a6a2a",
+        "info": "#3a5566",
+        "warning": "#8a6a00"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#1c1814",
+        "accent": "#e07a3a",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Rubik Dirt\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff7a5a",
+        "success": "#a8c46a",
+        "info": "#8fb3c4",
+        "warning": "#f2c94c"
+      }
+    }
+  },
+  "modules": [
+    "particles"
+  ],
+  "effects": [
+    {
+      "id": "flicker",
+      "name": "坏灯",
+      "description": "面板标题偶尔像接触不良的灯一样闪一下。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "尘土",
+      "description": "打开、按下时有尘土落下。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "rivets",
+      "name": "铆钉",
+      "description": "面板与卡片四角钉上铆钉。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

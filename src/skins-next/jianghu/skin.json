@@ -1,0 +1,153 @@
+{
+  "id": "jianghu",
+  "name": "江湖",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "武侠：宣纸、浓墨、朱砂印；粗犷的笔刷边、方形朱印、刀光分隔；打开时墨晕扩散，按下溅墨。",
+  "author": "卡密预设",
+  "credits": "字体 Ma Shan Zheng（马善政毛笔楷书，OFL）；笔刷边为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f2ede2",
+        "accent": "#b8322a",
+        "radius": 0,
+        "elevation": "flat",
+        "font": {
+          "heading": "\"Ma Shan Zheng\", \"Kaiti SC\", STKaiti, KaiTi, \"楷体\", \"AR PL UKai CN\", serif",
+          "body": "\"Kaiti SC\", STKaiti, KaiTi, \"楷体\", \"AR PL UKai CN\", serif"
+        },
+        "danger": "#a8261f",
+        "success": "#3f6a3a",
+        "info": "#33536b",
+        "warning": "#8a5a14"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#15130f",
+        "accent": "#e0604c",
+        "radius": 0,
+        "elevation": "flat",
+        "font": {
+          "heading": "\"Ma Shan Zheng\", \"Kaiti SC\", STKaiti, KaiTi, \"楷体\", \"AR PL UKai CN\", serif",
+          "body": "\"Kaiti SC\", STKaiti, KaiTi, \"楷体\", \"AR PL UKai CN\", serif"
+        },
+        "danger": "#f07f6c",
+        "success": "#9cc28a",
+        "info": "#9ab8cf",
+        "warning": "#e2b26a"
+      }
+    }
+  },
+  "modules": [
+    "ink"
+  ],
+  "effects": [
+    {
+      "id": "ink",
+      "name": "墨晕",
+      "description": "打开时墨晕扩散，按下时溅墨。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "brush",
+      "name": "笔刷边",
+      "description": "面板与卡片的边是一笔刷出来的墨痕。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "seal",
+      "name": "朱印",
+      "description": "面板标题前盖一方朱印。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

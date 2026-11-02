@@ -1,0 +1,13 @@
+[
+ {
+  "pkg": "orbitron",
+  "family": "Orbitron",
+  "weights": [
+   700
+  ]
+ },
+ {
+  "pkg": "share-tech-mono",
+  "family": "Share Tech Mono"
+ }
+]

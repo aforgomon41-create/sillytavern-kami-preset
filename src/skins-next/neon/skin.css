@@ -1,0 +1,53 @@
+/* 霓虹 —— 赛博朋克。深色为主：品红 + 青 + 关键词黄；45° 切角、错位描边、扫描线、标题色差；
+   汉字招牌感、警示条纹；打开 / 按下时故障闪烁（glitch）。 */
+
+:host, [data-k-surface] { --k-fx-glow: #ff2e88; --k-fx-alt: #00e5ff; --k-fx-size: 6px; }
+[data-k-surface][data-k-scheme="light"] { --k-fx-glow: #c4006a; --k-fx-alt: #007e8c; }
+[data-k-surface] { --k-neon-cyan: #00e5ff; --k-neon-yellow: #f5e600; --k-neon-scan: rgba(255, 255, 255, .035); }
+[data-k-surface][data-k-scheme="light"] { --k-neon-cyan: #008a99; --k-neon-yellow: #f5e600; --k-neon-scan: rgba(0, 0, 0, .04); }
+
+/* ───────── 切角 + 错位描边（描边用伪元素画在右下偏移 3px 处） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-radius: 0; border: 1px solid var(--k-accent); box-shadow: 4px 4px 0 -1px var(--k-neon-cyan), 0 0 30px color-mix(in srgb, var(--k-accent) 25%, transparent); clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+[data-k="card"] { border-radius: 0; border: 1px solid color-mix(in srgb, var(--k-accent) 40%, transparent); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-neon-cyan); box-shadow: inset 0 0 12px color-mix(in srgb, var(--k-neon-cyan) 30%, transparent); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-accent); }
+/* 标题色差 */
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { text-transform: uppercase; letter-spacing: .12em; text-shadow: -1.5px 0 var(--k-accent), 1.5px 0 var(--k-neon-cyan); }
+
+/* ───────── 按钮：切角、发光；按下时整块抖一下 ───────── */
+[data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"] { border-radius: 0; }
+[data-k="button"] { text-transform: uppercase; letter-spacing: .1em; font-family: "Share Tech Mono", var(--k-font-mono); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
+[data-k="button"][data-variant="primary"] { box-shadow: 0 0 14px color-mix(in srgb, var(--k-accent) 60%, transparent); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateX(-1px); filter: hue-rotate(40deg) brightness(1.2); }
+[data-k="switch"], [data-k="switch"] [data-k-part="thumb"], [data-k="checkbox"], [data-k="badge"] { border-radius: 0; }
+[data-k="switch"][data-state="checked"] { box-shadow: 0 0 10px var(--k-accent); }
+[data-k="badge"] { font-family: "Share Tech Mono", var(--k-font-mono); }
+[data-k="badge"][data-tone="accent"] { background: var(--k-neon-yellow); color: #111; }
+[data-k="tabs"] [data-k-part="tab"] { font-family: "Share Tech Mono", var(--k-font-mono); text-transform: uppercase; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom: 2px solid var(--k-neon-cyan); color: var(--k-on); text-shadow: 0 0 8px var(--k-neon-cyan); }
+[data-k="slider"] [data-k-part="range"], [data-k="progress"] [data-k-part="indicator"] { box-shadow: 0 0 8px var(--k-accent); }
+
+/* ───────── 招牌角标：「電」字霓虹灯，完整动效档下偶尔闪断 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; font: 700 13px/1 var(--k-font-heading); color: var(--k-neon-cyan); text-shadow: 0 0 6px var(--k-neon-cyan); }
+[data-k-ornament="panel-head-start"]::before { content: '電'; }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 34px; height: 8px; background: repeating-linear-gradient(-45deg, var(--k-neon-yellow) 0 4px, transparent 4px 8px); }
+[data-k-surface][data-k-motion="full"] [data-k-ornament="panel-head-start"] { animation: k-neon-flick 5s steps(1) infinite; }
+@keyframes k-neon-flick { 0%, 100% { opacity: 1; } 91% { opacity: .2; } 92% { opacity: 1; } 94% { opacity: .35; } 95% { opacity: 1; } }
+
+/* ───────── 扫描线 ───────── */
+[data-k-surface][data-k-effects~="scanlines"] [data-k-level="bg"] { background-image: repeating-linear-gradient(0deg, var(--k-neon-scan) 0 1px, transparent 1px 3px); }
+/* 警示条纹：容器卡左上一截黄黑条 */
+[data-k-surface][data-k-effects~="hazard"] [data-k="card"][data-role="container"]::before { content: ''; position: absolute; left: 0; top: 0; width: 46px; height: 4px; pointer-events: none; background: repeating-linear-gradient(-45deg, var(--k-neon-yellow) 0 4px, #111 4px 8px); }
+
+[data-k="spinner"] { border-radius: 0; border-color: transparent; border-top-color: var(--k-accent); border-right-color: var(--k-neon-cyan); }
+
+/* ───────── 消息正文：对白青、心理描写品红、关键词黄底 ───────── */
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #00e5ff; --k-msg-thought: #ff6fb0; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #00707f; --k-msg-thought: #b0005f; }
+[data-k-content] [data-k-part="keyword"] { background: var(--k-neon-yellow); color: #111; padding: 0 .2em; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="term"] { font-family: "Share Tech Mono", var(--k-font-mono); text-decoration: none; border-bottom: 1px dashed var(--k-neon-cyan); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 6px; background: repeating-linear-gradient(-45deg, var(--k-accent) 0 3px, transparent 3px 9px); opacity: .6; }
+[data-k-content] [data-k-part="caret"] { box-shadow: 0 0 8px var(--k-accent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 1px solid color-mix(in srgb, var(--k-neon-cyan) 40%, transparent); }

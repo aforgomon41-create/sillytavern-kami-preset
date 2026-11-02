@@ -1,0 +1,166 @@
+{
+  "id": "yunji",
+  "name": "云笈",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "修仙：月白与玉青、无硬边的柔光卡片、远山云雾、祥云角饰、玉牌徽章；灵气粒子缓缓上升。",
+  "author": "卡密预设",
+  "credits": "字体 ZCOOL XiaoWei（站酷小薇体，OFL）；云纹为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f4f6f3",
+        "accent": "#2f7a74",
+        "radius": 14,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"ZCOOL XiaoWei\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#b4473c",
+        "success": "#3f8a5a",
+        "info": "#3f6f9a",
+        "warning": "#9a7a2a"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#141a1c",
+        "accent": "#8fd6c8",
+        "radius": 14,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"ZCOOL XiaoWei\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#ef9a8a",
+        "success": "#9fd9a8",
+        "info": "#9fc3e6",
+        "warning": "#e6d08a"
+      }
+    }
+  },
+  "modules": [
+    "particles"
+  ],
+  "effects": [
+    {
+      "id": "particles",
+      "name": "灵气",
+      "description": "打开、展开时有灵光缓缓上升。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "mist",
+      "name": "云雾",
+      "description": "面板底部一层远山云雾。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "cloud",
+      "name": "祥云",
+      "description": "面板标题前一朵祥云。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 14,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

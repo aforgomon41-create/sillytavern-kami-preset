@@ -1,0 +1,13 @@
+[
+ {
+  "pkg": "zcool-qingke-huangyou",
+  "family": "ZCOOL QingKe HuangYou"
+ },
+ {
+  "pkg": "rajdhani",
+  "family": "Rajdhani",
+  "weights": [
+   600
+  ]
+ }
+]

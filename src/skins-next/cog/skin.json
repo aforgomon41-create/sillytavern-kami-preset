@@ -1,0 +1,153 @@
+{
+  "id": "cog",
+  "name": "齿轮",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "蒸汽朋克：黄铜、深色木头、奶油纸；铆接的黄铜边框、齿轮角饰、压力表进度条；齿轮转动、冒蒸汽。",
+  "author": "卡密预设",
+  "credits": "字体 Rye（OFL）；齿轮为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f1e6cf",
+        "accent": "#8a5a1c",
+        "radius": 8,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Rye\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#9a2f1f",
+        "success": "#4a6a2f",
+        "info": "#2f5a6a",
+        "warning": "#8a5a00"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#1d1712",
+        "accent": "#d9a24a",
+        "radius": 8,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Rye\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#e8866a",
+        "success": "#a8c47a",
+        "info": "#8fbccc",
+        "warning": "#f0c060"
+      }
+    }
+  },
+  "modules": [
+    "particles"
+  ],
+  "effects": [
+    {
+      "id": "particles",
+      "name": "蒸汽",
+      "description": "打开、按下时冒出几缕蒸汽。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "gear",
+      "name": "齿轮",
+      "description": "面板标题前一枚慢慢转动的齿轮。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "brass",
+      "name": "黄铜边",
+      "description": "面板与卡片包一圈铆接的黄铜边。",
+      "group": "质感",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

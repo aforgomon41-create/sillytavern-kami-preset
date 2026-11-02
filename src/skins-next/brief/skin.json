@@ -1,0 +1,163 @@
+{
+  "id": "brief",
+  "name": "简报",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "军事战术：作战简报——卡其档案纸 / 夜视仪黑绿、模板喷漆字、坐标网格、刻度尺、机密印章；雷达扫描。",
+  "author": "卡密预设",
+  "credits": "字体 Black Ops One（OFL）、IBM Plex Mono（OFL）。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#e6e2d3",
+        "accent": "#4b5d33",
+        "radius": 0,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Black Ops One\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "mono": "\"IBM Plex Mono\", ui-monospace, monospace"
+        },
+        "danger": "#a8341c",
+        "success": "#3f6a2a",
+        "info": "#3a5566",
+        "warning": "#a85a10"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#121611",
+        "accent": "#7fd66b",
+        "radius": 0,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Black Ops One\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "mono": "\"IBM Plex Mono\", ui-monospace, monospace"
+        },
+        "danger": "#ff8a6a",
+        "success": "#7fd66b",
+        "info": "#8fc7c0",
+        "warning": "#e8b35a"
+      }
+    }
+  },
+  "modules": [
+    "scan",
+    "trace"
+  ],
+  "effects": [
+    {
+      "id": "scan",
+      "name": "雷达",
+      "description": "打开时雷达扫过，按下时一圈回波。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "trace",
+      "name": "描边",
+      "description": "页签与面板边框逐段描出。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "grid",
+      "name": "坐标网格",
+      "description": "表面铺一层坐标网格。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "stamp",
+      "name": "机密章",
+      "description": "面板标题旁一枚「机密」印章。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

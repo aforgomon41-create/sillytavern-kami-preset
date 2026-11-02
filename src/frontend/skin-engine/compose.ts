@@ -30,6 +30,8 @@ export interface ComposedSkin {
   /** 渲染面根上的属性 */
   attrs: Record<string, string>;
   corrections: Correction[];
+  /** 解析出的颜色令牌（不带 --k- 前缀；构建检查用） */
+  tokens: Record<string, string>;
 }
 
 export interface ComposeOptions {
@@ -93,7 +95,7 @@ export function composeSkin(m: SkinManifest, settings: SkinSettings, opts: Compo
   const effects = settings.effects ?? (m.effects || []).filter((f) => f.default).map((f) => f.id);
   const known = new Set((m.effects || []).map((f) => f.id));
   return {
-    scheme, mode, css, corrections: colors.corrections,
+    scheme, mode, css, corrections: colors.corrections, tokens: colors.tokens as Record<string, string>,
     attrs: {
       'data-k-skin': m.id, 'data-k-scheme': scheme, 'data-k-mode': mode, 'data-k-density': settings.density, 'data-k-motion': settings.motion,
       'data-k-effects': effects.filter((x) => known.has(x)).join(' ')

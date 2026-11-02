@@ -1,0 +1,53 @@
+/* 齿轮 —— 蒸汽朋克。黄铜 + 深色木头 + 奶油纸 / 烟熏黑 + 黄铜；维多利亚衬线；铆接的黄铜边框；
+   齿轮角饰（完整动效档下慢慢转），进度条做成压力表色；按下冒一小股蒸汽（particles，drift up）。 */
+
+:host, [data-k-surface] { --k-fx-glyphs: "○ ◦ ○"; --k-fx-drift: up; --k-fx-size: 9px; --k-fx-glow: #c9b8a0; --k-fx-alt: #b0803a; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #e8dccb; --k-fx-alt: #d9a24a; }
+[data-k-surface] { --k-cog-brass: #b0803a; --k-cog-brass-hi: #e8c27a; --k-cog-brass-lo: #6e4c1c; --k-cog-wood: rgba(90, 58, 30, .06); }
+[data-k-surface][data-k-scheme="dark"] { --k-cog-brass: #b88a40; --k-cog-brass-hi: #e8c27a; --k-cog-brass-lo: #5a3e16; --k-cog-wood: rgba(217, 162, 74, .04); }
+
+/* ───────── 黄铜边框：渐变描出金属的高光与暗面 + 四角铆钉 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 4px solid transparent; border-radius: 6px; border-image: linear-gradient(135deg, var(--k-cog-brass-hi), var(--k-cog-brass) 40%, var(--k-cog-brass-lo) 70%, var(--k-cog-brass)) 1; box-shadow: 0 16px 40px rgba(0, 0, 0, .3); }
+[data-k="card"] { border: 1.5px solid var(--k-cog-brass); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 1px 0 var(--k-cog-brass-lo);
+  background-image: radial-gradient(circle, var(--k-cog-brass) 1.8px, transparent 2.3px), radial-gradient(circle, var(--k-cog-brass) 1.8px, transparent 2.3px), radial-gradient(circle, var(--k-cog-brass) 1.8px, transparent 2.3px), radial-gradient(circle, var(--k-cog-brass) 1.8px, transparent 2.3px);
+  background-size: 6px 6px; background-repeat: no-repeat; background-position: 4px 4px, calc(100% - 4px) 4px, 4px calc(100% - 4px), calc(100% - 4px) calc(100% - 4px); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); box-shadow: inset 0 0 0 1px var(--k-accent), 0 0 10px color-mix(in srgb, var(--k-cog-brass) 40%, transparent); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1.5px solid var(--k-cog-brass); background: linear-gradient(180deg, color-mix(in srgb, var(--k-cog-brass) 14%, transparent), transparent); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-weight: 400; letter-spacing: .05em; }
+
+/* ───────── 按钮：黄铜铭牌 ───────── */
+[data-k="button"] { border-radius: 4px; font-family: var(--k-font-heading); letter-spacing: .05em; border-color: var(--k-cog-brass); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 2px 0 var(--k-cog-brass-lo); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .3); }
+[data-k="switch"] { box-shadow: inset 0 0 0 1.5px var(--k-cog-brass); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle at 35% 35%, var(--k-cog-brass-hi), var(--k-cog-brass) 55%, var(--k-cog-brass-lo)); }
+[data-k="slider"] [data-k-part="thumb"] { background: radial-gradient(circle at 35% 35%, var(--k-cog-brass-hi), var(--k-cog-brass) 55%, var(--k-cog-brass-lo)); border-color: var(--k-cog-brass-lo); }
+/* 压力表：进度条从绿到红 */
+[data-k="progress"] [data-k-part="indicator"] { background-image: linear-gradient(90deg, #4f8a3a, #c9a12a 60%, #b5361f); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1.5px solid var(--k-cog-brass); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom: 3px double var(--k-cog-brass); }
+[data-k="badge"][data-tone="accent"] { box-shadow: inset 0 0 0 1px var(--k-cog-brass-hi); }
+
+/* ───────── 齿轮角饰（brass/gear 开关下才转） ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 18px; height: 18px; background: var(--k-cog-brass);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M10 1h4l.6 3 2.2.9 2.6-1.7 2.8 2.8-1.7 2.6.9 2.2 3 .6v4l-3 .6-.9 2.2 1.7 2.6-2.8 2.8-2.6-1.7-2.2.9-.6 3h-4l-.6-3-2.2-.9-2.6 1.7-2.8-2.8 1.7-2.6L4 14.6l-3-.6v-4l3-.6.9-2.2-1.7-2.6L6 1.8l2.6 1.7L10.8 2.6zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M10 1h4l.6 3 2.2.9 2.6-1.7 2.8 2.8-1.7 2.6.9 2.2 3 .6v4l-3 .6-.9 2.2 1.7 2.6-2.8 2.8-2.6-1.7-2.2.9-.6 3h-4l-.6-3-2.2-.9-2.6 1.7-2.8-2.8 1.7-2.6L4 14.6l-3-.6v-4l3-.6.9-2.2-1.7-2.6L6 1.8l2.6 1.7L10.8 2.6zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-end"] { width: 13px; height: 13px; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="gear"] [data-k-ornament="panel-head-start"] { animation: k-cog-spin 12s linear infinite; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="gear"] [data-k-ornament="panel-head-end"] { animation: k-cog-spin 8s linear infinite reverse; }
+@keyframes k-cog-spin { to { transform: rotate(360deg); } }
+/* 黄铜开关：背景一层木纹 */
+[data-k-surface][data-k-effects~="brass"] [data-k-level="bg"] { background-image: repeating-linear-gradient(92deg, var(--k-cog-wood) 0 2px, transparent 2px 9px, var(--k-cog-wood) 9px 10px, transparent 10px 23px); }
+
+[data-k="spinner"] { border-style: dashed; border-width: 3px; border-color: var(--k-cog-brass); }
+
+/* ───────── 消息正文：维多利亚书页 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, Georgia, serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #7a4e14; --k-msg-thought: #5a4a3a; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #e2ad55; --k-msg-thought: #c4ad92; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="name"] { font-variant: small-caps; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 18px; height: 18px; border: 0; background: var(--k-cog-brass); opacity: .7;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M10 1h4l.6 3 2.2.9 2.6-1.7 2.8 2.8-1.7 2.6.9 2.2 3 .6v4l-3 .6-.9 2.2 1.7 2.6-2.8 2.8-2.6-1.7-2.2.9-.6 3h-4l-.6-3-2.2-.9-2.6 1.7-2.8-2.8 1.7-2.6L4 14.6l-3-.6v-4l3-.6.9-2.2-1.7-2.6L6 1.8l2.6 1.7L10.8 2.6zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M10 1h4l.6 3 2.2.9 2.6-1.7 2.8 2.8-1.7 2.6.9 2.2 3 .6v4l-3 .6-.9 2.2 1.7 2.6-2.8 2.8-2.6-1.7-2.2.9-.6 3h-4l-.6-3-2.2-.9-2.6 1.7-2.8-2.8 1.7-2.6L4 14.6l-3-.6v-4l3-.6.9-2.2-1.7-2.6L6 1.8l2.6 1.7L10.8 2.6zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1.5px solid var(--k-cog-brass); border-radius: 4px; }

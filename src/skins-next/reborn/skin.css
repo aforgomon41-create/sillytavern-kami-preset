@@ -1,0 +1,55 @@
+/* 转生 —— 异世界轻小说。半透明的游戏「状态窗」：四角括号、标题像【状态】、数字等宽；
+   窗口弹出时一道光扫过（scan），按下迸出菱形水晶（particles）；专有名词做成系统提示框。 */
+
+:host, [data-k-surface] { --k-fx-glyphs: "◆ ◇ ✧"; --k-fx-drift: out; --k-fx-size: 7px; --k-fx-glow: #5fb2ff; --k-fx-alt: #f5b82e; --k-fx-dir: down; }
+[data-k-surface] { --k-reborn-frame: rgba(36, 104, 224, .55); --k-reborn-glass: rgba(255, 255, 255, .55); --k-reborn-rare: #c98a0c; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #8fd0ff; --k-reborn-frame: rgba(95, 178, 255, .6); --k-reborn-glass: rgba(20, 34, 60, .55); --k-reborn-rare: #f5b82e; }
+
+/* ───────── 状态窗：细蓝框 + 四角加粗的括号（用 4 段渐变画角） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="card"] {
+  border: 1px solid var(--k-reborn-frame);
+  background-image:
+    linear-gradient(var(--k-accent), var(--k-accent)), linear-gradient(var(--k-accent), var(--k-accent)),
+    linear-gradient(var(--k-accent), var(--k-accent)), linear-gradient(var(--k-accent), var(--k-accent)),
+    linear-gradient(var(--k-accent), var(--k-accent)), linear-gradient(var(--k-accent), var(--k-accent)),
+    linear-gradient(var(--k-accent), var(--k-accent)), linear-gradient(var(--k-accent), var(--k-accent));
+  background-repeat: no-repeat;
+  background-size: 12px 2px, 2px 12px, 12px 2px, 2px 12px, 12px 2px, 2px 12px, 12px 2px, 2px 12px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+}
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { box-shadow: 0 0 0 1px var(--k-reborn-glass), 0 0 24px color-mix(in srgb, var(--k-fx-glow) 30%, transparent), var(--k-shadow-3); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-reborn-frame); background: linear-gradient(90deg, var(--k-accent-soft), transparent 70%); }
+/* 标题包成【】 */
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"]::before { content: '【'; color: var(--k-accent); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"]::after { content: '】'; color: var(--k-accent); }
+[data-k="card"] > [data-k-part="head"] > [data-k-part="title"] { font-family: var(--k-font-heading); letter-spacing: .04em; }
+
+/* ───────── 按钮：硬朗的切角小窗 ───────── */
+[data-k="button"] { border-radius: 2px; font-weight: 700; letter-spacing: .06em; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { filter: brightness(1.15); transform: scale(.97); }
+[data-k="progress"] { border-radius: 0; }
+[data-k="progress"] [data-k-part="indicator"] { background-image: repeating-linear-gradient(90deg, transparent 0 9px, rgba(255, 255, 255, .45) 9px 10px); }
+[data-k="slider"] [data-k-part="value"], [data-k="badge"] { font-variant-numeric: tabular-nums; font-family: "Rajdhani", var(--k-font-mono); font-weight: 600; }
+/* 稀有度金：强调徽章 */
+[data-k="badge"][data-tone="accent"] { box-shadow: inset 0 0 0 1px var(--k-reborn-rare); }
+
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-reborn-frame); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: linear-gradient(transparent 55%, var(--k-accent-soft)); }
+
+/* ───────── 菱形水晶角饰 ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 8px; height: 8px; background: var(--k-accent); transform: rotate(45deg); box-shadow: 0 0 8px var(--k-fx-glow); }
+[data-k-ornament="panel-head-end"] { background: var(--k-reborn-rare); box-shadow: 0 0 8px var(--k-reborn-rare); }
+[data-k-surface][data-k-motion="full"] [data-k-ornament="panel-head-start"] { animation: k-reborn-pulse 2.6s ease-in-out infinite; }
+@keyframes k-reborn-pulse { 0%, 100% { box-shadow: 0 0 4px var(--k-fx-glow); } 50% { box-shadow: 0 0 14px var(--k-fx-glow); } }
+
+/* ───────── 括号装饰开关：卡片右上一个「▼」系统标 ───────── */
+[data-k-surface][data-k-effects~="brackets"] [data-k="card"][data-role="container"]::after { content: 'SYS'; position: absolute; right: 8px; top: 4px; font: 600 9px/1 "Rajdhani", var(--k-font-mono); letter-spacing: .2em; color: var(--k-accent); opacity: .7; pointer-events: none; }
+
+/* ───────── 消息正文：专有名词 = 系统提示框 ───────── */
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #1c5bc9; --k-msg-thought: #5a6478; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #7cc4ff; --k-msg-thought: #a9b6cc; }
+[data-k-content] [data-k-part="term"] { padding: 0 .35em; border: 1px solid var(--k-reborn-frame); background: var(--k-accent-soft); border-radius: 2px; text-decoration: none; }
+[data-k-content] [data-k-part="keyword"] { color: var(--k-reborn-rare); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 50%; border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--k-accent), transparent); box-shadow: 0 0 6px var(--k-fx-glow); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid var(--k-reborn-frame); border-radius: 0; }

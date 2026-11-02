@@ -1,0 +1,51 @@
+/* 简报 —— 军事战术。卡其档案纸 / 夜视仪黑绿；直角，页签像档案夹标签，底是坐标网格，分隔线是刻度尺；
+   「机密」印章、十字准星角标；打开时雷达扫过（scan），描边由角落绕一圈（trace）。 */
+
+:host, [data-k-surface] { --k-fx-glow: #4b5d33; --k-fx-dir: down; --k-fx-trace: corner; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #7fd66b; }
+[data-k-surface] { --k-brief-line: rgba(75, 93, 51, .5); --k-brief-grid: rgba(75, 93, 51, .09); --k-brief-stamp: #b5361f; --k-brief-orange: #c86a14; }
+[data-k-surface][data-k-scheme="dark"] { --k-brief-line: rgba(127, 214, 107, .45); --k-brief-grid: rgba(127, 214, 107, .06); --k-brief-stamp: #e0604c; --k-brief-orange: #f0a040; }
+
+/* ───────── 直角、硬线 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="card"], [data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"], [data-k="badge"], [data-k="switch"], [data-k="switch"] [data-k-part="thumb"], [data-k="checkbox"] { border-radius: 0; }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 1.5px solid var(--k-brief-line); }
+[data-k="card"] { border: 1px solid var(--k-brief-line); box-shadow: none; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border: 1.5px solid var(--k-accent); background-image: linear-gradient(var(--k-accent), var(--k-accent)); background-size: 4px 100%; background-repeat: no-repeat; }
+/* 刻度尺：面板标题下沿 */
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-brief-line); background-image: repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 40px); background-size: 100% 4px, 100% 8px; background-position: 0 100%, 0 100%; background-repeat: repeat-x; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { text-transform: uppercase; letter-spacing: .1em; font-weight: 400; }
+[data-k="card"] > [data-k-part="head"] > [data-k-part="meta"], [data-k="setting-row"] > [data-k-part="text"] > [data-k-part="description"] { font-family: "IBM Plex Mono", var(--k-font-mono); }
+
+/* ───────── 按钮：模板字；按下时一下实 ───────── */
+[data-k="button"] { font-family: "IBM Plex Mono", var(--k-font-mono); text-transform: uppercase; letter-spacing: .08em; border-width: 1.5px; }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+/* 页签：档案夹标签（上边斜切） */
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1.5px solid var(--k-brief-line); gap: 2px; }
+[data-k="tabs"] [data-k-part="tab"] { font-family: "IBM Plex Mono", var(--k-font-mono); border: 1px solid var(--k-brief-line); border-bottom: 0; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 100%, 0 100%); padding-inline: var(--k-space-4); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: var(--k-accent); color: var(--k-on-accent); }
+[data-k="badge"] { font-family: "IBM Plex Mono", var(--k-font-mono); letter-spacing: .06em; }
+[data-k="badge"][data-tone="accent"] { background: transparent; color: var(--k-brief-stamp); box-shadow: inset 0 0 0 1.5px var(--k-brief-stamp); }
+
+/* ───────── 十字准星角标 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 14px; height: 14px; border: 1.5px solid var(--k-accent); border-radius: 50%; background: linear-gradient(var(--k-accent), var(--k-accent)) center / 1.5px 100% no-repeat, linear-gradient(var(--k-accent), var(--k-accent)) center / 100% 1.5px no-repeat; }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; font: 10px/1 "IBM Plex Mono", var(--k-font-mono); color: var(--k-brief-orange); letter-spacing: .1em; }
+[data-k-ornament="panel-head-end"]::before { content: 'REF-07'; }
+
+/* ───────── 坐标网格 ───────── */
+[data-k-surface][data-k-effects~="grid"] [data-k-level="bg"] { background-image: linear-gradient(var(--k-brief-grid) 1px, transparent 1px), linear-gradient(90deg, var(--k-brief-grid) 1px, transparent 1px); background-size: 24px 24px; }
+/* 「机密」印章：容器卡右上，斜盖 */
+[data-k-surface][data-k-effects~="stamp"] [data-k="card"][data-role="container"]::after { content: '机密'; position: absolute; right: 12px; bottom: 10px; padding: 1px 6px; font: 700 11px/1.4 var(--k-font-heading); letter-spacing: .3em; color: var(--k-brief-stamp); border: 1.5px solid var(--k-brief-stamp); transform: rotate(-8deg); opacity: .55; pointer-events: none; }
+
+/* 加载：雷达扫 */
+[data-k="spinner"] { border-color: var(--k-brief-line); border-top-color: transparent; background: conic-gradient(from 0deg, transparent 0 75%, color-mix(in srgb, var(--k-fx-glow) 60%, transparent)); border-radius: 50%; }
+
+/* ───────── 消息正文：像无线电记录 ───────── */
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #3b4a27; --k-msg-thought: #6a5f45; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #8fe07a; --k-msg-thought: #a6b89a; }
+[data-k-content] [data-k-part="dialogue"] { font-family: "IBM Plex Mono", var(--k-font-mono), "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 500; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; opacity: .95; }
+[data-k-content] [data-k-part="name"] { text-transform: uppercase; letter-spacing: .06em; }
+[data-k-content] [data-k-part="keyword"] { color: var(--k-brief-orange); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 8px; background: repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 8px) 0 100% / 100% 4px repeat-x, repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 40px) 0 100% / 100% 8px repeat-x; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 1px solid var(--k-brief-line); }

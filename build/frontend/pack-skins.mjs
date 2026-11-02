@@ -17,20 +17,33 @@ const ONE_MAX = 300 * 1024, TOTAL_MAX = 1200 * 1024;
 /* 引擎是 TypeScript：现场打一份给 node 用 */
 const tmp = path.join(ROOT, '.cache', 'frontend', 'engine-node.mjs');
 fs.mkdirSync(path.dirname(tmp), { recursive: true });
-await esbuild.build({ stdin: { contents: "export { validateManifest } from './src/frontend/skin-engine/package';\nexport { composeSkin } from './src/frontend/skin-engine/compose';\nexport { lintSkinCss } from './src/frontend/skin-engine/lint-css';", resolveDir: ROOT, loader: 'ts' },
+await esbuild.build({ stdin: { contents: "export { validateManifest } from './src/frontend/skin-engine/package';\nexport { composeSkin } from './src/frontend/skin-engine/compose';\nexport { lintSkinCss } from './src/frontend/skin-engine/lint-css';\nexport { contrast } from './src/frontend/skin-engine/color';", resolveDir: ROOT, loader: 'ts' },
   bundle: true, platform: 'node', format: 'esm', outfile: tmp, packages: 'external', loader: { '.css': 'text' }, logLevel: 'silent' });
-const { validateManifest, composeSkin, lintSkinCss } = await import(tmp + '?t=' + Date.now());
+const { validateManifest, composeSkin, lintSkinCss, contrast } = await import(tmp + '?t=' + Date.now());
 
 const problems = [];
 const skins = [];
 let total = 0;
-const ids = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter((d) => fs.statSync(path.join(DIR, d)).isDirectory()).sort() : [];
+const dirs = fs.existsSync(DIR) ? fs.readdirSync(DIR).filter((d) => fs.statSync(path.join(DIR, d)).isDirectory()).sort() : [];
+/* 顺序与系列：src/skins-next/series.json（default 排第一 = 没选过皮肤的用户落到的那一套；之后按系列顺序） */
+const SERIES = JSON.parse(fs.readFileSync(path.join(DIR, 'series.json'), 'utf8'));
+const seriesOf = new Map();
+const ids = [SERIES.default];
+for (const sr of SERIES.series || []) { for (const sid of sr.skins) { if (ids.includes(sid)) { problems.push('series.json：' + sid + ' 登记了两次'); } ids.push(sid); seriesOf.set(sid, { id: sr.id, name: sr.name }); } }
+for (const d of dirs) { if (!ids.includes(d)) { problems.push(d + '：目录在 src/skins-next/ 里，但 series.json 没登记（不知道排在哪、属于哪个系列）'); } }
+for (const sid of ids) { if (!dirs.includes(sid)) { problems.push('series.json 登记了 ' + sid + '，但没有这个目录'); } }
 for (const id of ids) {
   const d = path.join(DIR, id);
+  if (!fs.existsSync(d)) { continue; }
   const fail = (m) => problems.push(id + '：' + m);
   let manifest;
   try { manifest = JSON.parse(fs.readFileSync(path.join(d, 'skin.json'), 'utf8')); } catch (e) { fail('skin.json 读不了：' + e.message); continue; }
   if (manifest.id !== id) { fail('清单 id（' + manifest.id + '）与目录名不一致'); }
+  if (manifest.series) { fail('series 由构建按 series.json 写入，清单里不要手写'); }
+  if (seriesOf.has(id)) { manifest.series = seriesOf.get(id); }
+  /* 外链字体的分片表（build/frontend/fetch-fonts.mjs 生成，提交进仓库）：并进 fonts */
+  const genFonts = path.join(d, 'fonts.gen.json');
+  if (fs.existsSync(genFonts)) { manifest.fonts = [...(manifest.fonts || []), ...JSON.parse(fs.readFileSync(genFonts, 'utf8'))]; }
   for (const e of validateManifest(manifest)) { fail(e); }
   const cssPath = path.join(d, 'skin.css');
   const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, 'utf8') : '';
@@ -48,6 +61,19 @@ for (const id of ids) {
     try {
       const c = composeSkin(manifest, { scheme: mode, density: 'cozy', motion: 'full', fontScale: 1 }, { skinCss: css });
       for (const x of c.corrections) { fail(mode + ' 方案需要自动校正：' + x.token + ' 对 ' + x.against + ' 只有 ' + x.before + '（要 ' + x.required + '），' + x.from + ' → 建议 ' + x.to); }
+      /* 消息内容的对白 / 心理描写颜色（契约 6.8）：每个配色都要写，对消息底色（bg）≥ 4.5 : 1。不经令牌引擎，所以在这里查 */
+      const msg = {};
+      const re = /\[data-k-scheme=["']?([\w-]+)["']?\][^{]*\{([^}]*)\}/g;
+      let mm;
+      while ((mm = re.exec(css))) {
+        if (mm[1] !== mode) { continue; }
+        for (const k of ['dialogue', 'thought']) { const v = new RegExp('--k-msg-' + k + '\\s*:\\s*(#[0-9a-fA-F]{3,6})').exec(mm[2]); if (v) { msg[k] = v[1]; } }
+      }
+      for (const k of ['dialogue', 'thought']) {
+        if (!msg[k]) { fail(mode + ' 方案没写 --k-msg-' + k + '（每个配色都要在 [data-k-surface][data-k-scheme="' + mode + '"] 上给一个十六进制颜色）'); continue; }
+        const r = contrast(msg[k], c.tokens.bg);
+        if (r < 4.5) { fail(mode + ' 方案的 --k-msg-' + k + ' ' + msg[k] + ' 对消息底色 ' + c.tokens.bg + ' 只有 ' + r.toFixed(2) + '（要 4.5）'); }
+      }
     } catch (e) { fail(mode + ' 方案合成失败：' + e.message); }
   }
   /* 提示（不拦）：预设条目名里的 emoji 还有哪些没映射到图标 */

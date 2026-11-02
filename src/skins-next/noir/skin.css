@@ -1,0 +1,50 @@
+/* 暗巷 —— 悬疑推理。黑白灰 + 台灯琥珀（深色）/ 证物红（浅色）；打字机字；
+   百叶窗光影条纹（blinds）、证物标签（tag）；打开时光从百叶窗扫过、按下像闪光灯（scan）。 */
+
+:host, [data-k-surface] { --k-fx-glow: #f0c070; --k-fx-dir: right; }
+[data-k-surface][data-k-scheme="light"] { --k-fx-glow: #ffffff; }
+[data-k-surface] { --k-noir-line: rgba(232, 228, 220, .22); --k-noir-blind: rgba(216, 154, 60, .05); --k-noir-tag: #e8dcc0; --k-noir-tag-on: #1f1f1f; }
+[data-k-surface][data-k-scheme="light"] { --k-noir-line: rgba(20, 20, 20, .3); --k-noir-blind: rgba(0, 0, 0, .035); }
+
+/* ───────── 硬朗直角、黑框；面板像档案袋 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="card"], [data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"], [data-k="switch"], [data-k="switch"] [data-k-part="thumb"], [data-k="checkbox"] { border-radius: 0; }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 1px solid var(--k-noir-line); box-shadow: 12px 16px 0 rgba(0, 0, 0, .28); }
+[data-k="card"] { border: 1px solid var(--k-noir-line); box-shadow: 3px 3px 0 rgba(0, 0, 0, .15); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); box-shadow: 3px 3px 0 var(--k-accent); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-noir-line); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-size: 1.3em; letter-spacing: .08em; text-transform: uppercase; font-weight: 400; }
+
+/* ───────── 按钮：打字机字，按下时整块反白（闪光灯） ───────── */
+[data-k="button"] { font-family: "Courier Prime", var(--k-font-mono), var(--k-font-body); letter-spacing: .04em; transition: filter 80ms linear; }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { filter: brightness(1.6) contrast(.8); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-noir-line); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: "Courier Prime", var(--k-font-mono), var(--k-font-body); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom: 2px solid var(--k-accent); color: var(--k-on); }
+/* 证物标签：徽章是一张米色牌，左边打孔 */
+[data-k="badge"] { border-radius: 0 2px 2px 0; font-family: "Courier Prime", var(--k-font-mono), var(--k-font-body); }
+[data-k-surface][data-k-effects~="tag"] [data-k="badge"][data-tone="accent"] { background: var(--k-noir-tag); color: var(--k-noir-tag-on); clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%); padding-left: 10px; }
+
+/* ───────── 角饰：放大镜的圆 + 一条编号 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 12px; height: 12px; border: 2px solid var(--k-accent); border-radius: 50%; box-shadow: 4px 4px 0 -3px var(--k-accent); }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; font: 11px/1 "Courier Prime", var(--k-font-mono); color: var(--k-accent); }
+[data-k-ornament="panel-head-end"]::before { content: 'NO.13'; }
+
+/* ───────── 百叶窗：斜向光影条纹；完整动效档下慢慢挪 ───────── */
+[data-k-surface][data-k-effects~="blinds"] [data-k-level="bg"] { background-image: repeating-linear-gradient(-28deg, transparent 0 22px, var(--k-noir-blind) 22px 40px); background-size: 200% 200%; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="blinds"] [data-k-level="bg"] { animation: k-noir-blinds 30s linear infinite alternate; }
+@keyframes k-noir-blinds { from { background-position: 0 0; } to { background-position: 60px 0; } }
+/* 证物标签：容器卡右上一张小牌 */
+[data-k-surface][data-k-effects~="tag"] [data-k="card"][data-role="container"]::after { content: 'EVIDENCE'; position: absolute; right: 10px; top: -9px; padding: 2px 6px 2px 10px; font: 700 9px/1.2 "Courier Prime", var(--k-font-mono); letter-spacing: .14em; background: var(--k-noir-tag); color: var(--k-noir-tag-on); clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%); pointer-events: none; opacity: .9; }
+
+[data-k="spinner"] { border-radius: 0; border-color: var(--k-noir-line); border-top-color: var(--k-accent); }
+
+/* ───────── 消息正文：打字机 + 仿宋；对白骨白 / 黑，心理描写琥珀 / 证物红 ───────── */
+[data-k-content="body"] > * { font-family: "Courier Prime", FangSong, STFangsong, "仿宋", "Noto Serif CJK SC", serif; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #e8e4dc; --k-msg-thought: #d89a3c; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #1f1f1f; --k-msg-thought: #8a261c; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 700; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="keyword"] { background: var(--k-on); color: var(--k-bg); padding: 0 .2em; }
+[data-k-content] [data-k-part="term"] { text-decoration: underline; text-decoration-color: var(--k-accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 1px; border-top: 1px dashed var(--k-noir-line); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 1px solid var(--k-noir-line); }

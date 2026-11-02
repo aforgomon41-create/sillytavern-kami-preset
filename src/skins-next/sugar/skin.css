@@ -1,0 +1,69 @@
+/* 糖霜 —— 恋爱轻喜剧。奶油粉白、圆滚滚的贴纸卡片（白描边 + 落地阴影）、少女漫画网点、纸胶带；
+   按下 Q 弹回弹，打开 / 按下时迸出爱心与星星（平台模块 particles）。 */
+
+/* ───────── 动效参数 ───────── */
+:host, [data-k-surface] { --k-fx-glyphs: "♥ ✦ ♥ ★"; --k-fx-drift: out; --k-fx-size: 9px; --k-fx-glow: var(--k-accent); --k-fx-alt: #5fbf98; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-alt: #8fe3c0; }
+[data-k-surface] { --k-sugar-rim: #ffffff; --k-sugar-drop: rgba(214, 69, 109, .16); --k-sugar-dot: rgba(214, 69, 109, .10); }
+[data-k-surface][data-k-scheme="dark"] { --k-sugar-rim: #3b2d44; --k-sugar-drop: rgba(0, 0, 0, .45); --k-sugar-dot: rgba(255, 143, 177, .07); }
+
+/* ───────── 贴纸：粗白边 + 往下错开的硬阴影 ───────── */
+[data-k="card"], [data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 2.5px solid var(--k-sugar-rim); }
+[data-k="card"] { box-shadow: 0 4px 0 var(--k-sugar-drop), 0 8px 18px var(--k-sugar-drop); }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { box-shadow: 0 6px 0 var(--k-sugar-drop), 0 18px 40px var(--k-sugar-drop); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 2px dashed var(--k-accent-soft); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); box-shadow: 0 4px 0 var(--k-accent-soft); }
+
+/* ───────── 按钮：胶囊 + Q 弹 ───────── */
+[data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"] { border-radius: var(--k-r-pill); }
+[data-k="button"] { font-family: var(--k-font-heading); letter-spacing: .04em; transition: transform 260ms cubic-bezier(.34, 1.8, .64, 1), background-color var(--k-dur-fast) var(--k-ease); }
+[data-k="button"][data-variant="primary"] { box-shadow: 0 3px 0 var(--k-accent-active); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: scale(.9); }
+[data-k="card"][data-role="choice"] { transition: transform 260ms cubic-bezier(.34, 1.8, .64, 1); }
+[data-k="card"][data-role="choice"]:active { transform: scale(.96) rotate(-.6deg); }
+[data-k="switch"] [data-k-part="thumb"] { box-shadow: 0 2px 0 var(--k-sugar-drop); }
+[data-k="badge"] { border-radius: var(--k-r-pill); font-family: var(--k-font-heading); }
+
+/* ───────── 页签：当前页是一颗糖 ───────── */
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: transparent; gap: 4px; }
+[data-k="tabs"] [data-k-part="tab"] { border-radius: var(--k-r-pill); border-bottom-color: transparent; font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: var(--k-accent-soft); color: var(--k-on-accent-soft); }
+
+/* ───────── 标题两侧：小爱心 + 小星星（遮罩画形，颜色跟强调色） ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 14px; height: 14px; background: var(--k-accent); }
+[data-k-ornament="panel-head-start"] { -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 14.5S1.5 10.6 1.5 5.8A3.4 3.4 0 0 1 8 4.1a3.4 3.4 0 0 1 6.5 1.7C14.5 10.6 8 14.5 8 14.5z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 14.5S1.5 10.6 1.5 5.8A3.4 3.4 0 0 1 8 4.1a3.4 3.4 0 0 1 6.5 1.7C14.5 10.6 8 14.5 8 14.5z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-end"] { width: 11px; height: 11px; background: var(--k-fx-alt); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k-ornament="panel-head-end"] { animation: k-sugar-twinkle 2.4s ease-in-out infinite; }
+@keyframes k-sugar-twinkle { 0%, 100% { opacity: 1; transform: scale(1) rotate(0); } 50% { opacity: .5; transform: scale(.7) rotate(45deg); } }
+
+/* ───────── 网点：少女漫画的半调网 ───────── */
+[data-k-surface][data-k-effects~="dots"] [data-k-level="bg"] {
+  background-image: radial-gradient(var(--k-sugar-dot) 1.6px, transparent 1.9px), radial-gradient(var(--k-sugar-dot) 1.6px, transparent 1.9px);
+  background-size: 12px 12px; background-position: 0 0, 6px 6px;
+}
+
+/* ───────── 纸胶带：贴在容器卡左上角 ───────── */
+[data-k-surface][data-k-effects~="tape"] [data-k="card"][data-role="container"]::before {
+  content: ''; position: absolute; left: 14px; top: -9px; width: 54px; height: 16px; pointer-events: none; transform: rotate(-6deg); opacity: .8;
+  background: repeating-linear-gradient(45deg, var(--k-accent-soft) 0 5px, color-mix(in srgb, var(--k-fx-alt) 35%, transparent) 5px 10px);
+  border-radius: 2px;
+}
+
+/* ───────── 加载：一颗跳动的爱心 ───────── */
+[data-k="spinner"] { border: 0; animation: none; }
+[data-k="spinner"]::before { content: '♥'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 1em; line-height: 1; color: var(--k-accent); animation: k-sugar-beat .8s ease-in-out infinite; }
+@keyframes k-sugar-beat { 0%, 100% { transform: scale(.8); } 30% { transform: scale(1.15); } 60% { transform: scale(.95); } }
+
+/* ───────── 消息正文 ───────── */
+[data-k="msg-view"] { border-radius: var(--k-r-lg); }
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; letter-spacing: .02em; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #b8325c; --k-msg-thought: #7354a0; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #ff9cc0; --k-msg-thought: #c9b2f0; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 600; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 60%, var(--k-accent-soft) 60%); }
+[data-k-content] [data-k-part="term"] { text-decoration: underline wavy var(--k-accent); text-underline-offset: 3px; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 60px; height: 12px; border: 0; background: var(--k-accent); opacity: .6;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Cpath d='M10 14.5S3.5 10.6 3.5 5.8A3.4 3.4 0 0 1 10 4.1a3.4 3.4 0 0 1 6.5 1.7c0 4.8-6.5 8.7-6.5 8.7z'/%3E%3C/svg%3E") 0 0 / 20px 12px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Cpath d='M10 14.5S3.5 10.6 3.5 5.8A3.4 3.4 0 0 1 10 4.1a3.4 3.4 0 0 1 6.5 1.7c0 4.8-6.5 8.7-6.5 8.7z'/%3E%3C/svg%3E") 0 0 / 20px 12px repeat-x; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: var(--k-r-pill); border: 2px solid var(--k-sugar-rim); box-shadow: 0 3px 0 var(--k-sugar-drop); }

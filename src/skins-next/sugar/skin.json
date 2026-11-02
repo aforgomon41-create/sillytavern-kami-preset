@@ -1,0 +1,166 @@
+{
+  "id": "sugar",
+  "name": "糖霜",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "恋爱轻喜剧：奶油粉白、圆滚滚的贴纸卡片、少女漫画网点；按下 Q 弹，打开时迸出爱心和星星。",
+  "author": "卡密预设",
+  "credits": "字体 ZCOOL KuaiLe（站酷快乐体，OFL），网点与胶带为 CSS 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#fff4f2",
+        "accent": "#d6456d",
+        "radius": 16,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"ZCOOL KuaiLe\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#c23b3b",
+        "success": "#3f8f6f",
+        "info": "#4d7fbf",
+        "warning": "#b07a1f"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#2a2130",
+        "accent": "#ff8fb1",
+        "radius": 16,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"ZCOOL KuaiLe\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff8a8a",
+        "success": "#7fd6b0",
+        "info": "#9cc3ff",
+        "warning": "#ffcf7a"
+      }
+    }
+  },
+  "modules": [
+    "particles"
+  ],
+  "effects": [
+    {
+      "id": "particles",
+      "name": "心动",
+      "description": "按下和打开时迸出爱心与星星。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "dots",
+      "name": "网点",
+      "description": "背景铺一层少女漫画网点。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "tape",
+      "name": "胶带",
+      "description": "卡片角上贴一截纸胶带。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 16,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

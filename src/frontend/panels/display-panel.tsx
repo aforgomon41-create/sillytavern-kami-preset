@@ -185,10 +185,19 @@ interface Ctx { mgr: SkinManager; st: StoredSettings; m: SkinManifest; notify: (
 
 function SkinList({ mgr, st, notify, compact }: Ctx & { compact: boolean }): React.JSX.Element {
   const list = mgr.list();
+  /* 按系列分组（构建按 src/skins-next/series.json 写入 manifest.series）；不属于任何系列的（默认皮肤）排最前 */
+  const groups: Array<{ key: string; title: string; items: SkinManifest[] }> = [];
+  for (const m of list) {
+    const key = m.series ? m.series.id : '';
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key, title: m.series ? m.series.name + '系列' : '皮肤', items: [] }; groups.push(g); }
+    g.items.push(m);
+  }
   return (
-    <SettingSection title="皮肤" badge={<Badge>{list.length} 套</Badge>}>
+    <>{groups.map((g, gi) => (
+    <SettingSection key={g.key || '_'} title={g.title} badge={<Badge>{gi === 0 && groups.length > 1 ? '共 ' + list.length + ' 套' : g.items.length + ' 套'}</Badge>}>
       <ChoiceGrid min={compact ? 140 : 220}>
-        {list.map((m) => {
+        {g.items.map((m) => {
           return (
             <ChoiceCard key={m.id} selected={st.skin === m.id}
               title={m.name} meta={'v' + m.version}
@@ -210,6 +219,7 @@ function SkinList({ mgr, st, notify, compact }: Ctx & { compact: boolean }): Rea
         })}
       </ChoiceGrid>
     </SettingSection>
+    ))}</>
   );
 }
 

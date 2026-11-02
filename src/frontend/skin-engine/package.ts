@@ -4,6 +4,7 @@
  */
 import type { ContrastLevel, Mode, Seeds } from './tokens';
 import type { Elevation, FontStacks } from './scales';
+import FONT_SLICES from '../runtime/font-slices.json';
 
 export interface SchemeDef {
   /** 额外配色（light / dark 之外）必填：基于哪一档推导（决定明暗与 color-scheme） */
@@ -37,6 +38,9 @@ export interface FontDef {
   style?: 'normal' | 'italic';
   /** 只覆盖某些字符（CJK 大字体分片时用） */
   unicodeRange?: string;
+  /** 分片字体的简写：src 里写 {slice} 占位，这里列出用到的片号；各片的 unicode-range 取平台的共用切片表（runtime/font-slices.json）。
+      由 build/frontend/fetch-fonts.mjs 生成，作者不用手写 */
+  slices?: string[];
 }
 
 export interface SkinManifest {
@@ -61,11 +65,13 @@ export interface SkinManifest {
   /** 启用的平台动效模块（前端契约 6.5），例如 ["fracture"] */
   modules?: string[];
   flavor?: Record<string, string>;
+  /** 所属系列（由构建按 src/skins-next/series.json 写入，作者不用手写）：显示面板按系列分组 */
+  series?: { id: string; name: string };
 }
 
 export const CONTRACT_MAJOR = 1;
 /** 平台提供的动效模块 */
-export const MODULES = ['fracture'] as const;
+export const MODULES = ['fracture', 'particles', 'glitch', 'ink', 'trace', 'scan', 'unroll'] as const;
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 /** 参数可以绑定：种子（seed:accent）、语义令牌（token:surface-1）、皮肤自己的变量（var:--k-skin-xxx） */
@@ -135,7 +141,13 @@ export function validateManifest(m: unknown): string[] {
     if (!f || !f.family || /["'\\;{}]/.test(f.family)) { e.push('外链字体的 family 不合法：' + (f && f.family)); }
     if (!f || !Array.isArray(f.src) || !f.src.length || !f.src.every((u) => HTTPS.test(u))) { e.push('外链字体 ' + (f && f.family) + ' 的 src 必须是一个或多个 https 地址'); }
     if (f && f.unicodeRange !== undefined && !/^[U+0-9A-F?,\s-]+$/i.test(f.unicodeRange)) { e.push('外链字体 ' + f.family + ' 的 unicodeRange 不合法'); }
+    if (f && f.slices !== undefined) {
+      const table = FONT_SLICES as Record<string, string>;
+      if (!Array.isArray(f.slices) || !f.slices.length || !f.src.every((u) => u.includes('{slice}'))) { e.push('外链字体 ' + f.family + '：写了 slices 时 src 必须带 {slice} 占位'); }
+      else { const bad = f.slices.filter((k) => !table[k]); if (bad.length) { e.push('外链字体 ' + f.family + ' 的片号不在共用切片表里：' + bad.slice(0, 5).join(',')); } }
+    }
   }
+  if (o.series !== undefined && !(o.series && ID.test(o.series.id) && typeof o.series.name === 'string' && o.series.name)) { e.push('series 必须是 { id, name }'); }
   for (const mod of o.modules || []) { if (!(MODULES as readonly string[]).includes(mod)) { e.push('未知的动效模块：' + mod); } }
   return e;
 }

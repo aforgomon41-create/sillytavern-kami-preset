@@ -1,0 +1,48 @@
+/* 月桂 —— 西方古典。大理石白 + 帝国紫红 + 金箔 / 黑曜石 + 金；直角 + 细金线，立柱式分栏；
+   罗马碑刻体全大写宽字距；月桂叶环、希腊回纹；打开时金线由中间向两端描出（trace center）。 */
+
+:host, [data-k-surface] { --k-fx-trace: center; --k-fx-glow: #c9a24a; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #e8c870; }
+[data-k-surface] { --k-laurel-gold: #b08a3a; --k-laurel-vein: rgba(110, 100, 90, .07); }
+[data-k-surface][data-k-scheme="dark"] { --k-laurel-gold: #d8b45e; --k-laurel-vein: rgba(216, 180, 94, .05); }
+
+/* ───────── 直角 + 细金线；面板上下各一道双金线（像檐口） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="card"], [data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"], [data-k="badge"] { border-radius: 0; }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 1px solid var(--k-laurel-gold); box-shadow: inset 0 3px 0 var(--k-bg), inset 0 4px 0 var(--k-laurel-gold), var(--k-shadow-3); }
+[data-k="card"] { border: 0; border-left: 1px solid var(--k-laurel-gold); border-right: 1px solid var(--k-laurel-gold); box-shadow: none; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-left-width: 3px; border-right-width: 3px; border-color: var(--k-accent); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-laurel-gold); justify-content: center; }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"], [data-k="card"] > [data-k-part="head"] > [data-k-part="title"], [data-k="setting-section"] > [data-k-part="head"] > [data-k-part="title"] { text-transform: uppercase; letter-spacing: .22em; font-weight: 600; }
+
+/* ───────── 按钮：大写宽字距，金线框 ───────── */
+[data-k="button"] { text-transform: uppercase; letter-spacing: .18em; font-family: var(--k-font-heading); }
+[data-k="button"]:not([data-variant="primary"]) { border-color: var(--k-laurel-gold); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-laurel-gold); justify-content: center; }
+[data-k="tabs"] [data-k-part="tab"] { text-transform: uppercase; letter-spacing: .18em; font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom: 1px solid var(--k-accent); box-shadow: inset 0 -3px 0 var(--k-bg), inset 0 -4px 0 var(--k-accent); }
+[data-k="badge"] { letter-spacing: .12em; font-family: var(--k-font-heading); }
+[data-k="switch"] { border-radius: 0; }
+[data-k="switch"] [data-k-part="thumb"] { border-radius: 0; }
+
+/* ───────── 月桂枝角饰（左右对称） ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 22px; height: 14px; background: var(--k-laurel-gold);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Cpath d='M2 10h28' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M8 10c1-4 4-6 7-6-1 3-3 6-7 6zM8 10c1 4 4 6 7 6-1-3-3-6-7-6zM16 10c1-4 4-6 7-6-1 3-3 6-7 6zM16 10c1 4 4 6 7 6-1-3-3-6-7-6zM24 10c1-3 3-5 6-5-1 3-3 5-6 5zM24 10c1 3 3 5 6 5-1-3-3-5-6-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Cpath d='M2 10h28' stroke='black' stroke-width='1.2'/%3E%3Cpath d='M8 10c1-4 4-6 7-6-1 3-3 6-7 6zM8 10c1 4 4 6 7 6-1-3-3-6-7-6zM16 10c1-4 4-6 7-6-1 3-3 6-7 6zM16 10c1 4 4 6 7 6-1-3-3-6-7-6zM24 10c1-3 3-5 6-5-1 3-3 5-6 5zM24 10c1 3 3 5 6 5-1-3-3-5-6-5z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-start"] { transform: scaleX(-1); }
+
+/* ───────── 大理石纹：两道斜向的淡灰脉络 ───────── */
+[data-k-surface][data-k-effects~="marble"] [data-k-level="bg"] { background-image: linear-gradient(115deg, transparent 30%, var(--k-laurel-vein) 31%, transparent 33%, transparent 62%, var(--k-laurel-vein) 63.5%, transparent 65%), linear-gradient(160deg, transparent 50%, var(--k-laurel-vein) 51%, transparent 52.5%); }
+/* 月桂开关：容器卡底部中间一枚小叶环 */
+[data-k-surface][data-k-effects~="laurel"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 26px; height: 10px; translate: -50% 0; pointer-events: none; opacity: .45; background: radial-gradient(circle, var(--k-laurel-gold) 1.5px, transparent 2px) center / 6px 10px repeat-x; }
+
+[data-k="spinner"] { border-radius: 0; border-color: color-mix(in srgb, var(--k-laurel-gold) 30%, transparent); border-top-color: var(--k-laurel-gold); }
+
+/* ───────── 消息正文：衬线，首行缩进；对白紫红，心理描写石灰色 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif; letter-spacing: .02em; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #6d2142; --k-msg-thought: #5e5648; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #e0c070; --k-msg-thought: #b8ae9c; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="name"] { font-variant: small-caps; letter-spacing: .08em; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 120px; border: 0; height: 7px; border-top: 1px solid var(--k-laurel-gold); border-bottom: 1px solid var(--k-laurel-gold); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 0; border-left: 1px solid var(--k-laurel-gold); border-right: 1px solid var(--k-laurel-gold); }

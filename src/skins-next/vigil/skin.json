@@ -1,0 +1,160 @@
+{
+  "id": "vigil",
+  "name": "夜祷",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "黑暗哥特：夜色、骨白、血酒红、古金；尖拱面板头、铁艺细纹、正文首字下沉；烛火摇曳的光晕。",
+  "author": "卡密预设",
+  "credits": "字体 UnifrakturCook（OFL）、Noto Serif SC（OFL）。",
+  "defaultScheme": "dark",
+  "schemes": {
+    "dark": {
+      "seeds": {
+        "neutral": "#0f0c0e",
+        "accent": "#b8323f",
+        "radius": 2,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"UnifrakturCook\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#e06a6a",
+        "success": "#8fb88a",
+        "info": "#9aa8c8",
+        "warning": "#d8b46a"
+      }
+    },
+    "light": {
+      "seeds": {
+        "neutral": "#efe7d6",
+        "accent": "#8b1e2d",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"UnifrakturCook\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#8b1e2d",
+        "success": "#3f5f3a",
+        "info": "#33405e",
+        "warning": "#7a5a14"
+      }
+    }
+  },
+  "modules": [
+    "particles"
+  ],
+  "effects": [
+    {
+      "id": "candle",
+      "name": "烛光",
+      "description": "面板边缘有烛火般缓慢摇曳的光晕。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "余烬",
+      "description": "打开时几点余烬缓缓飘起。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "arch",
+      "name": "尖拱",
+      "description": "面板标题栏做成哥特尖拱。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "dropcap",
+      "name": "首字下沉",
+      "description": "正文第一个字放大下沉。",
+      "group": "排版",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

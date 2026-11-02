@@ -7,8 +7,28 @@
  * 同一资源一次会话只试一次（结果缓存），换皮肤再换回来不会重复请求。
  */
 import type { FontDef } from '../skin-engine/package';
+import FONT_SLICES from './font-slices.json';
 
-export type LoadState = 'loading' | 'loaded' | 'failed';
+/** 把分片简写（src 带 {slice} + slices 片号）展开成逐片的字体定义 */
+export function expandSlices(fonts: FontDef[]): FontDef[] {
+  const table = FONT_SLICES as Record<string, string>;
+  const out: FontDef[] = [];
+  for (const f of fonts) {
+    if (!f.slices) { out.push(f); continue; }
+    for (const k of f.slices) {
+      const range = table[k];
+      if (!range) { continue; }
+      const one: FontDef = { family: f.family, src: f.src.map((u) => u.split('{slice}').join(k)), unicodeRange: range };
+      if (f.weight) { one.weight = f.weight; }
+      if (f.style) { one.style = f.style; }
+      out.push(one);
+    }
+  }
+  return out;
+}
+
+/** lazy：分片字体（带 unicodeRange）只注册不预载，浏览器遇到用得着的字才下载那一片（中文字体一百多片，全部预载要好几 MB） */
+export type LoadState = 'loading' | 'loaded' | 'failed' | 'lazy';
 const fontCache = new Map<string, Promise<LoadState>>();
 const imageCache = new Map<string, Promise<boolean>>();
 
@@ -23,7 +43,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
 export function loadFonts(doc: Document, fonts: FontDef[], timeoutMs = 4000): Promise<Record<string, LoadState>> {
   const win = doc.defaultView as (Window & typeof globalThis) | null;
   const out: Record<string, Promise<LoadState>> = {};
-  for (const f of fonts) {
+  for (const f of expandSlices(fonts)) {
     const key = f.family + '|' + f.src.join(',') + '|' + (f.weight || '') + '|' + (f.style || '') + '|' + (f.unicodeRange || '');
     let p = fontCache.get(key);
     if (!p) {
@@ -35,6 +55,7 @@ export function loadFonts(doc: Document, fonts: FontDef[], timeoutMs = 4000): Pr
         if (f.style) { desc.style = f.style; }
         if (f.unicodeRange) { desc.unicodeRange = f.unicodeRange; }
         const face = new win.FontFace(f.family, src, desc);
+        if (f.unicodeRange) { doc.fonts.add(face); return 'lazy'; }
         const ok = await withTimeout(face.load().then(() => true), timeoutMs, false);
         if (!ok) { return 'failed'; }
         doc.fonts.add(face);

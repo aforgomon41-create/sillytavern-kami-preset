@@ -1,0 +1,153 @@
+{
+  "id": "laurel",
+  "name": "月桂",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "历史 · 西方古典：大理石白 / 黑曜石、帝国紫红、金箔细线、罗马碑刻体、立柱与月桂；打开时金线由中间向两端描出。",
+  "author": "卡密预设",
+  "credits": "字体 Cinzel（OFL）、Noto Serif SC（OFL）；大理石纹为 CSS 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f4f1ea",
+        "accent": "#6d2142",
+        "radius": 0,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Cinzel\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#9a2a2a",
+        "success": "#3f6a4a",
+        "info": "#33506e",
+        "warning": "#8a6a14"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#14130f",
+        "accent": "#d8b45e",
+        "radius": 0,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Cinzel\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#e48a7a",
+        "success": "#9fc8a8",
+        "info": "#a5bfd9",
+        "warning": "#e8cc7a"
+      }
+    }
+  },
+  "modules": [
+    "trace"
+  ],
+  "effects": [
+    {
+      "id": "trace",
+      "name": "金线",
+      "description": "打开时金线由中间向两端描出。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "marble",
+      "name": "大理石",
+      "description": "表面铺一层淡淡的大理石纹。",
+      "group": "质感",
+      "default": true
+    },
+    {
+      "id": "laurel",
+      "name": "月桂",
+      "description": "面板标题两侧一对月桂枝。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

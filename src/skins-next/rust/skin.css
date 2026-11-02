@@ -1,0 +1,49 @@
+/* 锈土 —— 末日废土。沙尘色 + 锈橙 + 警示黄 / 焦土；粗犷喷漆字；铁皮铆钉、胶带修补、磨损边；
+   灯光不稳地闪（flicker）、尘土飘落（particles，drift down）。与简报区别：破旧拼凑、不整齐。 */
+
+:host, [data-k-surface] { --k-fx-glyphs: "· ˙ ·"; --k-fx-drift: down; --k-fx-size: 4px; --k-fx-glow: #b5541c; --k-fx-alt: #a89270; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #e07a3a; --k-fx-alt: #8a7a60; }
+[data-k-surface] { --k-rust-metal: #8a7a66; --k-rust-rivet: #6a5a48; --k-rust-tape: rgba(220, 200, 150, .7); --k-rust-yellow: #e0b020; --k-rust-dust: rgba(156, 68, 20, .07); }
+[data-k-surface][data-k-scheme="dark"] { --k-rust-metal: #5a4e42; --k-rust-rivet: #8a7a66; --k-rust-tape: rgba(170, 150, 110, .55); --k-rust-dust: rgba(224, 122, 58, .06); }
+
+/* ───────── 铁皮：粗边 + 磨损（切掉一个角） ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border: 3px solid var(--k-rust-metal); border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12), 0 16px 40px rgba(0, 0, 0, .3); }
+[data-k="card"] { border: 2px solid var(--k-rust-metal); border-radius: 2px; box-shadow: none; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 14px) 100%, 0 100%); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); background-image: repeating-linear-gradient(-45deg, var(--k-rust-dust) 0 6px, transparent 6px 12px); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 2px solid var(--k-rust-metal); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-size: 1.2em; letter-spacing: .04em; font-weight: 400; }
+
+/* ───────── 按钮：喷漆模板块；警示黄边 ───────── */
+[data-k="button"], [data-k="select"][data-k-part="trigger"], [data-k="text-field"], [data-k="text-area"], [data-k="badge"] { border-radius: 2px; }
+[data-k="button"] { font-family: var(--k-font-heading); letter-spacing: .06em; border-width: 2px; }
+[data-k="button"][data-variant="primary"] { box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(2px); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 2px solid var(--k-rust-metal); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { background: var(--k-accent-soft); border-bottom: 3px solid var(--k-accent); }
+[data-k="badge"][data-tone="accent"] { box-shadow: inset 0 0 0 1px var(--k-rust-yellow); }
+[data-k="progress"] [data-k-part="indicator"] { background-image: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(0, 0, 0, .2) 6px 12px); }
+
+/* ───────── 角饰：两颗铆钉 ───────── */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #d8c8b0, var(--k-rust-rivet) 60%); box-shadow: 0 1px 1px rgba(0, 0, 0, .4); }
+/* 铆钉开关：容器卡四角铆钉；胶带斜贴在右上 */
+[data-k-surface][data-k-effects~="rivets"] [data-k="card"][data-role="container"]::before { content: ''; position: absolute; inset: 5px; pointer-events: none;
+  background: radial-gradient(circle, var(--k-rust-rivet) 2px, transparent 2.6px) 0 0 / 6px 6px no-repeat, radial-gradient(circle, var(--k-rust-rivet) 2px, transparent 2.6px) 100% 0 / 6px 6px no-repeat, radial-gradient(circle, var(--k-rust-rivet) 2px, transparent 2.6px) 0 100% / 6px 6px no-repeat; }
+[data-k-surface][data-k-effects~="rivets"] [data-k="card"][data-role="container"]::after { content: ''; position: absolute; right: 18px; top: -4px; width: 40px; height: 12px; pointer-events: none; background: var(--k-rust-tape); transform: rotate(8deg); clip-path: polygon(3% 0, 100% 8%, 97% 100%, 0 90%); }
+
+/* ───────── 尘土底 + 灯光闪 ───────── */
+[data-k-surface] [data-k-level="bg"] { background-image: radial-gradient(ellipse at 70% 0, var(--k-rust-dust), transparent 60%); }
+[data-k-surface][data-k-motion="full"][data-k-effects~="flicker"] [data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k-surface][data-k-motion="full"][data-k-effects~="flicker"] [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { animation: k-rust-flicker 7s steps(1) infinite; }
+@keyframes k-rust-flicker { 0%, 100% { opacity: 1; } 86% { opacity: .55; } 87% { opacity: 1; } 89% { opacity: .4; } 90% { opacity: 1; } }
+
+[data-k="spinner"] { border-radius: 2px; border-width: 3px; border-color: var(--k-rust-metal); border-top-color: var(--k-rust-yellow); }
+
+/* ───────── 消息正文 ───────── */
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #8a3a10; --k-msg-thought: #6a5a3e; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #f0924e; --k-msg-thought: #c8b48e; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 700; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 55%, color-mix(in srgb, var(--k-rust-yellow) 45%, transparent) 55%); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 6px; background: repeating-linear-gradient(-45deg, var(--k-rust-yellow) 0 6px, #222 6px 12px); opacity: .55; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 2px solid var(--k-rust-metal); border-radius: 2px; }

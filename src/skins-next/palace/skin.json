@@ -1,0 +1,153 @@
+{
+  "id": "palace",
+  "name": "朱墙",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "历史 · 中国宫廷朝堂：绢黄、宫墙朱红、琉璃黄、青绿彩画；对称、回纹边框、竖条题签；打开像奏折横向展开。",
+  "author": "卡密预设",
+  "credits": "字体 Noto Serif SC（OFL；系统有隶书时优先用隶书）；回纹为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f3ead8",
+        "accent": "#9e2a2b",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "LiSu, STLiti, \"隶书\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#9e2a2b",
+        "success": "#2f6b5e",
+        "info": "#2f5a7a",
+        "warning": "#a87a12"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#1b1210",
+        "accent": "#d4af5a",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "LiSu, STLiti, \"隶书\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#e8836a",
+        "success": "#7fbfa8",
+        "info": "#94b6d6",
+        "warning": "#e8c46a"
+      }
+    }
+  },
+  "modules": [
+    "unroll"
+  ],
+  "effects": [
+    {
+      "id": "unroll",
+      "name": "奏折",
+      "description": "面板与弹窗像奏折一样从左往右展开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "fret",
+      "name": "回纹",
+      "description": "面板四周一道回纹边。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "silk",
+      "name": "绢纹",
+      "description": "表面铺一层淡淡的绢纹。",
+      "group": "质感",
+      "default": true
+    }
+  ],
+  "flavor": {},
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}
