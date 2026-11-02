@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "unroll"
+    "unroll",
+    "mark",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "mark",
+      "name": "朱批",
+      "description": "按下时朱笔圈点，打开时右上角朱笔一勾。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "落花",
+      "description": "宫墙下的花瓣缓缓飘落。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "unroll",
       "name": "奏折",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}拟票",
+    "think.live": "{name}斟酌中",
+    "search.done": "稽考典籍 {n} 部",
+    "options.title": "圣裁"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

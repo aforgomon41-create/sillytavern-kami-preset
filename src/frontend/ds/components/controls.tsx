@@ -5,7 +5,7 @@
 import * as React from 'react';
 import * as RSwitch from '@radix-ui/react-switch';
 import * as RCheckbox from '@radix-ui/react-checkbox';
-import { k, part } from '../hooks';
+import { k, ornament, part } from '../hooks';
 import { IconCheck, IconMinus } from '../icons';
 
 /* ───────── 字段：给里面的控件分配 id 与说明关联 ───────── */
@@ -215,6 +215,7 @@ export function Spinner({ label = '加载中', size }: { label?: string; size?: 
 export function Empty({ title, description, actions, icon }: { title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; icon?: React.ReactNode }): React.JSX.Element {
   return (
     <div {...k('empty')}>
+      <span {...ornament('empty-art')} />
       {icon ? <div {...part('icon')} aria-hidden="true">{icon}</div> : null}
       <div {...part('title')}>{title}</div>
       {description ? <div {...part('description')}>{description}</div> : null}

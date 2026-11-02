@@ -71,7 +71,10 @@ export interface SkinManifest {
 
 export const CONTRACT_MAJOR = 1;
 /** 平台提供的动效模块 */
-export const MODULES = ['fracture', 'particles', 'glitch', 'ink', 'trace', 'scan', 'unroll'] as const;
+export const MODULES = ['fracture', 'particles', 'glitch', 'ink', 'trace', 'scan', 'unroll',
+  'stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark', 'ambient'] as const;
+/** 风格文案槽位（契约第 11 节）：功能方声明，皮肤在 flavor 里填；{name} = 思考者名字，{n} = 数量 */
+export const FLAVOR_SLOTS = ['think.done', 'think.live', 'search.done', 'options.title'] as const;
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 /** 参数可以绑定：种子（seed:accent）、语义令牌（token:surface-1）、皮肤自己的变量（var:--k-skin-xxx） */
@@ -149,5 +152,9 @@ export function validateManifest(m: unknown): string[] {
   }
   if (o.series !== undefined && !(o.series && ID.test(o.series.id) && typeof o.series.name === 'string' && o.series.name)) { e.push('series 必须是 { id, name }'); }
   for (const mod of o.modules || []) { if (!(MODULES as readonly string[]).includes(mod)) { e.push('未知的动效模块：' + mod); } }
+  for (const [k, val] of Object.entries(o.flavor || {})) {
+    if (!(FLAVOR_SLOTS as readonly string[]).includes(k)) { e.push('flavor 里没有这个风格槽位：' + k); continue; }
+    if (typeof val !== 'string' || !val.trim() || val.length > 16 || /[<>]/.test(val)) { e.push('flavor.' + k + ' 必须是 16 字以内的纯文字'); }
+  }
   return e;
 }

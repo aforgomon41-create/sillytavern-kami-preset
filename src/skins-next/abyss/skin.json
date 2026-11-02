@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "ink"
+    "ink",
+    "tendril",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "tendril",
+      "name": "触须",
+      "description": "按下与打开时，触须从边缘卷出又缩回。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "气泡",
+      "description": "深水里的气泡缓缓上浮。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "ink",
       "name": "渗墨",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的手记",
+    "think.live": "{name}在记录……",
+    "search.done": "翻出 {n} 份档案",
+    "options.title": "接下来……"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

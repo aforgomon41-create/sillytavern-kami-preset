@@ -47,3 +47,45 @@
 [data-k-content] [data-k-part="name"], [data-k-content] [data-k-part="keyword"] { color: var(--k-jh-cinnabar); }
 [data-k-content="body"] > [data-k-part="scene-break"] { width: 70%; border: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--k-jh-ink) 30%, var(--k-jh-ink) 70%, transparent); transform: rotate(-4deg); }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 0; border-left: 3px solid var(--k-jh-ink); border-radius: 0; }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：武林卷轴与刀光。招牌：斜刀光（slash）+ 墨晕；环境：竹叶斜落 */
+:host, [data-k-surface] { --k-amb: petal; --k-amb-dir: down; --k-amb-angle: 22; --k-amb-count: 7; --k-amb-speed: 13; --k-amb-size: 7; --k-amb-color: #4f6e3c; --k-amb-alpha: .35; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #7f9e6a; --k-amb-alpha: .3; }
+
+/* 开关 = 刀鞘：漆黑鞘身两道金箍，滑块是一枚朱印（打开时） */
+[data-k="switch"] { background: linear-gradient(90deg, transparent 22%, #b08a3a 22% 26%, transparent 26% 74%, #b08a3a 74% 78%, transparent 78%), var(--k-jh-ink); border-color: var(--k-jh-ink); }
+[data-k="switch"][data-state="checked"] { background: linear-gradient(90deg, transparent 22%, #d8b060 22% 26%, transparent 26% 74%, #d8b060 74% 78%, transparent 78%), var(--k-jh-cinnabar); border-color: var(--k-jh-cinnabar); }
+[data-k="switch"] [data-k-part="thumb"] { background: var(--k-bg); box-shadow: inset 0 0 0 2px var(--k-jh-cinnabar); }
+/* 进度 = 一笔浓墨：尾端飞白 */
+[data-k="progress"] { height: 5px; border-radius: 0; background: var(--k-jh-wash); box-shadow: none; }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: 0; background: linear-gradient(90deg, var(--k-jh-ink) 70%, color-mix(in srgb, var(--k-jh-ink) 40%, transparent)); }
+/* 滑块 = 墨点 */
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: var(--k-jh-ink); border-radius: 46% 54% 50% 50%; box-shadow: 0 0 0 3px var(--k-jh-wash); }
+
+/* 选中的选择卡：右下角盖一方朱印「准」 */
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { display: grid; place-items: center; right: 8px; bottom: 8px; width: 26px; height: 26px; background: var(--k-jh-cinnabar); color: #fff8ef; font: 400 15px/1 "Ma Shan Zheng", "Kaiti SC", KaiTi, serif; box-shadow: inset 0 0 0 2px #fff8ef, inset 0 0 0 3px var(--k-jh-cinnabar); transform: rotate(-6deg); }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"]::before { content: '准'; }
+[data-k-surface][data-k-motion="full"] [data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { animation: k-jh-seal .35s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes k-jh-seal { from { transform: scale(2) rotate(-14deg); opacity: 0; } to { transform: scale(1) rotate(-6deg); opacity: 1; } }
+
+/* 面板背景：远山水墨 + 右上一笔圆相 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: var(--k-jh-ink); opacity: .07; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='none'%3E%3Cpath d='M0 140V90c30-10 50-50 80-60s40 30 70 40 40-60 90-70 50 50 80 60 50-20 80-10v80z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='none'%3E%3Cpath d='M0 140V90c30-10 50-50 80-60s40 30 70 40 40-60 90-70 50 50 80 60 50-20 80-10v80z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: 20px; top: 70px; width: 150px; height: 150px; background: var(--k-jh-ink); opacity: .06; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M70 12C45 2 12 20 10 52s30 42 52 38 30-30 26-50c-2-9-6-16-11-20' fill='none' stroke='black' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M70 12C45 2 12 20 10 52s30 42 52 38 30-30 26-50c-2-9-6-16-11-20' fill='none' stroke='black' stroke-width='7' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 80px; background: var(--k-jh-ink); opacity: .05; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='none'%3E%3Cpath d='M0 140V90c30-10 50-50 80-60s40 30 70 40 40-60 90-70 50 50 80 60 50-20 80-10v80z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 140' preserveAspectRatio='none'%3E%3Cpath d='M0 140V90c30-10 50-50 80-60s40 30 70 40 40-60 90-70 50 50 80 60 50-20 80-10v80z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #b8322a; --k-opt-persona: #6a4a8a; --k-opt-plot: #2f6a3a; --k-opt-info: #2a4a7a; --k-opt-fun: #b0782a; --k-opt-nsfw: #8a1c2a; --k-opt-other: #5a554e; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }

@@ -412,3 +412,13 @@
 }
 @media (pointer: coarse) { [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="text"] { -webkit-line-clamp: 2; } }
 [data-k="msg-options"] > [data-k-part="pending"] { display: flex; align-items: center; gap: var(--k-space-2); margin: 0; color: var(--k-on-muted); font-size: var(--k-fs-sm); }
+
+/* ───────── 装饰槽（契约 6.4）：默认不显示，皮肤写了才出现；全部不可交互 ─────────
+   surface-backdrop：面板 / 对话框 / 消息的背景层，铺满宿主、在内容后面（宿主 isolation 隔出层叠上下文，z-index -1 落在宿主底色之上、内容之下）；
+   环境层动效（fx/ambient.ts）也画在这里。card-corner：卡片右下角。empty-art：空状态插图位。 */
+[data-k-ornament="surface-backdrop"], [data-k-ornament="card-corner"], [data-k-ornament="empty-art"] { display: none; position: absolute; pointer-events: none; }
+[data-k-ornament="surface-backdrop"] { inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; }
+[data-k-ornament="card-corner"] { right: 0; bottom: 0; z-index: 1; }
+[data-k-ornament="empty-art"] { left: 50%; top: 0; translate: -50% 0; }
+[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="msg-view"] { isolation: isolate; }
+[data-k="msg-view"], [data-k="empty"] { position: relative; }

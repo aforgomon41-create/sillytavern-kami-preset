@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "particles"
+    "particles",
+    "words",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "words",
+      "name": "拟声字",
+      "description": "按下和打开时弹出「ドキッ」「キュン」这类漫画拟声字。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "心动泡泡",
+      "description": "面板与消息背景里，小爱心泡泡慢慢往上浮。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "particles",
       "name": "心动",
@@ -80,7 +96,12 @@
       "group": "形状"
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的小心思",
+    "think.live": "{name}心跳加速中",
+    "search.done": "翻了 {n} 本恋爱指南",
+    "options.title": "下一格分镜"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

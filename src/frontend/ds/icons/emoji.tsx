@@ -9,6 +9,11 @@ import { ICONS } from './registry';
 const IconMapContext = React.createContext<Record<string, string>>({});
 export const IconMapProvider = IconMapContext.Provider;
 export const useIconMap = (): Record<string, string> => React.useContext(IconMapContext);
+/** 风格文案（契约第 11 节）：皮肤 flavor 里填了就用皮肤的，{占位} 换成 vars；没填用功能方的默认文案 */
+export function useFlavor(slot: string, fallback: string, vars: Record<string, string | number> = {}): string {
+  const t = React.useContext(IconMapContext)['flavor:' + slot] || fallback;
+  return t.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
 
 const LEAD = /^\s*(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u;
 const SKIN_TONE = /\p{Emoji_Modifier}/gu;

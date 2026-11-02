@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "particles"
+    "particles",
+    "drip",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "drip",
+      "name": "蜡滴",
+      "description": "按下时下沿凝出蜡滴落下。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "余烬",
+      "description": "余烬从下方缓缓升起。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "candle",
       "name": "烛光",
@@ -74,7 +90,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的祷词",
+    "think.live": "{name}低声祷告",
+    "search.done": "查阅 {n} 卷禁书",
+    "options.title": "启示"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "particles"
+    "particles",
+    "orbit",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "orbit",
+      "name": "符文环",
+      "description": "按下与打开时，一圈符文绕着转开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "灵气",
+      "description": "灵气光点从下往上缓缓升起。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "particles",
       "name": "灵气",
@@ -80,7 +96,12 @@
       "group": "形状"
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}神识推演",
+    "think.live": "{name}入定推演中",
+    "search.done": "参阅 {n} 卷玉简",
+    "options.title": "机缘"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

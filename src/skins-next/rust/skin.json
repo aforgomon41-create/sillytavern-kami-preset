@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "particles"
+    "particles",
+    "sparks",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "sparks",
+      "name": "火花",
+      "description": "按下与打开时迸出火花。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "沙尘",
+      "description": "沙尘从一侧横吹而过。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "flicker",
       "name": "坏灯",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的盘算",
+    "think.live": "{name}盘算中",
+    "search.done": "搜刮到 {n} 份资料",
+    "options.title": "下一步"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

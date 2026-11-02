@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "trace"
+    "trace",
+    "shine",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "shine",
+      "name": "金箔",
+      "description": "按下与打开时，一道金箔光泽斜扫而过。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "光柱",
+      "description": "高窗投下的光柱缓缓移过。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "trace",
       "name": "金线",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的沉思录",
+    "think.live": "{name}沉思中",
+    "search.done": "引述 {n} 部典籍",
+    "options.title": "抉择"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

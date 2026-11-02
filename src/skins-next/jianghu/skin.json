@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "ink"
+    "ink",
+    "slash",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "slash",
+      "name": "刀光",
+      "description": "按下与打开时，一道斜刀光闪过。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "竹叶",
+      "description": "背景里竹叶斜斜飘落。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "ink",
       "name": "墨晕",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}心中盘算",
+    "think.live": "{name}凝神思索",
+    "search.done": "翻阅 {n} 部秘籍",
+    "options.title": "江湖路"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

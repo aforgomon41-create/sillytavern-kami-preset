@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "trace"
+    "trace",
+    "ripple",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "ripple",
+      "name": "脉冲环",
+      "description": "按下与打开时，同心脉冲环扩散。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "数据点",
+      "description": "点阵网格里的数据点偶尔亮起。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "trace",
       "name": "描线",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name} · 推理日志",
+    "think.live": "{name} · 推理中",
+    "search.done": "检索 {n} 个数据源",
+    "options.title": "可选路径"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

@@ -49,3 +49,48 @@
 [data-k-content] [data-k-part="keyword"] { color: var(--k-brief-orange); }
 [data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 8px; background: repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 8px) 0 100% / 100% 4px repeat-x, repeating-linear-gradient(90deg, var(--k-brief-line) 0 1px, transparent 1px 40px) 0 100% / 100% 8px repeat-x; }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 1px solid var(--k-brief-line); }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：作战档案与战术屏。招牌：准星锁定（lockon in）+ 雷达扫描；环境：雷达光带扫过 */
+:host, [data-k-surface] { --k-fx-lock: in; --k-amb: sweep; --k-amb-angle: 0; --k-amb-speed: 9; --k-amb-color: var(--k-fx-glow); --k-amb-alpha: .14; }
+
+/* 进度 = 弹药格 */
+[data-k="progress"] { height: 9px; border-radius: 0; background: repeating-linear-gradient(90deg, var(--k-brief-grid) 0 7px, transparent 7px 9px); box-shadow: inset 0 0 0 1px var(--k-brief-line); }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: 0; background: repeating-linear-gradient(90deg, var(--k-accent) 0 7px, transparent 7px 9px); }
+/* 开关 = 保险：轨道里写 SAFE / ARM，打开时黄黑警示条 */
+[data-k="switch"]::before { content: 'SAFE'; position: absolute; right: 4px; top: 50%; translate: 0 -50%; font: 600 7px/1 "IBM Plex Mono", var(--k-font-mono); color: var(--k-on-muted); pointer-events: none; }
+[data-k="switch"][data-state="checked"] { background: repeating-linear-gradient(-45deg, var(--k-brief-orange) 0 5px, #1d1d1d 5px 10px); border-color: var(--k-brief-orange); }
+[data-k="switch"][data-state="checked"]::before { content: 'ARM'; right: auto; left: 4px; color: #fff; text-shadow: 0 0 2px #000; }
+[data-k="switch"] [data-k-part="thumb"] { background: linear-gradient(180deg, #e8e4d4, #a8a48e); }
+/* 滑块 = 竖条标尺游标 */
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { border-radius: 0; width: 10px; margin-left: -5px; background: var(--k-accent); box-shadow: 0 0 0 1px var(--k-bg); }
+[data-k="checkbox"] { border-radius: 0; }
+
+/* 卡片右下：网格坐标编号 */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 5px; font: 9px/1 "IBM Plex Mono", var(--k-font-mono); letter-spacing: .1em; color: var(--k-on-muted); opacity: .7; }
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"]::before { content: 'GRID 47-B'; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { display: block; right: 6px; bottom: 6px; width: 16px; height: 16px; border: 1.5px solid var(--k-accent); border-radius: 50%; background: linear-gradient(var(--k-accent), var(--k-accent)) center / 1.5px 100% no-repeat, linear-gradient(var(--k-accent), var(--k-accent)) center / 100% 1.5px no-repeat; }
+
+/* 面板背景：中央一个大十字准星 + 四角坐标 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 50%; top: 55%; width: 300px; height: 300px; translate: -50% -50%; background: var(--k-accent); opacity: .08; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='black' stroke-width='.8'/%3E%3Ccircle cx='100' cy='100' r='30' fill='none' stroke='black' stroke-width='.8'/%3E%3Cpath d='M100 0v80M100 120v80M0 100h80M120 100h80' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='black' stroke-width='.8'/%3E%3Ccircle cx='100' cy='100' r='30' fill='none' stroke='black' stroke-width='.8'/%3E%3Cpath d='M100 0v80M100 120v80M0 100h80M120 100h80' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: 'N 34°07′  E 118°45′'; position: absolute; left: 14px; bottom: 10px; font: 10px/1 "IBM Plex Mono", var(--k-font-mono); letter-spacing: .14em; color: var(--k-on-muted); opacity: .55; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; background: var(--k-accent); opacity: .07; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='black' stroke-width='.8'/%3E%3Ccircle cx='100' cy='100' r='30' fill='none' stroke='black' stroke-width='.8'/%3E%3Cpath d='M100 0v80M100 120v80M0 100h80M120 100h80' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='100' cy='100' r='60' fill='none' stroke='black' stroke-width='.8'/%3E%3Ccircle cx='100' cy='100' r='30' fill='none' stroke='black' stroke-width='.8'/%3E%3Cpath d='M100 0v80M100 120v80M0 100h80M120 100h80' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* 消息：对白像无线电记录，每段左边一道橙色标记 */
+[data-k-content] [data-k-part="dialogue"] { box-shadow: inset 2px 0 0 var(--k-brief-orange); padding-left: .25em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #4b6a2e; --k-opt-persona: #7a5a2a; --k-opt-plot: #2f6a5a; --k-opt-info: #3a5a7a; --k-opt-fun: #b07a1f; --k-opt-nsfw: #a0301f; --k-opt-other: #6a6a5a; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 1.75; stroke-linecap: square; stroke-linejoin: miter; }

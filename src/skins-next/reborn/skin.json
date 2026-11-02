@@ -43,9 +43,25 @@
   },
   "modules": [
     "scan",
-    "particles"
+    "particles",
+    "lockon",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "lockon",
+      "name": "系统弹窗",
+      "description": "窗口打开时四角括号从中间展开，按下时锁定框一闪。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "星光",
+      "description": "背景里零星的星光一明一灭。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "scan",
       "name": "系统扫描",
@@ -68,7 +84,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "【{name}的思考记录】",
+    "think.live": "【{name}思考中…】",
+    "search.done": "【鉴定】{n} 条情报",
+    "options.title": "【选择行动】"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

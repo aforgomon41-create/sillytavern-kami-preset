@@ -19,8 +19,13 @@
  * 动效「平静」只留最轻的一层（淡入淡出的光 / 线），「关闭」与系统「减少动态效果」时完全不播；所有监听挂在 Shadow DOM 根上，销毁时收回。
  */
 
-export type MotifId = 'particles' | 'glitch' | 'ink' | 'trace' | 'scan' | 'unroll';
-export const MOTIF_IDS: readonly MotifId[] = ['particles', 'glitch', 'ink', 'trace', 'scan', 'unroll'];
+import { SIGNATURES, SIGNATURE_IDS, type SignatureId } from './signature';
+
+export type BaseMotifId = 'particles' | 'glitch' | 'ink' | 'trace' | 'scan' | 'unroll';
+export type MotifId = BaseMotifId | SignatureId;
+const BASE_IDS: readonly BaseMotifId[] = ['particles', 'glitch', 'ink', 'trace', 'scan', 'unroll'];
+/** 通用组 + 招牌组（fx/signature.ts，每款皮肤一个专属动作） */
+export const MOTIF_IDS: readonly MotifId[] = [...BASE_IDS, ...SIGNATURE_IDS];
 
 export interface MotifOptions {
   /** 某个模块此刻是否启用（皮肤声明 + 特效开关） */
@@ -28,7 +33,7 @@ export interface MotifOptions {
   motion: () => 'full' | 'calm' | 'off';
 }
 
-type Event = 'open' | 'close' | 'press' | 'tab' | 'fold-open' | 'fold-close';
+export type Event = 'open' | 'close' | 'press' | 'tab' | 'fold-open' | 'fold-close';
 
 const PRESS_SEL = '[data-k="button"]:not(:disabled), [data-k="icon-button"]:not(:disabled), [data-k="card"][data-role="choice"], [data-k="switch"], [data-k="checkbox"], [data-k="select"][data-k-part="trigger"], [data-k="segmented"] [data-k-part="item"], [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"]';
 const TAB_SEL = '[data-k="tabs"] [data-k-part="tab"]:not([data-disabled]), [data-k="nav"] [data-k-part="item"]';
@@ -38,9 +43,18 @@ const MAX_ACTIVE = 6;
 const MAX_NODES = 90;
 const TAP_SLOP = 10;
 
-interface Ctx {
+export interface Ctx {
   r: DOMRect; cs: CSSStyleDeclaration; calm: boolean; coarse: boolean; x: number; y: number;
   glow: string; alt: string; size: number;
+}
+
+/** 招牌动效拿到的工具：建节点（受总数上限约束）、播放并回收、定位、随机数 */
+export interface Kit {
+  node(tag?: string): HTMLElement | null;
+  play(d: HTMLElement | null, frames: Keyframe[], opt: KeyframeAnimationOptions): Animation | null;
+  box(d: HTMLElement, x: number, y: number, w: number, h: number): string;
+  rnd(a: number, b: number): number;
+  win: Window & typeof globalThis;
 }
 
 export class Motifs {
@@ -55,12 +69,14 @@ export class Motifs {
   private nodes = 0;
   private disposed = false;
   private pending: { id: number; x: number; y: number; t: number; target: Element } | null = null;
+  private readonly kit: Kit;
 
   constructor(private readonly root: ShadowRoot, private readonly o: MotifOptions) {
     this.doc = root.ownerDocument;
     this.win = this.doc.defaultView as Window & typeof globalThis;
     this.coarse = !!this.win.matchMedia && this.win.matchMedia('(pointer: coarse)').matches;
     this.reduce = !!this.win.matchMedia && this.win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.kit = { node: (tag) => this.node(tag), play: (d, f, op) => this.play(d, f, op), box: (d, x, y, w, h) => this.box(d, x, y, w, h), rnd: (a, b) => this.rnd(a, b), win: this.win };
     this.layer = this.doc.createElement('div');
     this.layer.setAttribute('data-k-fx-layer', 'motifs');
     this.layer.setAttribute('aria-hidden', 'true');
@@ -153,7 +169,9 @@ export class Motifs {
       r, cs, calm: motion === 'calm', coarse: this.coarse, x: x ?? r.left + r.width / 2, y: y ?? r.top + r.height / 2,
       glow, alt: v('--k-fx-alt') || glow, size: Math.max(2, parseFloat(v('--k-fx-size')) || 6) * (this.coarse ? 1.3 : 1)
     };
-    for (const id of ids) { this[id](ev, el, c); }
+    for (const id of ids) {
+      if ((BASE_IDS as readonly string[]).includes(id)) { this[id as BaseMotifId](ev, el, c); } else { SIGNATURES[id as SignatureId](ev, el, c, this.kit); }
+    }
   }
 
   /* ───────── 小工具 ───────── */

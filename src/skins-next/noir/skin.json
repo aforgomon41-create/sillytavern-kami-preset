@@ -44,9 +44,25 @@
     }
   },
   "modules": [
-    "scan"
+    "scan",
+    "flash",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "flash",
+      "name": "闪光灯",
+      "description": "按下与打开时，闪光灯一闪。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "百叶窗光",
+      "description": "光从百叶窗缝里缓缓扫过。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "scan",
       "name": "百叶窗光",
@@ -69,7 +85,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的推理",
+    "think.live": "{name}在推理",
+    "search.done": "调查了 {n} 条线索",
+    "options.title": "下一步行动"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

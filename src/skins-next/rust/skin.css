@@ -47,3 +47,46 @@
 [data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 55%, color-mix(in srgb, var(--k-rust-yellow) 45%, transparent) 55%); }
 [data-k-content="body"] > [data-k-part="scene-break"] { width: 100%; border: 0; height: 6px; background: repeating-linear-gradient(-45deg, var(--k-rust-yellow) 0 6px, #222 6px 12px); opacity: .55; }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 2px solid var(--k-rust-metal); border-radius: 2px; }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：拼凑的铁皮据点。招牌：火花（sparks）；环境：沙尘横吹 */
+:host, [data-k-surface] { --k-fx-glow: #ff9a3a; --k-fx-alt: #ffe08a; --k-amb: dot; --k-amb-dir: right; --k-amb-count: 16; --k-amb-speed: 7; --k-amb-size: 1.6; --k-amb-color: #c8a070; --k-amb-alpha: .45; }
+[data-k-surface][data-k-scheme="light"] { --k-fx-glow: #d8641c; --k-amb-color: #9a7a50; --k-amb-alpha: .35; }
+
+/* 进度 = 油量表：轨道带刻度，填充从红到黄到绿 */
+[data-k="progress"] { height: 10px; border-radius: 2px; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 12px), var(--k-sunken); box-shadow: inset 0 0 0 2px var(--k-rust-metal); }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: 2px; background: linear-gradient(90deg, #b5361f, var(--k-rust-yellow) 55%, #6a9a3a); }
+/* 开关 = 电闸：金属方块，合闸时黄黑警示条 */
+[data-k="switch"] { border-radius: 2px; background: #4a4038; border: 2px solid var(--k-rust-metal); }
+[data-k="switch"][data-state="checked"] { background: repeating-linear-gradient(-45deg, var(--k-rust-yellow) 0 5px, #222 5px 10px); border-color: var(--k-rust-metal); }
+[data-k="switch"] [data-k-part="thumb"] { border-radius: 1px; background: linear-gradient(180deg, #d8cfc0, #8a8070); box-shadow: inset 0 0 0 1px #5a5048; }
+/* 滑块 = 六角螺母 */
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { border-radius: 0; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: radial-gradient(circle, #3a332c 0 22%, #b8ad9c 25%, #7a7060); }
+/* 徽章 = 喷漆模板字 */
+[data-k="badge"] { border-radius: 1px; text-transform: uppercase; box-shadow: inset 0 0 0 1.5px currentColor; background: transparent; }
+[data-k="checkbox"] { border-radius: 1px; }
+
+/* 卡片右下：一个警示三角 */
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 8px; width: 14px; height: 12px; background: var(--k-rust-yellow); clip-path: polygon(50% 0, 100% 100%, 0 100%); opacity: .55; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; width: 18px; height: 16px; }
+
+/* 面板背景：竖向瓦楞铁皮 + 底部锈迹 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: radial-gradient(ellipse 40% 60% at 20% 100%, color-mix(in srgb, var(--k-accent) 18%, transparent), transparent), radial-gradient(ellipse 30% 50% at 85% 100%, color-mix(in srgb, var(--k-accent) 14%, transparent), transparent); }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .035) 0 6px, transparent 6px 12px); }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #c8641c; --k-opt-persona: #8a5a8a; --k-opt-plot: #5a7a3a; --k-opt-info: #4a6a7a; --k-opt-fun: #c09a20; --k-opt-nsfw: #a02a1c; --k-opt-other: #7a6a58; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 2.5; stroke-linecap: square; stroke-linejoin: miter; }

@@ -44,13 +44,21 @@
     }
   },
   "modules": [
-    "glitch"
+    "glitch",
+    "ambient"
   ],
   "effects": [
     {
       "id": "glitch",
       "name": "故障",
       "description": "打开、按下时画面错位闪烁。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "霓虹雨",
+      "description": "背景里霓虹色的雨丝斜斜落下。（只在动效「完整」档）",
       "group": "动效",
       "default": true
     },
@@ -69,7 +77,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}.LOG",
+    "think.live": "{name} 运算中…",
+    "search.done": "接入 {n} 个节点",
+    "options.title": "执行指令"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

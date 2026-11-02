@@ -43,9 +43,25 @@
   },
   "modules": [
     "unroll",
-    "particles"
+    "particles",
+    "stamp",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "stamp",
+      "name": "蜡封",
+      "description": "按下时盖下一枚红蜡封印，打开面板时右上角落印。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "金尘",
+      "description": "背景里金色的尘埃缓缓漂浮，像酒馆里的灯下。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "unroll",
       "name": "卷轴",
@@ -68,7 +84,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的行军盘算",
+    "think.live": "{name}正在查看地图",
+    "search.done": "查阅了 {n} 份古籍",
+    "options.title": "下一段旅程"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

@@ -45,9 +45,25 @@
   },
   "modules": [
     "scan",
-    "trace"
+    "trace",
+    "lockon",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "lockon",
+      "name": "准星锁定",
+      "description": "按下时准星四角收拢锁定目标。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "雷达",
+      "description": "背景里雷达光带缓缓扫过。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "scan",
       "name": "雷达",
@@ -77,7 +93,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name} 作战推演",
+    "think.live": "{name} 推演中",
+    "search.done": "情报 {n} 份",
+    "options.title": "行动方案"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

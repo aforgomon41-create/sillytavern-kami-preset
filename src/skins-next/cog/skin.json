@@ -42,9 +42,25 @@
     }
   },
   "modules": [
-    "particles"
+    "particles",
+    "steam",
+    "ambient"
   ],
   "effects": [
+    {
+      "id": "steam",
+      "name": "蒸汽",
+      "description": "按下与打开时冒出一股蒸汽。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "烟雾",
+      "description": "烟团从下方缓缓升腾。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
     {
       "id": "particles",
       "name": "蒸汽",
@@ -67,7 +83,12 @@
       "default": true
     }
   ],
-  "flavor": {},
+  "flavor": {
+    "think.done": "{name}的演算",
+    "think.live": "{name}演算中",
+    "search.done": "调阅 {n} 份图纸",
+    "options.title": "操作杆"
+  },
   "icons": {
     "🔻": "section-end",
     "🔺": "section-start",

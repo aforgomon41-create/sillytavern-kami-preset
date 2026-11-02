@@ -23,7 +23,9 @@
 [data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
 [data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-palace-gold); justify-content: center; }
 [data-k="tabs"] [data-k-part="tab"] { letter-spacing: .2em; }
-[data-k="tabs"] [data-k-part="tab"][data-state="active"] { color: var(--k-palace-red); border-bottom: 2px solid var(--k-palace-red); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { color: var(--k-palace-tab); border-bottom: 2px solid var(--k-palace-red); }
+[data-k-surface] { --k-palace-tab: var(--k-palace-red); }
+[data-k-surface][data-k-scheme="dark"] { --k-palace-tab: #e6c26e; }
 /* 印玺徽章 */
 [data-k="badge"] { border-radius: 1px; }
 [data-k="badge"][data-tone="accent"] { background: var(--k-palace-red); color: #fff3d6; box-shadow: inset 0 0 0 1.5px #fff3d6; }
@@ -53,3 +55,49 @@
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 6'%3E%3Cpath d='M0 0h12v1H1v4h8V2H4v2h3v1H3V1h7v5H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 2px; border: 1px solid color-mix(in srgb, var(--k-palace-gold) 55%, transparent); }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：奏折与宫门。招牌：朱笔圈点（mark）+ 奏折横向展开；环境：宫墙落花 */
+:host, [data-k-surface] { --k-fx-glow: #c8322a; --k-amb: petal; --k-amb-dir: down; --k-amb-angle: 10; --k-amb-count: 8; --k-amb-speed: 16; --k-amb-size: 6; --k-amb-color: #d8707a; --k-amb-alpha: .45; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #ec6a52; --k-amb-color: #e8a0a0; --k-amb-alpha: .35; }
+
+/* 开关 = 令牌：金边方牌，打开时整块朱漆 */
+[data-k="switch"] { border-radius: 2px; }
+[data-k="switch"] [data-k-part="thumb"] { border-radius: 1px; background: linear-gradient(var(--k-palace-red), var(--k-palace-red)) center / 40% 40% no-repeat, linear-gradient(135deg, #f4d77a, #c9971f); box-shadow: 0 0 0 1px #8a6510; }
+/* 进度 = 香篆：朱转金 */
+[data-k="progress"] { height: 6px; border-radius: 0; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-palace-gold) 50%, transparent); }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: 0; background: linear-gradient(90deg, var(--k-palace-red), var(--k-palace-gold)); }
+/* 滑块 = 玉璧（中间有孔） */
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle, var(--k-bg) 0 22%, #9ec4a8 24% 60%, #5a8a6a 62%); box-shadow: 0 0 0 1px var(--k-palace-gold); }
+/* 复选框 = 朱批圈：勾选后是一个朱红圆圈 */
+[data-k="checkbox"] { border-radius: 50%; }
+
+/* 选中的选择卡：右下角朱批「准」（一个朱红圈里一个字） */
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { display: grid; place-items: center; right: 8px; bottom: 6px; width: 28px; height: 28px; border: 2px solid var(--k-fx-glow); border-radius: 50%; color: var(--k-fx-glow); font: 700 15px/1 "Kaiti SC", STKaiti, KaiTi, serif; transform: rotate(-12deg); }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"]::before { content: '准'; }
+/* 容器卡右下：一个小如意云头 */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 10px; width: 14px; height: 10px; background: var(--k-palace-gold); opacity: .5; border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; }
+
+/* 面板背景：底部宫墙屋檐剪影 + 两侧朱红立柱 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: var(--k-palace-red); opacity: .08; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cpath d='M0 70 Q60 64 110 40 L150 20 H250 L290 40 Q340 64 400 70 V80 H0z'/%3E%3Cpath d='M140 20 L200 2 L260 20z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cpath d='M0 70 Q60 64 110 40 L150 20 H250 L290 40 Q340 64 400 70 V80 H0z'/%3E%3Cpath d='M140 20 L200 2 L260 20z'/%3E%3C/svg%3E") 0 100% / 100% 100% no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; left: 6px; right: 6px; top: 60px; bottom: 6px; border-left: 4px solid color-mix(in srgb, var(--k-palace-red) 12%, transparent); border-right: 4px solid color-mix(in srgb, var(--k-palace-red) 12%, transparent); }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 40px; background: var(--k-palace-red); opacity: .06; transform: scaleY(-1); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cpath d='M0 70 Q60 64 110 40 L150 20 H250 L290 40 Q340 64 400 70 V80 H0z'/%3E%3Cpath d='M140 20 L200 2 L260 20z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'%3E%3Cpath d='M0 70 Q60 64 110 40 L150 20 H250 L290 40 Q340 64 400 70 V80 H0z'/%3E%3Cpath d='M140 20 L200 2 L260 20z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+
+/* 消息：心理描写像奏折旁的小字夹批（字号略小、楷体、青绿） */
+[data-k-content] [data-k-part="thought"] { font-size: .94em; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #b8322a; --k-opt-persona: #8a3a7a; --k-opt-plot: #2f6b5c; --k-opt-info: #2a5a8a; --k-opt-fun: #b8871a; --k-opt-nsfw: #a01c3a; --k-opt-other: #6a5a4a; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

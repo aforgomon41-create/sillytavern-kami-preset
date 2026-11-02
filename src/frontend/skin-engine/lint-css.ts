@@ -55,6 +55,8 @@ export function lintSkinCss(css: string): LintIssue[] {
       if (!HOOK.test(sel)) { issues.push({ line: at(r), message: '选择器必须从公开钩子出发（[data-k…] 或 :host）：' + sel.trim() }); }
       /* 容器组件（面板、对话框、卡片、设置分组 / 设置行）的部件必须用直接子元素选择器 >：
          写成后代选择器会误伤嵌套在里面的其他组件的同名部件（旧系统 .kami-card 的老问题） */
+      /* 消息内容规则只有「以 [data-k-content 开头」的才会被抽进酒馆页面（契约 6.8）；前面加了配色 / 特效条件的在酒馆里静默失效 */
+      if (/\[data-k-content/.test(sel) && !sel.trim().startsWith('[data-k-content')) { issues.push({ line: at(r), message: '消息内容规则必须以 [data-k-content 开头（按配色 / 特效区分请用 [data-k-surface] 上的 CSS 变量），否则在酒馆里不生效：' + sel.trim() }); }
       if (LEAK.test(sel)) { issues.push({ line: at(r), message: '容器组件的部件请用 > 直接子元素选择器（后代选择器会误伤嵌套组件的同名部件）：' + sel.trim() }); }
       /* 钩子必须在部件清单里登记过：写错名字的规则会静默失效 */
       let m: RegExpExecArray | null;

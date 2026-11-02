@@ -9,7 +9,7 @@ import * as React from 'react';
 import { k, part } from '../ds/hooks';
 import { IconChevronDown, IconCode, IconCopy, IconPencil, IconTrash } from '../ds/icons';
 import { ICONS } from '../ds/icons/registry';
-import { Badge, IconButton, Segmented, Spinner } from '../ds';
+import { Badge, IconButton, Segmented, Spinner, ornament, useFlavor } from '../ds';
 import { InlineMarkdown, Markdown } from './markdown';
 import { countChars, parseBody, siteOf, splitReply, type Inline, type OptionItem, type SearchRecord } from './parse';
 
@@ -110,6 +110,8 @@ export function MsgThink({ text, streaming, thinker = '奈亚子', actions, slot
   const [open, setOpen] = React.useState(false);
   const [raw, setRaw] = React.useState(false);
   const id = React.useId();
+  const thinkLive = useFlavor('think.live', '{name}思考中', { name: thinker });
+  const thinkDone = useFlavor('think.done', '{name}思考了', { name: thinker });
   const n = Array.from(text.replace(/\s/g, '')).length;
   const Brain = ICONS['brain']!;
   return (
@@ -118,7 +120,7 @@ export function MsgThink({ text, streaming, thinker = '奈亚子', actions, slot
       <div {...part('head')}>
         <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
           <span {...part('icon')} aria-hidden="true">{streaming ? <Spinner size="sm" label="思考中" /> : <Brain width="100%" height="100%" strokeWidth={1.75} />}</span>
-          <span {...part('title')}>{thinker + (streaming ? '思考中' : '思考了')}</span>
+          <span {...part('title')}>{streaming ? thinkLive : thinkDone}</span>
           <span {...part('count')}>{n} 字</span>
           <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
         </button>
@@ -144,6 +146,7 @@ export function MsgSearch({ records, pending, slotted }: { records: SearchRecord
   const [open, setOpen] = React.useState(false);
   const id = React.useId();
   const sources = records.flatMap((r) => r.sources);
+  const searchDone = useFlavor('search.done', '参考了 {n} 个来源', { n: sources.length });
   const sites = [...new Set(sources.map((s) => siteOf(s.url)))];
   const Search = ICONS['search']!;
   return (
@@ -151,7 +154,7 @@ export function MsgSearch({ records, pending, slotted }: { records: SearchRecord
       <div {...part('head')}>
       <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={!records.length}>
         <span {...part('icon')} aria-hidden="true">{pending ? <Spinner size="sm" label="整理资料中" /> : <Search width="100%" height="100%" strokeWidth={1.75} />}</span>
-        <span {...part('title')}>{records.length ? '参考了 ' + sources.length + ' 个来源' : '正在整理资料'}</span>
+        <span {...part('title')}>{records.length ? searchDone : '正在整理资料'}</span>
         {sites.length ? <span {...part('sites')}>{sites.slice(0, 3).join(' · ')}{sites.length > 3 ? ' 等' : ''}</span> : null}
         {records.length ? <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span> : null}
       </button>
@@ -187,6 +190,9 @@ const TONE: Record<string, 'accent' | 'info' | 'success' | 'warning' | 'danger' 
   行动: 'accent', 性格: 'info', 推进: 'success', 信息: 'info', 搞笑: 'warning', nsfw: 'danger', NSFW: 'danger'
 };
 
+/** 选项类型的稳定 id（皮肤按类型配色用 [data-k-type="…"]） */
+const TYPE_ID: Record<string, string> = { 行动: 'action', 性格: 'persona', 推进: 'plot', 信息: 'info', 搞笑: 'fun', nsfw: 'nsfw', NSFW: 'nsfw', 其他: 'other' };
+
 export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen = true, slotted }: {
   items: OptionItem[]; pending: boolean; mode: OptionMode; onMode: (m: OptionMode) => void; onPick: (item: OptionItem, mode: OptionMode) => void;
   /** 标题与内容由宿主的页面 DOM 经 slot 提供（o{序号}-label / o{序号}-text） */
@@ -197,11 +203,12 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
   const [open, setOpen] = React.useState(defaultOpen);
   React.useEffect(() => { setOpen(defaultOpen); }, [defaultOpen]);
   const id = React.useId();
+  const optTitle = useFlavor('options.title', '行动选项');
   return (
     <section {...k('msg-options', { mode })} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined} aria-label="行动选项">
       <div {...part('head')}>
         <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
-          <span {...part('title')}>行动选项</span>
+          <span {...part('title')}>{optTitle}</span>
           {pending ? null : <span {...part('count')}>{items.length} 个</span>}
           <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
         </button>
@@ -214,7 +221,7 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
         <ul {...part('list')}>
           {items.map((it, i) => (
             <li key={i}>
-              <button type="button" {...part('item')} title={it.content} onClick={() => onPick(it, mode)}
+              <button type="button" {...part('item')} data-k-type={TYPE_ID[it.type] || 'other'} title={it.content} onClick={() => onPick(it, mode)}
                 aria-label={(mode === 'send' ? '发送：' : '填入：') + it.title + '。' + it.content}>
                 {/* 类型标签 + 标题一起作为头部，内容在下面占满整个宽度（用户 2026-10-28） */}
                 <span {...part('item-head')}>
@@ -270,7 +277,7 @@ export function MsgBodyShell({ raw, copy, streaming }: {
 
 /** 思维链 / 搜索资料 / 行动选项各自一块：自己铺底色（酒馆主题可能是深色、皮肤是浅色，不铺底就保证不了对比度） */
 export function MsgPart({ kind, editing, children }: { kind: string; editing?: boolean; children: React.ReactNode }): React.JSX.Element {
-  return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind} data-editing={editing ? '' : undefined}>{children}</div>;
+  return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind} data-editing={editing ? '' : undefined}><span {...ornament('surface-backdrop')} />{children}</div>;
 }
 
 /* ───────── 一整条回复 ───────── */
@@ -292,6 +299,7 @@ export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thin
   return (
     /* 自己铺底色（画布层 bg）：酒馆主题可能是深色、皮肤是浅色，不铺底就保证不了对比度。皮肤可以把它做得很淡，但不能透明 */
     <div {...k('msg-view')} data-k-level="bg" data-streaming={streaming ? '' : undefined}>
+      <span {...ornament('surface-backdrop')} />
       {r.think && r.think.text ? <MsgThink text={r.think.text} streaming={thinking} {...(thinker ? { thinker } : {})} /> : null}
       {r.search.length || (streaming && r.searchPending) ? <MsgSearch records={r.search} pending={streaming && r.searchPending} /> : null}
       {r.body ? <MsgBody text={r.body.text} streaming={bodyStreaming} />

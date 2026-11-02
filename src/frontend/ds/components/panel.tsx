@@ -142,6 +142,7 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
     <div ref={ref} {...k('panel')} data-layout={sheet ? 'sheet' : 'floating'} data-k-level="surface-1" role="dialog" aria-modal="false"
       aria-labelledby={titleId} tabIndex={-1} style={style} onKeyDown={onKeyDown}>
       <LevelProvider level="surface-1">
+        <span {...ornament('surface-backdrop')} />
         <div ref={headRef} {...part('head')} onPointerDown={onHeadDown}>
           {sheet ? <span {...part('grip')} aria-hidden="true" /> : null}
           <span {...ornament('panel-head-start')} />

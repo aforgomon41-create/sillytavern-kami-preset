@@ -47,3 +47,45 @@
 [data-k-content] [data-k-part="term"] { text-decoration: underline wavy var(--k-abyss-violet); text-underline-offset: 3px; }
 [data-k-content="body"] > [data-k-part="scene-break"] { width: 60%; border: 0; height: 8px; background: radial-gradient(ellipse at 30% 50%, var(--k-abyss-edge), transparent 60%), radial-gradient(ellipse at 70% 50%, var(--k-abyss-stain), transparent 60%); }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border: 1px solid var(--k-abyss-edge); border-radius: 8px 2px 9px 3px; }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：调查员的手记。招牌：触须（tendril）+ 墨水渗开；环境：深水气泡上浮 */
+:host, [data-k-surface] { --k-amb: bubble; --k-amb-dir: up; --k-amb-count: 8; --k-amb-speed: 14; --k-amb-size: 4; --k-amb-color: var(--k-accent); --k-amb-alpha: .35; }
+
+/* 开关 = 封印之眼：关着是闭着的眼（一条缝），打开后睁开 */
+[data-k="switch"] [data-k-part="thumb"] { background: linear-gradient(transparent 44%, #2a2a24 44% 56%, transparent 56%), #c8c4b0; }
+[data-k="switch"][data-state="checked"] [data-k-part="thumb"] { background: radial-gradient(circle, #0a0a08 0 22%, var(--k-accent) 24% 46%, #e8e4d0 48%); box-shadow: 0 0 8px color-mix(in srgb, var(--k-accent) 60%, transparent); }
+/* 进度 = 理智值：青绿渐渐沉成紫，末端发抖（完整动效档） */
+[data-k="progress"] { height: 6px; border-radius: 3px 1px 4px 2px; }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: inherit; background: linear-gradient(90deg, var(--k-accent), var(--k-abyss-violet)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle, #0a0a08 0 25%, var(--k-accent) 27% 50%, #e8e4d0 52%); }
+[data-k="checkbox"] { border-radius: 3px 6px 2px 5px; }
+
+/* 卡片右下：一圈卷曲的触须 */
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; right: 6px; bottom: 6px; width: 20px; height: 20px; background: var(--k-accent); opacity: .3; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 22C6 14 4 6 12 4c6-1 9 4 6 8-2 3-6 2-6-1 0-2 2-3 3-2' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 22C6 14 4 6 12 4c6-1 9 4 6 8-2 3-6 2-6-1 0-2 2-3 3-2' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: .9; background: var(--k-abyss-violet); }
+
+/* 面板背景：正中一只若隐若现的眼睛，跟着画面一起「呼吸」 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 50%; top: 52%; width: 320px; height: 160px; translate: -50% -50%; background: var(--k-accent); opacity: .05; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M5 50C40 8 160 8 195 50 160 92 40 92 5 50z' fill='none' stroke='black' stroke-width='3'/%3E%3Ccircle cx='100' cy='50' r='26'/%3E%3Cpath d='M100 0v14M60 6l6 12M140 6l-6 12M30 18l10 10M170 18l-10 10' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M5 50C40 8 160 8 195 50 160 92 40 92 5 50z' fill='none' stroke='black' stroke-width='3'/%3E%3Ccircle cx='100' cy='50' r='26'/%3E%3Cpath d='M100 0v14M60 6l6 12M140 6l-6 12M30 18l10 10M170 18l-10 10' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { animation: k-abyss-eye 9s ease-in-out infinite; }
+@keyframes k-abyss-eye { 0%, 100% { opacity: .04; scale: 1; } 45% { opacity: .08; scale: 1.04; } 50% { opacity: .02; scale: 1 .1; } 55% { opacity: .08; scale: 1.04; } }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: 10px; bottom: 10px; width: 120px; height: 60px; background: var(--k-accent); opacity: .05; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M5 50C40 8 160 8 195 50 160 92 40 92 5 50z' fill='none' stroke='black' stroke-width='3'/%3E%3Ccircle cx='100' cy='50' r='26'/%3E%3Cpath d='M100 0v14M60 6l6 12M140 6l-6 12M30 18l10 10M170 18l-10 10' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Cpath d='M5 50C40 8 160 8 195 50 160 92 40 92 5 50z' fill='none' stroke='black' stroke-width='3'/%3E%3Ccircle cx='100' cy='50' r='26'/%3E%3Cpath d='M100 0v14M60 6l6 12M140 6l-6 12M30 18l10 10M170 18l-10 10' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* 消息：关键词像被调查员用笔重重划过的批注（下划双线） */
+[data-k-content] [data-k-part="keyword"] { text-decoration: underline double var(--k-abyss-violet); text-underline-offset: 3px; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #5a9a5e; --k-opt-persona: #8a6ac0; --k-opt-plot: #3a7a7a; --k-opt-info: #5a7a9a; --k-opt-fun: #9a9030; --k-opt-nsfw: #a03a5a; --k-opt-other: #6a6a62; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

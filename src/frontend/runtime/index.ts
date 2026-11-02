@@ -17,6 +17,7 @@ import { ChatFrontend, type ChatFrontendOptions } from '../message/tavern';
 import { FALLBACK_SKIN } from './fallback-skin';
 import { Fracture } from '../fx/fracture';
 import { Motifs } from '../fx/motifs';
+import { Ambient } from '../fx/ambient';
 import { loadFonts, probeImage, type LoadState } from './remote';
 import { SkinManager } from '../skin-engine/manager';
 import { DisplayPanel, SkinChoices } from '../panels/display-panel';
@@ -65,11 +66,20 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     const hasToggle = (manifest.effects || []).some((f) => f.id === id);
     return !hasToggle || composed.attrs['data-k-effects']!.split(' ').includes(id);
   };
+  const ambients = new Set<Ambient>();
+  /* 皮肤给组件的映射表：emoji → 图标（契约 6.7），外加「风格文案」槽位（契约第 11 节，键前缀 flavor:） */
+  const skinStrings = (): Record<string, string> => {
+    const out: Record<string, string> = { ...(manifest.icons || {}) };
+    for (const [k, v] of Object.entries(manifest.flavor || {})) { out['flavor:' + k] = v; }
+    return out;
+  };
   const onRoot = (root: ShadowRoot): (() => void) => {
     const motion = (): 'full' | 'calm' | 'off' => composed.attrs['data-k-motion'] as 'full' | 'calm' | 'off';
     const fx = new Fracture(root, { enabled: () => moduleOn('fracture'), motion });
     const mf = new Motifs(root, { enabled: moduleOn, motion });
-    return () => { fx.dispose(); mf.dispose(); };
+    const amb = new Ambient(root, { enabled: () => moduleOn('ambient'), motion });
+    ambients.add(amb);
+    return () => { fx.dispose(); mf.dispose(); amb.dispose(); ambients.delete(amb); };
   };
   let revision = 0;
   let remoteStatus: Promise<{ fonts: Record<string, LoadState>; assets: Record<string, 'remote' | 'fallback'> }> = Promise.resolve({ fonts: {}, assets: {} });
@@ -85,7 +95,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     hub,
     layer(doc = doc0) {
       let l = layers.get(doc);
-      if (!l || !l.host.isConnected) { l = createLayer(doc, hub(doc), composed.attrs, onRoot, () => manifest.icons || {}); layers.set(doc, l); }
+      if (!l || !l.host.isConnected) { l = createLayer(doc, hub(doc), composed.attrs, onRoot, skinStrings); layers.set(doc, l); }
       return l;
     },
     applySkin(m, settings = {}, opts = {}) {
@@ -111,6 +121,7 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
       for (const h of hubs.values()) { h.setSkin(composed.css); }
       for (const l of layers.values()) { l.setAttrs(composed.attrs); l.refresh(); }
       for (const mm of mounts) { mm.refreshAttrs(); }
+      for (const a of ambients) { a.refresh(); }
       revision++;
       if (composed.corrections.length) { try { host.console.warn('[运行库] 皮肤 ' + m.id + ' 有 ' + composed.corrections.length + ' 处自动校正', composed.corrections); } catch (e) { /* 无控制台 */ } }
       try { doc0.dispatchEvent(new host.CustomEvent('kami:skin-changed', { detail: { revision, skin: m.id, mode: composed.mode } })); } catch (e) { /* 旧浏览器 */ }
@@ -120,13 +131,13 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     remote: () => remoteStatus,
     messages(o) {
       const doc = o.doc || doc0;
-      const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: () => manifest.icons || {} });
+      const mm = new MessageMounts({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: skinStrings });
       mounts.add(mm);
       return mm;
     },
     chatFrontend(o) {
       const doc = o.doc || doc0;
-      const cf = new ChatFrontend({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: () => manifest.icons || {} });
+      const cf = new ChatFrontend({ ...o, doc, hub: hub(doc), attrs: () => composed.attrs, onRoot, icons: skinStrings });
       mounts.add(cf);
       return cf;
     },

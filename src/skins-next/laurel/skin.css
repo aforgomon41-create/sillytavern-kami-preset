@@ -46,3 +46,53 @@
 [data-k-content] [data-k-part="name"] { font-variant: small-caps; letter-spacing: .08em; }
 [data-k-content="body"] > [data-k-part="scene-break"] { width: 120px; border: 0; height: 7px; border-top: 1px solid var(--k-laurel-gold); border-bottom: 1px solid var(--k-laurel-gold); }
 [data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { border-radius: 0; border: 0; border-left: 1px solid var(--k-laurel-gold); border-right: 1px solid var(--k-laurel-gold); }
+
+/* ═══════════ 深化（2026-11-02，世界观皮肤系列方案 第五节） ═══════════ */
+/* 核心隐喻：神殿石刻与金箔。招牌：金箔光泽（shine）+ 金线由中向外描出；环境：高窗光柱缓移 */
+:host, [data-k-surface] { --k-amb: sweep; --k-amb-angle: 28; --k-amb-speed: 18; --k-amb-color: #fff2c8; --k-amb-alpha: .4; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #e8c870; --k-amb-alpha: .1; }
+
+/* 标题两侧的月桂枝放大一些，小了像箭头 */
+[data-k-ornament="panel-head-start"], [data-k-ornament="panel-head-end"] { width: 36px; height: 22px; }
+/* 页签 = 立柱之间：每个页签左右各一道金线（柱），当前页签顶上一条横楣 */
+[data-k="tabs"] [data-k-part="tab"] { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--k-laurel-gold) 40%, transparent), inset -1px 0 0 color-mix(in srgb, var(--k-laurel-gold) 40%, transparent); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: inset 1px 0 0 var(--k-laurel-gold), inset -1px 0 0 var(--k-laurel-gold), inset 0 3px 0 var(--k-laurel-gold), inset 0 -4px 0 var(--k-accent); }
+/* 徽章 = 钱币 */
+[data-k="badge"][data-tone="accent"] { border-radius: var(--k-r-pill); background: radial-gradient(circle at 35% 30%, #fbe6a8, #d8b45e 55%, #a07a2a); color: #2a1e08; box-shadow: inset 0 0 0 1px #8a6a20; }
+/* 进度 = 刻痕：轨道刻满小格，填充是金箔 */
+[data-k="progress"] { height: 8px; border-radius: 0; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--k-laurel-gold) 30%, transparent) 0 1px, transparent 1px 10px), var(--k-sunken); }
+[data-k="progress"] > [data-k-part="indicator"] { border-radius: 0; background: linear-gradient(180deg, #fbe6a8, #d8b45e 50%, #a07a2a); }
+/* 开关 = 大理石槽里一枚金币 */
+[data-k="switch"] { border-radius: 0; }
+[data-k="switch"] [data-k-part="thumb"] { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe6a8, #d8b45e 55%, #a07a2a); box-shadow: 0 0 0 1px #8a6a20; }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle at 35% 30%, #fbe6a8, #d8b45e 55%, #a07a2a); box-shadow: 0 0 0 1px #8a6a20; }
+[data-k="checkbox"] { border-radius: 0; }
+
+/* 卡片右下：一小枝月桂（选中的选择卡变成金色） */
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 6px; width: 24px; height: 14px; background: var(--k-laurel-gold); opacity: .35; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Cpath d='M8 10c1-4 4-6 7-6-1 3-3 6-7 6zM8 10c1 4 4 6 7 6-1-3-3-6-7-6zM16 10c1-4 4-6 7-6-1 3-3 6-7 6zM16 10c1 4 4 6 7 6-1-3-3-6-7-6z'/%3E%3Cpath d='M2 10h26' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Cpath d='M8 10c1-4 4-6 7-6-1 3-3 6-7 6zM8 10c1 4 4 6 7 6-1-3-3-6-7-6zM16 10c1-4 4-6 7-6-1 3-3 6-7 6zM16 10c1 4 4 6 7 6-1-3-3-6-7-6z'/%3E%3Cpath d='M2 10h26' stroke='black' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; background: var(--k-accent); }
+
+/* 面板背景：左右两根带凹槽的立柱 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before, [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; top: 56px; bottom: 0; width: 22px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--k-laurel-gold) 22%, transparent) 0 2px, transparent 2px 5px); border-top: 3px double color-mix(in srgb, var(--k-laurel-gold) 45%, transparent); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { left: 8px; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { right: 8px; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: 'SPQR'; position: absolute; right: 12px; bottom: 6px; font: 600 34px/1 "Cinzel", Georgia, serif; letter-spacing: .2em; color: var(--k-laurel-gold); opacity: .1; }
+
+/* 消息：名字用碑刻体的大写宽字距 */
+[data-k-content] [data-k-part="name"] { letter-spacing: .1em; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #6d2142; --k-opt-persona: #4a3a7a; --k-opt-plot: #3a6a4a; --k-opt-info: #2a5a7a; --k-opt-fun: #a08030; --k-opt-nsfw: #8a1c2a; --k-opt-other: #6a6458; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：按风格调线条 */
+[data-k-icon] svg { stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }

@@ -9,7 +9,7 @@ import * as RSelect from '@radix-ui/react-select';
 import * as RDialog from '@radix-ui/react-dialog';
 import * as RTooltip from '@radix-ui/react-tooltip';
 import * as RCollapsible from '@radix-ui/react-collapsible';
-import { k, part } from '../hooks';
+import { k, ornament, part } from '../hooks';
 import { IconCheck, IconChevronDown, IconChevronRight, IconClose } from '../icons';
 import { bindPanelGestures } from '../gestures';
 import { LevelProvider, nextLevel, useLevel, usePortal, useSwipeHost, type SwipeStep } from './context';
@@ -136,6 +136,7 @@ export function Card({ title, meta, footer, children }: CardBase): React.JSX.Ele
         {title || meta ? <header {...part('head')}>{title ? <h3 {...part('title')}>{title}</h3> : null}{meta ? <span {...part('meta')}>{meta}</span> : null}</header> : null}
         {children !== undefined ? <div {...part('body')}>{children}</div> : null}
         {footer ? <footer {...part('foot')}>{footer}</footer> : null}
+        <span {...ornament('card-corner')} />
       </LevelProvider>
     </section>
   );
@@ -162,6 +163,7 @@ export function ChoiceCard({ title, meta, children, selected, onSelect, disabled
           {children !== undefined ? <span {...part('body')}>{children}</span> : null}
         </button>
         {info ? <span {...part('info')}>{info}</span> : null}
+        <span {...ornament('card-corner')} />
       </LevelProvider>
     </div>
   );
@@ -200,6 +202,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         <RDialog.Overlay {...k('dialog')} {...part('overlay')} />
         <RDialog.Content {...k('dialog', { size })} {...part('content')} data-k-level="surface-1" {...(description ? {} : { 'aria-describedby': undefined })}>
           <LevelProvider level="surface-1">
+            <span {...ornament('surface-backdrop')} />
             <div {...part('head')}>
               <RDialog.Title {...part('title')}>{title}</RDialog.Title>
               <RDialog.Close asChild><IconButton label={closeLabel} variant="ghost" {...part('close')}><IconClose /></IconButton></RDialog.Close>

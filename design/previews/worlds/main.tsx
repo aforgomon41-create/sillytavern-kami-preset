@@ -10,7 +10,7 @@ import { createRuntime } from '../../../src/frontend/runtime/index';
 import { SkinManager, type SkinEntry, type StoredSettings } from '../../../src/frontend/skin-engine/manager';
 import type { SkinManifest } from '../../../src/frontend/skin-engine/package';
 import { DisplayPanel } from '../../../src/frontend/panels/display-panel';
-import { Badge, Button, Card, Checkbox, ChoiceCard, Panel, Progress, Segmented, SettingRow, SettingSection, Slider, Switch, Tabs } from '../../../src/frontend/ds';
+import { Badge, Button, Card, Checkbox, ChoiceCard, CollapseCard, Panel, Progress, Segmented, SettingRow, SettingSection, Slider, Switch, Tabs } from '../../../src/frontend/ds';
 import { MessageView, type OptionMode } from '../../../src/frontend/message/view';
 import skins from '../../../.cache/frontend/skins.json';
 import { GREETING, REPLY_A } from '../message/samples';
@@ -30,7 +30,7 @@ function gallery(): void {
   const list = entries.map((e) => e.manifest).filter((m) => m.series);
   const root = document.createElement('div');
   root.id = 'gallery';
-  root.innerHTML = '<h1>世界观系列 · ' + list.length + ' 款</h1><p class="lead">审阅用预览，不是验证（能不能用以实机为准）。每款左浅色、右深色；缩略窗里左边是消息正文，右边是部件样张。点「单独打开」看大图、在真的显示面板里切皮肤 / 开关特效 / 调动效档。缩略窗里点按钮、开关会触发该款的动效。</p>' +
+  root.innerHTML = '<h1>世界观系列 · ' + list.length + ' 款</h1><p class="lead">审阅用预览，不是验证（能不能用以实机为准）。每款左浅色、右深色；缩略窗里左边是消息正文，右边是部件样张。点「单独打开」看大图、在真的显示面板里切皮肤 / 开关特效 / 调动效档。点「▶ 动效演示」会在两个缩略窗里依次播放：打开面板 → 按下按钮 → 切换页签 → 展开折叠 → 展开思维链（系统开了「减少动态效果」时不播）。</p>' +
     '<div class="bar"><span>显示：</span><button data-v="both" aria-pressed="true">浅色 + 深色</button><button data-v="light">只看浅色</button><button data-v="dark">只看深色</button></div>';
   document.body.appendChild(root);
   const rows: HTMLElement[] = [];
@@ -38,7 +38,7 @@ function gallery(): void {
     const row = document.createElement('section');
     row.className = 'row';
     const h = document.createElement('h2');
-    h.innerHTML = '<span></span><small></small><a target="_blank">单独打开 ↗</a>';
+    h.innerHTML = '<span></span><small></small><a target="_blank">单独打开 ↗</a><button type="button" class="demo">▶ 动效演示</button>';
     h.children[0]!.textContent = m.name;
     h.children[1]!.textContent = m.id + ' · ' + (THEME[m.id] || '');
     (h.children[2] as HTMLAnchorElement).href = '?skin=' + m.id;
@@ -51,6 +51,7 @@ function gallery(): void {
       const tag = document.createElement('span'); tag.textContent = sc === 'light' ? '浅色' : '深色';
       box.append(f, tag); shots.appendChild(box);
     }
+    (h.querySelector('.demo') as HTMLButtonElement).onclick = () => shots.querySelectorAll('iframe').forEach((f) => f.contentWindow?.postMessage('kami-demo', '*'));
     row.append(h, p, shots); root.appendChild(row); rows.push(row);
   }
   /* 缩略窗按格子宽度等比缩小 */
@@ -110,17 +111,49 @@ function single(id: string, scheme: string, embed: boolean): void {
   }).start();
   if (embed) { chatEl.scrollTop = 0; }
 
+  addEventListener('message', (e) => { if (e.data === 'kami-demo') { demo(); } });
   if (embed) { rt.layer().open('worlds-specimen', <Specimen />); return; }
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.textContent = '▶ 动效演示'; btn.className = 'demo'; btn.onclick = demo;
+  document.getElementById('top')!.appendChild(btn);
   function App(): React.JSX.Element {
     const [open, setOpen] = React.useState(true);
+    React.useEffect(() => { reopen = () => { setOpen(false); setTimeout(() => setOpen(true), 60); }; return () => { reopen = null; }; }, []);
     if (!open) { return <div style={{ position: 'fixed', right: 16, top: 52, pointerEvents: 'auto' }}><Button variant="primary" onClick={() => setOpen(true)}>打开显示设置</Button></div>; }
     return <DisplayPanel manager={mgr} onClose={() => setOpen(false)} defaultSize={{ w: 640, h: 720 }} />;
   }
   rt.layer().open('worlds-display', <App />);
 }
 
+/* ───────── 动效演示：依次触发「打开 → 按下 → 切页签 → 展开折叠 → 展开思维链」，走的都是真的事件 ───────── */
+let reopen: (() => void) | null = null;
+function roots(): ShadowRoot[] { return Array.from(document.querySelectorAll('*')).map((el) => el.shadowRoot).filter((r): r is ShadowRoot => !!r); }
+function find(sel: string): HTMLElement | null { for (const r of roots()) { const el = r.querySelector<HTMLElement>(sel); if (el) { return el; } } return null; }
+function press(el: HTMLElement | null): void {
+  if (!el) { return; }
+  const b = el.getBoundingClientRect();
+  const o = { bubbles: true, composed: true, clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, pointerType: 'mouse', button: 0, isPrimary: true };
+  el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new PointerEvent('pointerup', o));
+}
+function demo(): void {
+  const steps: Array<() => void> = [
+    () => { if (reopen) { reopen(); } },
+    () => press(find('[data-k="panel"] [data-k="button"][data-variant="primary"]') || find('[data-k="panel"] [data-k="button"]')),
+    () => { const t = find('[data-k="panel"] [data-k="tabs"] [data-k-part="tab"][data-state="inactive"]'); press(t); t?.click(); },
+    () => { const t = find('[data-k="panel"] [data-k="tabs"] [data-k-part="tab"]'); press(t); t?.click(); },
+    () => find('[data-k="card"][data-role="collapse"] > [data-k-part="head"]')?.click(),
+    () => find('[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"]')?.click()
+  ];
+  steps.forEach((f, i) => setTimeout(f, i * 1100));
+}
+
 /* ───────── 部件样张：缩略窗右半边，一眼看齐形状 / 边框 / 页签 / 开关 / 徽章 ───────── */
 function Specimen(): React.JSX.Element {
+  const [n, setN] = React.useState(0);
+  React.useEffect(() => { reopen = () => setN((x) => x + 1); return () => { reopen = null; }; }, []);
+  return <SpecimenPanel key={n} />;
+}
+function SpecimenPanel(): React.JSX.Element {
   const [tab, setTab] = React.useState('a');
   const [pick, setPick] = React.useState(0);
   const [on, setOn] = React.useState(true);
@@ -141,6 +174,7 @@ function Specimen(): React.JSX.Element {
           <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Checkbox aria-label="勾选" defaultChecked />记住选择</label>
         </div>
       </Card>
+      <CollapseCard title="折叠卡" meta="点开">折叠卡里的内容：展开 / 收起时触发该款的折叠动效。</CollapseCard>
     </div>
   );
   return (
