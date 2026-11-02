@@ -65,7 +65,7 @@
 
   function boot(rt) {
     if (disposed) { return; }
-    /* 皮肤归「🧪 显示」管（它记住用户选的皮肤）；它没在运行、运行库还是兜底皮肤时，才先套内置的「碎光」 */
+    /* 皮肤归「🎨 显示」管（它记住用户选的皮肤）；它没在运行、运行库还是兜底皮肤时，才先套内置的「碎光」 */
     var skin = (SKINS_NEXT || []).filter(function (s) { return s.manifest && s.manifest.id === 'suiguang'; })[0];
     var managed = false;
     try { managed = !!(HOST.KamiDisplay && HOST.KamiDisplay.alive()) || rt.current().attrs['data-k-skin'] !== 'fallback'; } catch (e) { managed = false; }
