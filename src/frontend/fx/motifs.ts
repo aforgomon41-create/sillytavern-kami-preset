@@ -160,7 +160,7 @@ export class Motifs {
     if ((this.last.get(el) || 0) > now - 120 && ev !== 'close') { return; }
     this.last.set(el, now);
     if (this.active >= MAX_ACTIVE) { return; }
-    const r = el.getBoundingClientRect();
+    const r = ev === 'fold-open' ? this.unfolded(el) : el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4 || r.bottom < 0 || r.top > this.win.innerHeight) { return; }
     const cs = this.win.getComputedStyle(el);
     const v = (k: string): string => cs.getPropertyValue(k).trim();
@@ -175,6 +175,21 @@ export class Motifs {
   }
 
   /* ───────── 小工具 ───────── */
+
+  /** 折叠块展开那一刻内容还是 0 高（高度动画刚开始），量到的只有标题栏；
+      这里按内容的自然高度（scrollHeight）推算展开后的框，特效铺满整块（画到视口底为止） */
+  private unfolded(el: Element): DOMRect {
+    const r = el.getBoundingClientRect();
+    const fold = el.querySelector(':scope > [data-k-part="fold"]') || el.querySelector(':scope > [data-k-part="body"]');
+    if (!fold) { return r; }
+    const now = fold.getBoundingClientRect().height;
+    let full = fold.scrollHeight;
+    for (const c of Array.from(fold.children)) { full = Math.max(full, (c as HTMLElement).scrollHeight); }
+    const extra = full - now;
+    if (extra < 2) { return r; }
+    const bottom = Math.min(r.bottom + extra, Math.max(r.bottom, this.win.innerHeight));
+    return new DOMRect(r.left, r.top, r.width, bottom - r.top);
+  }
 
   private node(tag = 'i'): HTMLElement | null {
     if (this.nodes >= MAX_NODES) { return null; }

@@ -3,7 +3,7 @@
 // 前提：测试酒馆与假模型在跑，已用 install-preset.mjs 装了支线测试包，见 test/st/README.md
 // 每一档核对：面板与聊天里的消息前端都换成这套皮肤与配色；面板与消息前端的实际渲染对比度；
 //   对白 / 心理描写真的用了皮肤的颜色；声明了环境层（ambient）的皮肤在面板背景里画出了环境层；
-//   按下按钮时有动效（皮肤声明了动效模块时）；动效「关闭」后环境层收掉、按下不再出动效；没有页面错误。
+//   按下按钮时有动效、展开折叠块时特效铺到内容区（皮肤声明了动效模块时）；动效「关闭」后环境层收掉、按下不再出动效；没有页面错误。
 import { createRequire } from 'node:module';
 import { auditInPage } from '../frontend/browser/audit-lib.mjs';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
@@ -83,6 +83,38 @@ const pressCount = () => layer(async (r) => {
   return most;
 });
 
+/* 收起再展开最后一条消息的行动选项，看特效刚出现那一帧的节点：落在标题栏以下、或盖住展开区中线的算铺到了内容区 */
+const foldCover = () => page.evaluate(async () => {
+  const h = [...document.querySelectorAll('#chat [data-kami-msg-host="options"]')].pop();
+  if (!h) { return { n: 0, hit: 0, why: '没有行动选项' }; }
+  h.scrollIntoView({ block: 'start' });
+  const r = h.shadowRoot, sec = r.querySelector('[data-k="msg-options"]');
+  const tog = sec.querySelector(':scope > [data-k-part="head"] [data-k-part="toggle"]');
+  const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+  if (sec.getAttribute('data-state') === 'open') { tog.click(); await wait(900); }
+  await wait(300);
+  const first = new Map();
+  const mo = new MutationObserver((l) => { for (const m of l) { m.addedNodes.forEach((x) => { if (x.nodeType === 1 && !first.has(x)) { first.set(x, null); } }); if (m.type === 'attributes' && !first.has(m.target)) { first.set(m.target, null); } } });
+  mo.observe(r, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+  const head = sec.querySelector(':scope > [data-k-part="head"]').getBoundingClientRect();
+  tog.click();
+  const t0 = performance.now();
+  while (performance.now() - t0 < 600) {
+    await new Promise((res) => requestAnimationFrame(res));
+    for (const [x, v] of first) {
+      if (v || !x.isConnected || !x.closest('[data-k-fx-layer]') || x.closest('[data-k-fx-layer="ambient"]') || x.hasAttribute('data-k-fx-layer')) { continue; }
+      const bb = x.getBoundingClientRect(); if (bb.width + bb.height < 1) { continue; }
+      first.set(x, bb);
+    }
+  }
+  mo.disconnect();
+  await wait(500);
+  const full = sec.getBoundingClientRect();
+  const mid = head.bottom + (full.bottom - head.bottom) / 2;
+  const rs = [...first.values()].filter(Boolean);
+  return { n: rs.length, hit: rs.filter((q) => q.top > head.bottom + 8 || (q.top <= mid && q.bottom >= mid)).length, head: Math.round(head.height), open: Math.round(full.height) };
+});
+
 for (const s of todo) {
   for (const sc of s.schemes) {
     const tag = s.name + ' · ' + sc + (MOBILE ? '（手机）' : '（电脑）');
@@ -128,6 +160,12 @@ for (const s of todo) {
     if (s.modules.length) {
       const n = await pressCount();
       ok(n > 0, tag + '：按下按钮有动效（' + n + ' 个节点）', n);
+    }
+    /* 碎光的 fracture 单独实现：展开时一条光线从标题底下往下长，第一帧还短，不适用这一项（它本来就量 scrollHeight） */
+    if (s.modules.some((m) => m !== 'fracture') && sc === s.schemes[0]) {
+      /* 展开折叠块：特效要铺到展开后的整块，不能只画在标题栏（那一刻内容还是 0 高；用户 2026-11-02 报） */
+      const fo = await foldCover();
+      ok(fo.hit > 0, tag + '：展开行动选项时特效铺到内容区（' + fo.hit + ' / ' + fo.n + ' 个节点）', fo);
     }
     ok(errors.length === e0, tag + '：没有页面错误', errors.slice(e0, e0 + 3));
   }
