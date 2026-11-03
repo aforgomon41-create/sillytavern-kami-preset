@@ -77,6 +77,8 @@ export function lintSkinCss(css: string): LintIssue[] {
     URL_RE.lastIndex = 0;
     while ((m = URL_RE.exec(d.value))) {
       if (!SAFE_DATA.test((m[2] || '').trim())) { issues.push({ line: at(d), message: 'url() 只允许 data: 图片；素材（包括外链图片）请在 skin.json 的 assets 里声明、用 var(--k-asset-名字)，平台负责兜底：' + (m[2] || '').slice(0, 60) }); }
+      /* data: 网址里没转义的 # 会被当成片段分隔符，后面的内容全丢，SVG 变成无效图（不报错，只是什么都不显示）；要写成 %23 */
+      else if (/^data:image\/svg\+xml,/i.test((m[2] || '').trim()) && (m[2] || '').includes('#')) { issues.push({ line: at(d), message: 'SVG data: 网址里的 # 必须写成 %23（否则网址在 # 处截断、图形不显示）：…' + (m[2] || '').slice(Math.max(0, (m[2] || '').indexOf('#') - 30), (m[2] || '').indexOf('#') + 10) }); }
     }
     if (insideKeyframes(d)) { return; }
     const rule = d.parent as Rule | undefined;

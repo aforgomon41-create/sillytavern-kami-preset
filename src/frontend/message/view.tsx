@@ -150,13 +150,15 @@ export function MsgSearch({ records, pending, slotted }: { records: SearchRecord
   const searchDone = useFlavor('search.done', '参考了 {n} 个来源', { n: sources.length });
   const sites = [...new Set(sources.map((s) => siteOf(s.url)))];
   const Search = ICONS['search']!;
+  /* 每条记录都没找到资料：状态头像换成「出错」（data-k-face="oops"） */
+  const miss = records.length > 0 && records.every((r) => r.status === 'not_found' && !r.facts.length);
   return (
     <section {...k('msg-search')} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined}>
       <div {...part('head')}>
       <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={!records.length}>
-        <span {...ornament('state-face')} data-k-face="search" />
+        <span {...ornament('state-face')} data-k-face={miss ? 'oops' : 'search'} />
         <span {...part('icon')} aria-hidden="true">{pending ? <Spinner size="sm" label="整理资料中" /> : <Search width="100%" height="100%" strokeWidth={1.75} />}</span>
-        <span {...part('title')}>{records.length ? searchDone : '正在整理资料'}</span>
+        <span {...part('title')}>{miss ? '没找到可用资料' : records.length ? searchDone : '正在整理资料'}</span>
         {sites.length ? <span {...part('sites')}>{sites.slice(0, 3).join(' · ')}{sites.length > 3 ? ' 等' : ''}</span> : null}
         {records.length ? <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span> : null}
       </button>

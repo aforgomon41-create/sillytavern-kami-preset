@@ -18,7 +18,7 @@ THINK_TOG = '[data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"
 SEARCH_TOG = '[data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"]'
 
 def enc(svg):
-    return "url(\"data:image/svg+xml," + urllib.parse.quote(svg, safe=" =:/;,'#()-.") .replace('"', "'") + "\")"
+    return "url(\"data:image/svg+xml," + urllib.parse.quote(svg, safe=" =:/;,'()-.") .replace('"', "'") + "\")"
 
 def mask(svg, extra='center / contain no-repeat'):
     u = enc(svg)
@@ -486,8 +486,8 @@ def common(id, d, have):
 [data-k-surface][data-k-scheme="dark"] {{ --k-ai-scene-alpha: .12; }}''')
     faces = [f for f in ('face-think', 'face-done', 'face-search') if a(f)]
     if faces:
-        out.append('/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料），换掉原来的图标 */')
-        for face, sel in (('face-think', THINK_TOG + ' > [data-k-ornament="state-face"][data-k-face="think"]'), ('face-done', THINK_TOG + ' > [data-k-ornament="state-face"][data-k-face="done"]'), ('face-search', SEARCH_TOG + ' > [data-k-ornament="state-face"][data-k-face="search"]')):
+        out.append('/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料 / 没找到资料），换掉原来的图标 */')
+        for face, sel in (('face-think', THINK_TOG + ' > [data-k-ornament="state-face"][data-k-face="think"]'), ('face-done', THINK_TOG + ' > [data-k-ornament="state-face"][data-k-face="done"]'), ('face-search', SEARCH_TOG + ' > [data-k-ornament="state-face"][data-k-face="search"]'), ('face-oops', SEARCH_TOG + ' > [data-k-ornament="state-face"][data-k-face="oops"]')):
             if a(face):
                 out.append(f'[data-k-surface][data-k-effects~="faces"] {sel} {{ display: inline-block; background-image: var(--k-asset-{face}); }}')
         tog = []
@@ -498,10 +498,11 @@ def common(id, d, have):
         out.append(f'/* 头像放大到约 36px，垫一个强调色圆底（白发 / 浅色角色在浅色底上也立得住），用负外边距不撑高标题行 */\n[data-k-surface][data-k-effects~="faces"] :is({THINK_TOG}, {SEARCH_TOG}) > [data-k-ornament="state-face"] {{ width: 2.3em; height: 2.3em; margin-block: -.55em; border-radius: 50%; background-size: 108%; background-position: 50% 30%; background-color: color-mix(in srgb, var(--k-accent) var(--k-ai-plate, 14%), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 30%, transparent); }}')
         out.append(f'[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] {THINK_TOG} > [data-k-ornament="state-face"][data-k-face="think"] {{ animation: k-ai-bob 1.4s ease-in-out infinite; }}\n@keyframes k-ai-bob {{ 0%, 100% {{ transform: rotate(-6deg); }} 50% {{ transform: rotate(6deg) translateY(-1px); }} }}')
     if a('item-1'):
-        out.append(f'''/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
-[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] {{ display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }}''')
+        out.append(f'''/* 卡片右下角：标志道具小图（容器卡：单数 item-1、双数 item-2；选择卡：选中时出现 item-1）。特效开关「道具」控制 */
+[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] {{ display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }}
+[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] {{ display: block; right: 6px; bottom: 4px; width: 24px; height: 24px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .9; }}''')
         if a('item-2'):
-            out.append('[data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }')
+            out.append('[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }')
     # 选项配色
     out.append('\n/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */')
     out.append('[data-k-surface] { ' + ' '.join('--k-opt-%s: %s;' % (t, c) for t, c in zip(TYPES, d['opt'])) + ' }')
@@ -530,6 +531,10 @@ for id in ORDER:
                 a['url'] = CDN.format(ref=REF, id=id, f=n + '.hd.webp')
             assets[n] = a
     effs = [e for e in d['effects'] if not (e[0] == 'faces' and not any(f in have for f in ('face-think', 'face-search')))]
+    if 'face-oops' in have:
+        effs = [(e[0], e[1], e[2].replace('的表情。', '的表情（搜索没找到资料时换成出错的表情）。'), e[3]) if e[0] == 'faces' else e for e in effs]
+    if 'item-1' in have:
+        effs.append(('items', '道具', '卡片右下角放一件标志道具；选中的选择卡也会出现。', '装饰'))
     m = {
         'id': id, 'name': d['name'], 'version': '0.1.0', 'contract': '1.0', 'description': d['desc'], 'author': '卡密预设',
         'credits': '角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）' + ('；鲸鱼娘原案：上善无形「溟月」（CC BY-NC-SA 4.0）' if id == 'ai-deepseek' else '') + '；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。',

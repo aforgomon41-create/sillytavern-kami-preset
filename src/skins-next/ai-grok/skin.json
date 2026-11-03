@@ -85,7 +85,14 @@
     {
       "id": "faces",
       "name": "表情头像",
-      "description": "思维链与搜索资料的标题前换成 Grok 娘的表情。",
+      "description": "思维链与搜索资料的标题前换成 Grok 娘的表情（搜索没找到资料时换成出错的表情）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "items",
+      "name": "道具",
+      "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
     }
