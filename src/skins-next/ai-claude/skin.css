@@ -1,0 +1,87 @@
+/* Claude —— Claude 娘：午后暖光的书房。橘色与奶油白、皮面书的金线与橙色菊花；正文用衬线体，按下时纸页上掠过一道光泽，背景飘橙色花瓣。
+   AI 娘系列（docs/AI娘系列方案.md）。素材在 assets/（build/frontend/ai-chan-assets.mjs 从 .cache/ai-chan/raw/ 生成）。 */
+
+/* ───────── 动效与环境层参数 ───────── */
+:host, [data-k-surface] { --k-fx-glyphs: "✻ ❀ ✻"; --k-fx-drift: down; --k-fx-size: 9px; --k-fx-glow: #f0a05a; --k-fx-alt: #c9a24a; --k-amb: petal; --k-amb-dir: down; --k-amb-count: 8; --k-amb-speed: 22; --k-amb-size: 5; --k-amb-color: #e8843f; --k-amb-alpha: .28; }
+
+/* ───────── 消息颜色（契约 6.8：每个配色都要写，对消息底色 ≥ 4.5 : 1） ───────── */
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #a3471a; --k-msg-thought: #6f5a48; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #f4a46c; --k-msg-thought: #cbb8a4; }
+
+/* 书房：卡片是皮面书——左边一道书脊（深色 + 金线），细边框；标题衬线体 */
+[data-k-surface] { --k-cl-gold: #b8913a; --k-cl-spine: #2a1f18; --k-cl-paper: #fffaf1; --k-cl-line: rgba(122, 82, 40, .25); }
+[data-k-surface][data-k-scheme="dark"] { --k-cl-gold: #d4ae5a; --k-cl-spine: #0f0b08; --k-cl-paper: #26201a; --k-cl-line: rgba(240, 180, 120, .22); }
+[data-k="card"] { border: 1px solid var(--k-cl-line); box-shadow: inset 4px 0 0 var(--k-cl-spine), inset 5.5px 0 0 var(--k-cl-gold), 0 2px 8px rgba(60, 30, 10, .10); }
+[data-k="card"][data-role="choice"][data-state="selected"] { box-shadow: inset 4px 0 0 var(--k-accent), inset 0 0 0 1px var(--k-accent); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-family: var(--k-font-heading); letter-spacing: .03em; }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 3px double var(--k-cl-gold); }
+[data-k="button"] { border-radius: 4px; font-family: var(--k-font-heading); }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25), 0 2px 0 var(--k-accent-active); }
+/* 开关 = 书签缎带：打开时轨道是橘色缎面，滑块是一朵小菊花 */
+[data-k="switch"][data-state="checked"] { background: linear-gradient(180deg, color-mix(in srgb, var(--k-accent) 80%, #fff), var(--k-accent)); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle, #ffe2b8 0 28%, transparent 30%), #fff; box-shadow: 0 0 0 1px var(--k-cl-line), 0 1px 2px rgba(0, 0, 0, .25); }
+/* 进度 = 书页：横格纸上的橘色墨线 */
+[data-k="progress"] { height: 8px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--k-cl-line) 0 1px, transparent 1px 8px), var(--k-surface-sunken, transparent); }
+[data-k="progress"] > [data-k-part="indicator"] { background: linear-gradient(90deg, var(--k-cl-gold), var(--k-accent)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { border-radius: 3px; background: var(--k-accent); box-shadow: 0 0 0 2px var(--k-cl-paper), 0 0 0 3px var(--k-cl-gold); }
+[data-k="badge"] { border-radius: 3px; font-family: var(--k-font-heading); letter-spacing: .04em; box-shadow: inset 0 0 0 1px var(--k-cl-gold); }
+[data-k="checkbox"] { border-radius: 2px; }
+/* 页签：书签——当前页上方垂下一条橘色缎带 */
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom-color: var(--k-cl-gold); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"]::before { content: ''; position: absolute; right: 8px; top: 0; width: 7px; height: 12px; background: var(--k-accent); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%); }
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 16px; height: 16px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k-ornament="panel-head-start"] { animation: k-cl-turn 14s linear infinite; }
+@keyframes k-cl-turn { to { transform: rotate(360deg); } }
+[data-k="spinner"] { border: 0; animation: k-cl-turn 2.2s linear infinite; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 12px; bottom: 12px; width: 54px; height: 54px; background: var(--k-accent); opacity: .14; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* 消息：正文衬线体、行距宽松；对白橘褐、心理描写是浅棕斜体；场景转换是三朵小菊 */
+[data-k-content="body"] > * { font-family: "Noto Serif SC", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; line-height: 1.95; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 600; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="term"] { font-variant-caps: small-caps; border-bottom: 1px dotted currentColor; }
+[data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 60%, color-mix(in srgb, var(--k-accent) 20%, transparent) 60%); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 64px; height: 14px; border: 0; background: var(--k-accent); opacity: .55; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") 0 0 / 14px 14px space; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.57 7.63 L15.60 8.00 L10.57 8.37 Z M10.41 8.96 L14.58 11.80 L10.04 9.61 Z M9.61 10.04 L11.80 14.58 L8.96 10.41 Z M8.37 10.57 L8.00 15.60 L7.63 10.57 Z M7.04 10.41 L4.20 14.58 L6.39 10.04 Z M5.96 9.61 L1.42 11.80 L5.59 8.96 Z M5.43 8.37 L0.40 8.00 L5.43 7.63 Z M5.59 7.04 L1.42 4.20 L5.96 6.39 Z M6.39 5.96 L4.20 1.42 L7.04 5.59 Z M7.63 5.43 L8.00 0.40 L8.37 5.43 Z M8.96 5.59 L11.80 1.42 L9.61 5.96 Z M10.04 6.39 L14.58 4.20 L10.41 7.04 Z'/%3E%3Ccircle cx='8' cy='8' r='2.6'/%3E%3C/svg%3E") 0 0 / 14px 14px space; }
+
+/* ═══════════ 角色素材（立绘 / Q 版 / 场景 / 表情 / 道具），见 design/ai-chan/生图提示词.md ═══════════ */
+/* 面板背景右下角：半身立绘，左侧与上方渐隐进底色；卡片本身有底色，立绘只在卡片之间的空隙里露出来，不压字 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: -6px; bottom: 0; width: min(46%, 380px); aspect-ratio: 2 / 3; background: var(--k-asset-portrait) right bottom / contain no-repeat; opacity: var(--k-ai-portrait-alpha, .34); -webkit-mask: linear-gradient(90deg, transparent, #000 38%), linear-gradient(0deg, #000 70%, transparent); -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 38%) intersect, linear-gradient(0deg, #000 70%, transparent); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-portrait-alpha: .26; }
+/* 手机：面板窄，立绘换成右下角一只 Q 版 */
+@media (max-width: 1000px) {
+  [data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { width: 120px; aspect-ratio: 1; background-image: var(--k-asset-chibi); opacity: .32; -webkit-mask: none; mask: none; }
+}
+/* 对话框右下角一只小 Q 版 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: 6px; bottom: 6px; width: 84px; height: 84px; background: var(--k-asset-chibi) center / contain no-repeat; opacity: .5; }
+/* 空状态的插图 */
+[data-k="empty"] > [data-k-ornament="empty-art"] { display: block; position: relative; left: auto; translate: none; width: 96px; height: 96px; margin: 0 auto 6px; background: var(--k-asset-chibi) center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k="empty"] > [data-k-ornament="empty-art"] { animation: k-ai-breathe 3.2s ease-in-out infinite; }
+@keyframes k-ai-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* 场景：对话框与消息正文背景铺一层很淡的场景（从右上角渐隐），盖一层底色保证文字对比度 */
+[data-k-surface][data-k-effects~="scene"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"], [data-k-surface][data-k-effects~="scene"] [data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; background: var(--k-asset-scene) right top / cover no-repeat; opacity: var(--k-ai-scene-alpha, .16); -webkit-mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-scene-alpha: .12; }
+/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料），换掉原来的图标 */
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { display: inline-block; background-image: var(--k-asset-face-think); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="done"] { display: inline-block; background-image: var(--k-asset-face-done); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="search"] { display: inline-block; background-image: var(--k-asset-face-search); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"], [data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"] { opacity: 0; width: 0; min-width: 0; margin: 0 -4px 0 0; }
+[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { animation: k-ai-bob 1.4s ease-in-out infinite; }
+@keyframes k-ai-bob { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-1px); } }
+/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }
+[data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #c2551c; --k-opt-persona: #8a5aa8; --k-opt-plot: #4f8a3a; --k-opt-info: #3f75a8; --k-opt-fun: #c98a12; --k-opt-nsfw: #c0392b; --k-opt-other: #8a7a6a; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：线条 */
+[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

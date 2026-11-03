@@ -20,21 +20,31 @@ const q = new URLSearchParams(location.search);
 const skinId = q.get('skin');
 const THEME: Record<string, string> = {
   sugar: '恋爱轻喜剧', quest: '西幻冒险', reborn: '异世界轻小说', yunji: '修仙', jianghu: '武侠', neon: '赛博朋克', brief: '军事战术',
-  palace: '历史 · 中国宫廷', laurel: '历史 · 西方古典', vigil: '黑暗哥特', grid: '高科技', abyss: '克苏鲁 / 诡秘', rust: '末日废土', cog: '蒸汽朋克', noir: '悬疑推理'
+  palace: '历史 · 中国宫廷', laurel: '历史 · 西方古典', vigil: '黑暗哥特', grid: '高科技', abyss: '克苏鲁 / 诡秘', rust: '末日废土', cog: '蒸汽朋克', noir: '悬疑推理',
+  'ai-deepseek': 'DeepSeek 娘 · 深海女仆咖啡厅', 'ai-claude': 'Claude 娘 · 午后书房', 'ai-gpt': 'GPT 娘 · 白玫瑰龙庭', 'ai-gemini': 'Gemini 娘 · 四角星夜空',
+  'ai-glm': 'GLM 娘 · 黑白狐狸书斋', 'ai-kimi': 'Kimi 娘 · 月夜音乐厅', 'ai-grok': 'Grok 娘 · 哥特古堡', 'ai-qwen': '千问娘 · 国风庭院'
 };
 
 if (!skinId) { gallery(); } else { single(skinId, q.get('scheme') || '', q.get('embed') === '1'); }
 
 /* ───────── 总览 ───────── */
 function gallery(): void {
-  const list = entries.map((e) => e.manifest).filter((m) => m.series);
+  /* ?series=<id> 只看一个系列（例如 ?series=ai-chan）；不给就按系列分组全部列出 */
+  const only = q.get('series');
+  const list = entries.map((e) => e.manifest).filter((m) => m.series && (!only || m.series.id === only));
   const root = document.createElement('div');
   root.id = 'gallery';
-  root.innerHTML = '<h1>世界观系列 · ' + list.length + ' 款</h1><p class="lead">审阅用预览，不是验证（能不能用以实机为准）。每款左浅色、右深色；缩略窗里左边是消息正文，右边是部件样张。点「单独打开」看大图、在真的显示面板里切皮肤 / 开关特效 / 调动效档。点「▶ 动效演示」会在两个缩略窗里依次播放：打开面板 → 按下按钮 → 切换页签 → 展开折叠 → 展开思维链（系统开了「减少动态效果」时不播）。</p>' +
+  const names = [...new Set(list.map((m) => m.series!.name))];
+  root.innerHTML = '<h1>' + (names.length === 1 ? names[0] + '系列' : '内置皮肤') + ' · ' + list.length + ' 款</h1><p class="lead">审阅用预览，不是验证（能不能用以实机为准）。每款左浅色、右深色；缩略窗里左边是消息正文，右边是部件样张。点「单独打开」看大图、在真的显示面板里切皮肤 / 开关特效 / 调动效档。点「▶ 动效演示」会在两个缩略窗里依次播放：打开面板 → 按下按钮 → 切换页签 → 展开折叠 → 展开思维链（系统开了「减少动态效果」时不播）。</p>' +
     '<div class="bar"><span>显示：</span><button data-v="both" aria-pressed="true">浅色 + 深色</button><button data-v="light">只看浅色</button><button data-v="dark">只看深色</button></div>';
   document.body.appendChild(root);
   const rows: HTMLElement[] = [];
+  let lastSeries = '';
   for (const m of list) {
+    if (names.length > 1 && m.series!.name !== lastSeries) {
+      lastSeries = m.series!.name;
+      const sh = document.createElement('h1'); sh.className = 'series'; sh.textContent = lastSeries + '系列'; root.appendChild(sh);
+    }
     const row = document.createElement('section');
     row.className = 'row';
     const h = document.createElement('h2');

@@ -1,0 +1,14 @@
+[
+ {
+  "pkg": "zcool-kuaile",
+  "family": "ZCOOL KuaiLe"
+ },
+ {
+  "pkg": "fredoka",
+  "weights": [
+   500,
+   600
+  ],
+  "family": "Fredoka"
+ }
+]

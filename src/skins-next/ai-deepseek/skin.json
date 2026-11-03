@@ -1,0 +1,232 @@
+{
+  "id": "ai-deepseek",
+  "name": "大肥鱼",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "DeepSeek 娘「大肥鱼」：深海女仆咖啡厅。深藏青女仆装配色、鲸尾与气泡；按下荡开水波，背景里气泡慢慢往上浮。",
+  "author": "卡密预设",
+  "credits": "角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）；鲸鱼娘原案：上善无形「溟月」（CC BY-NC-SA 4.0）；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#eef4fb",
+        "accent": "#2b4fa8",
+        "radius": 14,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"ZCOOL KuaiLe\", \"Fredoka\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#c0392b",
+        "success": "#2f8f6a",
+        "info": "#2f6fb8",
+        "warning": "#a8761a"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#0e1a30",
+        "accent": "#7fb0ff",
+        "radius": 14,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"ZCOOL KuaiLe\", \"Fredoka\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff8a80",
+        "success": "#7fd6b0",
+        "info": "#8cc4ff",
+        "warning": "#f0c060"
+      }
+    }
+  },
+  "modules": [
+    "particles",
+    "ripple",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "ripple",
+      "name": "水波",
+      "description": "按下时从指尖荡开一圈水波。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "泡泡",
+      "description": "打开和按下时冒出一串小气泡。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "深海气泡",
+      "description": "面板与消息背景里，小气泡慢慢往上浮。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "portrait",
+      "name": "立绘",
+      "description": "面板右下角站着大肥鱼（手机上换成 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "scene",
+      "name": "场景",
+      "description": "对话框与消息背景铺一层淡淡的海底咖啡厅。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "faces",
+      "name": "表情头像",
+      "description": "思维链与搜索资料的标题前换成大肥鱼的表情。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 14,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {
+    "think.live": "{name}深度思考中…",
+    "think.done": "{name}已深度思考",
+    "search.done": "已搜索到 {n} 个网页",
+    "options.title": "接下来吃哪口"
+  },
+  "assets": {
+    "portrait": {
+      "file": "assets/portrait.webp",
+      "alt": "半身立绘"
+    },
+    "chibi": {
+      "file": "assets/chibi.webp",
+      "alt": "Q 版"
+    },
+    "scene": {
+      "file": "assets/scene.webp",
+      "alt": "场景"
+    },
+    "face-think": {
+      "file": "assets/face-think.webp",
+      "alt": "表情：思考中"
+    },
+    "face-done": {
+      "file": "assets/face-done.webp",
+      "alt": "表情：想好了"
+    },
+    "face-search": {
+      "file": "assets/face-search.webp",
+      "alt": "表情：查资料"
+    },
+    "face-oops": {
+      "file": "assets/face-oops.webp",
+      "alt": "表情：出错"
+    },
+    "item-1": {
+      "file": "assets/item-1.webp",
+      "alt": "道具"
+    },
+    "item-2": {
+      "file": "assets/item-2.webp",
+      "alt": "道具"
+    }
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

@@ -1,0 +1,18 @@
+[
+ {
+  "pkg": "cormorant-garamond",
+  "weights": [
+   600,
+   700
+  ],
+  "family": "Cormorant Garamond"
+ },
+ {
+  "pkg": "noto-serif-sc",
+  "weights": [
+   400,
+   600
+  ],
+  "family": "Noto Serif SC"
+ }
+]

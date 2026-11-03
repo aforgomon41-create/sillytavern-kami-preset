@@ -1,0 +1,90 @@
+/* 大肥鱼 —— DeepSeek 娘「大肥鱼」：深海女仆咖啡厅。深藏青女仆装配色、鲸尾与气泡；按下荡开水波，背景里气泡慢慢往上浮。
+   AI 娘系列（docs/AI娘系列方案.md）。素材在 assets/（build/frontend/ai-chan-assets.mjs 从 .cache/ai-chan/raw/ 生成）。 */
+
+/* ───────── 动效与环境层参数 ───────── */
+:host, [data-k-surface] { --k-fx-glyphs: "○ ◦ ○ ∘"; --k-fx-drift: up; --k-fx-size: 8px; --k-fx-glow: #6fa8ff; --k-fx-alt: #c9a24a; --k-amb: bubble; --k-amb-dir: up; --k-amb-count: 10; --k-amb-speed: 16; --k-amb-size: 4; --k-amb-color: var(--k-accent); --k-amb-alpha: .28; }
+
+/* ───────── 消息颜色（契约 6.8：每个配色都要写，对消息底色 ≥ 4.5 : 1） ───────── */
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #1f4a9e; --k-msg-thought: #21697a; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #9cc4ff; --k-msg-thought: #86d4d8; }
+
+/* 女仆装：卡片是白瓷餐盘（白边 + 深藏青细线），面板标题下一道波浪 */
+[data-k-surface] { --k-ds-rim: #ffffff; --k-ds-line: rgba(43, 79, 168, .28); --k-ds-gold: #c9a24a; --k-ds-drop: rgba(26, 52, 110, .14); }
+[data-k-surface][data-k-scheme="dark"] { --k-ds-rim: #1a2a48; --k-ds-line: rgba(127, 176, 255, .30); --k-ds-gold: #d9b45e; --k-ds-drop: rgba(0, 0, 0, .45); }
+[data-k="card"] { border: 1px solid var(--k-ds-line); box-shadow: 0 0 0 3px var(--k-ds-rim), 0 0 0 4px var(--k-ds-line), 0 8px 18px var(--k-ds-drop); }
+[data-k="card"][data-role="choice"][data-state="selected"] { box-shadow: 0 0 0 3px var(--k-ds-rim), 0 0 0 5px var(--k-accent), 0 8px 18px var(--k-ds-drop); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 0; background: linear-gradient(var(--k-ds-line), var(--k-ds-line)) 0 100% / 100% 1px no-repeat; }
+[data-k="panel"] > [data-k-part="head"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-part="head"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: var(--k-ds-line); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 24px 6px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 24px 6px repeat-x; pointer-events: none; }
+/* 按钮：主按钮是女仆马甲（深藏青 + 金线内框），其余是白瓷 */
+[data-k="button"] { border-radius: var(--k-r-pill); font-family: var(--k-font-heading); }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1.5px var(--k-ds-gold), 0 3px 0 var(--k-accent-active); }
+[data-k="button"]:active:not(:disabled) { transform: translateY(2px); }
+/* 开关 = 海水：打开时轨道是深海渐变里浮着气泡，滑块是珍珠 */
+[data-k="switch"][data-state="checked"] { background: radial-gradient(circle at 30% 60%, rgba(255, 255, 255, .55) 0 1.5px, transparent 2px) 0 0 / 11px 9px, linear-gradient(180deg, #4f86e8, var(--k-accent)); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle at 35% 30%, #fff 0 22%, #eaf2ff 55%, #c9dbf7); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+/* 进度 = 水位：波浪形的水面 */
+[data-k="progress"] { height: 12px; border-radius: var(--k-r-pill); box-shadow: inset 0 0 0 1.5px var(--k-ds-line); }
+[data-k="progress"] > [data-k-part="indicator"] { background: radial-gradient(circle at 50% 120%, transparent 5px, rgba(255, 255, 255, .35) 5.5px, transparent 7px) 0 -4px / 12px 12px repeat-x, linear-gradient(180deg, #6fa8ff, var(--k-accent)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle at 35% 30%, #fff 0 25%, #dfe9fb); box-shadow: 0 0 0 2px var(--k-accent), 0 2px 4px var(--k-ds-drop); }
+[data-k="badge"] { border-radius: var(--k-r-pill); box-shadow: inset 0 0 0 1px var(--k-ds-gold); }
+/* 页签：当前页底下一道小波浪 */
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: var(--k-ds-line); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom-color: transparent; background: linear-gradient(var(--k-accent), var(--k-accent)) 50% 100% / 0 0 no-repeat; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"]::after { content: ''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 6px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 12px 6px repeat-x; }
+/* 标题前：鲸尾 */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 20px; height: 14px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16'%3E%3Cpath d='M12 15C11 10 9 7.5 5 6.5C2.8 6 1 4.6 0.5 1.5C3 3.4 6.5 3.6 9 4.6C10.6 5.3 11.6 6.4 12 7.6C12.4 6.4 13.4 5.3 15 4.6C17.5 3.6 21 3.4 23.5 1.5C23 4.6 21.2 6 19 6.5C15 7.5 13 10 12 15z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16'%3E%3Cpath d='M12 15C11 10 9 7.5 5 6.5C2.8 6 1 4.6 0.5 1.5C3 3.4 6.5 3.6 9 4.6C10.6 5.3 11.6 6.4 12 7.6C12.4 6.4 13.4 5.3 15 4.6C17.5 3.6 21 3.4 23.5 1.5C23 4.6 21.2 6 19 6.5C15 7.5 13 10 12 15z'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* 加载：一个往上冒的泡泡 */
+[data-k="spinner"] { border: 1.5px solid var(--k-accent); border-radius: 50%; border-top-color: var(--k-accent); animation: k-ds-bub 1.1s ease-in-out infinite; }
+@keyframes k-ds-bub { 0% { transform: translateY(3px) scale(.7); opacity: .4; } 50% { transform: translateY(-1px) scale(1); opacity: 1; } 100% { transform: translateY(-4px) scale(1.1); opacity: 0; } }
+/* 面板背景：左下几颗气泡（矢量），右下站着立绘 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 0; bottom: 0; width: 160px; height: 160px; background: var(--k-accent); opacity: .12; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='8' cy='30' r='3' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='26' cy='12' r='2' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='33' cy='31' r='1.4' fill='none' stroke='#000' stroke-width='1'/%3E%3C/svg%3E") 0 0 / 80px 80px repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='8' cy='30' r='3' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='26' cy='12' r='2' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='33' cy='31' r='1.4' fill='none' stroke='#000' stroke-width='1'/%3E%3C/svg%3E") 0 0 / 80px 80px repeat; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='8' cy='30' r='3' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='26' cy='12' r='2' fill='none' stroke='#000' stroke-width='1'/%3E%3Ccircle cx='33' cy='31' r='1.4' fill='none' stroke='#000' stroke-width='1'/%3E%3C/svg%3E"), radial-gradient(circle at 0 100%, #000, transparent 70%); }
+/* 消息：对白是深藏青、心理描写是海青色；场景转换是一道波浪；专有名词下面一道金线 */
+[data-k-content] [data-k-part="dialogue"] { font-weight: 600; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="term"] { border-bottom: 1.5px solid var(--k-ds-gold); }
+[data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--k-accent) 18%, transparent) 62%); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 96px; height: 8px; border: 0; background: var(--k-accent); opacity: .5; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 24px 8px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 8'%3E%3Cpath d='M0 5Q6 0 12 5T24 5V8H0z'/%3E%3C/svg%3E") 0 0 / 24px 8px repeat-x; }
+
+/* ═══════════ 角色素材（立绘 / Q 版 / 场景 / 表情 / 道具），见 design/ai-chan/生图提示词.md ═══════════ */
+/* 面板背景右下角：半身立绘，左侧与上方渐隐进底色；卡片本身有底色，立绘只在卡片之间的空隙里露出来，不压字 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: -6px; bottom: 0; width: min(46%, 380px); aspect-ratio: 2 / 3; background: var(--k-asset-portrait) right bottom / contain no-repeat; opacity: var(--k-ai-portrait-alpha, .34); -webkit-mask: linear-gradient(90deg, transparent, #000 38%), linear-gradient(0deg, #000 70%, transparent); -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 38%) intersect, linear-gradient(0deg, #000 70%, transparent); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-portrait-alpha: .26; }
+/* 手机：面板窄，立绘换成右下角一只 Q 版 */
+@media (max-width: 1000px) {
+  [data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { width: 120px; aspect-ratio: 1; background-image: var(--k-asset-chibi); opacity: .32; -webkit-mask: none; mask: none; }
+}
+/* 对话框右下角一只小 Q 版 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: 6px; bottom: 6px; width: 84px; height: 84px; background: var(--k-asset-chibi) center / contain no-repeat; opacity: .5; }
+/* 空状态的插图 */
+[data-k="empty"] > [data-k-ornament="empty-art"] { display: block; position: relative; left: auto; translate: none; width: 96px; height: 96px; margin: 0 auto 6px; background: var(--k-asset-chibi) center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k="empty"] > [data-k-ornament="empty-art"] { animation: k-ai-breathe 3.2s ease-in-out infinite; }
+@keyframes k-ai-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* 场景：对话框与消息正文背景铺一层很淡的场景（从右上角渐隐），盖一层底色保证文字对比度 */
+[data-k-surface][data-k-effects~="scene"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"], [data-k-surface][data-k-effects~="scene"] [data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; background: var(--k-asset-scene) right top / cover no-repeat; opacity: var(--k-ai-scene-alpha, .16); -webkit-mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-scene-alpha: .12; }
+/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料），换掉原来的图标 */
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { display: inline-block; background-image: var(--k-asset-face-think); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="done"] { display: inline-block; background-image: var(--k-asset-face-done); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="search"] { display: inline-block; background-image: var(--k-asset-face-search); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"], [data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"] { opacity: 0; width: 0; min-width: 0; margin: 0 -4px 0 0; }
+[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { animation: k-ai-bob 1.4s ease-in-out infinite; }
+@keyframes k-ai-bob { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-1px); } }
+/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }
+[data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #2b6fd6; --k-opt-persona: #7a5cc8; --k-opt-plot: #2f9a7a; --k-opt-info: #2f8fbf; --k-opt-fun: #d68a1a; --k-opt-nsfw: #d0405a; --k-opt-other: #7d8aa0; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：线条 */
+[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

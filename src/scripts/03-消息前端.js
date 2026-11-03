@@ -9,7 +9,7 @@
  * 关闭 / 删除本脚本：pagehide 时 stop()——正文放回原处、宿主与样式全部移除，酒馆恢复原样。
  */
 (function () {
-  /* @@KAMI_SKINS_NEXT@@ */
+  /* @@KAMI_SKINS_NEXT_DEFAULT@@ */
   var VERSION = '0.4';
   var ENABLE_KEY = 'kami.msgfe';   /* localStorage：'0' = 关（显示面板「消息前端」开关） */
   var HOST = (function () {
@@ -66,7 +66,7 @@
   function boot(rt) {
     if (disposed) { return; }
     /* 皮肤归「🎨 显示」管（它记住用户选的皮肤）；它没在运行、运行库还是兜底皮肤时，才先套内置的「碎光」 */
-    var skin = (SKINS_NEXT || []).filter(function (s) { return s.manifest && s.manifest.id === 'suiguang'; })[0];
+    var skin = (SKINS_NEXT || [])[0];   /* 构建只内联默认皮肤（碎光） */
     var managed = false;
     try { managed = !!(HOST.KamiDisplay && HOST.KamiDisplay.alive()) || rt.current().attrs['data-k-skin'] !== 'fallback'; } catch (e) { managed = false; }
     if (skin && !managed) {

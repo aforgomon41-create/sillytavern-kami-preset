@@ -1,0 +1,239 @@
+{
+  "id": "ai-glm",
+  "name": "GLM",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "GLM 娘：黑白哥特洛丽塔的狐狸书斋。只用黑、白、银、蓝（没有金色）、尖角与蕾丝；按下时用蓝墨笔圈出来，背景里银色微光浮动。",
+  "author": "卡密预设",
+  "credits": "角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f5f5f7",
+        "accent": "#1f2e5c",
+        "radius": 3,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Playfair Display\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#b0303a",
+        "success": "#2f7a5a",
+        "info": "#2f5fa8",
+        "warning": "#8a6a1a"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#0e0e12",
+        "accent": "#9cb6ec",
+        "radius": 3,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Playfair Display\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff8a90",
+        "success": "#8fd0b0",
+        "info": "#9cc0ff",
+        "warning": "#e0c070"
+      }
+    }
+  },
+  "modules": [
+    "mark",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "mark",
+      "name": "蓝墨圈点",
+      "description": "按下时一笔蓝墨圈出来（心机狐在改价签）。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "铃响",
+      "description": "打开时摇出几个小铃铛。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "银色微光",
+      "description": "面板与消息背景里，银色微光慢慢浮动。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "lace",
+      "name": "蕾丝",
+      "description": "卡片底边一圈白色蕾丝。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "portrait",
+      "name": "立绘",
+      "description": "面板右下角站着 GLM 娘（手机上换成 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "scene",
+      "name": "场景",
+      "description": "对话框与消息背景铺一层淡淡的书斋。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "faces",
+      "name": "表情头像",
+      "description": "思维链与搜索资料的标题前换成 GLM 娘的表情。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 3,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {
+    "think.live": "{name}沉思中…",
+    "think.done": "{name}深思熟虑",
+    "search.done": "翻遍了 {n} 个来源",
+    "options.title": "限时选项"
+  },
+  "assets": {
+    "portrait": {
+      "file": "assets/portrait.webp",
+      "alt": "半身立绘"
+    },
+    "chibi": {
+      "file": "assets/chibi.webp",
+      "alt": "Q 版"
+    },
+    "scene": {
+      "file": "assets/scene.webp",
+      "alt": "场景"
+    },
+    "face-think": {
+      "file": "assets/face-think.webp",
+      "alt": "表情：思考中"
+    },
+    "face-done": {
+      "file": "assets/face-done.webp",
+      "alt": "表情：想好了"
+    },
+    "face-search": {
+      "file": "assets/face-search.webp",
+      "alt": "表情：查资料"
+    },
+    "face-oops": {
+      "file": "assets/face-oops.webp",
+      "alt": "表情：出错"
+    },
+    "item-1": {
+      "file": "assets/item-1.webp",
+      "alt": "道具"
+    },
+    "item-2": {
+      "file": "assets/item-2.webp",
+      "alt": "道具"
+    }
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

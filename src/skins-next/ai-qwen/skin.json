@@ -1,0 +1,208 @@
+{
+  "id": "ai-qwen",
+  "name": "千问",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "千问娘：国风庭院的千金小姐。淡蓝紫、紫与金，回纹、祥云与折扇；打开时团扇一样展开一枚印，背景里祥云慢慢飘。",
+  "author": "卡密预设",
+  "credits": "角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f4f2fb",
+        "accent": "#5543a8",
+        "radius": 8,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"ZCOOL XiaoWei\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#b03a4a",
+        "success": "#3a7f5f",
+        "info": "#3f62b0",
+        "warning": "#9a701a"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#18152e",
+        "accent": "#b6a8f6",
+        "radius": 8,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"ZCOOL XiaoWei\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff9aa8",
+        "success": "#90d4b4",
+        "info": "#a8c0ff",
+        "warning": "#f0c878"
+      }
+    }
+  },
+  "modules": [
+    "stamp",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "stamp",
+      "name": "千金印",
+      "description": "打开与按下时，盖下一枚「千」字小印。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "落花",
+      "description": "打开时散出几朵小花。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "祥云",
+      "description": "面板与消息背景里，祥云慢慢飘过。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "fret",
+      "name": "回纹",
+      "description": "面板标题下与卡片上沿一道回纹。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "portrait",
+      "name": "立绘",
+      "description": "面板右下角站着千问娘（手机上换成 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "scene",
+      "name": "场景",
+      "description": "对话框与消息背景铺一层淡淡的国风庭院。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 8,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {
+    "think.live": "{name}思量中",
+    "think.done": "{name}想明白了",
+    "search.done": "参考了 {n} 篇资料",
+    "options.title": "千金之选"
+  },
+  "assets": {
+    "portrait": {
+      "file": "assets/portrait.webp",
+      "alt": "半身立绘"
+    },
+    "chibi": {
+      "file": "assets/chibi.webp",
+      "alt": "Q 版"
+    },
+    "scene": {
+      "file": "assets/scene.webp",
+      "alt": "场景"
+    }
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

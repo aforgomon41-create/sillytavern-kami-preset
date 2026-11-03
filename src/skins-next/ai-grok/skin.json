@@ -1,0 +1,201 @@
+{
+  "id": "ai-grok",
+  "name": "Grok",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "Grok 娘：哥特古堡的新月之夜。黑、酒红与暖金，尖刺小冠与蝙蝠；按下时一记 X 字斩，背景里金色微尘飘动。嘴最毒。",
+  "author": "卡密预设",
+  "credits": "角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。",
+  "defaultScheme": "dark",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f6efe4",
+        "accent": "#7e1d2b",
+        "radius": 2,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Cinzel\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#a82a2a",
+        "success": "#4f7a3a",
+        "info": "#3f5f8a",
+        "warning": "#8a5f12"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#120c0e",
+        "accent": "#d9b25c",
+        "radius": 2,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Cinzel\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#ff8a80",
+        "success": "#a8d08a",
+        "info": "#9cb8e0",
+        "warning": "#f0c060"
+      }
+    }
+  },
+  "modules": [
+    "slash",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "slash",
+      "name": "X 字斩",
+      "description": "按下与打开时，一记金色斜斩。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "金尘",
+      "description": "打开时迸出一把金色碎光。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "金色微尘",
+      "description": "面板与消息背景里，金色微尘慢慢飘。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "portrait",
+      "name": "立绘",
+      "description": "面板右下角站着 Grok 娘（手机上换成 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "scene",
+      "name": "场景",
+      "description": "对话框与消息背景铺一层淡淡的古堡露台。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 2,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {
+    "think.live": "{name}在翻你的浏览记录",
+    "think.done": "就这？轻松",
+    "search.done": "查证了 {n} 处来源",
+    "options.title": "选吧，凡人"
+  },
+  "assets": {
+    "portrait": {
+      "file": "assets/portrait.webp",
+      "alt": "半身立绘"
+    },
+    "chibi": {
+      "file": "assets/chibi.webp",
+      "alt": "Q 版"
+    },
+    "scene": {
+      "file": "assets/scene.webp",
+      "alt": "场景"
+    }
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

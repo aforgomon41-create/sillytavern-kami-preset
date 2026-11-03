@@ -1,0 +1,80 @@
+/* GPT —— GPT 娘：云端白玫瑰龙庭。纯白、淡薰衣草紫与银，龙鳞底纹；打开时一圈玫瑰花瓣绕着展开，背景飘白玫瑰瓣。
+   AI 娘系列（docs/AI娘系列方案.md）。素材在 assets/（build/frontend/ai-chan-assets.mjs 从 .cache/ai-chan/raw/ 生成）。 */
+
+/* ───────── 动效与环境层参数 ───────── */
+:host, [data-k-surface] { --k-fx-glyphs: "❀ ✧ ❀"; --k-fx-drift: out; --k-fx-size: 9px; --k-fx-glow: #b7a4ee; --k-fx-alt: #c0c4d2; --k-amb: petal; --k-amb-dir: down; --k-amb-count: 9; --k-amb-speed: 24; --k-amb-size: 5; --k-amb-color: #b9a8e6; --k-amb-alpha: .30; }
+
+/* ───────── 消息颜色（契约 6.8：每个配色都要写，对消息底色 ≥ 4.5 : 1） ───────── */
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #5a44a6; --k-msg-thought: #5c6488; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #cdbcff; --k-msg-thought: #b8c0dc; }
+
+/* 龙庭：卡片是磨砂白玉（白色内高光 + 淡紫外晕），面板底纹是极淡的龙鳞 */
+[data-k-surface] { --k-gp-silver: #b9bdcc; --k-gp-glow: rgba(110, 87, 179, .18); --k-gp-rim: rgba(255, 255, 255, .9); }
+[data-k-surface][data-k-scheme="dark"] { --k-gp-silver: #6e7290; --k-gp-glow: rgba(196, 180, 244, .14); --k-gp-rim: rgba(255, 255, 255, .08); }
+[data-k="card"] { border: 1px solid color-mix(in srgb, var(--k-accent) 22%, transparent); box-shadow: inset 0 1px 0 var(--k-gp-rim), 0 6px 22px var(--k-gp-glow); }
+[data-k="card"][data-role="choice"][data-state="selected"] { box-shadow: inset 0 0 0 1.5px var(--k-accent), 0 0 18px var(--k-gp-glow); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-family: var(--k-font-heading); letter-spacing: .08em; }
+[data-k="button"] { border-radius: var(--k-r-pill); font-family: var(--k-font-heading); letter-spacing: .05em; }
+[data-k="button"][data-variant="primary"] { background: linear-gradient(135deg, color-mix(in srgb, var(--k-accent) 80%, #fff), var(--k-accent)); box-shadow: 0 4px 14px var(--k-gp-glow); }
+/* 开关 = 水晶：打开时轨道是淡紫水晶渐变，滑块是一颗菱形水晶 */
+[data-k="switch"][data-state="checked"] { background: linear-gradient(135deg, #d8ccff, var(--k-accent) 70%); }
+[data-k="switch"] [data-k-part="thumb"] { background: linear-gradient(135deg, #ffffff 0 40%, #e6defc 60%, #c9bcf2); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border-radius: 0; }
+/* 进度 = 银链：一颗颗银珠 */
+[data-k="progress"] { height: 8px; }
+[data-k="progress"] > [data-k-part="indicator"] { background: radial-gradient(circle, #fff 0 1.2px, transparent 1.6px) 0 50% / 10px 8px repeat-x, linear-gradient(90deg, var(--k-gp-silver), var(--k-accent)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: linear-gradient(135deg, #fff, #d9cffb); box-shadow: 0 0 0 2px var(--k-accent), 0 0 10px var(--k-gp-glow); }
+[data-k="badge"] { border-radius: var(--k-r-pill); letter-spacing: .04em; box-shadow: inset 0 0 0 1px var(--k-gp-silver); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom-color: color-mix(in srgb, var(--k-accent) 18%, transparent); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); letter-spacing: .05em; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { text-shadow: 0 0 10px var(--k-gp-glow); }
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 15px; height: 15px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.2c2.6 0 4.6 2 4.6 4.5 0 3-2.3 5.2-4.6 5.2S3.4 9.7 3.4 6.7C3.4 4.2 5.4 2.2 8 2.2zm0 1.6a2.9 2.9 0 0 0-2.9 2.9c0 .5.1 1 .3 1.4.4-1.6 1.6-2.6 3.1-2.6 1 0 1.8.5 2.2 1.3a2.9 2.9 0 0 0-2.7-3zM6.5 13.2h3L8 15.8z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.2c2.6 0 4.6 2 4.6 4.5 0 3-2.3 5.2-4.6 5.2S3.4 9.7 3.4 6.7C3.4 4.2 5.4 2.2 8 2.2zm0 1.6a2.9 2.9 0 0 0-2.9 2.9c0 .5.1 1 .3 1.4.4-1.6 1.6-2.6 3.1-2.6 1 0 1.8.5 2.2 1.3a2.9 2.9 0 0 0-2.7-3zM6.5 13.2h3L8 15.8z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="spinner"] { border-color: color-mix(in srgb, var(--k-accent) 25%, transparent); border-top-color: var(--k-accent); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; inset: 0; background: var(--k-accent); opacity: .05; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M0 12A10 10 0 0 1 20 12' fill='none' stroke='#000' stroke-width='1'/%3E%3Cpath d='M-10 6A10 10 0 0 1 10 6M10 6A10 10 0 0 1 30 6' fill='none' stroke='#000' stroke-width='1'/%3E%3C/svg%3E") 0 0 / 26px 16px repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 12'%3E%3Cpath d='M0 12A10 10 0 0 1 20 12' fill='none' stroke='#000' stroke-width='1'/%3E%3Cpath d='M-10 6A10 10 0 0 1 10 6M10 6A10 10 0 0 1 30 6' fill='none' stroke='#000' stroke-width='1'/%3E%3C/svg%3E") 0 0 / 26px 16px repeat; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 600; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="term"] { letter-spacing: .04em; border-bottom: 1px solid color-mix(in srgb, currentColor 40%, transparent); }
+[data-k-content] [data-k-part="keyword"] { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--k-accent) 18%, transparent) 62%); }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 72px; height: 14px; border: 0; background: var(--k-accent); opacity: .5; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.2c2.6 0 4.6 2 4.6 4.5 0 3-2.3 5.2-4.6 5.2S3.4 9.7 3.4 6.7C3.4 4.2 5.4 2.2 8 2.2zm0 1.6a2.9 2.9 0 0 0-2.9 2.9c0 .5.1 1 .3 1.4.4-1.6 1.6-2.6 3.1-2.6 1 0 1.8.5 2.2 1.3a2.9 2.9 0 0 0-2.7-3zM6.5 13.2h3L8 15.8z'/%3E%3C/svg%3E") 0 0 / 14px 14px space; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 2.2c2.6 0 4.6 2 4.6 4.5 0 3-2.3 5.2-4.6 5.2S3.4 9.7 3.4 6.7C3.4 4.2 5.4 2.2 8 2.2zm0 1.6a2.9 2.9 0 0 0-2.9 2.9c0 .5.1 1 .3 1.4.4-1.6 1.6-2.6 3.1-2.6 1 0 1.8.5 2.2 1.3a2.9 2.9 0 0 0-2.7-3zM6.5 13.2h3L8 15.8z'/%3E%3C/svg%3E") 0 0 / 14px 14px space; }
+
+/* ═══════════ 角色素材（立绘 / Q 版 / 场景 / 表情 / 道具），见 design/ai-chan/生图提示词.md ═══════════ */
+/* 面板背景右下角：半身立绘，左侧与上方渐隐进底色；卡片本身有底色，立绘只在卡片之间的空隙里露出来，不压字 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: -6px; bottom: 0; width: min(46%, 380px); aspect-ratio: 2 / 3; background: var(--k-asset-portrait) right bottom / contain no-repeat; opacity: var(--k-ai-portrait-alpha, .34); -webkit-mask: linear-gradient(90deg, transparent, #000 38%), linear-gradient(0deg, #000 70%, transparent); -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 38%) intersect, linear-gradient(0deg, #000 70%, transparent); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-portrait-alpha: .26; }
+/* 手机：面板窄，立绘换成右下角一只 Q 版 */
+@media (max-width: 1000px) {
+  [data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { width: 120px; aspect-ratio: 1; background-image: var(--k-asset-chibi); opacity: .32; -webkit-mask: none; mask: none; }
+}
+/* 对话框右下角一只小 Q 版 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: 6px; bottom: 6px; width: 84px; height: 84px; background: var(--k-asset-chibi) center / contain no-repeat; opacity: .5; }
+/* 空状态的插图 */
+[data-k="empty"] > [data-k-ornament="empty-art"] { display: block; position: relative; left: auto; translate: none; width: 96px; height: 96px; margin: 0 auto 6px; background: var(--k-asset-chibi) center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k="empty"] > [data-k-ornament="empty-art"] { animation: k-ai-breathe 3.2s ease-in-out infinite; }
+@keyframes k-ai-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* 场景：对话框与消息正文背景铺一层很淡的场景（从右上角渐隐），盖一层底色保证文字对比度 */
+[data-k-surface][data-k-effects~="scene"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"], [data-k-surface][data-k-effects~="scene"] [data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; background: var(--k-asset-scene) right top / cover no-repeat; opacity: var(--k-ai-scene-alpha, .16); -webkit-mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-scene-alpha: .12; }
+/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料），换掉原来的图标 */
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { display: inline-block; background-image: var(--k-asset-face-think); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="done"] { display: inline-block; background-image: var(--k-asset-face-done); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="search"] { display: inline-block; background-image: var(--k-asset-face-search); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"], [data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"] { opacity: 0; width: 0; min-width: 0; margin: 0 -4px 0 0; }
+[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { animation: k-ai-bob 1.4s ease-in-out infinite; }
+@keyframes k-ai-bob { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-1px); } }
+/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }
+[data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #6e57b3; --k-opt-persona: #a05ab8; --k-opt-plot: #3f8a72; --k-opt-info: #4f73b8; --k-opt-fun: #b07a2a; --k-opt-nsfw: #b8445a; --k-opt-other: #8a8aa0; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：线条 */
+[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

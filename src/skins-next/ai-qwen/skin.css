@@ -1,0 +1,73 @@
+/* 千问 —— 千问娘：国风庭院的千金小姐。淡蓝紫、紫与金，回纹、祥云与折扇；打开时团扇一样展开一枚印，背景里祥云慢慢飘。
+   AI 娘系列（docs/AI娘系列方案.md）。素材在 assets/（build/frontend/ai-chan-assets.mjs 从 .cache/ai-chan/raw/ 生成）。 */
+
+/* ───────── 动效与环境层参数 ───────── */
+:host, [data-k-surface] { --k-fx-stamp: "千"; --k-fx-stamp-style: outline; --k-fx-stamp-shape: round; --k-fx-glyphs: "❀ ✿ ❀"; --k-fx-drift: down; --k-fx-size: 9px; --k-fx-glow: #8a78e0; --k-fx-alt: #c49a3a; --k-amb: puff; --k-amb-dir: right; --k-amb-count: 5; --k-amb-speed: 30; --k-amb-size: 8; --k-amb-color: #b6a8f6; --k-amb-alpha: .14; }
+
+/* ───────── 消息颜色（契约 6.8：每个配色都要写，对消息底色 ≥ 4.5 : 1） ───────── */
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #4a3aa0; --k-msg-thought: #4f6488; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #c4b8ff; --k-msg-thought: #a8bce0; }
+
+/* 国风：金色回纹压边、卡片像锦盒（上沿一道回纹），按钮是如意形的圆角 */
+[data-k-surface] { --k-qw-gold: #b8903a; --k-qw-line: rgba(85, 67, 168, .25); }
+[data-k-surface][data-k-scheme="dark"] { --k-qw-gold: #d6b468; --k-qw-line: rgba(182, 168, 246, .25); }
+[data-k="card"] { border: 1px solid var(--k-qw-line); }
+[data-k-surface][data-k-effects~="fret"] [data-k="card"][data-role="container"]::before { content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 6px; background: var(--k-qw-gold); opacity: .55; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H2V4h10v8H6V8h2v2h2V6H4v8h10V2H0z'/%3E%3C/svg%3E") 0 0 / 6px 6px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H2V4h10v8H6V8h2v2h2V6H4v8h10V2H0z'/%3E%3C/svg%3E") 0 0 / 6px 6px repeat-x; pointer-events: none; }
+[data-k="card"][data-role="choice"][data-state="selected"] { box-shadow: 0 0 0 1.5px var(--k-accent), 0 4px 14px var(--k-qw-line); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-family: var(--k-font-heading); letter-spacing: .12em; }
+[data-k-surface][data-k-effects~="fret"] [data-k="panel"] > [data-k-part="head"]::after, [data-k-surface][data-k-effects~="fret"] [data-k="dialog"][data-k-part="content"] > [data-k-part="head"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--k-qw-gold); opacity: .45; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H2V4h10v8H6V8h2v2h2V6H4v8h10V2H0z'/%3E%3C/svg%3E") 0 0 / 6px 6px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H2V4h10v8H6V8h2v2h2V6H4v8h10V2H0z'/%3E%3C/svg%3E") 0 0 / 6px 6px repeat-x; pointer-events: none; }
+[data-k="button"] { border-radius: 999px 6px; font-family: var(--k-font-heading); letter-spacing: .08em; }
+[data-k="button"][data-variant="primary"] { box-shadow: inset 0 0 0 1px var(--k-qw-gold); }
+/* 开关 = 玉佩：滑块是一枚带金边的玉环 */
+[data-k="switch"][data-state="checked"] { background: linear-gradient(180deg, color-mix(in srgb, var(--k-accent) 75%, #fff), var(--k-accent)); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle, transparent 0 22%, #f4f0ff 25%, #dcd4f8); box-shadow: 0 0 0 1.5px var(--k-qw-gold); }
+/* 进度 = 祥云 */
+[data-k="progress"] { height: 10px; }
+[data-k="progress"] > [data-k-part="indicator"] { background: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, .45) 0 3px, transparent 3.5px) 0 0 / 12px 10px repeat-x, linear-gradient(90deg, color-mix(in srgb, var(--k-accent) 60%, #fff), var(--k-accent)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: #fff; box-shadow: 0 0 0 2px var(--k-accent), 0 0 0 4px var(--k-qw-gold); }
+[data-k="badge"] { border-radius: 999px 4px; font-family: var(--k-font-heading); box-shadow: inset 0 0 0 1px var(--k-qw-gold); }
+[data-k="tabs"] [data-k-part="tab"] { font-family: var(--k-font-heading); letter-spacing: .08em; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { border-bottom-color: var(--k-qw-gold); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"]::before { content: ''; position: absolute; left: 50%; top: 2px; width: 14px; height: 8px; margin-left: -7px; background: var(--k-qw-gold); opacity: .7; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 18px; height: 13px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="spinner"] { border: 0; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 12'%3E%3Cpath d='M8 11L.6 4.2A10.6 10.6 0 0 1 15.4 4.2z'/%3E%3Cpath d='M8 11L4.4 1.6M8 11V.9M8 11l3.6-9.4' stroke='#fff' stroke-width='.5' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; animation: k-qw-fan 1.6s ease-in-out infinite; transform-origin: 50% 92%; }
+@keyframes k-qw-fan { 0%, 100% { transform: scaleX(.35); } 50% { transform: scaleX(1); } }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; left: 10px; bottom: 14px; width: 120px; height: 60px; background: var(--k-accent); opacity: .10; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 12'%3E%3Cpath d='M5 11a4 4 0 0 1-.4-8A5 5 0 0 1 13.8 2 3.8 3.8 0 0 1 20 4.6 3.2 3.2 0 0 1 19.6 11z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 12'%3E%3Cpath d='M5 11a4 4 0 0 1-.4-8A5 5 0 0 1 13.8 2 3.8 3.8 0 0 1 20 4.6 3.2 3.2 0 0 1 19.6 11z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-content] [data-k-part="dialogue"] { font-weight: 600; }
+[data-k-content] [data-k-part="thought"] { font-style: normal; }
+[data-k-content] [data-k-part="term"] { font-family: "ZCOOL XiaoWei", "Songti SC", "Noto Serif CJK SC", serif; letter-spacing: .06em; }
+[data-k-content] [data-k-part="keyword"] { text-emphasis: dot; text-emphasis-position: under; -webkit-text-emphasis: dot; -webkit-text-emphasis-position: under; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 72px; height: 12px; border: 0; background: currentColor; opacity: .45; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 12'%3E%3Cpath d='M5 11a4 4 0 0 1-.4-8A5 5 0 0 1 13.8 2 3.8 3.8 0 0 1 20 4.6 3.2 3.2 0 0 1 19.6 11z'/%3E%3C/svg%3E") 50% 50% / 24px 12px space; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 12'%3E%3Cpath d='M5 11a4 4 0 0 1-.4-8A5 5 0 0 1 13.8 2 3.8 3.8 0 0 1 20 4.6 3.2 3.2 0 0 1 19.6 11z'/%3E%3C/svg%3E") 50% 50% / 24px 12px space; }
+
+/* ═══════════ 角色素材（立绘 / Q 版 / 场景 / 表情 / 道具），见 design/ai-chan/生图提示词.md ═══════════ */
+/* 面板背景右下角：半身立绘，左侧与上方渐隐进底色；卡片本身有底色，立绘只在卡片之间的空隙里露出来，不压字 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: -6px; bottom: 0; width: min(46%, 380px); aspect-ratio: 2 / 3; background: var(--k-asset-portrait) right bottom / contain no-repeat; opacity: var(--k-ai-portrait-alpha, .34); -webkit-mask: linear-gradient(90deg, transparent, #000 38%), linear-gradient(0deg, #000 70%, transparent); -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 38%) intersect, linear-gradient(0deg, #000 70%, transparent); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-portrait-alpha: .26; }
+/* 手机：面板窄，立绘换成右下角一只 Q 版 */
+@media (max-width: 1000px) {
+  [data-k-surface][data-k-effects~="portrait"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after { width: 120px; aspect-ratio: 1; background-image: var(--k-asset-chibi); opacity: .32; -webkit-mask: none; mask: none; }
+}
+/* 对话框右下角一只小 Q 版 */
+[data-k-surface][data-k-effects~="portrait"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; right: 6px; bottom: 6px; width: 84px; height: 84px; background: var(--k-asset-chibi) center / contain no-repeat; opacity: .5; }
+/* 空状态的插图 */
+[data-k="empty"] > [data-k-ornament="empty-art"] { display: block; position: relative; left: auto; translate: none; width: 96px; height: 96px; margin: 0 auto 6px; background: var(--k-asset-chibi) center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"] [data-k="empty"] > [data-k-ornament="empty-art"] { animation: k-ai-breathe 3.2s ease-in-out infinite; }
+@keyframes k-ai-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+/* 场景：对话框与消息正文背景铺一层很淡的场景（从右上角渐隐），盖一层底色保证文字对比度 */
+[data-k-surface][data-k-effects~="scene"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"], [data-k-surface][data-k-effects~="scene"] [data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; background: var(--k-asset-scene) right top / cover no-repeat; opacity: var(--k-ai-scene-alpha, .16); -webkit-mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); }
+[data-k-surface][data-k-scheme="dark"] { --k-ai-scene-alpha: .12; }
+
+/* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
+[data-k-surface] { --k-opt-action: #5543a8; --k-opt-persona: #9a4fa8; --k-opt-plot: #3a7f5f; --k-opt-info: #3f6ab0; --k-opt-fun: #b8801a; --k-opt-nsfw: #b8344a; --k-opt-other: #7f7a96; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+/* 图标：线条 */
+[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

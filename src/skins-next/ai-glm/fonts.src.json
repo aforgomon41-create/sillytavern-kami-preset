@@ -1,0 +1,17 @@
+[
+ {
+  "pkg": "playfair-display",
+  "weights": [
+   600,
+   700
+  ],
+  "family": "Playfair Display"
+ },
+ {
+  "pkg": "noto-serif-sc",
+  "weights": [
+   600
+  ],
+  "family": "Noto Serif SC"
+ }
+]

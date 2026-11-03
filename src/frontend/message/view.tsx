@@ -119,6 +119,7 @@ export function MsgThink({ text, streaming, thinker = '奈亚子', actions, slot
       {/* 头部：左边是展开 / 收起（「奈亚子思考了 N 字」），展开后右边是排版 / 原文与复制（按钮里不能嵌按钮，所以分开） */}
       <div {...part('head')}>
         <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          <span {...ornament('state-face')} data-k-face={streaming ? 'think' : 'done'} />
           <span {...part('icon')} aria-hidden="true">{streaming ? <Spinner size="sm" label="思考中" /> : <Brain width="100%" height="100%" strokeWidth={1.75} />}</span>
           <span {...part('title')}>{streaming ? thinkLive : thinkDone}</span>
           <span {...part('count')}>{n} 字</span>
@@ -153,6 +154,7 @@ export function MsgSearch({ records, pending, slotted }: { records: SearchRecord
     <section {...k('msg-search')} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined}>
       <div {...part('head')}>
       <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={!records.length}>
+        <span {...ornament('state-face')} data-k-face="search" />
         <span {...part('icon')} aria-hidden="true">{pending ? <Spinner size="sm" label="整理资料中" /> : <Search width="100%" height="100%" strokeWidth={1.75} />}</span>
         <span {...part('title')}>{records.length ? searchDone : '正在整理资料'}</span>
         {sites.length ? <span {...part('sites')}>{sites.slice(0, 3).join(' · ')}{sites.length > 3 ? ' 等' : ''}</span> : null}

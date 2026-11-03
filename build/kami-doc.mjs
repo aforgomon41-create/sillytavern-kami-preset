@@ -294,12 +294,15 @@ export function expandRuntimeNext(root, code) {
 /* 新前端的内置皮肤包（frontend-rewrite 支线）：.cache/frontend/skins.json，由 build/frontend/pack-skins.mjs 生成。
    脚本里写占位 /* @@KAMI_SKINS_NEXT@@ *\/，展开成 var SKINS_NEXT = [...]（皮肤管理新版做好之前，消息前端先用它固定套「碎光」） */
 const SKINS_NEXT_MARK = '/* @@KAMI_SKINS_NEXT@@ */';
+/* 只要默认皮肤（皮肤包第一套）的占位：消息前端只在「🎨 显示」没在运行时拿它兜底，不必带上全部皮肤与素材（2026-11-03：AI 娘系列加了图片后两份全量包让预设多了 1.5MB） */
+const SKINS_NEXT_DEFAULT_MARK = '/* @@KAMI_SKINS_NEXT_DEFAULT@@ */';
 export function expandSkinsNext(root, code) {
-  if (code.indexOf(SKINS_NEXT_MARK) < 0) { return code; }
+  if (code.indexOf(SKINS_NEXT_MARK) < 0 && code.indexOf(SKINS_NEXT_DEFAULT_MARK) < 0) { return code; }
   const p = path.join(root, '.cache', 'frontend', 'skins.json');
   if (!fs.existsSync(p)) { throw new Error('找不到新前端内置皮肤 .cache/frontend/skins.json —— 先运行 node build/frontend-build.mjs'); }
   const json = fs.readFileSync(p, 'utf8').trim();
-  return code.replace(SKINS_NEXT_MARK, () => 'var SKINS_NEXT = ' + json + ';');
+  const first = JSON.stringify(JSON.parse(json).slice(0, 1));
+  return code.replace(SKINS_NEXT_MARK, () => 'var SKINS_NEXT = ' + json + ';').replace(SKINS_NEXT_DEFAULT_MARK, () => 'var SKINS_NEXT = ' + first + ';');
 }
 
 export function expandRuntime(root, code) {

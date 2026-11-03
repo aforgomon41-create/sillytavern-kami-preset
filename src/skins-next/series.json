@@ -5,7 +5,37 @@
     {
       "id": "worlds",
       "name": "世界观",
-      "skins": ["sugar", "quest", "reborn", "yunji", "jianghu", "neon", "brief", "palace", "laurel", "vigil", "grid", "abyss", "rust", "cog", "noir"]
+      "skins": [
+        "sugar",
+        "quest",
+        "reborn",
+        "yunji",
+        "jianghu",
+        "neon",
+        "brief",
+        "palace",
+        "laurel",
+        "vigil",
+        "grid",
+        "abyss",
+        "rust",
+        "cog",
+        "noir"
+      ]
+    },
+    {
+      "id": "ai-chan",
+      "name": "AI 娘",
+      "skins": [
+        "ai-deepseek",
+        "ai-claude",
+        "ai-gpt",
+        "ai-gemini",
+        "ai-glm",
+        "ai-kimi",
+        "ai-grok",
+        "ai-qwen"
+      ]
     }
   ]
 }

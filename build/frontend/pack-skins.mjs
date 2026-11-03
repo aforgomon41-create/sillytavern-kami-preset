@@ -12,7 +12,7 @@ import * as esbuild from 'esbuild';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DIR = path.join(ROOT, 'src', 'skins-next');
 const OUT = path.join(ROOT, '.cache', 'frontend', 'skins.json');
-const ONE_MAX = 300 * 1024, TOTAL_MAX = 1200 * 1024;
+const ONE_MAX = 300 * 1024, TOTAL_MAX = 1700 * 1024;
 
 /* 引擎是 TypeScript：现场打一份给 node 用 */
 const tmp = path.join(ROOT, '.cache', 'frontend', 'engine-node.mjs');
@@ -84,7 +84,7 @@ for (const id of ids) {
   if (missing.length) { console.log('[内置皮肤] 提示：' + id + ' 还有 ' + missing.length + ' 个预设 emoji 没映射图标（照常显示 emoji）：' + missing.join(' ')); }
   skins.push({ manifest, css, assetUrls });
 }
-if (total > TOTAL_MAX) { problems.push('全部内置皮肤素材超过总预算（' + Math.round(total / 1024) + 'KB > 1200KB）'); }
+if (total > TOTAL_MAX) { problems.push('全部内置皮肤素材超过总预算（' + Math.round(total / 1024) + 'KB > ' + Math.round(TOTAL_MAX / 1024) + 'KB）'); }
 if (problems.length) { console.error('[内置皮肤] 不通过：\n  ' + problems.join('\n  ')); process.exit(1); }
 fs.writeFileSync(OUT, JSON.stringify(skins));
 console.log('[内置皮肤] ' + skins.length + ' 套通过（' + (skins.map((s) => s.manifest.id).join('、') || '暂无') + '），素材共 ' + Math.round(total / 1024) + 'KB → ' + path.relative(ROOT, OUT));

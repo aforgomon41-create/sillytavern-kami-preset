@@ -420,5 +420,8 @@
 [data-k-ornament="surface-backdrop"] { inset: 0; z-index: -1; border-radius: inherit; overflow: hidden; }
 [data-k-ornament="card-corner"] { right: 0; bottom: 0; z-index: 1; }
 [data-k-ornament="empty-art"] { left: 50%; top: 0; translate: -50% 0; }
+/* state-face：思维链 / 搜索资料标题前的状态头像（data-k-face = think 生成中 / done 完成 / search 查资料）。默认不显示；
+   皮肤写 display: inline-block 并按 data-k-face 换图（AI 娘系列用 Q 版表情头像），通常同时把 [data-k-part="icon"] 藏起来 */
+[data-k-ornament="state-face"] { display: none; flex: none; width: 1.6em; height: 1.6em; margin-block: -.3em; background: center / contain no-repeat; pointer-events: none; }
 [data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="msg-view"] { isolation: isolate; }
 [data-k="msg-view"], [data-k="empty"] { position: relative; }

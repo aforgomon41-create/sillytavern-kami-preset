@@ -1,0 +1,232 @@
+{
+  "id": "ai-gpt",
+  "name": "GPT",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "GPT 娘：云端白玫瑰龙庭。纯白、淡薰衣草紫与银，龙鳞底纹；打开时一圈玫瑰花瓣绕着展开，背景飘白玫瑰瓣。",
+  "author": "卡密预设",
+  "credits": "角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f7f5fc",
+        "accent": "#6e57b3",
+        "radius": 18,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Marcellus\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#b8445a",
+        "success": "#3f8a72",
+        "info": "#4f73b8",
+        "warning": "#a3761f"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#18162a",
+        "accent": "#c4b4f4",
+        "radius": 18,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Marcellus\", \"Noto Serif SC\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", sans-serif"
+        },
+        "danger": "#f29aaa",
+        "success": "#8fd4bc",
+        "info": "#a8c0f0",
+        "warning": "#e8c27a"
+      }
+    }
+  },
+  "modules": [
+    "orbit",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "orbit",
+      "name": "花瓣环",
+      "description": "打开与按下时，一圈玫瑰花瓣绕着转开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "花瓣",
+      "description": "打开时散出白玫瑰瓣。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "飘落的玫瑰瓣",
+      "description": "面板与消息背景里，白玫瑰瓣慢慢飘落。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "portrait",
+      "name": "立绘",
+      "description": "面板右下角站着 GPT 娘（手机上换成 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "scene",
+      "name": "场景",
+      "description": "对话框与消息背景铺一层淡淡的云端龙庭。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "faces",
+      "name": "表情头像",
+      "description": "思维链与搜索资料的标题前换成 GPT 娘的表情。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "params": [
+    {
+      "id": "corner",
+      "name": "圆角",
+      "type": "number",
+      "default": 18,
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "bind": "seed:radius",
+      "group": "形状"
+    }
+  ],
+  "flavor": {
+    "think.live": "{name}推理中",
+    "think.done": "{name}已推理",
+    "search.done": "已搜索 {n} 个站点",
+    "options.title": "下一步"
+  },
+  "assets": {
+    "portrait": {
+      "file": "assets/portrait.webp",
+      "alt": "半身立绘"
+    },
+    "chibi": {
+      "file": "assets/chibi.webp",
+      "alt": "Q 版"
+    },
+    "scene": {
+      "file": "assets/scene.webp",
+      "alt": "场景"
+    },
+    "face-think": {
+      "file": "assets/face-think.webp",
+      "alt": "表情：思考中"
+    },
+    "face-done": {
+      "file": "assets/face-done.webp",
+      "alt": "表情：想好了"
+    },
+    "face-search": {
+      "file": "assets/face-search.webp",
+      "alt": "表情：查资料"
+    },
+    "face-oops": {
+      "file": "assets/face-oops.webp",
+      "alt": "表情：出错"
+    },
+    "item-1": {
+      "file": "assets/item-1.webp",
+      "alt": "道具"
+    },
+    "item-2": {
+      "file": "assets/item-2.webp",
+      "alt": "道具"
+    }
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

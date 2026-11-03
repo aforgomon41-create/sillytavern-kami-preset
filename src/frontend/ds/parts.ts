@@ -59,7 +59,7 @@ export const LEVELS = ['bg', 'surface-1', 'surface-2', 'surface-3', 'sunken', 'i
 export type Level = typeof LEVELS[number];
 
 /** 装饰槽（data-k-ornament）：不可交互、aria-hidden、pointer-events: none */
-export const ORNAMENTS = ['panel-head-start', 'panel-head-end', 'card-corner', 'empty-art', 'surface-backdrop', 'divider', 'dice'] as const;
+export const ORNAMENTS = ['panel-head-start', 'panel-head-end', 'card-corner', 'empty-art', 'surface-backdrop', 'divider', 'dice', 'state-face'] as const;
 export type OrnamentName = typeof ORNAMENTS[number];
 
 /** 导出给构建与检查用的清单 */

@@ -1,0 +1,13 @@
+[
+ {
+  "pkg": "marcellus",
+  "family": "Marcellus"
+ },
+ {
+  "pkg": "noto-serif-sc",
+  "weights": [
+   600
+  ],
+  "family": "Noto Serif SC"
+ }
+]
