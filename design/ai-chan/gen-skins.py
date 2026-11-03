@@ -186,7 +186,7 @@ S['ai-gpt'] = dict(
     opt=('#6e57b3', '#a05ab8', '#3f8a72', '#4f73b8', '#b07a2a', '#b8445a', '#8a8aa0'),
     css=lambda: f'''
 /* 龙庭：卡片是磨砂白玉（白色内高光 + 淡紫外晕），面板底纹是极淡的龙鳞 */
-[data-k-surface] {{ --k-gp-silver: #b9bdcc; --k-gp-glow: rgba(110, 87, 179, .18); --k-gp-rim: rgba(255, 255, 255, .9); }}
+[data-k-surface] {{ --k-ai-plate: 30%; --k-gp-silver: #b9bdcc; --k-gp-glow: rgba(110, 87, 179, .18); --k-gp-rim: rgba(255, 255, 255, .9); }}
 [data-k-surface][data-k-scheme="dark"] {{ --k-gp-silver: #6e7290; --k-gp-glow: rgba(196, 180, 244, .14); --k-gp-rim: rgba(255, 255, 255, .08); }}
 [data-k="card"] {{ border: 1px solid color-mix(in srgb, var(--k-accent) 22%, transparent); box-shadow: inset 0 1px 0 var(--k-gp-rim), 0 6px 22px var(--k-gp-glow); }}
 [data-k="card"][data-role="choice"][data-state="selected"] {{ box-shadow: inset 0 0 0 1.5px var(--k-accent), 0 0 18px var(--k-gp-glow); }}
@@ -495,6 +495,7 @@ def common(id, d, have):
         if a('face-search'): tog.append(SEARCH_TOG + ' > [data-k-part="icon"]')
         if tog:
             out.append(', '.join('[data-k-surface][data-k-effects~="faces"] ' + t for t in tog) + ' { opacity: 0; width: 0; min-width: 0; margin: 0 -4px 0 0; }')
+        out.append(f'/* 头像放大到约 36px，垫一个强调色圆底（白发 / 浅色角色在浅色底上也立得住），用负外边距不撑高标题行 */\n[data-k-surface][data-k-effects~="faces"] :is({THINK_TOG}, {SEARCH_TOG}) > [data-k-ornament="state-face"] {{ width: 2.3em; height: 2.3em; margin-block: -.55em; border-radius: 50%; background-size: 108%; background-position: 50% 30%; background-color: color-mix(in srgb, var(--k-accent) var(--k-ai-plate, 14%), transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 30%, transparent); }}')
         out.append(f'[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] {THINK_TOG} > [data-k-ornament="state-face"][data-k-face="think"] {{ animation: k-ai-bob 1.4s ease-in-out infinite; }}\n@keyframes k-ai-bob {{ 0%, 100% {{ transform: rotate(-6deg); }} 50% {{ transform: rotate(6deg) translateY(-1px); }} }}')
     if a('item-1'):
         out.append(f'''/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
