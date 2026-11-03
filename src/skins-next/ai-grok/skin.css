@@ -61,6 +61,16 @@
 /* 场景：对话框与消息正文背景铺一层很淡的场景（从右上角渐隐），盖一层底色保证文字对比度 */
 [data-k-surface][data-k-effects~="scene"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"], [data-k-surface][data-k-effects~="scene"] [data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; background: var(--k-asset-scene) right top / cover no-repeat; opacity: var(--k-ai-scene-alpha, .16); -webkit-mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); mask: radial-gradient(130% 110% at 100% 0, #000, transparent 75%); }
 [data-k-surface][data-k-scheme="dark"] { --k-ai-scene-alpha: .12; }
+/* 思维链 / 搜索资料标题前：Q 版表情头像（生成中 / 完成 / 查资料），换掉原来的图标 */
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { display: inline-block; background-image: var(--k-asset-face-think); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="done"] { display: inline-block; background-image: var(--k-asset-face-done); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="search"] { display: inline-block; background-image: var(--k-asset-face-search); }
+[data-k-surface][data-k-effects~="faces"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"], [data-k-surface][data-k-effects~="faces"] [data-k="msg-search"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-part="icon"] { opacity: 0; width: 0; min-width: 0; margin: 0 -4px 0 0; }
+[data-k-surface][data-k-effects~="faces"][data-k-motion="full"] [data-k="msg-think"] > [data-k-part="head"] > [data-k-part="toggle"] > [data-k-ornament="state-face"][data-k-face="think"] { animation: k-ai-bob 1.4s ease-in-out infinite; }
+@keyframes k-ai-bob { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) translateY(-1px); } }
+/* 卡片右下角：标志道具小图（单数卡片 item-1、双数卡片 item-2） */
+[data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] { display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }
+[data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }
 
 /* 行动选项：7 种类型各一色（左边色条 + 类型标签；标签字色与正文色混合保证对比度） */
 [data-k-surface] { --k-opt-action: #a8283a; --k-opt-persona: #7a3a8a; --k-opt-plot: #4f7a3a; --k-opt-info: #3f6a9a; --k-opt-fun: #b8861a; --k-opt-nsfw: #c0283a; --k-opt-other: #8a7a6a; }

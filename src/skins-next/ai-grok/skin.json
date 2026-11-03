@@ -81,6 +81,13 @@
       "description": "对话框与消息背景铺一层淡淡的古堡露台。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "faces",
+      "name": "表情头像",
+      "description": "思维链与搜索资料的标题前换成 Grok 娘的表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -105,18 +112,39 @@
   "assets": {
     "portrait": {
       "file": "assets/portrait.webp",
-      "alt": "半身立绘",
-      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-grok/assets/portrait.hd.webp"
+      "alt": "半身立绘"
     },
     "chibi": {
       "file": "assets/chibi.webp",
-      "alt": "Q 版",
-      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-grok/assets/chibi.hd.webp"
+      "alt": "Q 版"
     },
     "scene": {
       "file": "assets/scene.webp",
-      "alt": "场景",
-      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-grok/assets/scene.hd.webp"
+      "alt": "场景"
+    },
+    "face-think": {
+      "file": "assets/face-think.webp",
+      "alt": "表情：思考中"
+    },
+    "face-done": {
+      "file": "assets/face-done.webp",
+      "alt": "表情：想好了"
+    },
+    "face-search": {
+      "file": "assets/face-search.webp",
+      "alt": "表情：查资料"
+    },
+    "face-oops": {
+      "file": "assets/face-oops.webp",
+      "alt": "表情：出错"
+    },
+    "item-1": {
+      "file": "assets/item-1.webp",
+      "alt": "道具"
+    },
+    "item-2": {
+      "file": "assets/item-2.webp",
+      "alt": "道具"
     }
   },
   "icons": {
