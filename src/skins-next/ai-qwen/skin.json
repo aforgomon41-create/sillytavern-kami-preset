@@ -112,15 +112,18 @@
   "assets": {
     "portrait": {
       "file": "assets/portrait.webp",
-      "alt": "半身立绘"
+      "alt": "半身立绘",
+      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-qwen/assets/portrait.hd.webp"
     },
     "chibi": {
       "file": "assets/chibi.webp",
-      "alt": "Q 版"
+      "alt": "Q 版",
+      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-qwen/assets/chibi.hd.webp"
     },
     "scene": {
       "file": "assets/scene.webp",
-      "alt": "场景"
+      "alt": "场景",
+      "url": "https://cdn.jsdelivr.net/gh/aforgomon41-create/sillytavern-kami-preset@aa177390a18ec0a9ef21e1fa87f2e94e2bcfcac4/src/skins-next/ai-qwen/assets/scene.hd.webp"
     }
   },
   "icons": {
