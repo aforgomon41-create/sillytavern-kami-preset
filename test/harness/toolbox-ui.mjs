@@ -1,20 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createKamiUi} from '../../src/ui/core.js';
 let count = 0;
 const eq = (actual, expected, label) => { assert.deepEqual(actual, expected, label); count++; };
-const ui = fs.readFileSync(new URL('../../src/scripts/_compress-ui.js', import.meta.url), 'utf8').replace(/^export /gm, '');
-const make = (tag, className, text) => ({ tag, className, textContent: text, children: [], setAttribute(key, value) { this[key] = value; }, removeAttribute(key){delete this[key];}, get value(){return this._value;}, set value(value){this._value=String(value);if(this.tag==='select')this.children.forEach(o=>o.selected=o.value===this._value);}, appendChild(child) { this.children.push(child); } });
-const select = new Function('HDOC', 'mk','createKamiUi', ui + '\nreturn selectRow;')({ createElement: make }, make,createKamiUi);
-for (const choices of [[['tavily', 'Tavily'], ['serper', 'Serper']], [{ value: 'tavily', label: 'Tavily' }, { value: 'serper', label: 'Serper' }]]) {
-  const parent = make('div'); const result = select(parent, '服务', choices, 'serper', { 'data-search-provider': '1' });
-  eq(result.children.map(option => [option.value, option.textContent, !!option.selected]), [['tavily', 'Tavily', false], ['serper', 'Serper', true]], '共用下拉框兼容压缩与搜索两种参数');
-  eq(result['data-search-provider'], '1');
-}
-const connections = select(make('div'), '连接', [{ value: '', label: '当前连接' }, { value: 'profile:A', label: '酒馆：A' }, { value: 'config:B', label: '自定义：B' }], 'config:B');
-eq(connections.children.map(option => option.value), ['', 'profile:A', 'config:B']);
-eq(connections.children[2].selected, true);
-
 const code = fs.readFileSync(new URL('../../src/scripts/60-工具箱.js', import.meta.url), 'utf8');
 const start = code.indexOf('  var profileQueue = Promise.resolve();');
 const end = code.indexOf('  /* 从接口拉模型列表', start);

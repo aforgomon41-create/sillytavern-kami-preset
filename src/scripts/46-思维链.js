@@ -22,7 +22,6 @@
   /* @@KAMI_RESPONSE_TRANSPORT@@ */
   /* @@KAMI_TAG_RESPONSE@@ */
   /* @@KAMI_COT_STREAM@@ */
-  /* @@KAMI_UI@@ */
 
   var VERSION = '0.1';
   var STASH_KEY = '__kamiCotStashV1';
@@ -85,7 +84,6 @@
     if (i >= 0) { timers.splice(i, 1); }
   }
   function el(tag, cls, text) {
-    try { return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text)); } catch (e) { }
     var n = HDOC.createElement(tag);
     if (cls) { n.className = cls; }
     if (text != null) { n.textContent = String(text); }

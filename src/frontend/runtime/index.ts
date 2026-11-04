@@ -162,4 +162,6 @@ if (typeof window !== 'undefined') {
   if (g.KamiRuntimeNext) { try { g.KamiRuntimeNext.dispose(); } catch (e) { /* 旧实例已坏 */ } }
   g.KamiRuntimeNext = createRuntime(host);
   try { host.document.documentElement.setAttribute('data-kami-runtime-next', VERSION); } catch (e) { /* 无文档 */ }
+  /* 注册完广播一声（以前由旧运行库 KamiRuntime 发；工具箱等脚本听它，不用一直轮询） */
+  try { const ev = host.document.createEvent('Event'); ev.initEvent('kami-runtime-ready', true, true); host.document.dispatchEvent(ev); } catch (e) { /* 无文档 */ }
 }

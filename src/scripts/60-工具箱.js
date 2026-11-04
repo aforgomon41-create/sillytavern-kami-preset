@@ -103,7 +103,6 @@
  * ============================================================ */
 (function () {
   'use strict';
-  /* @@KAMI_UI@@ */
 
   var VERSION = '2.0';
   var API_NAME = 'KamiSummarize';
@@ -399,7 +398,6 @@
   /* @@KAMI_SEARCH_NATIVE_PROBE@@ */
   /* @@KAMI_USER_SCOPE@@ */
   /* @@KAMI_SEARCH_SERVICE@@ */
-  /* @@KAMI_LLM_UI@@ */
   /* @@KAMI_LLM_SETTINGS@@ */
   /* @@KAMI_SEARCH_MANUAL_UI@@ */
 
@@ -1822,21 +1820,6 @@
     renderStatus();
   }
 
-  /* ───────── DOM 小工具（搜索服务、手动搜索按钮、模型列表等仍在用） ───────── */
-
-  function mk(tag, cls, text) {
-    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
-  }
-
-  /* 搜索服务的设置页与手动搜索窗口（旧组件写法）还要这几个表单小工具；那两块界面现在由运行库的面板代替，
-     模块拆干净之前先留着（2026-10-30 脚本整理）。 */
-  function sectionCard(title) {
-    var card=createKamiUi(HDOC).settingsCard({title:title,flatTitle:true});return {card:card,body:card.body};
-  }
-  function noteLine(parent,text){var n=mk('div','kami-card-note',text);parent.appendChild(n);return n;}
-  function fieldRow(parent,label,control){var row=createKamiUi(HDOC).field({label:label,control:control,labelTag:'span'});parent.appendChild(row);return row;}
-  function textInput(parent,label,value,attrs,hint){var input=createKamiUi(HDOC).text({value:value,attrs:attrs});fieldRow(parent,label,input);if(hint)noteLine(parent,hint);return input;}
-  function selectRow(parent,label,items,current,attrs){var input=createKamiUi(HDOC).select({items:items,value:current,attrs:attrs});fieldRow(parent,label,input);return input;}
   /* ── 面板内容（数据变了就整片重画正文；几何与手势不动） ── */
 
 
@@ -2246,7 +2229,7 @@
      再加轮询兜底；20 秒还没有就给人话报错（用户把运行库关了）。 */
   function whenRuntimeReady(fn) {
     var settled = false, poll = null, started = Date.now();
-    function hostRuntime() { try { return HOST.KamiRuntime || null; } catch (e) { return null; } }
+    function hostRuntime() { try { return HOST.KamiRuntimeNext || null; } catch (e) { return null; } }
     function stopWaiting() {
       settled = true;
       if (poll) { clearInterval(poll); poll = null; }

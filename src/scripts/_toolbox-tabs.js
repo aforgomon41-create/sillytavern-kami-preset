@@ -43,7 +43,7 @@ export function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi
         providers: { list: webSearchProviders, get: webSearchProvider, endpoint: webSearchEndpoint, request: webSearchRequest, rows: webSearchRows },
         pure: { webSearchTaskGuide: webSearchTaskGuide, webSearchLimitFields: webSearchLimitFields, normalizeWebSearchLimits: normalizeWebSearchLimits, normalizeWebSearchManualSettings: normalizeWebSearchManualSettings, parseWebSearchJSON: parseWebSearchJSON, webSearchSource: webSearchSource, webSearchTag: webSearchTag,
           readWebSearchRecords: readWebSearchRecords, normalizeWebSearchRecord: normalizeWebSearchRecord, attachWebSearchRecord: attachWebSearchRecord },
-        host: HOST, document: HDOC, context: stCtx, make: mk, changed: function () { bridgeNotify(); }, components: createKamiUi(HDOC),
+        host: HOST, document: HDOC, context: stCtx, changed: function () { bridgeNotify(); },
         saveNotice: function () { renderStatus(); updateDef(); },
         profile: withTavernProfile, profiles: tavernCCProfiles,
         legacyConfigs: function () { return cfg.sumConfigs; },
@@ -60,10 +60,7 @@ export function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi
         },
         canRun: function () { return !pipeline.running; },
         count: countText,
-        ui: { section: sectionCard, field: fieldRow, note: noteLine, text: textInput, select: selectRow },
-        fold: function(title){var card=createKamiUi(HDOC).collapse({title:title});return {card:card,body:card.body};},
         openManual: function (trigger) { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.open(trigger); } },
-        mountManualSettings: function (container) { if (MANUAL_SEARCH_UI) { MANUAL_SEARCH_UI.mount(container); } },
         raw: async function (request, selection, guard) {
           function callRaw() { if (guard) { guard(); } return generateRaw(request); }
           if (typeof generateRaw !== 'function') { throw new Error('需要更新酒馆助手才能调用搜索模型'); }
@@ -93,9 +90,8 @@ export function openToolbox(key) { if (key) { toolboxTab = key; } var n = nextUi
       SEARCH = createKamiSearchService(searchEnv);
       if (searchEnv.nativeProbe) { try { var offProbe = searchEnv.nativeProbe.subscribe(function () { bridgeNotify(); }); unsubs.push({ stop: offProbe }); } catch (e) { } }
     }
-    MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,changed:function(){bridgeNotify();},document:HDOC,make:mk,copy:COPY,profiles:tavernCCProfiles,
-      defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,ensureStyle:function(){},
-      ui:{section:sectionCard,field:fieldRow,note:noteLine,text:textInput,select:selectRow},toast:function(kind,text){toast(kind,text,'手动搜索');}});
+    MANUAL_SEARCH_UI = createKamiManualSearchUi({search:SEARCH,host:HOST,changed:function(){bridgeNotify();},copy:COPY,profiles:tavernCCProfiles,
+      defaultTask:normalizeWebSearchManualSettings().llm.prompts.task,fetchModels:fetchLlmModelCatalog,toast:function(kind,text){toast(kind,text,'手动搜索');}});
     MANUAL_SEARCH_UI.ping();
     var promptChanged = function (event) {
       var target = event.target;

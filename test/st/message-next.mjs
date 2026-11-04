@@ -319,6 +319,16 @@ const off = await page.evaluate(() => ({
 }));
 ok(sw === 'checked' && !off.active && off.hosts === 0 && off.hidden === 0 && off.ls === '0' && off.styled === 0 && !off.sheet && off.bare, '显示面板关掉「消息前端」：宿主、排版标记与样式全部移除（.mes_text 的影子树只剩空 slot），iframe 恢复——交回酒馆渲染', { sw, ...off });
 ok(off.oldBody === 0 && off.oldThink > 0, '……正文是酒馆原生渲染（不再有正文外壳），「💭 思维链」的装饰接回', off);
+/* 2026-11-04：正则前端（行动选项 / 搜索资料，酒馆助手 iframe 里）不再从主页面的旧运行库取组件核心，自带建元素小工具——关掉消息前端后它们要自己画出来 */
+await page.waitForTimeout(1500);
+const regexFe = await page.evaluate(() => {
+  /* 整个聊天里的酒馆助手 iframe（最后一条是「发送」后新生成的回复，没有选项与资料） */
+  const docs = [...document.querySelectorAll('#chat .mes[is_user="false"] .TH-render iframe')].map((f) => { try { return f.contentDocument; } catch (e) { return null; } }).filter(Boolean);
+  const seen = docs.map((d) => (d.body && d.body.innerText) || '');   /* innerText：只算看得见的字，不含脚本与样式源码 */
+  const bad = seen.filter((t) => /运行库未加载|组件需要可用的文档|出错|失败/.test(t)).map((t) => t.replace(/\s+/g, ' ').slice(0, 120));
+  return { frames: docs.length, cards: docs.reduce((n, d) => n + d.querySelectorAll('.kami-item.kami-card').length, 0), facts: docs.some((d) => { const r = d.querySelector('[data-kami-search]'); return !!r && /印斯茅斯/.test(r.textContent || ''); }), err: bad.length > 0, bad: bad };
+});
+ok(regexFe.frames >= 2 && regexFe.cards >= 6 && regexFe.facts && !regexFe.err, '……酒馆助手 iframe 里的正则前端自己画出了行动选项与搜索资料（不再依赖旧运行库）', regexFe);
 await page.evaluate(() => { const l = document.querySelector('kami-layer'); const s = [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端'); s.click(); });
 await page.waitForTimeout(1500);
 const on = await page.evaluate(() => ({

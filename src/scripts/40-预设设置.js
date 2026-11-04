@@ -52,7 +52,6 @@
  * ============================================================ */
 (function () {
   'use strict';
-  /* @@KAMI_UI@@ */
 
   var VERSION = '0.9'; var API_NAME = 'KamiPreset';
   var VARS_KEY = 'kami-preset';
@@ -1249,9 +1248,7 @@
 
   /* ───────── 面板 ───────── */
 
-  function mk(tag, cls, text) {
-    return createKamiUi(HDOC).element(tag, cls, text == null ? undefined : String(text));
-  } /* ── 面板事件（照搬 30-皮肤管理.js 的 pointer 分段结构：先判动作，再分派） ──
+ /* ── 面板事件（照搬 30-皮肤管理.js 的 pointer 分段结构：先判动作，再分派） ──
  ── 角色名样式这一行 ──
      ⚠️ 2026-09-28 用户裁定：它**不在这块面板里了**，搬去了「🎨 皮肤管理面板 → 显示」那张卡
      （理由：两件事都是显示相关，不涉及预设本身的调整）。实现与 API 见 src/scripts/35-提示词发送修改.js，

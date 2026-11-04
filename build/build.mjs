@@ -18,7 +18,7 @@ import { migrateComponentSelectors } from './css-scope.mjs';
  *       这里与发版工具、镜像清单都从它派生；「两位小版本」= 小数部分写两位。
  *       N 会从历史产物里的最大构建号继续递增（新旧命名都认），编号不断档。
  */
-import { groupScriptTrees, expandRuntime, expandRuntimeNext, expandSkinsNext } from './kami-doc.mjs';
+import { groupScriptTrees, expandRuntimeNext, expandSkinsNext } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -147,10 +147,7 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-providers.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/search-results.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/toolbox-ui.mjs')], { stdio: 'inherit' });
-  /* 运行库组件层（React + Radix）：jsdom 起真 DOM、加载产物里的真 bundle，
-     把每个组件渲染一遍，钉住类名与 Radix 的可访问性角色（2026-10-26 迁移时加）。 */
-  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/runtime-ui.mjs')], { stdio: 'inherit' });
-  /* 正则前端在消息 iframe 里要沿父窗口链取运行库（2026-10-27 修：原来取不到，行动选项整块不渲染） */
+  /* 正则前端自带建元素小工具、不依赖任何运行库（2026-11-04 旧运行库删掉后；原 2026-10-27「沿父窗口链取运行库」） */
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/frontend-runtime-reach.mjs')], { stdio: 'inherit' });
   /* 新前端（frontend-rewrite）：TypeScript 类型检查 + 单测（令牌引擎等） */
   const TSC = path.join(ROOT, 'node_modules/typescript/bin/tsc');
@@ -165,7 +162,6 @@ try {
 try {
   execFileSync(process.execPath, [path.join(ROOT,'build/lint-skins.mjs')], {stdio:'inherit'});
   execFileSync(process.execPath, [path.join(ROOT,'test/harness/skin-contract.mjs')], {stdio:'inherit'});
-  execFileSync(process.execPath, [path.join(ROOT,'test/harness/ui-components.mjs')], {stdio:'inherit'});
 } catch (e) { console.error('组件库或皮肤校验失败'); process.exit(1); }
 
 /* ---------- 文案校验（design/copy/copy-table.json 与四套 skin.json 必须一致） ---------- */
@@ -237,7 +233,6 @@ const scripts = meta.map(m => {
   /* 预设结构解析器（test/harness/preset-parse.mjs）内联进脚本，规则只有一份 */
   code = expandPresetParse(ROOT, code);
   /* 运行库（React + Radix）只内联进「00-运行库.js」一份 */
-  code = expandRuntime(ROOT, code);
   code = expandRuntimeNext(ROOT, code);
   code = expandSkinsNext(ROOT, code);
   /* 共享模块（_tools-bridge / _search-* / _custom-style-ui 等）统一从这里内联 */

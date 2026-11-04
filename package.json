@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "build": "node build/build.mjs",
-    "build:runtime": "node build/build-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json && tsc -p test/frontend/tsconfig.json",
     "test:frontend": "node build/run-ts-tests.mjs",
     "build:frontend": "node build/frontend-build.mjs",

@@ -737,7 +737,7 @@
     return directUi();
   }
   /* 工具箱没在跑（被关掉 / 还没加载）时：直接用「🧩 运行库」的同一套窗口画「要不要更新」与进度
-     （2026-11-04 起；以前这里是旧运行库 KamiRuntime 的一棵 React 树 + 一份自带 CSS）。
+     （2026-11-04 起；以前这里是旧运行库的一棵 React 树 + 一份自带 CSS）。
      运行库也没有 → 返回 null：询问走酒馆原生弹窗，进度不显示，更新照常进行。 */
   var directUiObj = null;
   function directUi() {

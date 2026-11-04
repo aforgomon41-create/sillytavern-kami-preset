@@ -46,7 +46,7 @@ export function createKamiNativeSearchEvidence() {
 }
 
 export function createKamiNativeSearchProbe(env) {
-  var active=null,disposed=false,sequence=0,listeners=[],offView=null;
+  var active=null,disposed=false,sequence=0,listeners=[];
   var identity=key(),state={phase:'idle',running:false,message:'尚未测试当前连接',sources:[],queries:0};
   var marker='__kami_native_probe_'+Date.now()+'_'+Math.random().toString(36).slice(2)+'_';
   var setTimer=env.setTimeout||setTimeout,clearTimer=env.clearTimeout||clearTimeout;
@@ -128,31 +128,8 @@ export function createKamiNativeSearchProbe(env) {
     }finally{if(job.off)job.off();if(job.timer)clearTimer(job.timer);if(active===job)active=null;}
     return snapshot();
   }
-  function mount(container,canStart){
-    if(offView){offView();offView=null;}
-    var ui=env.components,make=env.make;
-    if(!ui)return function(){};
-    var actions=make('div','kami-actions'),start=ui.button({label:'测试真实搜索'}),stop=ui.button({label:'中断测试',kind:'ghost'});
-    start.setAttribute('data-search-native-test','1');stop.setAttribute('data-search-native-stop','1');stop.hidden=true;
-    actions.appendChild(start);actions.appendChild(stop);container.appendChild(actions);
-    var output=make('div','kami-ui-stack');output.setAttribute('data-search-native-result','1');
-    var text=ui.status({label:state.message}),progress=ui.progress({label:'联网能力测试进度'}),summary=make('p','kami-card-note'),links=make('div');
-    text.setAttribute('data-search-native-status','1');output.appendChild(text);output.appendChild(progress);output.appendChild(summary);output.appendChild(links);container.appendChild(output);
-    start.addEventListener('click',function(){if(!canStart||canStart())run();});stop.addEventListener('click',function(){cancel('测试已中断');});
-    function paint(value){
-      start.disabled=value.running;start.textContent=value.phase==='idle'?'测试真实搜索':'重新测试';stop.hidden=!value.running;progress.hidden=!value.running;
-      text.kami.update(value.message,value.running?'busy':value.state==='verified'?'success':value.state==='failed'?'error':'idle');
-      output.setAttribute('data-search-native-state',value.phase);
-      summary.hidden=value.running||!value.testedAt||value.phase==='idle'||value.phase==='cancelled';
-      summary.textContent='搜索记录 '+value.queries+' 次 · 返回来源 '+value.sources.length+' 个。本结果仅适用于当前连接；搜索执行证据不等于事实已逐条核实。';
-      links.textContent='';if(!value.running&&value.sources.length)links.appendChild(ui.sources({items:value.sources.slice(0,3)}));
-    }
-    listeners.push(paint);paint(snapshot());
-    var off=function(){listeners=listeners.filter(function(fn){return fn!==paint;});ui.destroy(text);ui.destroy(progress);};
-    offView=off;return off;
-  }
-  return {run:run,cancel:cancel,prepare:prepare,refresh:refresh,mount:mount,
+  return {run:run,cancel:cancel,prepare:prepare,refresh:refresh,
     status:function(){refresh();return snapshot();},
     subscribe:function(fn){listeners.push(fn);fn(snapshot());return function(){listeners=listeners.filter(function(row){return row!==fn;});};},
-    shutdown:function(){if(disposed)return;cancel('脚本已关闭，测试已中断');disposed=true;if(offView)offView();listeners=[];}};
+    shutdown:function(){if(disposed)return;cancel('脚本已关闭，测试已中断');disposed=true;listeners=[];}};
 }
