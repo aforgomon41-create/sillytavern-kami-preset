@@ -40,7 +40,8 @@ export const info = (label: string, note: string | undefined): React.ReactNode =
 
 export type Act = { toggle: (g: Group | null, item: Item) => void; setVar: (k: string, v: number) => void; setModel: (m: Model) => void };
 
-export function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): React.JSX.Element {
+/** defaults：出厂开关（条目 id → 开 / 关），给了就在出厂开着的卡片上标「默认」（引导用） */
+export function GroupCards({ g, st, act, defaults, defaultLabel = '默认' }: { g: Group; st: State; act: Act; defaults?: Record<string, boolean> | null; defaultLabel?: string }): React.JSX.Element {
   const [all, setAll] = React.useState(false);
   const LIMIT = 8;
   const shown = all ? g.items : g.items.slice(0, LIMIT);
@@ -52,6 +53,7 @@ export function GroupCards({ g, st, act }: { g: Group; st: State; act: Act }): R
       </span>}>
       <ChoiceGrid>
         {shown.map((i) => <ChoiceCard key={i.id} multi={g.mode === 'any'} title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} disabled={!!i.locked}
+          {...(defaults && defaults[i.id] ? { meta: defaultLabel } : {})}
           onSelect={() => act.toggle(g, i)} info={info(plain(i.name), i.note)} />)}
       </ChoiceGrid>
     </SettingSection>

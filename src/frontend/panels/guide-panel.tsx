@@ -1,20 +1,26 @@
 /**
- * 引导（新前端），预览定稿（design/previews/guide）搬过来。旧引导 15 步里有 7 步是把预设设置各页签再走一遍；
- * 新引导只留**第一次必须决定**的 6 步，其余之后在面板里调：
- *   免责声明 → 外观（皮肤）→ 模型 → 语言与数值 → 长文压缩与防截断 → 完成
- * 每一步都直接改真实设置（和旧引导一样）：模型 / 语言 / 数值走 PresetApi（40 号 presetBridge），
- * 皮肤走 SkinManager（04 号「🧪 显示」），压缩走 60 号的读写桥，防截断走 20 号的 AntiTruncation。缺哪个就那一项显示降级说明。
- * 电脑：左侧步骤列表（走过的步骤可以点回去）；手机：顶部进度条。免责声明确认之前不能往后走。
+ * 引导（新前端）。2026-11-03 用户要求重做：
+ *   ① **先确认免责声明与开源许可**：确认前没有关闭按钮、Esc / 下拉都关不掉、不能往后走；
+ *      按钮条上其他按钮也会先跳回这里（10 号脚本按钮中转站看 KamiGuide.accepted()）。
+ *   ② **教会用户预设的每一项功能**，每一页都按出厂默认设好（标「默认」，可一键恢复本页默认）：
+ *      免责声明与开源许可 → 先认识一下（按钮条地图）→ 外观 → 模型 → 预设的每个层级（运行时从预设解析，
+ *      创作要求 / 角色塑造 / 写作指导 / 额外任务 / 推理选项 / 运行模式 / 设置变量）→ 消息界面（可点的样例回复）
+ *      → 长文与截断 → 网络搜索 → 其他工具 → 完成。
+ * 每一页都直接改真实设置：模型 / 条目 / 数值走 PresetApi（40 号 presetBridge），皮肤走 SkinManager（04 号「🎨 显示」），
+ * 压缩走 60 号的读写桥，防截断走 20 号的 AntiTruncation。缺哪个就那一项显示降级说明。
+ * 电脑：左侧步骤列表（走过的步骤可以点回去）；手机：顶部进度条。文案唯一真相 design/copy/guide-copy.json。
  */
 import * as React from 'react';
 import G0 from '../../../design/copy/guide-copy.json';
 import { Markdown } from '../message/markdown';
+import { MessageView, type OptionMode } from '../message/view';
 import type { SkinManager } from '../skin-engine/manager';
 import { SkinChoices } from './display-panel';
-import { GroupCards, ModelPicker, VarFields, plain, type Act } from './preset-parts';
+import { EntryLabel } from '../ds';
+import { GroupCards, ModelPicker, VarFields, info, plain, type Act, type Group, type Item, type State, type Tab } from './preset-parts';
 import type { PresetApi } from './preset-panel';
 import type { Live } from './toolbox-types';
-import { Badge, Button, ChoiceCard, ChoiceGrid, NavList, Panel, SettingRow, SettingSection, Switch, Toast, useMedia } from '../ds';
+import { Badge, Button, Checkbox, ChoiceCard, ChoiceGrid, NavList, Panel, SettingRow, SettingSection, Switch, Toast, useMedia } from '../ds';
 
 export type GuideCopy = typeof G0;
 export interface GuideLong {
@@ -23,6 +29,8 @@ export interface GuideLong {
   /** 20 号反截断 */
   antitrunc?: { get(): boolean; set(on: boolean): unknown };
 }
+/** 打开其他面板（引导里「去哪里改」的按钮） */
+export interface GuideOpeners { display?: () => void; preset?: () => void; toolbox?: (tab?: string) => void }
 export interface GuidePanelProps {
   disclaimer: string;
   preset?: PresetApi | null;
@@ -31,6 +39,11 @@ export interface GuidePanelProps {
   /** 这些源有变化时重画（预设、压缩桥等） */
   live?: Live[];
   copy?: Partial<GuideCopy> | null;
+  /** 已经确认过（这一份）免责声明与开源许可 */
+  accepted?: boolean;
+  /** 出厂开关：条目 id → 开 / 关（构建期从预设内联） */
+  defaults?: Record<string, boolean> | null;
+  open?: GuideOpeners;
   /** 关闭：completed = 点了最后一步的「完成」 */
   onClose: (completed: boolean) => void;
   onConfirm?: () => void;
@@ -41,6 +54,12 @@ export interface GuidePanelProps {
 const fill = (s: string, v: Record<string, string | number>): string => s.replace(/\{(\w+)\}/g, (_, k: string) => String(v[k] ?? ''));
 const Intro = ({ children }: { children: React.ReactNode }): React.JSX.Element => <p style={{ color: 'var(--k-on-muted)', maxWidth: '42em' }}>{children}</p>;
 const Stack = ({ children }: { children: React.ReactNode }): React.JSX.Element => <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 'var(--k-gap-section)' }}>{children}</div>;
+/** 名词 + 说明的列表（按钮条地图、消息各部分、工具） */
+const Terms = ({ rows }: { rows: ReadonlyArray<readonly [string, string] | string[]> }): React.JSX.Element => (
+  <dl data-guide-terms="" style={{ display: 'grid', gridTemplateColumns: 'minmax(7em, max-content) minmax(0, 1fr)', gap: '8px 16px', margin: 0 }}>
+    {rows.map((r) => <React.Fragment key={r[0]}><dt style={{ fontWeight: 'var(--k-fw-strong)' as unknown as number }}>{r[0]}</dt><dd style={{ margin: 0, color: 'var(--k-on-muted)' }}>{r[1]}</dd></React.Fragment>)}
+  </dl>
+);
 
 function useLives(list: Live[]): void {
   const key = list.length;
@@ -48,16 +67,72 @@ function useLives(list: Live[]): void {
   React.useSyncExternalStore(sub, () => list.map((l) => l.version()).join(',') + '/' + key);
 }
 
-const STEP_IDS = ['disclaimer', 'skin', 'model', 'basics', 'long', 'done'] as const;
+/* 消息界面那一页的样例回复（只在引导里渲染，不进聊天） */
+const SAMPLE = [
+  '<nyaruko_think>', '## 场景确认', '深夜的旧宅门口，<n>老马什</n>在屋里。', '', '## 安排', '1. 先写门外的声音', '2. 再让老马什开门', '</nyaruko_think>',
+  '<out_body>', '<introduction>', '<search_results>', '范围：示例｜旧宅地方志', '- 马什旧宅建于 1846 年，后来荒废。 [1]', '[1] https://example.org/marsh 地方志（示例）', '</search_results>', '</introduction>',
+  '<content>', '　　夜风穿过破败的窗棂。你站在那扇木门前，门缝里漏出一线昏黄的光。', '', '　　「外面有人。」屋里沙哑的声音停了下来。*他知道我来了？*', '</content>',
+  '<appendix>', '<options>', JSON.stringify([
+    { title: '敲门报上名字', type: '性格', content: '「打扰了，我是从镇上来的。」' },
+    { title: '先在门外听一听', type: '信息', content: '贴着门板，听屋里在说什么。' },
+    { title: '绕到后窗', type: '推进', content: '沿着墙根绕到屋后看看。' }
+  ]), '</options>', '</appendix>', '</out_body>'
+].join('\n');
 
-export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], copy, onClose, onConfirm, initialStep = 0, compactQuery = '(max-width: 1000px)' }: GuidePanelProps): React.JSX.Element {
+function SampleMessage(): React.JSX.Element {
+  const [mode, setMode] = React.useState<OptionMode>('fill');
+  const [picked, setPicked] = React.useState('');
+  return (
+    <div data-guide-sample="">
+      <MessageView raw={SAMPLE} streaming={false} latest mode={mode} onMode={setMode} onPick={(it, m) => setPicked((m === 'send' ? '（发送）' : '（填入）') + it.title)} thinker="奈亚子" />
+      {picked ? <Intro>{'样例里点了：' + picked + '——真实聊天里会' + (mode === 'send' ? '直接发出去' : '放进输入框') + '。'}</Intro> : null}
+    </div>
+  );
+}
+
+/** 一个预设层级（创作要求、角色塑造……）：独立条目 + 数值 + 每个选项组，出厂开着的标「默认」 */
+function LayerBody({ t, st, act, defaults, G }: { t: Tab; st: State; act: Act; defaults: Record<string, boolean> | null; G: GuideCopy }): React.JSX.Element {
+  return (
+    <>
+      {(t.groups || []).map((g) => <GroupCards key={g.name} g={g} st={st} act={act} defaults={defaults} defaultLabel={G.defaultBadge} />)}
+      {(t.standalone || []).length ? (
+        <SettingSection title="其他条目" badge={<Badge>多选</Badge>}>
+          <ChoiceGrid>
+            {(t.standalone || []).map((i) => <ChoiceCard key={i.id} multi title={<EntryLabel name={i.name} />} selected={!!st.on[i.id]} disabled={!!i.locked}
+              {...(defaults && defaults[i.id] ? { meta: G.defaultBadge } : {})} onSelect={() => act.toggle(null, i)} info={info(plain(i.name), i.note)} />)}
+          </ChoiceGrid>
+        </SettingSection>
+      ) : null}
+      {(t.vars || []).map((v) => <VarFields key={v.name} v={v} st={st} act={act} />)}
+    </>
+  );
+}
+
+/** 本页和出厂默认不一样的开关：单选组切到出厂那一项，多选组 / 独立条目逐个翻 */
+function restorePlan(t: Tab, st: State, defaults: Record<string, boolean>): Array<{ g: Group | null; item: Item }> {
+  const out: Array<{ g: Group | null; item: Item }> = [];
+  const known = (i: Item): boolean => Object.prototype.hasOwnProperty.call(defaults, i.id) && !i.locked;
+  for (const g of t.groups || []) {
+    if (g.mode === 'one') {
+      const want = g.items.find((i) => known(i) && defaults[i.id]);
+      if (want && !st.on[want.id]) { out.push({ g, item: want }); }
+    } else {
+      for (const i of g.items) { if (known(i) && !!st.on[i.id] !== defaults[i.id]) { out.push({ g, item: i }); } }
+    }
+  }
+  for (const i of t.standalone || []) { if (known(i) && !!st.on[i.id] !== defaults[i.id]) { out.push({ g: null, item: i }); } }
+  return out;
+}
+
+export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], copy, accepted = false, defaults = null, open = {}, onClose, onConfirm, initialStep = 0, compactQuery = '(max-width: 1000px)' }: GuidePanelProps): React.JSX.Element {
   const G = React.useMemo(() => ({ ...G0, ...(copy || {}) }) as GuideCopy, [copy]);
   const sources = React.useMemo(() => [...(preset ? [preset] : []), ...live], [preset, live]);
   useLives(sources);
   const compact = useMedia(compactQuery);
-  const [i, setI] = React.useState(Math.min(STEP_IDS.length - 1, Math.max(0, initialStep)));
+  const [confirmed, setConfirmed] = React.useState(accepted);
+  const [agree, setAgree] = React.useState(accepted);
+  const [i, setI] = React.useState(confirmed ? Math.max(0, initialStep) : 0);
   const [seen, setSeen] = React.useState(i);
-  const [confirmed, setConfirmed] = React.useState(i > 0);
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   const [toast, setToast] = React.useState<{ msg: string; n: number } | null>(null);
   const timer = React.useRef(0);
@@ -69,8 +144,9 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
   const tabs = v && v.ok ? v.tabs : [];
   const st = v ? v.state : { on: {}, vars: {}, model: '' };
   const MODEL_TAB = tabs.find((t) => t.kind === 'model');
-  const VARS = tabs.flatMap((t) => t.vars || []);
-  /* 「语言」一步：引导要挑哪一组是内容决定（旧引导第 6 页也是它），按组名找 */
+  /* 预设的层级按预设里的顺序，只有数值的层（设置变量）放到最后 */
+  const LAYERS = tabs.filter((t) => t.kind === 'layer');
+  const layersOrdered = [...LAYERS.filter((t) => (t.groups || []).length), ...LAYERS.filter((t) => !(t.groups || []).length)];
   const LANG = tabs.flatMap((t) => t.groups || []).find((g) => /语言/.test(g.name));
   const fail = (r: { ok: boolean; msg?: string }): void => { if (!r.ok) { notify(r.msg || '写入失败'); } };
   const act: Act = {
@@ -80,17 +156,42 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
   };
   const comp = long.compress ? long.compress.get() : null;
   const anti = long.antitrunc ? long.antitrunc.get() : null;
+  const layerIntro = G.layerIntro as Record<string, string>;
+  const restore = (t: Tab): void => {
+    if (!preset || !defaults) { return; }
+    const plan = restorePlan(t, st, defaults);
+    if (!plan.length) { notify(G.alreadyDefaultToast); return; }
+    for (const p of plan) { fail(preset.toggle(p.item.id, p.g ? p.g.name : null)); }
+    notify(G.restoredToast);
+  };
+  const OpenBtn = ({ label, onClick }: { label: string; onClick?: (() => void) | undefined }): React.JSX.Element | null => onClick ? <div><Button size="sm" onClick={onClick}>{label}</Button></div> : null;
 
-  const STEPS: Array<{ id: string; title: string; body: () => React.ReactNode }> = [
+  type Step = { id: string; title: string; aside?: React.ReactNode; body: () => React.ReactNode };
+  const STEPS: Step[] = [
     {
-      id: 'disclaimer', title: '免责声明',
+      id: 'disclaimer', title: G.disclaimerTitle,
       body: () => (
         <Stack>
           <Intro>{G.disclaimerIntro}</Intro>
           <div data-k="prose" data-k-level="sunken" data-guide-disclaimer="" style={{ padding: 'var(--k-space-4)', borderRadius: 'var(--k-r-md)', maxWidth: 'none' }}>
             {disclaimer ? <Markdown text={disclaimer} /> : <p>预设里没有找到免责声明条目，请到预设列表中查看。</p>}
           </div>
-          {!confirmed ? <Intro>{G.disclaimerConfirmHint}</Intro> : <Badge tone="success">已确认</Badge>}
+          {confirmed ? <div><Badge tone="success">{G.disclaimerAccepted}</Badge></div> : (
+            <>
+              <SettingRow label={G.disclaimerAgree} control={<Checkbox checked={agree} onCheckedChange={(x) => setAgree(x === true)} aria-label={G.disclaimerAgree} />} />
+              <Intro>{G.disclaimerConfirmHint}</Intro>
+            </>
+          )}
+        </Stack>
+      )
+    },
+    {
+      id: 'tour', title: G.tourTitle,
+      body: () => (
+        <Stack>
+          <Intro>{G.tourIntro}</Intro>
+          <SettingSection title={G.tourButtonsTitle}><Terms rows={G.tourButtons} /></SettingSection>
+          <SettingSection title={G.tourMessageTitle}><Intro>{G.tourMessage}</Intro></SettingSection>
         </Stack>
       )
     },
@@ -99,7 +200,8 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
       body: () => (
         <Stack>
           <Intro>{G.skinPageIntro}</Intro>
-          {skins ? <SkinChoices manager={skins} compact={compact} notify={notify} /> : <Intro>「🧪 显示」脚本没在运行，皮肤之后可以在🎨显示面板里换。</Intro>}
+          {skins ? <SkinChoices manager={skins} compact={compact} notify={notify} /> : <Intro>{G.skinDegrade}</Intro>}
+          <OpenBtn label={G.openDisplay} onClick={open.display} />
         </Stack>
       )
     },
@@ -112,13 +214,26 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
         </Stack>
       )
     },
-    {
-      id: 'basics', title: '语言与数值',
+    ...(layersOrdered.length ? layersOrdered.map((t): Step => ({
+      id: 'layer:' + plain(t.name), title: plain(t.name),
+      aside: defaults ? <Button variant="ghost" size="sm" onClick={() => restore(t)}>{G.restoreDefaults}</Button> : undefined,
       body: () => (
         <Stack>
-          {LANG ? <><Intro>{G.pageIntroLang}</Intro><GroupCards g={LANG} st={st} act={act} /></> : null}
-          {VARS.length ? <><Intro>{G.varsPageIntro}</Intro>{VARS.map((x) => <VarFields key={x.name} v={x} st={st} act={act} />)}</> : null}
-          {!LANG && !VARS.length ? <Intro>{G.presetDegrade}</Intro> : null}
+          {layerIntro[plain(t.name)] ? <Intro>{layerIntro[plain(t.name)]}</Intro> : null}
+          {defaults ? <Intro>{G.layerDefaultHint}</Intro> : null}
+          <LayerBody t={t} st={st} act={act} defaults={defaults} G={G} />
+        </Stack>
+      )
+    })) : [{ id: 'layers', title: '预设选项', body: () => <Intro>{G.presetDegrade}</Intro> }]),
+    {
+      id: 'message', title: G.messageTitle,
+      body: () => (
+        <Stack>
+          <Intro>{G.messageIntro}</Intro>
+          <SampleMessage />
+          <SettingSection title="每一块是什么"><Terms rows={G.messageParts} /></SettingSection>
+          <Intro>{G.messageMore}</Intro>
+          <OpenBtn label={G.openDisplay} onClick={open.display} />
         </Stack>
       )
     },
@@ -133,7 +248,7 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
                 <ChoiceCard multi selected={!!comp.roll} disabled={comp.roll === null} onSelect={() => { void Promise.resolve(long.compress!.setRoll(!comp.roll)).then(force); }} title={G.compressRollName} meta={comp.roll ? G.compressOn : G.compressOff}>{G.compressRollNote}</ChoiceCard>
                 <ChoiceCard multi selected={comp.grand} onSelect={() => { void Promise.resolve(long.compress!.setGrand(!comp.grand)).then(force); }} title={G.compressGrandName} meta={comp.grand ? G.compressOn : G.compressOff}>{G.compressGrandNote}</ChoiceCard>
               </ChoiceGrid>
-            ) : <Intro>「🧰 工具箱」脚本没在运行，压缩之后可以在工具箱里开。</Intro>}
+            ) : <Intro>{G.compressDegrade}</Intro>}
             <div data-k="prose" style={{ maxWidth: 'none' }}>
               <p><strong>{G.compressPickTitle}</strong></p>
               <p>{G.compressPickNote}</p>
@@ -145,8 +260,31 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
             {long.antitrunc && anti !== null ? (
               <SettingRow label={anti ? G.antitruncOn : G.antitruncOff} description={G.antitruncPageIntro}
                 control={<Switch checked={anti} onCheckedChange={(x) => { void Promise.resolve(long.antitrunc!.set(x)).then(force); }} aria-label={G.antitruncPageTitle} />} />
-            ) : <Intro>「反截断」脚本没在运行。</Intro>}
+            ) : <Intro>{G.antitruncDegrade}</Intro>}
           </SettingSection>
+        </Stack>
+      )
+    },
+    {
+      id: 'search', title: G.searchTitle,
+      body: () => (
+        <Stack>
+          <Intro>{G.searchIntro}</Intro>
+          <Terms rows={G.searchHow} />
+          <OpenBtn label={G.openSearch} onClick={open.toolbox ? () => open.toolbox!('search') : undefined} />
+        </Stack>
+      )
+    },
+    {
+      id: 'tools', title: G.toolsTitle,
+      body: () => (
+        <Stack>
+          <Intro>{G.toolsIntro}</Intro>
+          <Terms rows={G.toolsList} />
+          {open.toolbox ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="sm" onClick={() => open.toolbox!('other')}>{G.openTools}</Button>
+            <Button size="sm" onClick={() => open.toolbox!('update')}>{G.openUpdate}</Button>
+          </div> : null}
         </Stack>
       )
     },
@@ -169,7 +307,7 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
             <SettingSection title="这次选了">
               <div data-guide-summary="" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{chips.map((c) => <Badge key={c} tone="accent">{c}</Badge>)}</div>
             </SettingSection>
-            <Intro>文风、叙事、角色塑造、额外任务、推理选项等其余设置都保持预设默认，之后在🌟预设设置里按需调整。</Intro>
+            <SettingSection title={G.doneButtonsTitle}><Terms rows={G.tourButtons} /></SettingSection>
           </Stack>
         );
       }
@@ -181,36 +319,41 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
     const w = body.current?.ownerDocument.defaultView || window;   /* 宿主窗口的 rAF：脚本 iframe 是隐藏的，它的 rAF 可能不触发 */
     w.requestAnimationFrame(() => { const el = body.current?.closest('[data-k-part="body"]'); if (el) { el.scrollTop = 0; } });
   };
-  const step = STEPS[i]!;
-  const last = i === STEPS.length - 1;
+  const step = STEPS[Math.min(i, STEPS.length - 1)]!;
+  const last = i >= STEPS.length - 1;
   const gate = step.id === 'disclaimer' && !confirmed;
   const counter = fill(G.stepCounter, { n: i + 1, total: STEPS.length });
+  /* 确认前关不掉：没有关闭按钮，Esc / 下拉关闭只提示 */
+  const close = (completed: boolean): void => { if (!confirmed) { notify(G.disclaimerLockedToast); return; } onClose(completed); };
   const footer = (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', width: '100%' }}>
       {compact ? <span style={{ marginRight: 'auto', color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>{counter}</span> : null}
       {i > 0 ? <Button variant="ghost" onClick={() => go(i - 1)}>{G.btnPrev}</Button> : null}
-      {gate ? <Button variant="primary" onClick={() => { setConfirmed(true); if (onConfirm) { onConfirm(); } go(i + 1); }}>{G.btnConfirm}</Button>
-        : last ? <Button variant="primary" onClick={() => onClose(true)}>{G.btnFinish}</Button>
+      {gate ? <Button variant="primary" disabled={!agree} onClick={() => { setConfirmed(true); if (onConfirm) { onConfirm(); } go(i + 1); }}>{G.btnConfirm}</Button>
+        : last ? <Button variant="primary" onClick={() => close(true)}>{G.btnFinish}</Button>
           : <Button variant="primary" onClick={() => go(i + 1)}>{G.btnNext}</Button>}
     </div>
   );
   return (
-    <Panel title={G.wizardTitle} actions={compact ? undefined : <Badge>{counter}</Badge>} onClose={() => onClose(false)} footer={footer} defaultSize={{ w: 900, h: 760 }}>
-      <div ref={body} data-guide-step={step.id} style={compact ? undefined : { display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
+    <Panel title={G.wizardTitle} actions={compact ? undefined : <Badge>{counter}</Badge>} onClose={() => close(false)} closable={confirmed} footer={footer} defaultSize={{ w: 960, h: 780 }}>
+      <div ref={body} data-guide-step={step.id} data-guide-locked={confirmed ? undefined : ''} style={compact ? undefined : { display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: 'var(--k-gap-section)', alignItems: 'start' }}>
         {compact ? (
           <div role="progressbar" aria-label={fill(G.progressAria, { n: i + 1, total: STEPS.length })} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={i + 1}
-            style={{ display: 'flex', gap: 4, marginBottom: 'var(--k-gap-group)' }}>
+            style={{ display: 'flex', gap: 3, marginBottom: 'var(--k-gap-group)' }}>
             {STEPS.map((s, n) => <span key={s.id} style={{ flex: 1, height: 4, borderRadius: 2, background: n <= i ? 'var(--k-accent)' : 'var(--k-divider)' }} />)}
           </div>
         ) : (
           <div style={{ position: 'sticky', top: 0 }}>
             <NavList layout="sidebar" label="引导步骤" current={step.id}
               items={STEPS.map((s, n) => ({ id: s.id, label: (n + 1) + '. ' + s.title, ...(n < i ? { meta: '✓' } : {}) }))}
-              onSelect={(id) => { const n = STEPS.findIndex((s) => s.id === id); if (n <= seen && (confirmed || n === 0)) { go(n); } }} />
+              onSelect={(id) => { const n = STEPS.findIndex((s) => s.id === id); if (confirmed && n >= 0 && n <= Math.max(seen, i)) { go(n); } else if (!confirmed && n > 0) { notify(G.disclaimerLockedToast); } }} />
           </div>
         )}
         <div style={{ minWidth: 0 }}>
-          <h2 style={{ fontSize: 'var(--k-fs-xl)', marginBottom: 'var(--k-gap-group)' }}>{step.title}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--k-gap-group)' }}>
+            <h2 style={{ fontSize: 'var(--k-fs-xl)', margin: 0, flex: '1 1 auto' }}>{step.title}</h2>
+            {step.aside || null}
+          </div>
           {step.body()}
         </div>
       </div>

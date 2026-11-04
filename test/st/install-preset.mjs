@@ -79,6 +79,30 @@ const after = await page2.evaluate(() => ({
   kamiButtons: Array.from(document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')).map(x => x.textContent.trim()).filter(x => /^(🧭|🎨|🌟|🧰|反截断)/.test(x)).slice(0, 12),
 }));
 console.log('刷新后：', JSON.stringify(after, null, 1));
+/* 第三道闸门（2026-11-03 起）：免责声明与开源许可没确认之前，按钮条上的其他按钮都会先跳回引导。
+   这里像用户一样在界面上勾选「我已阅读并同意」并点「同意并继续」，后面的测试才能点按钮。确认记录跟着声明全文走，装新包不用重来 */
+await page2.waitForFunction(() => window.KamiGuide && typeof window.KamiGuide.accepted === 'function', null, { timeout: 30000 }).catch(() => {});
+await page2.waitForTimeout(3000);   /* 引导等酒馆设置就绪、读完确认记录（没确认会自己弹出来） */
+const accepted = await page2.evaluate(async () => {
+  const g = window.KamiGuide;
+  if (!g || typeof g.accepted !== 'function') { return 'no-guide'; }
+  if (g.accepted()) { return 'already'; }
+  if (!g.status().open) { g.open(); }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  await wait(800);
+  const r = document.querySelector('kami-layer')?.shadowRoot;
+  const cb = r && r.querySelector('[data-guide-step="disclaimer"] [data-k="checkbox"]');
+  if (!cb) { return 'no-checkbox'; }
+  cb.click(); await wait(300);
+  const btn = [...r.querySelectorAll('[data-k="panel"] button')].filter((x) => x.getAttribute('data-variant') === 'primary' && x.getClientRects().length).pop();
+  if (btn) { btn.click(); }
+  await wait(500);
+  g.close();
+  return g.accepted() ? 'accepted' : 'failed';
+});
+console.log('免责声明与开源许可：', accepted);
+/* 确认记录写在脚本变量里，酒馆是延迟存盘的：等它落盘再关浏览器（下一个测试是新浏览器，本机记录是空的） */
+if (accepted === 'accepted') { await page2.waitForTimeout(4000); }
 console.log('相关日志：\n  ' + logs.slice(0, 25).join('\n  '));
 await page2.screenshot({ path: (process.env.ST_ROOT || '/workspace/st-test') + '/st-preset.png' });
 await b.close();

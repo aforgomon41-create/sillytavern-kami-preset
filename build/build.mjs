@@ -47,7 +47,7 @@ const dry = argv.includes('--dry');
 
 const sha = buf => crypto.createHash('sha256').update(buf).digest('hex').slice(0, 12);
 const readJson = p => JSON.parse(fs.readFileSync(p, 'utf8'));
-import { expandRegexList, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy } from './kami-doc.mjs';
+import { expandRegexList, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandGuideDefaults } from './kami-doc.mjs';
 import { execFileSync } from 'node:child_process';
 import { currentBranchTag, parseArtifactName, artifactName, crlfWorkingFiles } from './branch-tag.mjs';
 
@@ -244,6 +244,7 @@ const scripts = meta.map(m => {
   code = expandPanelGestures(ROOT, code);
   /* 引导文案（design/copy/guide-copy.json）内联进引导脚本，文案只有一份真相 */
   code = expandGuideCopy(ROOT, code);
+  code = expandGuideDefaults(ROOT, code);
   /* ⚠️ 酒馆助手把脚本放进 iframe 的 <script type="module"> 里（srcdoc）。HTML 解析器在脚本正文里
      见到「<!--」之后又见到「<script」，就进入双重转义状态，真正的「</script>」不再结束元素 ——
      整条脚本一行都不执行，而且不报错（2026-10-30 两个运行库合成一条后撞上：新运行库里有 <!-- 正则、

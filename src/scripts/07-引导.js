@@ -3,7 +3,7 @@
  * 酒馆助手（TavernHelper / JS-Slash-Runner）脚本
  * ------------------------------------------------------------
  * 首次使用本预设时自动弹出的引导向导；也可以随时点按钮条上的「🧭 引导」重看。
- * 6 步（免责声明 → 外观 → 模型 → 语言与数值 → 长文与截断 → 完成），每一步都直接改真实设置：
+ * 先确认免责声明与开源许可（确认前关不掉，按钮条上其他按钮也先跳到这里），再按功能逐页介绍预设的每一项，每一页都直接改真实设置：
  *   · 免责声明正文：现读预设里的免责条目（注释部分）
  *   · 模型 / 语言 / 数值 → 🌟 预设设置 的 KamiPreset.presetBridge()；皮肤 → 🎨 显示 的 SkinManager
  *   · 压缩 → 🧰 工具箱 的 KamiToolbox.bridge()；防截断 → 反截断 的 AntiTruncation
@@ -38,6 +38,9 @@
   var GUIDE_VERSION = guideVersionOf(SELF_NAME);
   /* 文案：唯一真相 design/copy/guide-copy.json（构建期内联） */
   var GUIDE_COPY = null; /* @@KAMI_GUIDE_COPY_JS@@ */
+  /* 预设出厂时每个条目的开关（条目 identifier → 开 / 关），构建期从 src/preset.base.json 内联：引导里标「默认」、一键恢复本页默认 */
+  var GUIDE_DEFAULTS = null; /* @@KAMI_GUIDE_DEFAULTS_JS@@ */
+  var ACCEPT_KEY = 'kami-guide-accept';
 
   var HOST = (function () {
     try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
@@ -164,6 +167,50 @@
   }
 
 
+  /* ───────── 免责声明与开源许可的确认（用户 2026-11-03：确认之前不能做其他操作） ─────────
+     记的是「确认过的那份声明全文的指纹」，不跟版本走：更新预设但声明没改就不用再确认，声明改了要重新确认。
+     脚本变量与按账号隔离的本机记录互为兜底，取较新的一份。 */
+
+  var accept = { hash: '', at: 0 };
+  function textHash(t) {
+    var h = 0x811c9dc5, i;
+    for (i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return t.length + '-' + h.toString(16);
+  }
+  function cleanAccept(v) { return v && typeof v.hash === 'string' && typeof v.at === 'number' ? { hash: v.hash, at: v.at } : null; }
+  function readAccept() {
+    try {
+      var all = typeof getVariables === 'function' ? getVariables({ type: 'script' }) : {};
+      var v = cleanAccept(all && all[ACCEPT_KEY]);
+      if (v && v.at >= accept.at) { accept = v; }
+    } catch (e) { }
+    if (accountHandle) {
+      try {
+        var raw = HOST.localStorage.getItem(ACCEPT_KEY + ':' + encodeURIComponent(accountHandle));
+        var w = raw ? cleanAccept(JSON.parse(raw)) : null;
+        if (w && w.at >= accept.at) { accept = w; }
+      } catch (e) { }
+    }
+  }
+  function saveAccept(hash) {
+    accept = { hash: hash, at: Math.max(Date.now(), accept.at + 1) };
+    try {
+      if (typeof getVariables === 'function' && typeof replaceVariables === 'function') {
+        var all = getVariables({ type: 'script' }) || {};
+        all[ACCEPT_KEY] = accept;
+        replaceVariables(all, { type: 'script' });
+      }
+    } catch (e) { log('确认记录保存失败（脚本变量）'); }
+    if (accountHandle) { try { HOST.localStorage.setItem(ACCEPT_KEY + ':' + encodeURIComponent(accountHandle), JSON.stringify(accept)); } catch (e) { } }
+  }
+  function currentHash() { var d = disclaimer(); return d ? textHash(d) : ''; }
+  /* 预设里没有免责条目（被删改过）就无从确认，不拦 */
+  function isAccepted() { var h = currentHash(); return !h || accept.hash === h; }
+  function requireAccept() {
+    toast('info', '请先阅读并确认免责声明与开源许可，确认后才能使用其他功能。');
+    if (!isOpen) { openWizard(); }
+  }
+
   /* ───────── 酒馆设置：读 ───────── */
 
   function stCtx() {
@@ -246,9 +293,16 @@
     try { if (preset) { preset.reload(); } } catch (e) { }
     markVisit({ shown: true });
     log('引导打开（版本 ' + GUIDE_VERSION + '）');
+    var text = disclaimer();
+    var open = {
+      display: function () { if (HOST.KamiDisplay && HOST.KamiDisplay.open) { HOST.KamiDisplay.open(); } },
+      preset: function () { if (HOST.KamiPresetNext && HOST.KamiPresetNext.open) { HOST.KamiPresetNext.open(); } },
+      toolbox: function (tab) { if (HOST.KamiToolbox && HOST.KamiToolbox.open) { HOST.KamiToolbox.open(tab); } }
+    };
     rt.layer().open(LAYER_ID, rt.React.createElement(rt.panels.GuidePanel, {
-      disclaimer: disclaimer(), copy: GUIDE_COPY || null, preset: preset, skins: skins, long: long, live: tb ? [tb] : [],
-      onConfirm: function () { markVisit({ shown: true, confirmed: true }); },
+      disclaimer: text, copy: GUIDE_COPY || null, preset: preset, skins: skins, long: long, live: tb ? [tb] : [],
+      accepted: isAccepted(), defaults: GUIDE_DEFAULTS || null, open: open,
+      onConfirm: function () { saveAccept(textHash(text || '')); markVisit({ shown: true, confirmed: true }); },
       onClose: function (completed) {
         markVisit(completed ? { shown: true, completed: true } : { shown: true });
         log('引导关闭' + (completed ? '：已完成' : ''));
@@ -293,6 +347,8 @@
       更新脚本导入的预设名是 `kami-v0.91-46-20260926`，不含中文那四个字，
        于是**自动弹出等于被关掉了**只能手动点 🧭（预览台日志就是这个现象）。
        用户改预设名同样不受影响 —— 现在只看「这个完整版本展示过没有」。 */
+    /* 还没确认免责声明与开源许可：每次载入都弹，不看展示记录 */
+    if (!isAccepted()) { log('免责声明与开源许可还没确认，自动打开引导'); openTimer = setTimeout(function () { openTimer = null; if (!disposed && !isOpen && !isAccepted()) { autoOpened = openWizard() === true; } }, OPEN_DELAY); return; }
     if (hasSeenCurrentVersion()) {
       log('产物 ' + BUILD_N + ' 已看过（seen=' + seen + '），不自动弹');
       return;
@@ -315,11 +371,13 @@
       open: function () { openWizard(); },
       close: function () { closeWizard(); },
       toggle: toggle,
-      reset: function () { markVisit({ shown: false, confirmed: false, completed: false }); log('已清除本版展示记录（下次加载会自动弹）'); },
+      accepted: isAccepted,
+      requireAccept: requireAccept,
+      reset: function () { markVisit({ shown: false, confirmed: false, completed: false }); saveAccept(''); log('已清除本版展示记录与确认记录（下次加载会自动弹）'); },
       status: function () {
         return {
           version: VERSION, build: BUILD_N, seen: seen, autoOpened: autoOpened,
-          presetVersion: GUIDE_VERSION, shown: visit.shown, confirmed: visit.confirmed, completed: visit.completed,
+          presetVersion: GUIDE_VERSION, shown: visit.shown, confirmed: visit.confirmed, completed: visit.completed, accepted: isAccepted(),
           open: isOpen, liveOk: readRaw().ok, presetName: presetName()
         };
       },
@@ -356,7 +414,7 @@
     log('启动 v' + VERSION + '（产物 ' + BUILD_N + '）');
     waitForTavernReady(function (name) {
       log('酒馆就绪：当前预设「' + name + '」');
-      prepareVisitStorage().then(function () { if (!disposed) { maybeAutoOpen(name); } });
+      prepareVisitStorage().then(function () { if (!disposed) { readAccept(); maybeAutoOpen(name); } });
     });
   }
 
@@ -391,6 +449,7 @@
     log('已注销');
   }
   readGuideVars();
+  readAccept();
   expose();
   try { window.addEventListener('pagehide', shutdown); } catch (e) { }
   wait();

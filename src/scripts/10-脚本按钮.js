@@ -480,6 +480,16 @@
       paint();
       return;
     }
+    /* 免责声明与开源许可没确认之前，其他按钮一律先去引导（用户 2026-11-03：必须确认之后才能做其他操作）。
+       引导脚本没开时无从确认，不拦。 */
+    try {
+      var guide = HOST.KamiGuide;
+      if (b.name !== '🧭 引导' && guide && guide.alive() && typeof guide.accepted === 'function' && !guide.accepted()) {
+        guide.requireAccept();
+        log('点击 ' + b.name + ' → 还没确认免责声明与开源许可，先打开引导');
+        return;
+      }
+    } catch (e) { }
     try {
       b.click();
       log('点击 ' + b.name + ' → 已调用登记方 click()');

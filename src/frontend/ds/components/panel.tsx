@@ -25,6 +25,8 @@ export interface PanelProps {
   defaultSize?: Size;
   minSize?: Size;
   closeLabel?: string;
+  /** false：不显示关闭按钮（Esc / 下拉关闭仍会调 onClose，由调用方决定要不要关）。引导在确认免责声明前用 */
+  closable?: boolean;
 }
 
 const DRAG_START = 4;
@@ -41,7 +43,7 @@ function useViewport(win: Window | null): Size {
   return vp;
 }
 
-export function Panel({ title, children, footer, actions, onClose, geometry, onGeometryChange, defaultSize = { w: 720, h: 640 }, minSize = { w: 320, h: 240 }, closeLabel = '关闭' }: PanelProps): React.JSX.Element {
+export function Panel({ title, children, footer, actions, onClose, geometry, onGeometryChange, defaultSize = { w: 720, h: 640 }, minSize = { w: 320, h: 240 }, closeLabel = '关闭', closable = true }: PanelProps): React.JSX.Element {
   const ref = React.useRef<HTMLDivElement>(null);
   /* 第一次渲染就要知道所在窗口（算居中用）：从渲染面的弹层容器取，元素还没挂上时 ref 拿不到 */
   const portal = usePortal();
@@ -149,7 +151,7 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
           <h2 {...part('title')} id={titleId}>{title}</h2>
           {actions ? <div {...part('actions')}>{actions}</div> : null}
           <span {...ornament('panel-head-end')} />
-          <IconButton label={closeLabel} variant="ghost" onClick={onClose} {...part('close')}><IconClose /></IconButton>
+          {closable ? <IconButton label={closeLabel} variant="ghost" onClick={onClose} {...part('close')}><IconClose /></IconButton> : null}
         </div>
         <div ref={bodyRef} {...part('body')}><SwipeHostContext.Provider value={swipeStep}>{children}</SwipeHostContext.Provider></div>
         {footer ? <div {...part('foot')}>{footer}</div> : null}

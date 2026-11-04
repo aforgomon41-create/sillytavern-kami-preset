@@ -481,7 +481,7 @@ def presence(id, have):
     if a('portrait'):
         out.append(f'''/* 电脑：面板够宽（≥ 900px）时右侧空出一栏，立绘实心站在里面，文字不进这一栏；拖窄了退回淡水印 */
 @media (min-width: 1001px) {{
-  [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-part="body"] {{ padding-right: 252px; }}
+  [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-part="body"], [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-part="foot"] {{ padding-right: 252px; }}
   [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-ornament="surface-backdrop"] {{ background: linear-gradient(var(--k-divider), var(--k-divider)) calc(100% - 252px) 76px / 1px calc(100% - 112px) no-repeat; }}
   [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-ornament="surface-backdrop"]::after {{ right: 4px; bottom: 0; width: 244px; height: calc(100% - 64px); aspect-ratio: auto; background: var(--k-asset-portrait) center bottom / contain no-repeat; opacity: 1; -webkit-mask: linear-gradient(0deg, transparent, #000 56px); mask: linear-gradient(0deg, transparent, #000 56px); }}
 }}''')
@@ -566,7 +566,9 @@ def common(id, d, have):
     if a('item-1'):
         out.append(f'''/* 卡片右下角：标志道具小图（容器卡：单数 item-1、双数 item-2；选择卡：选中时出现 item-1）。特效开关「道具」控制 */
 [data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="container"] > [data-k-ornament="card-corner"] {{ display: block; right: 8px; bottom: 6px; width: 30px; height: 30px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .75; }}
-[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] {{ display: block; right: 6px; bottom: 4px; width: 24px; height: 24px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .9; }}''')
+[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] {{ display: block; right: 6px; bottom: 4px; width: 24px; height: 24px; background: var(--k-asset-item-1) center / contain no-repeat; opacity: .9; }}
+/* 卡片右侧有说明文字（「默认」「已开启」）时不放，免得压字 */
+[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="choice"][data-state="selected"]:has(> [data-k-part="select"] [data-k-part="meta"]) > [data-k-ornament="card-corner"] {{ display: none; }}''')
         if a('item-2'):
             out.append('[data-k-surface][data-k-effects~="items"] [data-k="card"][data-role="container"]:nth-child(even) > [data-k-ornament="card-corner"] { background-image: var(--k-asset-item-2); }')
     # 选项配色

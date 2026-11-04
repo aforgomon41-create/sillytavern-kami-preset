@@ -660,6 +660,19 @@ export function expandGuideCopy(root, code) {
   return code.replace(GUIDE_COPY_MARK, () => 'GUIDE_COPY = ' + JSON.stringify(obj) + ';');
 }
 
+/* 预设出厂开关（引导标「默认」、恢复本页默认用）：src/preset.base.json 里 prompt_order（角色 100001）每个条目的 enabled */
+export const GUIDE_DEFAULTS_MARK = '/* @@KAMI_GUIDE_DEFAULTS_JS@@ */';
+
+export function expandGuideDefaults(root, code) {
+  if (code.indexOf(GUIDE_DEFAULTS_MARK) < 0) { return code; }
+  const preset = JSON.parse(fs.readFileSync(path.join(root, 'src', 'preset.base.json'), 'utf8'));
+  const orders = preset.prompt_order || [];
+  const po = orders.find((o) => o && o.character_id === 100001) || orders[0];
+  const map = {};
+  for (const e of (po && po.order) || []) { if (e && typeof e.identifier === 'string') { map[e.identifier] = !!e.enabled; } }
+  return code.replace(GUIDE_DEFAULTS_MARK, () => 'GUIDE_DEFAULTS = ' + JSON.stringify(map) + ';');
+}
+
 /** 把正则列表里的 @@FRONTEND:<name>@@ 占位展开 */
 export function expandRegexList(root, list) {
   return list.map(function (r) {
