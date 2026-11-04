@@ -135,7 +135,7 @@ for(const switchAt of [1,2]){
  const legacyHub=clone(old.find(x=>x.id===legacy)); legacyHub.enabled=false;
  trees.push({type:'folder',id:oldFolderId,name:'我的基础分类',enabled:false,icon:'user-icon',color:'user-color',scripts:[legacyHub]});
  const f=fixture({trees}),state=await runKamiScriptUpgrade(f.env),base=f.trees().find(x=>x.id===baseId);
- eq(state.repaired,true);eq(state.boot,false);eq(f.trees().length,3);eq(base.enabled,false);eq(base.name,'我的基础分类');eq(base.icon,'user-icon');eq(base.color,'user-color');
+ eq(state.repaired,true);eq(state.boot,false);eq(f.trees().length,catalog.groups.length);eq(base.enabled,false);eq(base.name,'我的基础分类');eq(base.icon,'user-icon');eq(base.color,'user-color');
  eq(base.scripts.find(x=>x.id===catalog.carrier).data,legacyHub.data,'新记录排前面时仍继承旧标识记录的数据');
  eq(base.scripts.find(x=>x.id===catalog.carrier).enabled,false);
 }

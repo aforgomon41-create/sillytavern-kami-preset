@@ -58,14 +58,18 @@ export function scriptTreeAliases() { return /* @@KAMI_SCRIPT_ALIASES@@ */ {}; }
 
 export function scriptTreeFolderAliases() { return /* @@KAMI_SCRIPT_FOLDER_ALIASES@@ */ {}; }
 
-export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
+/* 已退役的脚本 / 文件夹 ID（src/scripts/retired.json，构建时填入）：合并时从用户旧预设里去掉 */
+export function scriptTreeRetired() { return /* @@KAMI_SCRIPT_RETIRED@@ */ {}; }
+
+export function mergeScriptTrees(theirs, next, aliases, folderAliases, retired) {
   var copy = function (v) { return JSON.parse(JSON.stringify(v)); };
   var oldRows = scriptTreeEntries(theirs), newRows = scriptTreeEntries(next);
   var oldById = Object.create(null), nextById = Object.create(null), merged = Object.create(null);
   var oldFolders = Object.create(null), folders = Object.create(null), used = Object.create(null);
-  var flat = [], out = [], report = { applied: 0, kept: 0, added: 0, deduplicated: 0 };
+  var flat = [], out = [], report = { applied: 0, kept: 0, added: 0, deduplicated: 0, retired: 0 };
   aliases = aliases || scriptTreeAliases();
   folderAliases = folderAliases || scriptTreeFolderAliases();
+  retired = retired || scriptTreeRetired();
   var folderTargets = Object.create(null);
   (Array.isArray(next) ? next : []).forEach(function (node) { if (node && node.type === 'folder') { folderTargets[node.id] = true; } });
   function folderKey(id) { return folderAliases[id] && folderTargets[folderAliases[id]] ? folderAliases[id] : id; }
@@ -114,6 +118,8 @@ export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
   for (i = 0; i < oldRows.length; i++) {
     var old = oldRows[i].script, key = keyOf(old.id), incoming = nextById[key];
     if (oldById[key] !== oldRows[i]) { continue; }
+    /* 退役脚本：新版里没有就直接去掉（新版若又用回这个 ID，照常合并） */
+    if (!incoming && retired[old.id]) { report.retired++; continue; }
     var item = copy(incoming ? incoming.script : old);
     if (incoming) {
       item.enabled = old.enabled !== undefined ? !!old.enabled : item.enabled !== false;
@@ -158,6 +164,12 @@ export function mergeScriptTrees(theirs, next, aliases, folderAliases) {
         continue;
       }
       var targetId = folderKey(node.id), folder = folders[targetId];
+      /* 退役文件夹：不再建出来；里面用户自己的脚本挪到顶层保留 */
+      if (!folder && !folderTargets[targetId] && retired[node.id]) {
+        var orphans = Array.isArray(node.scripts) ? node.scripts : [];
+        for (var o = 0; o < orphans.length; o++) { var kept = take(orphans[o], null); if (kept) { out.push(kept); } }
+        continue;
+      }
       if (!folder) {
         folder = copy(node); folder.id = targetId; folder.scripts = [];
         var previous = oldFolders[targetId];

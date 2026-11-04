@@ -182,7 +182,7 @@ try {
  * **没有任何一步会看 src/scripts/*.js**——脚本里漏一个花括号，构建照样全绿，
  * 只有把预设导进酒馆才会发现（脚本直接不启动）。这里在写盘之前先机械编译一遍：
  *   · 普通脚本（IIFE / 函数体）→ new Function(源码)：编译，不执行；
- *   · ES 模块脚本（如 01-mvu-zod.js 只有一个 import）→ 函数体编译必然失败，
+ *   · ES 模块脚本（行首有 import / export）→ 函数体编译必然失败，
  *     交给 node 自己的模块语法检查（源码走 stdin，--input-type=module --check -）。
  * 判定「是不是模块脚本」只看**行首**有没有 import / export 声明。
  * 只编译、不执行：不进网络、不碰酒馆，构建依旧离线可跑。 */
@@ -439,13 +439,6 @@ if (dry) {
     execFileSync(process.execPath, [path.join(__dirname, 'verify-summarize-pure.mjs'), outPath], { stdio: 'inherit' });
   } catch (e) {
     console.error('  [中止] 压缩纯逻辑内联验证未通过，产物已写出但请不要使用，先修。');
-    process.exit(1);
-  }
-  /* 状态栏悬浮球：默认必须关、图标必须真内联进产物（漏了就是一颗空白球）。 */
-  try {
-    execFileSync(process.execPath, [path.join(__dirname, 'verify-status-ball.mjs'), outPath], { stdio: 'inherit' });
-  } catch (e) {
-    console.error('  [中止] 状态栏悬浮球验证未通过，产物已写出但请不要使用，先修。');
     process.exit(1);
   }
   /* 自动标签处理：纯逻辑内联 + 新页位置 + MESSAGE_RECEIVED 接线（漏了只有真机才看得出来）。 */

@@ -119,7 +119,7 @@ export function planKamiScriptUpgrade(trees, catalog, merge) {
     if (typeof node.id !== 'string' || !node.id.trim()) { throw new Error('自动整理遇到缺少ID的脚本，原配置保持不变'); }
     if (!owned[key(node.id)]) { if (custom[node.id]) { throw new Error('自动整理遇到用户脚本ID冲突，原配置保持不变'); } custom[node.id] = true; }
   });
-  var result = merge(trees, next, aliases, catalog.folder_aliases), boot = false;
+  var result = merge(trees, next, aliases, catalog.folder_aliases, catalog.retired), boot = false;
   result.list.forEach(function (node) {
     var folderOn = node.type !== 'folder' || node.enabled !== false;
     (node.type === 'folder' ? node.scripts : [node]).forEach(function (leaf) {

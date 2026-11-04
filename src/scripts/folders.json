@@ -28,16 +28,5 @@
       "60-工具箱.js",
       "70-远程更新.js"
     ]
-  },
-  {
-    "id": "c3249339-0482-4bed-9c52-b5b239cc5a1d",
-    "name": "开发中",
-    "icon": "fa-solid fa-flask",
-    "enabled": true,
-    "files": [
-      "00-mvu初始化测试.js",
-      "01-mvu-zod.js",
-      "80-状态栏.js"
-    ]
   }
 ]

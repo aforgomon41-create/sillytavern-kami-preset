@@ -71,9 +71,9 @@
  * ============================================================ */
 (function () {
   'use strict';
-  /* 本脚本的界面（更新进度窗口）已改为 React 渲染，**不再依赖 core.js**。
-     React 与组件层从「🧩 运行库」取（HOST.KamiRuntime，见下方 runtime()）。
-     运行库没加载时不显示进度窗口，但**更新照常进行** —— 面板永远只是锦上添花。 */
+  /* 本脚本的窗口（要不要更新 / 进度 / 逐条裁决）由「🧰 工具箱」登记的 KamiUpdateUi 画；工具箱不在时直接用
+     「🧩 运行库」（KamiRuntimeNext）的同一套窗口（见 directUi()）。运行库没加载时询问走酒馆原生弹窗、
+     不显示进度窗口，但**更新照常进行** —— 面板永远只是锦上添花。 */
 
   var VERSION = '1.6';
   var API_NAME = 'KamiUpdate';
@@ -734,7 +734,40 @@
      在跑时，「要不要更新」「进度」「逐条裁决」三处都交给它画；不在时走下面原来的路。 */
   function updateUi() {
     try { var u = HOST.KamiUpdateUi; if (u && typeof u.alive === 'function' && u.alive()) { return u; } } catch (e) { }
-    return null;
+    return directUi();
+  }
+  /* 工具箱没在跑（被关掉 / 还没加载）时：直接用「🧩 运行库」的同一套窗口画「要不要更新」与进度
+     （2026-11-04 起；以前这里是旧运行库 KamiRuntime 的一棵 React 树 + 一份自带 CSS）。
+     运行库也没有 → 返回 null：询问走酒馆原生弹窗，进度不显示，更新照常进行。 */
+  var directUiObj = null;
+  function directUi() {
+    var rt = null;
+    try { rt = HOST.KamiRuntimeNext || null; } catch (e) { rt = null; }
+    if (!rt || !rt.panels || !rt.panels.UpdateProgressDialog || typeof rt.layer !== 'function') { return null; }
+    if (directUiObj && directUiObj.rt === rt) { return directUiObj; }
+    var h = rt.React.createElement;
+    directUiObj = {
+      rt: rt,
+      alive: function () { return !disposed; },
+      ask: function (remote, local) {
+        return new Promise(function (resolve) {
+          var done = false;
+          rt.layer().open('kami-update-ask', h(rt.panels.UpdateAskDialog, {
+            remote: remote, local: local,
+            onAnswer: function (yes) { if (done) { return; } done = true; try { rt.layer().close('kami-update-ask'); } catch (e) { } resolve(!!yes); }
+          }));
+        });
+      },
+      progress: function (view, handlers) {
+        if (!view) { try { rt.layer().close('kami-update-progress'); } catch (e) { } return; }
+        rt.layer().open('kami-update-progress', h(rt.panels.UpdateProgressDialog, {
+          view: view,
+          onRetry: function () { if (handlers && handlers.retry) { handlers.retry(); } },
+          onClose: function () { if (handlers && handlers.close) { handlers.close(); } else { try { rt.layer().close('kami-update-progress'); } catch (e) { } } }
+        }));
+      }
+    };
+    return directUiObj;
   }
   function askUpdate(remote, localText) {
     var nui = updateUi();
@@ -1269,8 +1302,7 @@
      我们代码里没有任何关闭动作。想"不关"就只能自己开一个面板 —— 就是下面这个。
      样式全用内联（与 buildPopupHtml 同一路子），不依赖皮肤，也不给 .kami-root 以外的东西写样式。 */
   var progEls = null, progState = newProgress(0), progTimer = null, progSpin = 0, progLastPaint = 0;
-  var progressArmTimer = null, progressCloseTimer = null, hideHandler = null;
-  var documentTapCloser = null;   /* document 级「点哪都关」的监听器；关窗口时要摘掉，别越挂越多 */
+  var progressCloseTimer = null, hideHandler = null;
   var progRetry = null;   /* 面板上点「重试」时重跑的那个 remote */
 
   /* ⚠️ 面板是"锦上添花"，**绝不许它把更新流程带崩**：
@@ -1280,150 +1312,19 @@
   function progressRoot() {
     try { return progressRootInner(); } catch (e) { warn('进度面板建不出来（不影响更新本身）：' + ((e && e.message) || e)); return null; }
   }
-  /* ── 样式接皮肤体系（Lead 2026-10-05：内联样式在 18 套皮肤下会是"外来户"，换色也不跟着动）──
-     做法照 _custom-style-ui.js 的 CUSTOM_STYLE_CSS：一份 CSS 字符串、注入一次、类名统一 kami- 前缀，
-     **颜色全部读皮肤令牌**（--kami-card / --kami-fg / --kami-accent …），每个令牌都带兜底值，
-     皮肤没跑起来时也不会变成透明或者看不见的字。
-     不确定进度的条纹改成 CSS 动画，因此不再需要那个每 120ms 挪一格的计时器。 */
-  var PROG_CSS_ID = 'kami-update-progress-css';
-  var PROG_CSS = [
-    '#kami-update-progress{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:100000;',
-    'width:min(420px,92vw);box-sizing:border-box;padding:var(--kami-pad-lg-y,16px) var(--kami-pad-lg-x,18px);',
-    'border-radius:var(--kami-r-lg,12px);background:var(--kami-card,rgba(28,28,32,.97));color:var(--kami-fg,#f2f2f4);',
-    'font-size:var(--kami-fs,13px);line-height:1.6;box-shadow:var(--kami-shadow,0 12px 40px rgba(0,0,0,.5));',
-    'border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.14));}',
-    '#kami-update-progress .kami-upd-title{font-weight:600;margin:0 0 6px;}',
-    '#kami-update-progress .kami-upd-stage{font-size:1.08em;margin:0 0 10px;}',
-    '#kami-update-progress .kami-upd-track{height:6px;border-radius:var(--kami-r-pill,3px);',
-    'background:var(--kami-line,rgba(255,255,255,.16));overflow:hidden;margin:0 0 8px;}',
-    '#kami-update-progress .kami-upd-bar{height:100%;width:0%;border-radius:var(--kami-r-pill,3px);',
-    'background:var(--kami-accent,#7aa2f7);transition:width .18s linear;}',
-    '#kami-update-progress .kami-upd-bar.is-indet{width:100%;',
-    'background-image:linear-gradient(115deg,var(--kami-accent-soft,rgba(122,162,247,.35)) 0 12px,var(--kami-accent,#7aa2f7) 12px 24px);',
-    'background-size:34px 100%;animation:kami-upd-move 1s linear infinite;}',
-    '@keyframes kami-upd-move{from{background-position:0 0}to{background-position:34px 0}}',
-    /* 无障碍：用户在系统层面说了「别给我动效」，就不该硬放那条条纹。
-       停掉动画，改成**静态的满条** —— 仍然表示"进度未知"，只是不动（不是变回空条，
-       空条会被误读成"一点没下"）。皮肤契约本来就要求处理这个偏好，面板照办。 */
-    '@media (prefers-reduced-motion: reduce){',
-    '#kami-update-progress .kami-upd-bar{transition:none;}',
-    '#kami-update-progress .kami-upd-bar.is-indet{animation:none;background-image:none;',
-    'background:var(--kami-accent-soft,rgba(122,162,247,.55));}',
-    '}',
-    '#kami-update-progress .kami-upd-bytes{font-variant-numeric:tabular-nums;color:var(--kami-fg-dim,#d8d8dc);margin:0 0 4px;}',
-    '#kami-update-progress .kami-upd-detail{color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;margin:0 0 12px;word-break:break-word;}',
-    '#kami-update-progress .kami-upd-row{display:flex;gap:var(--kami-gap,8px);justify-content:flex-end;align-items:center;}',
-    '#kami-update-progress .kami-upd-note{margin-right:auto;color:var(--kami-fg-mute,#a8a8b0);font-size:.92em;}',
-    '#kami-update-progress .kami-upd-btn{font:inherit;padding:6px 14px;border-radius:var(--kami-r-sm,8px);cursor:pointer;',
-    'background:transparent;color:var(--kami-fg,#f2f2f4);border:var(--kami-border-w,1px) solid var(--kami-line-strong,rgba(255,255,255,.3));}',
-    '#kami-update-progress .kami-upd-btn--primary{background:var(--kami-accent,#7aa2f7);color:var(--kami-accent-fg,#10131a);',
-    'border-color:var(--kami-accent,#7aa2f7);}'
-  ].join('\n');
-
-  /* ── 运行库（React + Radix）──────────────────────────────────────
-     进度窗口现在由 React 渲染。取不到运行库就返回 null，
-     调用方全部判空 —— **没有面板照样能把预设更新完**（2026-10-05 老行为）。 */
-  function runtime() {
-    try { var a = (HOST && HOST.KamiRuntime) || null; if (a && a.React && a.createRoot) { return a; } } catch (e) { }
-    try { var b = (typeof window !== 'undefined') ? window.KamiRuntime : null; if (b && b.React && b.createRoot) { return b; } } catch (e2) { }
-    return null;
-  }
-
-  /* 进度窗口的 React 树。结构与类名与旧版**逐字保持一致**（.kami-upd-*），
-     所以 PROG_CSS 一行都不用改，皮肤也不需要知道换框架了。 */
-  function progressNode(rt, v, handlers) {
-    var h = rt.React.createElement;
-    var kids = [
-      h('div', { className: 'kami-upd-title', key: 'title' }, UPDATE_COPY.title),
-      h('div', { className: 'kami-upd-stage', key: 'stage' }, v.stageText),
-      h('div', { className: 'kami-upd-track', key: 'track' },
-        h('div', {
-          className: 'kami-upd-bar' + (v.percent === null ? ' is-indet' : ''),
-          style: { width: v.percent === null ? '100%' : v.percent.toFixed(1) + '%' }
-        })
-      ),
-      h('div', { className: 'kami-upd-bytes', key: 'bytes', style: { display: v.bytesText ? '' : 'none' } }, v.bytesText || ''),
-      h('div', { className: 'kami-upd-detail', key: 'detail' }, v.detail || ''),
-      h('div', { className: 'kami-upd-row', key: 'row' }, [
-        h('span', { className: 'kami-upd-note', key: 'note' }, v.retryText || ''),
-        h('button', {
-          key: 'retry', type: 'button',
-          className: 'kami-upd-btn kami-upd-btn--primary',
-          style: { display: v.canRetry ? '' : 'none' },
-          onClick: handlers.retry
-        }, UPDATE_COPY.retry),
-        h('button', {
-          key: 'close', type: 'button',
-          className: 'kami-upd-btn',
-          style: { display: v.canClose ? '' : 'none' },
-          onClick: handlers.close
-        }, UPDATE_COPY.close)
-      ])
-    ];
-    return h(rt.React.Fragment, null, kids);
-  }
-
-  function injectProgressCss(doc) {
-    try {
-      if (doc.getElementById(PROG_CSS_ID)) { return; }
-      var s = doc.createElement('style');
-      s.id = PROG_CSS_ID;
-      s.textContent = PROG_CSS;
-      (doc.head || doc.documentElement).appendChild(s);
-    } catch (e) { warn('进度面板样式注入失败（不影响功能）：' + ((e && e.message) || e)); }
-  }
 
   function progressRootInner() {
     if (disposed) { return null; }
     var nui = updateUi();
     if (nui && typeof nui.progress === 'function') {
       if (progEls && progEls.next) { return progEls; }
-      progEls = { root: null, reactRoot: null, next: nui, shut: function () { closeProgress(); } };
+      progEls = { next: nui, shut: function () { closeProgress(); } };
       paintProgress();
       return progEls;
     }
-    if (progEls && progEls.root && progEls.root.parentNode) { return progEls; }
-    var el = HDOC || document;
-    var rt = runtime();
-    /* 没有运行库就不开窗口（老行为）：更新照常进行，只是没有进度显示。 */
-    if (!rt) { warn('运行库未加载，本次不显示更新进度窗口（更新照常进行）'); return null; }
-    injectProgressCss(el);
-    var root = el.createElement('div');
-    root.id = 'kami-update-progress';
-    (el.body || el.documentElement).appendChild(root);
-    var reactRoot = null;
-    try { reactRoot = rt.createRoot(root); }
-    catch (e0) {
-      warn('创建进度窗口失败（不影响更新）：' + ((e0 && e0.message) || e0));
-      try { root.parentNode.removeChild(root); } catch (e1) { }
-      return null;
-    }
-    /* 关闭：按钮、点窗口外面、点按钮本身，最终都走同一个 closeProgress()（它幂等）。 */
-    function shutIt() {
-      try { closeProgress(); } catch (e) { warn('关闭进度窗口出错（已尽力）：' + ((e && e.message) || e)); }
-    }
-    /* ⚠️ 2026-10-11 的经验保留：手机上 tap 可能被 WebView 当成手势吃掉，
-       按钮上的 listener 一个都不派发。所以「点屏幕任何地方就关」挂在 document 上，
-       不要求用户精确命中按钮。这里只是换了渲染方式，这段语义一个字没改。 */
-    var armed = false;
-    progressArmTimer = hsetTimeout(function () { progressArmTimer = null; if (!disposed) { armed = true; } }, 400);
-    documentTapCloser = function (ev) {
-      if (!armed) { return; }
-      if (!progEls || !progEls.root) { return; }
-      var t = ev && ev.target;
-      /* 点窗口**里面**时：只有点到关闭/重试按钮才算数，点正文别误关 */
-      var inside = t && progEls.root.contains && progEls.root.contains(t);
-      var onBtn = false;
-      try { onBtn = !!(t && t.closest && t.closest('.kami-upd-btn')); } catch (e6) { onBtn = false; }
-      if (inside && !onBtn) { return; }
-      shutIt();
-    };
-    for (var evName of ['pointerdown', 'mousedown', 'click', 'touchend']) {
-      try { el.addEventListener(evName, documentTapCloser, true); } catch (e7) { }
-    }
-    progEls = { root: root, reactRoot: reactRoot, shut: shutIt };
-    paintProgress();
-    return progEls;
+    /* 没有界面可用（运行库也没加载）就不开窗口（老行为）：更新照常进行，只是没有进度显示。 */
+    warn('没有可用的界面（「🧩 运行库」未加载），本次不显示更新进度窗口（更新照常进行）');
+    return null;
   }
 
   function paintProgress() {
@@ -1438,21 +1339,6 @@
       } catch (en) { warn('新界面进度窗口重绘失败（不影响更新）：' + ((en && en.message) || en)); }
       return;
     }
-    /* 这两个属性皮肤与测试都在读，保留在容器上（渲染交给 React，属性仍由脚本写）。 */
-    progEls.root.setAttribute('data-kami-update-status', v.status);
-    progEls.root.setAttribute('data-kami-update-stage', v.stage);
-    var rt = runtime();
-    if (!rt || !progEls.reactRoot) { return; }
-    try {
-      progEls.reactRoot.render(progressNode(rt, v, {
-        retry: function () {
-          if (!progRetry) { return; }
-          log('用户在进度面板上点了重试');
-          doUpdate(progRetry, true);
-        },
-        close: function () { if (progEls && progEls.shut) { progEls.shut(); } }
-      }));
-    } catch (e) { warn('进度面板重绘失败（不影响更新）：' + ((e && e.message) || e)); }
   }
 
   /* 不确定进度的"动"由这个计时器负责（每 120ms 挪一格条纹）；
@@ -1486,18 +1372,8 @@
      所以这个窗口必须在"要弹别人家框"之前就消失。 */
   function closeProgress() {
     stopProgressTimer();
-    hclear(progressArmTimer); progressArmTimer = null;
     hclear(progressCloseTimer); progressCloseTimer = null;
-    if (progEls && progEls.reactRoot) { try { progEls.reactRoot.unmount(); } catch (eu) { } }
-    if (progEls && progEls.root && progEls.root.parentNode) { progEls.root.parentNode.removeChild(progEls.root); }
     if (progEls && progEls.next) { try { progEls.next.progress(null); } catch (en) { } }
-    if (documentTapCloser) {
-      var cd = (HDOC || document);
-      for (var evn of ['pointerdown', 'mousedown', 'click', 'touchend']) {
-        try { cd.removeEventListener(evn, documentTapCloser, true); } catch (e1) { }
-      }
-      documentTapCloser = null;
-    }
     progEls = null;
     progRetry = null;
   }
@@ -1505,7 +1381,7 @@
   /* 需要把屏幕让给原生弹窗时（合并裁决要开面板、写盘要触发酒馆切预设）先收掉自己。
      只在"还开着"时收，收完记一笔，免得用户以为是窗口自己没了。 */
   function yieldScreen(why) {
-    if (!progEls || (!progEls.next && (!progEls.root || !progEls.root.parentNode))) { return false; }
+    if (!progEls || !progEls.next) { return false; }
     log('先收起更新进度窗口：' + why);
     closeProgress();
     return true;
@@ -1594,7 +1470,7 @@
          失败时**不自动关** —— 那种情况用户要看原因、还要点重试，留着才对。 */
       progressCloseTimer = hsetTimeout(function () {
         progressCloseTimer = null;
-        if (!progEls || (!progEls.root && !progEls.next)) { return; }
+        if (!progEls || !progEls.next) { return; }
         if (progState && progState.status === 'done') {
           log('更新已完成，自动收起进度窗口');
           closeProgress();
@@ -1854,10 +1730,6 @@
     if (calmResolve) { calmResolve(last); calmResolve = null; }
     activeRequests.forEach(function (ctrl) { try { ctrl.abort(); } catch (e) { } }); activeRequests.clear();
     try { closeProgress(); } catch (e) { }
-    try {
-      var css = (HDOC || document).getElementById(PROG_CSS_ID);
-      if (css && css.parentNode) { css.parentNode.removeChild(css); }
-    } catch (e) { }
     try { window.removeEventListener('pagehide', hideHandler); } catch (e) { }
     try { if (HOST !== window) { HOST.removeEventListener('pagehide', hideHandler); } } catch (e) { }
     hideHandler = null;

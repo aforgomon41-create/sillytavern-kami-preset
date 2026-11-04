@@ -192,8 +192,8 @@ const ok = (c, label) => eq(!!c, true, label);
     '⑩ 三方合并写盘前让位（这一步就在 await 里弹确认框，让晚了没用）');
   ok(/yieldScreen\('马上要整份导入并触发酒馆切换预设/.test(src),
     '⑩ 退化路径（整份导入）也让位');
-  ok(/yieldScreen\('要让出屏幕给「更新合并」裁决页'\)/.test(src),
-    '⑩ 开「更新合并」裁决页前让位（否则进度窗口压在面板正中间）');
+  ok(/yieldScreen\('要让出屏幕给逐条裁决窗口'\)/.test(src),
+    '⑩ 开逐条裁决窗口前让位（否则进度窗口压在面板正中间）');
   ok(/yieldScreen\('要让出屏幕给合并裁决的原生弹窗'\)/.test(src),
     '⑩ 原生弹窗兜底路径也让位');
 
@@ -202,8 +202,8 @@ const ok = (c, label) => eq(!!c, true, label);
   const atWrite = src.indexOf('return writePreset(remote.name, merged, mergedText);');
   ok(atYield >= 0 && atWrite > atYield, '⑩ 让位发生在写盘之前（顺序对了才有效）');
 
-  const atYield2 = src.indexOf("yieldScreen('要让出屏幕给「更新合并」裁决页')");
-  const atOpen = src.indexOf('P.openMergeReview(plan,');
+  const atYield2 = src.indexOf("yieldScreen('要让出屏幕给逐条裁决窗口')");
+  const atOpen = src.indexOf('okNext = nui.review(plan,');
   ok(atYield2 >= 0 && atOpen > atYield2, '⑩ 让位发生在打开裁决页之前');
 }
 
@@ -212,27 +212,13 @@ const ok = (c, label) => eq(!!c, true, label);
 {
   const src = readFileSync(new URL('../../src/scripts/70-远程更新.js', import.meta.url), 'utf8');
 
-  /* 变量只能声明一次。2026-10-11 就是声明了两次，后一次执行时把已挂上的
-     "点外面也关"的监听器引用冲成 null，功能整个失效。 */
-  const decls = (src.match(/var documentTapCloser/g) || []).length;
-  eq(decls, 1, '⑪ documentTapCloser 只声明一次（两次会把已挂的监听器冲掉）');
-
-  /* 关闭必须"整屏可关"：不再要求点中按钮。
-     2026-10-11 用户报"点了没反应" —— 按钮上挂 click 在手机 WebView 里可能一个都不派发，
-     所以改成挂在 document 上，点屏幕任何地方都关。 */
-  ok(/for \(var evName of \['pointerdown', 'mousedown', 'click', 'touchend'\]\)/.test(src),
-    '⑪ 关闭监听铺四种事件（pointerdown / mousedown / click / touchend）');
-  ok(/documentTapCloser = function/.test(src), '⑪ 关闭监听挂在 document 上（不要求点中按钮）');
-  ok(/t\.closest && t\.closest\('\.kami-upd-btn'\)/.test(src),
-    '⑪ 点按钮也走同一条路（点在窗口里面时只有按钮才算）');
-  ok(/progressArmTimer = hsetTimeout\(function \(\) \{ progressArmTimer = null; if \(!disposed\) \{ armed = true; \} \}, 400\)/.test(src),
-    '⑪ 挂监听前先等 400ms（免得打开窗口那一下顺手关掉自己）');
-  ok(/for \(var evn of \['pointerdown', 'mousedown', 'click', 'touchend'\]\)/.test(src),
-    '⑪ 关窗口时把四个监听都摘掉（否则越挂越多）');
-
-  /* 先清引用再删 DOM：removeChild 抛异常也不能让窗口留在原地 */
-  ok(/try \{ closeProgress\(\); \} catch \(e\) \{ warn\('关闭进度窗口出错/.test(src),
-    '⑪ 关闭失败也不静默（有 warn 兜底）');
+  /* 2026-11-04：进度窗口不再由本脚本自己建 DOM（旧运行库 KamiRuntime 的 React 树 + 自带 CSS + document 级「点哪都关」），
+     改为交给新运行库的 UpdateProgressDialog（工具箱登记的 KamiUpdateUi，工具箱不在时 directUi() 直接用 KamiRuntimeNext）。
+     2026-10-11 那次「点了没反应」修的 document 级关闭监听随旧窗口一起去掉；新窗口的关闭由对话框组件负责（实机测试覆盖）。 */
+  ok(!/HOST\.KamiRuntime\b(?!Next)/.test(src) && !/window\.KamiRuntime\b(?!Next)/.test(src), '⑪ 不再取旧运行库 KamiRuntime');
+  ok(!/documentTapCloser|kami-upd-btn|PROG_CSS/.test(src), '⑪ 旧的自建进度窗口（DOM / CSS / 关闭监听）已删干净');
+  ok(/function directUi\(\)/.test(src) && /rt\.panels\.UpdateProgressDialog/.test(src) && /return directUi\(\);/.test(src), '⑪ 工具箱不在时直接用新运行库的进度窗口');
+  ok(/try \{ closeProgress\(\); \} catch \(e\) \{ warn\('关闭进度窗口出错/.test(src) || /function closeProgress\(\)/.test(src), '⑪ 关闭走同一个 closeProgress()');
 
   /* 成功后自动关：不再依赖用户点得准 */
   ok(/更新已完成，自动收起进度窗口/.test(src), '⑪ 更新成功后自动收起');

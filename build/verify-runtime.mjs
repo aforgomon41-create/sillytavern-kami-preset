@@ -50,7 +50,7 @@ if (rt) {
 
 /* ④ 面板脚本不再内联组件核心：它们只该有惰性 shim（函数声明），
       不该出现 core.js 的实现特征（那个 __kami_ui_v1__ 缓存键）。 */
-const panels = flat.filter(s => s !== rt && /皮肤管理|预设设置|引导|工具箱|远程更新|正文外壳|思维链|状态栏/.test(String(s.name)));
+const panels = flat.filter(s => s !== rt && /皮肤管理|预设设置|引导|工具箱|远程更新|正文外壳|思维链/.test(String(s.name)));
 ok(panels.length >= 5, '④ 找得到面板脚本', panels.length + ' 个');
 const inlined = panels.filter(s => String(s.content || '').indexOf('__kami_ui_v1__') >= 0);
 ok(inlined.length === 0, '④ 面板脚本里没有内联的组件核心（应全部改成运行库 shim）', inlined.map(s => s.name).join('、') || '无');

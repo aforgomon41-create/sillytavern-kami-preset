@@ -16,7 +16,7 @@ const groups = definitions.map(item => ({ ...item, script_ids: item.files.map(fi
   assert.ok(entry, file); return entry.id;
 }) }));
 const grouped = groupScriptTrees(leaves, groups);
-equal(grouped.map(item => item.name), ['基础与外观', '功能与设置', '开发中']);
+equal(grouped.map(item => item.name), ['基础与外观', '功能与设置']);
 equal(new Set(ids(grouped)).size, meta.length);
 equal(flattenScriptTrees(grouped).filter(item => item.enabled).map(item => item.id), leaves.filter(item => item.enabled).map(item => item.id));
 equal(flattenScriptTrees(grouped).filter(item => !item.enabled).map(item => item.id).sort(), leaves.filter(item => !item.enabled).map(item => item.id).sort());
@@ -115,5 +115,21 @@ for (const bad of [
   equal(out[0].data, { skin: 'old', shared: 'old', 'kami-display': { skin: 'suiguang' } });
   const rev = flattenScriptTrees(mergeScriptTrees([theirs[1], theirs[0]], [script('display')], { 'old-skin': 'display' }, {}).list);
   equal(rev[0].data, { skin: 'old', shared: 'old', 'kami-display': { skin: 'suiguang' } });
+}
+/* 退役脚本与文件夹（2026-11-04 删掉状态栏与两个 MVU 脚本）：继承旧预设时去掉；退役文件夹里用户自己的脚本挪到顶层留着 */
+{
+  const retired = { mvu: true, bar: true, dev: true };
+  const theirs = [folder('tools', [script('a', false)]), folder('dev', [script('mvu', false), script('bar', false), script('mine-in-dev')])];
+  const r = mergeScriptTrees(theirs, [folder('tools', [script('a'), script('b')])], {}, {}, retired);
+  equal(ids(r.list), ['a', 'b', 'mine-in-dev']);
+  equal(r.list.map(n => n.type + ':' + n.id), ['folder:tools', 'script:mine-in-dev']);
+  equal(r.retired, 2);
+  /* 新版又用回了这个 ID：照常合并，不删 */
+  equal(ids(mergeScriptTrees([script('mvu', false)], [script('mvu')], {}, {}, retired).list), ['mvu']);
+  /* 不给退役表时什么都不删（旧行为） */
+  equal(ids(mergeScriptTrees(theirs, [folder('tools', [script('a')])], {}, {}).list), ['a', 'mvu', 'bar', 'mine-in-dev']);
+  /* 构建填进来的退役表：三个脚本 + 开发中文件夹，且都不在 meta / folders 里 */
+  const ret = JSON.parse(fs.readFileSync(new URL('../../src/scripts/retired.json', import.meta.url), 'utf8'));
+  equal([...ret.scripts, ...ret.folders].some(row => meta.some(m => m.id === row.id) || definitions.some(d => d.id === row.id)), false);
 }
 console.log('脚本文件夹与设置迁移：' + checks + ' 项通过');

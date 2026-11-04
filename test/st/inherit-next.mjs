@@ -67,6 +67,12 @@ const folder0 = d.extensions.tavern_helper.scripts.find((x) => x.type === 'folde
 for (const r of RETIRED) {
   folder0.scripts.push({ type: 'script', enabled: true, name: r.name, id: r.id, content: '/* retired */', info: '', button: { enabled: false, buttons: [] }, data: r.data, export_with: { data: true, button: true } });
 }
+/* 2026-11-04 整个删掉的「开发中」文件夹（状态栏 + 两个 MVU 脚本，见 src/scripts/retired.json）：继承后三个脚本和文件夹都不能留；
+   用户自己放进这个文件夹的脚本要留下（挪到顶层） */
+const DROPPED = ['cbfe29c2-b963-4d48-99d7-74f6ebc038a2', '987ba836-dedf-4d03-a7df-04dc33dabe04', 'c82743ec-5f64-435b-a91f-2f7069ab4de3'];
+const leafOf = (id, name) => ({ type: 'script', enabled: false, name, id, content: '/* dropped */', info: '', button: { enabled: false, buttons: [] }, data: {}, export_with: { data: true, button: true } });
+d.extensions.tavern_helper.scripts.push({ type: 'folder', id: 'c3249339-0482-4bed-9c52-b5b239cc5a1d', name: '开发中', icon: 'fa-solid fa-flask', color: 'var(--SmartThemeQuoteColor)', enabled: true,
+  scripts: [leafOf(DROPPED[0], '🚧 制作中 · MVU 初始化'), leafOf(DROPPED[1], '🚧 制作中 · MVU zod'), leafOf(DROPPED[2], '🚧 制作中 · 状态栏 v0.2'), leafOf('9d1f7a1e-5b2c-4c3d-8e4f-1a2b3c4d5e6f', '我自己的脚本（放在开发中里）')] });
 const display0 = scripts.find((x) => /^🎨 显示/.test(x.name));
 display0.data = { ...(display0.data || {}), 'kami-display': { ...((display0.data || {})['kami-display'] || {}), inheritMark: 1 } };
 d.name = OLD;
@@ -129,6 +135,9 @@ const live = await page.evaluate((exp) => {
     retired: th.filter((x) => /皮肤管理|正文外壳|引导 v0\.6|^🧪/.test(x.name)).map((x) => x.name),
     guideData: ((th.find((x) => /^🧭 引导/.test(x.name)) || {}).data || {})['kami-guide-legacy-mark'] || null,
     displayData: Object.keys((th.find((x) => /^🎨 显示/.test(x.name)) || {}).data || {}),
+    dropped: th.filter((x) => ['cbfe29c2-b963-4d48-99d7-74f6ebc038a2', '987ba836-dedf-4d03-a7df-04dc33dabe04', 'c82743ec-5f64-435b-a91f-2f7069ab4de3'].includes(x.id)).map((x) => x.name),
+    devFolder: window.TavernHelper.getScriptTrees({ type: 'preset' }).some((x) => x.type === 'folder' && x.id === 'c3249339-0482-4bed-9c52-b5b239cc5a1d'),
+    mine: (window.TavernHelper.getScriptTrees({ type: 'preset' }).find((x) => x.type !== 'folder' && x.id === '9d1f7a1e-5b2c-4c3d-8e4f-1a2b3c4d5e6f') || {}).enabled,
     newUi: ['🧩', '💬', '🎨 显示', '🧭', '🧰', '🌟'].every((k) => th.some((x) => x.name.startsWith(k) && x.enabled))
   };
 }, exp);
@@ -141,6 +150,8 @@ ok(live.threshold === 123456, '酒馆助手：脚本里的设置（压缩上限�
 ok(live.regex === exp.regex[1], '活设置：正则开关继承了', live.regex);
 ok(live.newUi, '新前端的各脚本仍是开着的');
 ok(live.retired.length === 0, '退役的旧脚本（皮肤管理 / 正文外壳 / 引导 v0.6 / 三条 🧪）没有作为重复脚本留下', live.retired);
+ok(live.dropped.length === 0 && !live.devFolder, '删掉的状态栏 / 两个 MVU 脚本和「开发中」文件夹没有留下', live);
+ok(live.mine === false, '用户自己放进「开发中」的脚本挪到顶层留着、开关不变（关着）', live.mine);
 ok(live.guideData === 'from-v0.6', '旧引导的脚本设置并进了新「🧭 引导」', live.guideData);
 ok(live.displayData.includes('kami-skin') && live.displayData.includes('kami-display'), '旧皮肤管理的设置并进「🎨 显示」，显示自己的设置也还在', live.displayData);
 const disk = readJson(curFile);

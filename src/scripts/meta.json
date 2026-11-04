@@ -76,63 +76,6 @@
     ]
   },
   {
-    "file": "00-mvu初始化测试.js",
-    "name": "🚧 制作中 · MVU 初始化",
-    "id": "cbfe29c2-b963-4d48-99d7-74f6ebc038a2",
-    "enabled": false,
-    "info": "🚧 制作中：MVU 变量链路还没在真机上验通，**暂停制作**，功能未完成。\n\n用户 2026-10-08 裁定：状态栏与两个 MVU 脚本一起暂停，默认关闭，名字带「制作中」；0.92 不再以状态栏为核心。\n\n它原本要做的事：绕过世界书，给 MVU 的 zod 变量做初始化（真机验证清单见 design/_discussion/mvu/核对与设计-02.md 第四节）。\n\n⚠️ 在名称里的「制作中」去掉之前，不要把它打开给别人用 —— 它可能与世界书链路互相干扰。",
-    "button": {
-      "enabled": true,
-      "buttons": []
-    },
-    "data": {},
-    "export_with": {
-      "data": true,
-      "button": true
-    }
-  },
-  {
-    "file": "01-mvu-zod.js",
-    "name": "🚧 制作中 · MVU zod",
-    "id": "987ba836-dedf-4d03-a7df-04dc33dabe04",
-    "enabled": false,
-    "info": "🚧 制作中：MVU 变量链路还没在真机上验通，**暂停制作**，功能未完成。\n\n用户 2026-10-08 裁定：状态栏与两个 MVU 脚本一起暂停，默认关闭，名字带「制作中」；0.92 不再以状态栏为核心。\n\n它原本要做的事：注册 MVU 的 zod schema 做变量校验。⚠️ 注意 registerMvuSchema 是全局注册且每次事件都会重新注册，两张 schema 同注册不报错、后果是静默字段污染（见 docs/0.92-状态栏交接.md 第三节）。\n\n⚠️ 在名称里的「制作中」去掉之前，不要把它打开给别人用。",
-    "button": {
-      "enabled": true,
-      "buttons": [
-        {
-          "name": "重新处理变量",
-          "visible": false
-        },
-        {
-          "name": "重新读取初始变量",
-          "visible": false
-        },
-        {
-          "name": "快照楼层",
-          "visible": false
-        },
-        {
-          "name": "重演楼层",
-          "visible": false
-        },
-        {
-          "name": "重试额外模型解析",
-          "visible": false
-        },
-        {
-          "name": "清除旧楼层变量",
-          "visible": false
-        }
-      ]
-    },
-    "data": {},
-    "export_with": {
-      "data": true,
-      "button": true
-    }
-  },
-  {
     "file": "10-脚本按钮.js",
     "name": "🎛 脚本按钮 v1.4",
     "id": "04c9a1b3-6de4-45ec-b827-3f2c42c78a19",
@@ -276,22 +219,6 @@
     },
     "export_with": {
       "data": true,
-      "button": true
-    }
-  },
-  {
-    "file": "80-状态栏.js",
-    "name": "🚧 制作中 · 状态栏 v0.2",
-    "id": "c82743ec-5f64-435b-a91f-2f7069ab4de3",
-    "enabled": false,
-    "info": "屏幕边缘一颗悬浮球（预设吉祥物的透明剪影图）。\n\n**没有变量数据时**：就只有这颗球，不加任何多余文字。\n**有数据时**：球展开成一条**三行小字**的标题栏 —— ① 时间 + 天气图标 ② 地点 ③ 在场人物。\n**点标题栏**：展开完整状态栏面板，把变量按模块分区展示；**最后一个 tab 是设置页**，用来开关模块与可选项（设置存在脚本变量里，跟着账号走，重载后记得）。\n\n· 拖着走：鼠标和触屏都能拖；松手后位置存在脚本变量里，下次进酒馆还在原处\n· 位置会夹在可视区内：窗口变小、手机转屏都会自动收回，永远留一条边点得到\n· 没数据时点一下弹一句说明（不是点不动）\n· 它不出现在按钮条里：不是面板、不登记按钮、不抢任何快捷键；面板（30000 层）永远盖在它上面（它占 29000 层）\n· 卸载干净：注销时 DOM、注入样式、监听器、落盘定时器全部收回，位置与设置留在脚本变量里\n\n数据源是楼层的 MVU 变量（stat_data）。**读不到就只有球，绝不伪造数据**。\n外观全走皮肤令牌（--kami-card / --kami-fg / --kami-accent / --kami-line / --kami-r-* / --kami-fs-xs …），无令牌时各有兜底值；几何（位置与直径）由脚本用 --kami-ball-x / -y / -size 下发。图标是构建期内联的 design/icon/kami-statusbar.png，脚本源码里只有一个占位注释。\n\n控制台 API：KamiStatusBar.status() / .show() / .hide() / .reset() / .refresh() / .setStat(v) / .openPanel() / .closePanel() / .settings() / .setSetting(k,v) / .flushSave() / .shutdown()",
-    "button": {
-      "enabled": true,
-      "buttons": []
-    },
-    "data": {},
-    "export_with": {
-      "data": false,
       "button": true
     }
   }

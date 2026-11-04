@@ -136,28 +136,6 @@ export function expandUpdateProgress(root, code) {
   return code.replace(UPDATE_PROGRESS_MARK, () => src);
 }
 
-/* ────────────────────────────────────────────────────────────
- * 「状态栏前端」的纯逻辑（src/scripts/_status-view.js）：三行标题栏、模块开关默认值、
- * 字段自适应分类。内联进 80-状态栏.js，DOM / 拖拽 / 持久化留那边。
- * ──────────────────────────────────────────────────────────── */
-export const STATUS_VIEW_MARK = '/* @@KAMI_STATUS_VIEW@@ */';
-
-export function statusViewSource(root) {
-  const raw = fs.readFileSync(path.join(root, 'src', 'scripts', '_status-view.js'), 'utf8');
-  return inlineModuleSource(raw, '_status-view.js');
-}
-
-/** 把源码里的状态栏逻辑占位换成 _status-view.js 的源码（已去掉行首 export）。幂等。 */
-export function expandStatusView(root, code) {
-  if (code.indexOf(STATUS_VIEW_MARK) < 0) { return code; }
-  const src = statusViewSource(root);
-  if (src.indexOf(STATUS_VIEW_MARK) >= 0) {
-    throw new Error('_status-view.js 里出现了自己的占位符 ' + STATUS_VIEW_MARK +
-      '（内联会自我复制）：请在注释里避开这串字面量');
-  }
-  return code.replace(STATUS_VIEW_MARK, () => src);
-}
-
 /** 展开成【酒馆正则 replaceString】用的文本 */
 export function expandForRegex(root, name) {
   let doc = frontendSource(root, name);
@@ -410,39 +388,8 @@ export function expandPanelGestures(root, code) {
   code = expandCopyClean(root, code);
   code = expandExportClean(root, code);
   code = expandUpdateProgress(root, code);
-  code = expandStatusView(root, code);
-  code = expandIconStatus(root, code);
   code = expandIconsUi(root, code);
   return code;
-}
-
-/* ────────────────────────────────────────────────────────────
- * 状态栏（实验）的悬浮球图标（design/icon/kami-statusbar.png）：
- * 构建期内联成 data URI 常量。为什么不在脚本源码里直接贴 base64 ——
- * 一坨 6 万字符的字面量会让那份源码没法读、也没法 review，而且图标一换就得重贴；
- * 内联之后「图片文件的唯一真相」是 design/icon/ 里那张 PNG，脚本里只留一个占位注释。
- * 挂在手势入口里，于是 build/build.mjs 与 test/harness/server.mjs 两侧同时生效。
- * ──────────────────────────────────────────────────────────── */
-export const ICON_STATUS_MARK = '/* @@KAMI_ICON_STATUS@@ */';
-export const ICON_STATUS_FILE = 'kami-statusbar.png';
-
-export function iconStatusDataUri(root) {
-  const p = path.join(root, 'design', 'icon', ICON_STATUS_FILE);
-  if (!fs.existsSync(p)) {
-    throw new Error('找不到悬浮球图标：design/icon/' + ICON_STATUS_FILE +
-      '（它是构建期内联的唯一真相，缺了产出的脚本就只剩一个空 img）');
-  }
-  return 'data:image/png;base64,' + fs.readFileSync(p).toString('base64');
-}
-
-/** 把脚本里的图标占位换成 data URI 常量。占位不存在时原样返回（幂等）。 */
-export function expandIconStatus(root, code) {
-  if (code.indexOf(ICON_STATUS_MARK) < 0) { return code; }
-  const src = iconStatusDataUri(root);
-  if (src.indexOf(ICON_STATUS_MARK) >= 0) {
-    throw new Error('图标 data URI 里出现了占位符字面量（不可能，但拦住为妙）');
-  }
-  return code.replace(ICON_STATUS_MARK, () => 'var ICON_STATUS = ' + JSON.stringify(src) + ';');
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -608,7 +555,15 @@ export function scriptUpgradeCatalog(root) {
     if (!old || ids.has(old) || groups.some(row => row.id === old) || folder_aliases[old]) { throw new Error('分类旧ID冲突：' + old); }
     folder_aliases[old] = group.id;
   } }
-  return { carrier: meta.find(row => row.file === '10-脚本按钮.js').id, aliases, folder_aliases,
+  /* 退役清单：ID 不能还在用（脚本、文件夹、旧 ID 都不行），否则合并会把在用的东西删掉 */
+  const retiredFile = path.join(root, 'src/scripts/retired.json');
+  const retiredRows = fs.existsSync(retiredFile) ? JSON.parse(fs.readFileSync(retiredFile, 'utf8')) : { scripts: [], folders: [] };
+  const retired = {};
+  for (const row of [...(retiredRows.scripts || []), ...(retiredRows.folders || [])]) {
+    if (!row.id || ids.has(row.id) || groups.some(g => g.id === row.id) || aliases[row.id] || folder_aliases[row.id] || retired[row.id]) { throw new Error('退役 ID 冲突（还在用或重复）：' + row.id); }
+    retired[row.id] = true;
+  }
+  return { carrier: meta.find(row => row.file === '10-脚本按钮.js').id, aliases, folder_aliases, retired,
     build: '@@KAMI_PRESET_NAME@@', groups: groups.map(group => ({ id: group.id, script_ids: group.files.map(file => {
       const row = meta.find(item => item.file === file); if (!row) throw new Error('分组脚本不存在：' + file); return row.id;
     }) })) };
@@ -617,7 +572,7 @@ export function scriptUpgradeCatalog(root) {
 export function expandScriptTrees(root, code) {
   const marker = '/* @@KAMI_SCRIPT_TREE@@ */';
   if (!code.includes(marker)) { return code; }
-  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_script-tree.js'), 'utf8'), '_script-tree.js').replace('/* @@KAMI_SCRIPT_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).aliases)).replace('/* @@KAMI_SCRIPT_FOLDER_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).folder_aliases));
+  const source = inlineModuleSource(fs.readFileSync(path.join(root, 'src/scripts/_script-tree.js'), 'utf8'), '_script-tree.js').replace('/* @@KAMI_SCRIPT_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).aliases)).replace('/* @@KAMI_SCRIPT_FOLDER_ALIASES@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).folder_aliases)).replace('/* @@KAMI_SCRIPT_RETIRED@@ */ {}', JSON.stringify(scriptUpgradeCatalog(root).retired));
   if (source.includes(marker)) { throw new Error('_script-tree.js 不能包含自己的构建标记'); }
   return code.replace(marker, () => source);
 }
