@@ -102,6 +102,20 @@
       "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "stage",
+      "name": "角色栏",
+      "description": "电脑上面板够宽时，右侧空出一栏站着GLM 娘（手机上是标题栏探头的 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sign",
+      "name": "看板娘",
+      "description": "最新一条回复末尾站着 Q 版的GLM 娘，说一句话；生成中和没查到资料时换表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -121,7 +135,10 @@
     "think.live": "{name}沉思中…",
     "think.done": "{name}深思熟虑",
     "search.done": "翻遍了 {n} 个来源",
-    "options.title": "限时选项"
+    "options.title": "限时选项",
+    "sign.live": "嘿嘿，让我算算",
+    "sign.done": "这手牌，你接得住吗？",
+    "sign.oops": "哎呀，资料被我弄丢了"
   },
   "assets": {
     "portrait": {

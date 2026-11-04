@@ -95,6 +95,20 @@
       "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "stage",
+      "name": "角色栏",
+      "description": "电脑上面板够宽时，右侧空出一栏站着大肥鱼（手机上是标题栏探头的 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sign",
+      "name": "看板娘",
+      "description": "最新一条回复末尾站着 Q 版的大肥鱼，说一句话；生成中和没查到资料时换表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -114,7 +128,10 @@
     "think.live": "{name}深度思考中…",
     "think.done": "{name}已深度思考",
     "search.done": "已搜索到 {n} 个网页",
-    "options.title": "接下来吃哪口"
+    "options.title": "接下来吃哪口",
+    "sign.live": "深度思考中，饭先等等",
+    "sign.done": "请慢用～要添饭吗？",
+    "sign.oops": "没搜到……我再想想"
   },
   "assets": {
     "portrait": {

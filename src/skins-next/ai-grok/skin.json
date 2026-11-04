@@ -95,6 +95,20 @@
       "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "stage",
+      "name": "角色栏",
+      "description": "电脑上面板够宽时，右侧空出一栏站着Grok 娘（手机上是标题栏探头的 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sign",
+      "name": "看板娘",
+      "description": "最新一条回复末尾站着 Q 版的Grok 娘，说一句话；生成中和没查到资料时换表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -114,7 +128,10 @@
     "think.live": "{name}在翻你的浏览记录",
     "think.done": "就这？轻松",
     "search.done": "查证了 {n} 处来源",
-    "options.title": "选吧，凡人"
+    "options.title": "选吧，凡人",
+    "sign.live": "正在翻你的浏览记录",
+    "sign.done": "选吧，凡人",
+    "sign.oops": "网上没有？那就是假的"
   },
   "assets": {
     "portrait": {

@@ -95,6 +95,20 @@
       "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "stage",
+      "name": "角色栏",
+      "description": "电脑上面板够宽时，右侧空出一栏站着GPT 娘（手机上是标题栏探头的 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sign",
+      "name": "看板娘",
+      "description": "最新一条回复末尾站着 Q 版的GPT 娘，说一句话；生成中和没查到资料时换表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -114,7 +128,10 @@
     "think.live": "{name}推理中",
     "think.done": "{name}已推理",
     "search.done": "已搜索 {n} 个站点",
-    "options.title": "下一步"
+    "options.title": "下一步",
+    "sign.live": "正在推理，请稍候",
+    "sign.done": "已为您整理妥当",
+    "sign.oops": "未能检索到相关资料"
   },
   "assets": {
     "portrait": {

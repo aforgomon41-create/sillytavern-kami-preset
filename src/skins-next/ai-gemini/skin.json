@@ -95,6 +95,20 @@
       "description": "卡片右下角放一件标志道具；选中的选择卡也会出现。",
       "group": "装饰",
       "default": true
+    },
+    {
+      "id": "stage",
+      "name": "角色栏",
+      "description": "电脑上面板够宽时，右侧空出一栏站着Gemini 娘（手机上是标题栏探头的 Q 版）。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sign",
+      "name": "看板娘",
+      "description": "最新一条回复末尾站着 Q 版的Gemini 娘，说一句话；生成中和没查到资料时换表情。",
+      "group": "装饰",
+      "default": true
     }
   ],
   "params": [
@@ -114,7 +128,10 @@
     "think.live": "{name}正在思考",
     "think.done": "{name}的思路",
     "search.done": "参考了 {n} 个网站",
-    "options.title": "灵感 ✦"
+    "options.title": "灵感 ✦",
+    "sign.live": "让我想想喵～",
+    "sign.done": "搞定喵！快夸我！",
+    "sign.oops": "呜，什么都没搜到喵"
   },
   "assets": {
     "portrait": {

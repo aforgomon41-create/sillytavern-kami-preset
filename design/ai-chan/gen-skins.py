@@ -460,10 +460,17 @@ S['ai-qwen'] = dict(
 
 TYPES = ['action', 'persona', 'plot', 'info', 'fun', 'nsfw', 'other']
 
-# 存在感改版（docs/AI娘系列方案.md 四之二）：先只给这几款开，预览确认后推到 8 款
-PRESENCE = {'ai-claude'}
+# 存在感改版（docs/AI娘系列方案.md 四之二）：2026-11-03 用户看过 Claude 娘的预览后确认，8 款全开
+PRESENCE = {'ai-deepseek', 'ai-claude', 'ai-gpt', 'ai-gemini', 'ai-glm', 'ai-kimi', 'ai-grok', 'ai-qwen'}
 SIGN = {
     'ai-claude': {'sign.live': '容我想想……', 'sign.done': '这样写，可以吗？', 'sign.oops': '没查到，我凭记忆来'},
+    'ai-deepseek': {'sign.live': '深度思考中，饭先等等', 'sign.done': '请慢用～要添饭吗？', 'sign.oops': '没搜到……我再想想'},
+    'ai-gpt': {'sign.live': '正在推理，请稍候', 'sign.done': '已为您整理妥当', 'sign.oops': '未能检索到相关资料'},
+    'ai-gemini': {'sign.live': '让我想想喵～', 'sign.done': '搞定喵！快夸我！', 'sign.oops': '呜，什么都没搜到喵'},
+    'ai-glm': {'sign.live': '嘿嘿，让我算算', 'sign.done': '这手牌，你接得住吗？', 'sign.oops': '哎呀，资料被我弄丢了'},
+    'ai-kimi': {'sign.live': '长思考中，听完这一曲', 'sign.done': '一曲终了，请继续', 'sign.oops': '没找到……我再读一遍'},
+    'ai-grok': {'sign.live': '正在翻你的浏览记录', 'sign.done': '选吧，凡人', 'sign.oops': '网上没有？那就是假的'},
+    'ai-qwen': {'sign.live': '稍等，先喝口奶茶', 'sign.done': '这样安排，可还满意？', 'sign.oops': '没查到，再问问别人吧'},
 }
 OPT_HEAD = '[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="toggle"]'
 
