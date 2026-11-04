@@ -460,6 +460,65 @@ S['ai-qwen'] = dict(
 
 TYPES = ['action', 'persona', 'plot', 'info', 'fun', 'nsfw', 'other']
 
+# 存在感改版（docs/AI娘系列方案.md 四之二）：先只给这几款开，预览确认后推到 8 款
+PRESENCE = {'ai-claude'}
+SIGN = {
+    'ai-claude': {'sign.live': '容我想想……', 'sign.done': '这样写，可以吗？', 'sign.oops': '没查到，我凭记忆来'},
+}
+OPT_HEAD = '[data-k="msg-options"] > [data-k-part="head"] > [data-k-part="toggle"]'
+
+def presence(id, have):
+    """角色占一块不放字的位置、实心显示；叠在字底下的只留场景氛围，且只铺在边缘"""
+    a = lambda n: n in have
+    out = ['\n/* ═══════════ 存在感：角色栏 / 看板娘 / 场景横幅 / 表情与道具（docs/AI娘系列方案.md 四之二） ═══════════ */']
+    if a('portrait'):
+        out.append(f'''/* 电脑：面板够宽（≥ 900px）时右侧空出一栏，立绘实心站在里面，文字不进这一栏；拖窄了退回淡水印 */
+@media (min-width: 1001px) {{
+  [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-part="body"] {{ padding-right: 252px; }}
+  [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-ornament="surface-backdrop"] {{ background: linear-gradient(var(--k-divider), var(--k-divider)) calc(100% - 252px) 76px / 1px calc(100% - 112px) no-repeat; }}
+  [data-k-surface][data-k-effects~="stage"] [data-k="panel"][data-k-width="wide"] > [data-k-ornament="surface-backdrop"]::after {{ right: 4px; bottom: 0; width: 244px; height: calc(100% - 64px); aspect-ratio: auto; background: var(--k-asset-portrait) center bottom / contain no-repeat; opacity: 1; -webkit-mask: linear-gradient(0deg, transparent, #000 56px); mask: linear-gradient(0deg, transparent, #000 56px); }}
+}}''')
+    if a('chibi'):
+        out.append(f'''/* 手机：Q 版从抽屉标题栏右侧探出半身；内容区底下的淡水印收掉 */
+@media (max-width: 1000px) {{
+  [data-k-surface][data-k-effects~="stage"] [data-k="panel"] [data-k-ornament="panel-head-end"] {{ display: inline-block; flex: none; width: 52px; height: 52px; margin-block: -14px -10px; background: var(--k-asset-chibi) 50% 6% / 170% auto no-repeat; -webkit-mask: none; mask: none; }}
+  [data-k-surface][data-k-effects~="stage"] {PANELS}::after {{ opacity: 0; }}
+}}
+/* 对话框：Q 版实心站在左下角，按钮栏给它让出位置 */
+[data-k-surface][data-k-effects~="portrait"] {DIALOG}::after {{ left: 8px; right: auto; bottom: 4px; width: 92px; height: 92px; opacity: 1; }}
+[data-k-surface][data-k-effects~="portrait"] [data-k="dialog"][data-k-part="content"] > [data-k-part="foot"] {{ padding-left: 96px; min-height: 72px; }}''')
+    if a('face-done'):
+        out.append('''/* 面板标题前：圆形表情头像（换掉矢量图标） */
+[data-k-surface][data-k-effects~="faces"] [data-k-ornament="panel-head-start"] { width: 30px; height: 30px; margin-block: -6px; border-radius: 50%; background: var(--k-asset-face-done) 50% 28% / 112% no-repeat, color-mix(in srgb, var(--k-accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-accent) 35%, transparent); -webkit-mask: none; mask: none; animation: none; }
+/* 提示条：按语气换表情 */
+[data-k-surface][data-k-effects~="faces"] [data-k="toast"] > [data-k-ornament="toast-face"] { display: inline-block; background-image: var(--k-asset-face-done); }''')
+        if a('face-oops'):
+            out.append('[data-k-surface][data-k-effects~="faces"] [data-k="toast"][data-k-tone="danger"] > [data-k-ornament="toast-face"] { background-image: var(--k-asset-face-oops); }')
+    if a('face-think'):
+        out.append('''/* 加载转圈：换成「思考中」表情上下轻晃 */
+[data-k-surface][data-k-effects~="faces"] [data-k="spinner"] { width: 1.7em; height: 1.7em; border: 0; border-radius: 0; background: var(--k-asset-face-think) center / contain no-repeat; -webkit-mask: none; mask: none; animation: k-ai-bob 1.2s ease-in-out infinite; }''')
+    if a('chibi'):
+        out.append(f'''/* 看板娘：最新一条回复末尾单独一行，实心 Q 版 + 一句台词；生成中换「思考中」、搜索没找到换「出错」 */
+[data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"] {{ display: flex; padding: 2px 6px 0; }}
+[data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"] > [data-k-part="face"] {{ width: 84px; height: 84px; background-image: var(--k-asset-chibi); }}
+[data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"][data-k-face="think"] > [data-k-part="face"] {{ background-image: var(--k-asset-face-think); }}
+[data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"][data-k-face="oops"] > [data-k-part="face"] {{ background-image: var(--k-asset-face-oops); }}
+[data-k-surface][data-k-effects~="sign"][data-k-motion="full"] [data-k-ornament="msg-sign"][data-k-face="think"] > [data-k-part="face"] {{ animation: k-ai-bob 1.4s ease-in-out infinite; }}
+[data-k-surface][data-k-effects~="sign"][data-k-motion="full"] [data-k-ornament="msg-sign"][data-k-face="done"] > [data-k-part="face"] {{ animation: k-ai-breathe 3.2s ease-in-out infinite; }}
+[data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"] > [data-k-part="line"] {{ margin-bottom: 18px; padding: 6px 14px; border-radius: 4px 16px 16px 16px; background: color-mix(in srgb, var(--k-accent) 10%, var(--k-sunken)); border: var(--k-border-w) solid color-mix(in srgb, var(--k-accent) 32%, transparent); color: var(--k-on); font-family: var(--k-font-heading); }}
+@media (max-width: 1000px) {{ [data-k-surface][data-k-effects~="sign"] [data-k-ornament="msg-sign"] > [data-k-part="face"] {{ width: 60px; height: 60px; }} }}''')
+    if a('scene'):
+        out.append(f'''/* 场景横幅：正文那块顶部一条，往下渐隐到 0，正文底下保持干净 */
+[data-k-surface][data-k-effects~="scene"] [data-k="msg-view"][data-k-kind="body"] > [data-k-ornament="surface-backdrop"] {{ background-position: center 35%; opacity: var(--k-ai-band-alpha, .42); -webkit-mask: linear-gradient(180deg, #000, transparent 96px); mask: linear-gradient(180deg, #000, transparent 96px); }}
+[data-k-surface][data-k-scheme="dark"] {{ --k-ai-band-alpha: .34; }}''')
+    if a('item-1'):
+        out.append(f'''/* 行动选项标题前：道具小图 */
+[data-k-surface][data-k-effects~="items"] {OPT_HEAD} > [data-k-ornament="state-face"][data-k-face="options"] {{ display: inline-block; width: 1.7em; height: 1.7em; margin-block: -.35em; background-image: var(--k-asset-item-1); }}''')
+    if a('item-2'):
+        out.append('''/* 分隔线：中间嵌一件道具，两侧细线 */
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 200px; height: 26px; opacity: 1; background: var(--k-asset-item-2) center / 26px 26px no-repeat, linear-gradient(90deg, transparent, var(--k-accent) 30%, transparent 42%, transparent 58%, var(--k-accent) 70%, transparent) center / 100% 1px no-repeat; -webkit-mask: none; mask: none; }''')
+    return out
+
 def common(id, d, have):
     a = lambda n: n in have
     out = []
@@ -535,6 +594,10 @@ for id in ORDER:
         effs = [(e[0], e[1], e[2].replace('的表情。', '的表情（搜索没找到资料时换成出错的表情）。'), e[3]) if e[0] == 'faces' else e for e in effs]
     if 'item-1' in have:
         effs.append(('items', '道具', '卡片右下角放一件标志道具；选中的选择卡也会出现。', '装饰'))
+    if id in PRESENCE:
+        nm = d['name'] + ('' if d['name'].endswith('鱼') or d['name'].endswith('娘') else ' 娘')
+        if 'portrait' in have: effs.append(('stage', '角色栏', '电脑上面板够宽时，右侧空出一栏站着' + nm + '（手机上是标题栏探头的 Q 版）。', '装饰'))
+        if 'chibi' in have: effs.append(('sign', '看板娘', '最新一条回复末尾站着 Q 版的' + nm + '，说一句话；生成中和没查到资料时换表情。', '装饰'))
     m = {
         'id': id, 'name': d['name'], 'version': '0.1.0', 'contract': '1.0', 'description': d['desc'], 'author': '卡密预设',
         'credits': '角色形象原设：ZipZipPipe（胖次狐，B 站 space.bilibili.com/4168597）' + ('；鲸鱼娘原案：上善无形「溟月」（CC BY-NC-SA 4.0）' if id == 'ai-deepseek' else '') + '；外观参考 lmy414/ai-chan-sheets 设定图补全（CC BY-NC-SA 4.0）。本皮肤的立绘、Q 版、场景、表情与道具图由 AI（Codex 生图）按原设绘制，属二次创作，以 CC BY-NC-SA 4.0 提供：仅限非商业使用、须署名、以相同协议分享。非官方同人作品，与各 AI 公司无关，产品名与商标归其所有。高清图从 jsDelivr 外链加载（会向该 CDN 暴露 IP），载不到时用包内的轻量图。',
@@ -543,7 +606,7 @@ for id in ORDER:
         'modules': d['modules'],
         'effects': [{'id': e[0], 'name': e[1], 'description': e[2], 'group': e[3], 'default': True} for e in effs],
         'params': [{'id': 'corner', 'name': '圆角', 'type': 'number', 'default': d['light']['radius'], 'min': 0, 'max': 24, 'step': 1, 'bind': 'seed:radius', 'group': '形状'}],
-        'flavor': d['flavor'],
+        'flavor': {**d['flavor'], **(SIGN.get(id, {}) if id in PRESENCE else {})},
         'assets': assets,
         'icons': ICONS,
     }
@@ -560,7 +623,7 @@ for id in ORDER:
 [data-k-surface][data-k-scheme="light"] {{ --k-msg-dialogue: {lq}; --k-msg-thought: {lt}; }}
 [data-k-surface][data-k-scheme="dark"] {{ --k-msg-dialogue: {dq}; --k-msg-thought: {dt}; }}
 '''
-    css = head + d['css']() + common(id, d, have) + '/* 图标：线条 */\n[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }\n'
+    css = head + d['css']() + common(id, d, have) + ('\n'.join(presence(id, have)) + '\n' if id in PRESENCE else '') + '/* 图标：线条 */\n[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }\n'
     open(os.path.join(dirp, 'skin.css'), 'w').write(css)
     print(id, 'assets:', sorted(have))
 

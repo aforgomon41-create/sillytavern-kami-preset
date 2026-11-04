@@ -23,7 +23,7 @@ import { mountSurface } from '../surfaces/messages';
 import { protectMath, typesetTex } from './math';
 import { TEXT_ATTR, bodyCss, markBody, unmarkBody } from './body-style';
 import { splitReply, takeTag, siteOf, type SearchRecord } from './parse';
-import { MsgBodyShell, MsgOptions, MsgPart, MsgSearch, MsgThink, type OptionItem, type OptionMode, type ThinkActions } from './view';
+import { MsgBodyShell, MsgOptions, MsgPart, MsgSearch, MsgSign, MsgThink, searchMissed, type OptionItem, type OptionMode, type ThinkActions } from './view';
 import { cleanCopyText } from '../../scripts/_copy-clean.js';
 
 export interface TavernMessage {
@@ -64,7 +64,7 @@ export interface ChatFrontendOptions {
 }
 
 interface Surface { host: HTMLElement; surface: Element | null; render: (node: React.ReactNode) => void; dispose: () => void; last: string; body: boolean }
-type Kind = 'think' | 'search' | 'options';
+type Kind = 'think' | 'search' | 'options' | 'sign';
 
 const MES_ATTR = 'data-kami-msg';
 const HOST_ATTR = 'data-kami-msg-host';          /* 我们的宿主元素（.mes_text 之外的几块），值是种类 */
@@ -82,7 +82,9 @@ const HOST_CSS = [
   '#chat .mes[' + NATIVE_THINK + ']:not(:has(' + EDITING_THINK + ')) .mes_reasoning_details { display: none !important; }',
   '#chat .mes:has(' + EDITING_THINK + ') [' + HOST_ATTR + '="think"] { display: none !important; }',
   '#chat [' + HOST_ATTR + '] { display: block; margin: 4px var(--mes-right-spacing, 0) 4px 0; text-indent: 0; }',
-  '#chat [' + HOST_ATTR + '="options"] { margin-top: 6px; }'
+  '#chat [' + HOST_ATTR + '="options"] { margin-top: 6px; }',
+  /* 看板娘行：皮肤没启用时里面是空的，不占间距 */
+  '#chat [' + HOST_ATTR + '="sign"] { margin-top: 0; margin-bottom: 0; }'
 ].join('\n');
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -243,6 +245,7 @@ export class ChatFrontend {
       this.search(text, id, reply.search, streaming && reply.searchPending);
       this.body(text, id, msg, reply.body ? reply.body.text : '', streaming, editing);
       this.options(text, id, id === latest ? reply.options : null, streaming);
+      this.sign(text, id === latest, streaming ? 'think' : searchMissed(reply.search) ? 'oops' : 'done');
     }
   }
 
@@ -252,6 +255,10 @@ export class ChatFrontend {
     let host = parent.querySelector(':scope > [' + HOST_ATTR + '="' + kind + '"]') as HTMLElement | null;
     if (!host) { host = this.o.doc.createElement('div'); host.setAttribute(HOST_ATTR, kind); }
     if (kind === 'options') { if (text.nextElementSibling !== host) { text.after(host); } }
+    else if (kind === 'sign') {
+      const anchor = (parent.querySelector(':scope > [' + HOST_ATTR + '="options"]') as HTMLElement | null) || text;
+      if (anchor.nextElementSibling !== host) { anchor.after(host); }
+    }
     else {
       const search = kind === 'think' ? parent.querySelector(':scope > [' + HOST_ATTR + '="search"]') : null;
       const anchor = search || text;
@@ -391,6 +398,13 @@ export class ChatFrontend {
     const open = this.optionsOpen();
     this.paint(host, 'options|' + JSON.stringify(opts.items).length + '|' + pending + '|' + this.mode + '|' + open + '|' + slotted,
       <MsgPart kind="options"><MsgOptions items={opts.items} pending={pending} mode={this.mode} onMode={(v) => this.setMode(v)} onPick={this.o.onPick} defaultOpen={open} slotted={slotted} /></MsgPart>);
+  }
+
+  /* ───── 看板娘行（只有最新一条，在行动选项之后）：装饰，皮肤不启用时是空的 ───── */
+  private sign(text: HTMLElement, latest: boolean, face: 'think' | 'done' | 'oops'): void {
+    if (!latest) { this.dropKind(text, 'sign'); return; }
+    const host = this.hostFor(text, 'sign');
+    this.paint(host, 'sign|' + face, <MsgSign face={face} />);
   }
 
   private paint(host: HTMLElement, key: string, node: React.ReactNode, body = false): void {

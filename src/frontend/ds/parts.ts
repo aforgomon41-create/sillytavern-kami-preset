@@ -45,7 +45,7 @@ export const COMPONENTS = {
   steps: { parts: ['item', 'marker', 'label', 'hint'], variants: {}, states: ['done', 'current', 'failed', 'pending'] },
   spinner: { parts: [], variants: { size: ['sm', 'md'] }, states: [] },
   /* 消息前端（前端重构-消息前端方案；2026-10-28 用户拍板 A–F）。四个前端共用对齐轴与间距节奏，框不框由皮肤决定 */
-  'msg-view': { parts: [], variants: {}, states: ['streaming'] },
+  'msg-view': { parts: ['face', 'line'], variants: {}, states: ['streaming'] },   /* face / line：看板娘行（装饰槽 msg-sign）里的小人与台词 */
   'msg-body': { parts: ['head', 'count', 'tools', 'text', 'para', 'narration', 'dialogue', 'quote', 'thought', 'name', 'keyword', 'term', 'scene-break', 'caret', 'raw'], variants: { view: ['rendered', 'raw'] }, states: ['streaming'] },
   'msg-think': { parts: ['head', 'toggle', 'icon', 'title', 'count', 'chevron', 'tools', 'fold', 'body', 'markdown', 'raw'], variants: { view: ['rendered', 'raw'] }, states: ['open', 'closed', 'streaming'] },
   'msg-search': { parts: ['head', 'toggle', 'icon', 'title', 'sites', 'chevron', 'fold', 'body', 'scope', 'facts', 'fact', 'ref', 'sources', 'source', 'status'], variants: {}, states: ['open', 'closed', 'streaming'] },
@@ -59,7 +59,7 @@ export const LEVELS = ['bg', 'surface-1', 'surface-2', 'surface-3', 'sunken', 'i
 export type Level = typeof LEVELS[number];
 
 /** 装饰槽（data-k-ornament）：不可交互、aria-hidden、pointer-events: none */
-export const ORNAMENTS = ['panel-head-start', 'panel-head-end', 'card-corner', 'empty-art', 'surface-backdrop', 'divider', 'dice', 'state-face'] as const;
+export const ORNAMENTS = ['panel-head-start', 'panel-head-end', 'card-corner', 'empty-art', 'surface-backdrop', 'divider', 'dice', 'state-face', 'msg-sign', 'toast-face'] as const;
 export type OrnamentName = typeof ORNAMENTS[number];
 
 /** 导出给构建与检查用的清单 */

@@ -423,5 +423,10 @@
 /* state-face：思维链 / 搜索资料标题前的状态头像（data-k-face = think 生成中 / done 完成 / search 查资料）。默认不显示；
    皮肤写 display: inline-block 并按 data-k-face 换图（AI 娘系列用 Q 版表情头像），通常同时把 [data-k-part="icon"] 藏起来 */
 [data-k-ornament="state-face"] { display: none; flex: none; width: 1.6em; height: 1.6em; margin-block: -.3em; background: center / contain no-repeat; pointer-events: none; }
+/* 看板娘行（消息前端最新回复末尾）与提示条表情：默认不显示，皮肤写 display: flex / inline-block 才出现 */
+[data-k-ornament="msg-sign"] { display: none; align-items: flex-end; gap: 10px; pointer-events: none; }
+[data-k-ornament="msg-sign"] > [data-k-part="face"] { flex: none; width: 64px; height: 64px; background: center bottom / contain no-repeat; }
+[data-k-ornament="msg-sign"] > [data-k-part="line"] { font-size: .9em; line-height: 1.5; }
+[data-k-ornament="toast-face"] { display: none; flex: none; width: 28px; height: 28px; background: center / contain no-repeat; pointer-events: none; }
 [data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="msg-view"] { isolation: isolate; }
 [data-k="msg-view"], [data-k="empty"] { position: relative; }

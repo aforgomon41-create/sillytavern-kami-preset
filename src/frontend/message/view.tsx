@@ -151,7 +151,7 @@ export function MsgSearch({ records, pending, slotted }: { records: SearchRecord
   const sites = [...new Set(sources.map((s) => siteOf(s.url)))];
   const Search = ICONS['search']!;
   /* 每条记录都没找到资料：状态头像换成「出错」（data-k-face="oops"） */
-  const miss = records.length > 0 && records.every((r) => r.status === 'not_found' && !r.facts.length);
+  const miss = searchMissed(records);
   return (
     <section {...k('msg-search')} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined}>
       <div {...part('head')}>
@@ -212,6 +212,7 @@ export function MsgOptions({ items, pending, mode, onMode, onPick, defaultOpen =
     <section {...k('msg-options', { mode })} data-state={open ? 'open' : 'closed'} data-streaming={pending ? '' : undefined} aria-label="行动选项">
       <div {...part('head')}>
         <button type="button" {...part('toggle')} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          <span {...ornament('state-face')} data-k-face="options" />
           <span {...part('title')}>{optTitle}</span>
           {pending ? null : <span {...part('count')}>{items.length} 个</span>}
           <span {...part('chevron')} aria-hidden="true"><IconChevronDown width={16} height={16} /></span>
@@ -284,6 +285,26 @@ export function MsgPart({ kind, editing, children }: { kind: string; editing?: b
   return <div {...k('msg-view')} data-k-level="bg" data-k-kind={kind} data-editing={editing ? '' : undefined}><span {...ornament('surface-backdrop')} />{children}</div>;
 }
 
+/* ───────── 看板娘行（最新一条回复末尾） ───────── */
+
+export type SignFace = 'think' | 'done' | 'oops';
+/** 每条记录都没找到资料 */
+export const searchMissed = (records: SearchRecord[]): boolean => records.length > 0 && records.every((r) => r.status === 'not_found' && !r.facts.length);
+
+/**
+ * 装饰槽 msg-sign：皮肤放角色小人 + 一句台词（风格文案 sign.live / sign.done / sign.oops）。
+ * 整行是装饰（aria-hidden、不可交互），默认不显示；没有台词的皮肤也可以只放小人。
+ */
+export function MsgSign({ face }: { face: SignFace }): React.JSX.Element {
+  const line = useFlavor('sign.' + (face === 'think' ? 'live' : face), '');
+  return (
+    <div {...ornament('msg-sign')} data-k-face={face}>
+      <span data-k-part="face" />
+      {line ? <span data-k-part="line">{line}</span> : null}
+    </div>
+  );
+}
+
 /* ───────── 一整条回复 ───────── */
 
 export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thinker, optionsOpen = true }: {
@@ -311,6 +332,7 @@ export function MessageView({ raw, streaming, latest, mode, onMode, onPick, thin
         : streaming && !r.think && !r.search.length ? <MsgBody text="" streaming /> : null}
       {latest && r.options && (r.options.items.length || (streaming && !r.options.closed))
         ? <MsgOptions items={r.options.items} pending={!r.options.closed} mode={mode} onMode={onMode} onPick={onPick} defaultOpen={optionsOpen} /> : null}
+      {latest ? <MsgSign face={streaming ? 'think' : searchMissed(r.search) ? 'oops' : 'done'} /> : null}
     </div>
   );
 }

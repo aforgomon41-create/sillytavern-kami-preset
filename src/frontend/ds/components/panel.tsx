@@ -139,7 +139,7 @@ export function Panel({ title, children, footer, actions, onClose, geometry, onG
     : { '--k-panel-x': rect.x + 'px', '--k-panel-y': rect.y + 'px', '--k-panel-w': rect.w + 'px', '--k-panel-h': rect.h + 'px' }) as unknown as React.CSSProperties;
 
   return (
-    <div ref={ref} {...k('panel')} data-layout={sheet ? 'sheet' : 'floating'} data-k-level="surface-1" role="dialog" aria-modal="false"
+    <div ref={ref} {...k('panel')} data-layout={sheet ? 'sheet' : 'floating'} data-k-width={!sheet && rect.w >= 900 ? 'wide' : 'narrow'} data-k-level="surface-1" role="dialog" aria-modal="false"
       aria-labelledby={titleId} tabIndex={-1} style={style} onKeyDown={onKeyDown}>
       <LevelProvider level="surface-1">
         <span {...ornament('surface-backdrop')} />

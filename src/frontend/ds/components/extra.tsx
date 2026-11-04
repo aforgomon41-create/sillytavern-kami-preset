@@ -9,7 +9,7 @@ import * as React from 'react';
 import * as RToggle from '@radix-ui/react-toggle-group';
 import * as RPopover from '@radix-ui/react-popover';
 import * as RProgress from '@radix-ui/react-progress';
-import { k, part } from '../hooks';
+import { k, ornament, part } from '../hooks';
 import { IconClose } from '../icons';
 import { LevelProvider, usePortal } from './context';
 
@@ -40,9 +40,10 @@ export function InfoPopover({ label = '说明', children, trigger }: { label?: s
   );
 }
 
-export function Toast({ message, action, onAction, onClose }: { message: React.ReactNode; action?: string; onAction?: () => void; onClose: () => void }): React.JSX.Element {
+export function Toast({ message, action, onAction, onClose, tone = 'info' }: { message: React.ReactNode; action?: string; onAction?: () => void; onClose: () => void; tone?: 'info' | 'success' | 'danger' }): React.JSX.Element {
   return (
-    <div {...k('toast')} data-k-level="inverse" role="status" aria-live="polite">
+    <div {...k('toast')} data-k-level="inverse" role="status" aria-live="polite" data-k-tone={tone}>
+      <span {...ornament('toast-face')} />
       <span {...part('message')}>{message}</span>
       {action ? <button type="button" {...part('action')} onClick={onAction}>{action}</button> : null}
       <button type="button" {...part('close')} aria-label="关闭" onClick={onClose}><IconClose width={14} height={14} /></button>

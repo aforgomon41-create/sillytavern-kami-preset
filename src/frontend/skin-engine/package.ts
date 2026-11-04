@@ -74,7 +74,7 @@ export const CONTRACT_MAJOR = 1;
 export const MODULES = ['fracture', 'particles', 'glitch', 'ink', 'trace', 'scan', 'unroll',
   'stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark', 'ambient'] as const;
 /** 风格文案槽位（契约第 11 节）：功能方声明，皮肤在 flavor 里填；{name} = 思考者名字，{n} = 数量 */
-export const FLAVOR_SLOTS = ['think.done', 'think.live', 'search.done', 'options.title'] as const;
+export const FLAVOR_SLOTS = ['think.done', 'think.live', 'search.done', 'options.title', 'sign.live', 'sign.done', 'sign.oops'] as const;
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 /** 参数可以绑定：种子（seed:accent）、语义令牌（token:surface-1）、皮肤自己的变量（var:--k-skin-xxx） */
