@@ -1,93 +1,103 @@
 {
-  "id": "spore",
-  "name": "孢子",
+  "id": "hive",
+  "name": "骸巢",
   "version": "0.1.0",
   "contract": "1.0",
-  "description": "生物朋克：培养皿与细胞膜——实验室冷白与洋红 / 紫黑培养箱与生物荧光青；不规则的膜圆角、细胞、DNA；细胞一分为二。",
+  "description": "生物朋克：吉格尔式的生物机械——骨骼与肋骨长成的建筑、湿亮的黑色甲壳、带肋的软管；肉门旋开、黏液垂落。",
   "author": "卡密预设",
-  "credits": "字体 Comfortaa（OFL）；细胞、DNA、培养皿为 SVG 绘制。",
+  "credits": "字体 Grenze Gotisch（OFL）；椎骨、肋骨、脊柱、软管为 SVG 绘制。",
   "defaultScheme": "dark",
   "schemes": {
     "light": {
       "seeds": {
-        "neutral": "#f2f5f3",
-        "accent": "#a8305e",
-        "radius": 22,
+        "neutral": "#d8ccb4",
+        "accent": "#7a2a1c",
+        "radius": 10,
         "elevation": "shadow",
         "font": {
-          "heading": "\"Comfortaa\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "heading": "\"Grenze Gotisch\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
           "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
         },
-        "danger": "#a82a2a",
-        "success": "#1f7a6a",
-        "info": "#2f6ab0",
-        "warning": "#8a6200"
+        "danger": "#8a1e14",
+        "success": "#4a6a3a",
+        "info": "#3a5a6a",
+        "warning": "#7a5a10"
+      },
+      "tokens": {
+        "bg": "#ddd0b5",
+        "surface-1": "#e8dcc3",
+        "surface-2": "#ddcfb2",
+        "surface-3": "#d3c3a3",
+        "sunken": "#d6c7a8",
+        "control": "#dccdae",
+        "control-hover": "#d2c2a1",
+        "control-active": "#c8b795"
       }
     },
     "dark": {
       "seeds": {
-        "neutral": "#170f1a",
-        "accent": "#5fe8c8",
-        "radius": 22,
-        "elevation": "glow",
+        "neutral": "#0f0e0d",
+        "accent": "#c9b48a",
+        "radius": 10,
+        "elevation": "shadow",
         "font": {
-          "heading": "\"Comfortaa\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "heading": "\"Grenze Gotisch\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
           "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
         },
-        "danger": "#ff8a9a",
-        "success": "#5fe8c8",
-        "info": "#a8b8ff",
-        "warning": "#ffd070"
+        "danger": "#e0806a",
+        "success": "#9ab88a",
+        "info": "#9ab4c0",
+        "warning": "#e0c070"
       }
     }
   },
   "modules": [
-    "mitosis",
+    "iris",
     "ink",
     "ambient"
   ],
   "effects": [
     {
-      "id": "mitosis",
-      "name": "细胞分裂",
-      "description": "按下与打开时一个细胞拉长、一分为二、各自漂开。",
+      "id": "iris",
+      "name": "肉门",
+      "description": "按下与打开时一扇带肋的肉门拧着旋开。",
       "group": "动效",
       "default": true
     },
     {
       "id": "ink",
-      "name": "培养液",
-      "description": "打开时一团培养液晕开。",
+      "name": "体液",
+      "description": "打开时一团暗色的体液晕开。",
       "group": "动效",
       "default": true
     },
     {
       "id": "ambient",
-      "name": "孢子",
-      "description": "孢子气泡从下方缓缓上浮。（只在动效「完整」档）",
+      "name": "黏液",
+      "description": "黏液从上沿挂下、拉长、坠落。（只在动效「完整」档）",
       "group": "动效",
       "default": true
     },
     {
-      "id": "pulse",
+      "id": "breathe",
       "name": "呼吸",
-      "description": "面板标题前的细胞慢慢呼吸。",
+      "description": "面板标题前的椎骨慢慢起伏，像活的。",
       "group": "装饰",
       "default": true
     },
     {
-      "id": "membrane",
-      "name": "细胞膜",
-      "description": "面板外一圈半透明的膜。",
+      "id": "ribs",
+      "name": "骨肋",
+      "description": "标题栏的肋骨纹、卡片左侧的脊椎、面板背景的大肋骨。",
       "group": "质感",
       "default": true
     }
   ],
   "flavor": {
-    "think.done": "{name}的培养记录",
-    "think.live": "{name}培养中",
-    "search.done": "采集 {n} 份样本",
-    "options.title": "演化方向"
+    "think.done": "{name}的孕育记录",
+    "think.live": "{name}孕育中",
+    "search.done": "剥出 {n} 块残骸",
+    "options.title": "下一道肉门"
   },
   "icons": {
     "🔻": "section-end",

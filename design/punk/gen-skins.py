@@ -106,24 +106,37 @@ KITE_BIG = svg('0 0 24 26', "<g fill='none' stroke='#000' stroke-width='.45'><pa
 KNOT = svg('0 0 24 24', "<circle cx='12' cy='12' r='2.6'/><path d='M12 9.5C9 3 3 6 9.5 11M12 14.5c3 6.5 9 3.5 2.5-1' fill='none' stroke='#000' stroke-width='1.5' stroke-linecap='round'/>")
 SILK_WAVE = svg('0 0 120 20', "<path d='M0 10c15-8 25 8 40 0s25-8 40 0 25 8 40 0M0 16c15-8 25 8 40 0s25-8 40 0 25 8 40 0' fill='none' stroke='#000' stroke-width='.8'/>")
 KITE_LINE = svg('0 0 80 14', "<path d='M2 3C22 14 46 14 70 6' fill='none' stroke='#000' stroke-width='1.3' stroke-linecap='round'/><path d='M70 2l7 4-7 4-3-4z'/>")
-CELL = svg('0 0 24 24', "<circle cx='12' cy='12' r='10' fill='none' stroke='#000' stroke-width='1.6'/><circle cx='13' cy='11' r='4'/>"
-            "<circle cx='7' cy='15.5' r='1.3'/><circle cx='16.5' cy='17' r='1'/><circle cx='8' cy='7.5' r='.9'/>")
-DNA = svg('0 0 24 24', "<path d='M7 1c0 6 10 6 10 11S7 17 7 23M17 1c0 6-10 6-10 11s10 5 10 11' fill='none' stroke='#000' stroke-width='1.5'/>"
-           "<path d='M8.5 4.5h7M10 8h4M10 16h4M8.5 19.5h7' stroke='#000' stroke-width='1.2'/>")
-PETRI = svg('0 0 24 24', "<circle cx='12' cy='12' r='11.2' fill='none' stroke='#000' stroke-width='.45'/><circle cx='12' cy='12' r='10' fill='none' stroke='#000' stroke-width='.25'/>"
-             "<circle cx='8' cy='9' r='1.6'/><circle cx='9.6' cy='10.4' r='.9'/><circle cx='15' cy='14' r='2.1'/><circle cx='13.2' cy='16.2' r='1'/><circle cx='16' cy='8' r='.8'/><circle cx='7.5' cy='15' r='1.1'/>")
+# ───────── 骸巢（生物机械）的形状 ─────────
+VERTEBRA = svg('0 0 24 24', "<path d='M12 1.5 13.4 7h-2.8z'/>"
+               "<path d='M1.5 10.5c3-1.8 5.4-1.8 7 .2L8 13c-2-.6-4-.2-6.5 1z M22.5 10.5c-3-1.8-5.4-1.8-7 .2L16 13c2-.6 4-.2 6.5 1z'/>"
+               "<path fill-rule='evenodd' d='M12 7c3.7 0 6.2 2.5 6.2 5.6S15.7 18.4 12 18.4 5.8 15.7 5.8 12.6 8.3 7 12 7zm0 3.2a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z'/>"
+               "<path d='M9.2 17.6 7.6 22.5h2.1l1.2-4.4zM14.8 17.6l1.6 4.9h-2.1l-1.2-4.4z'/>")
 
 
-def cells_chain():
+def ribcage(sw):
+    ribs = ''
+    for i, (y, wd, dy) in enumerate(((5, 8.5, 4), (9.5, 9.5, 4.5), (14, 9, 4.5), (18.5, 7, 3.5))):
+        ribs += "M12 %s c-%s 0-%s %s-%s %s M12 %s c%s 0 %s %s %s %s " % (y, wd * .45, wd, dy * .4, wd, dy, y, wd * .45, wd, dy * .4, wd, dy)
+    return svg('0 0 24 24', "<path d='M12 1.5V23' fill='none' stroke='#000' stroke-width='%s' stroke-linecap='round' stroke-dasharray='2.2 1'/>" % (sw * 1.3) +
+               "<path d='" + ribs + "' fill='none' stroke='#000' stroke-width='%s' stroke-linecap='round'/>" % sw)
+
+
+RIBCAGE = ribcage(1.5)
+RIBCAGE_THIN = ribcage(.45)
+
+
+def hose(w=80, h=14, amp=2.5):
     body = ''
-    for i, x in enumerate((7, 21, 35, 49)):
-        body += "<circle cx='%d' cy='7' r='5' fill='none' stroke='#000' stroke-width='1.2'/><circle cx='%d' cy='7' r='%s'/>" % (x, x + 1, '1.8' if i % 2 else '1.4')
-    return svg('0 0 56 14', body)
+    for x in range(1, w - 2, 4):
+        cy = h / 2 + amp * math.sin(x / w * 2 * math.pi)
+        body += "<rect x='%d' y='%.2f' width='3' height='%.2f' rx='1.4'/>" % (x, cy - (h / 2 - 2), h - 4)
+    return svg('0 0 %d %d' % (w, h), body)
 
 
-CELLS = cells_chain()
-CLUSTER = svg('0 0 24 24', "<g fill='none' stroke='#000' stroke-width='.5'><circle cx='8' cy='9' r='5'/><circle cx='15.5' cy='13' r='4'/><circle cx='9' cy='18' r='3.4'/></g>"
-               "<circle cx='8.5' cy='8.5' r='1.6'/><circle cx='16' cy='12.6' r='1.2'/><circle cx='9.3' cy='17.6' r='1'/>")
+HOSE = hose()
+# 背景竖着的一根脊柱：一节椎骨，按纵向平铺
+SPINE_TILE = svg('0 0 24 13', "<path d='M7.2 5.2 1.2 8.6l.6 1.2 6.4-2.6zM16.8 5.2l6 3.4-.6 1.2-6.4-2.6z'/>"
+                 "<path fill-rule='evenodd' d='M12 1.4c3.4 0 5.6 1.9 5.6 4.6S15.4 11.4 12 11.4 6.4 8.7 6.4 6 8.6 1.4 12 1.4zm0 2.8a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z'/>")
 
 
 def escapement(n=15, ro=11.5, ri=8.5, hole=3):
@@ -532,74 +545,88 @@ SKINS.append(dict(
     extra={'SILK_WAVE_TILE': mask(SILK_WAVE, '0 0 / 120px 22px repeat-x')},
 ))
 
-# ═════════════════════════════════ 孢子 · 生物朋克 ═════════════════════════════════
-SPORE_CSS = r'''/* 孢子 —— 生物朋克。培养皿与细胞膜：实验室冷白 + 洋红 / 紫黑培养箱 + 生物荧光青；不规则的细胞膜圆角、
-   半透明的膜光晕、细胞、DNA、培养皿。招牌：mitosis 细胞分裂；环境：孢子气泡上浮。（design/punk/gen-skins.py 生成，改这里无效） */
-:host, [data-k-surface] { --k-fx-glow: #b8396a; --k-fx-alt: #1f8a7a; --k-fx-ink: #1f8a7a; --k-fx-size: 10px; }
-[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #ff7aa8; --k-fx-alt: #5fe8c8; --k-fx-ink: #5fe8c8; }
-[data-k-surface] { --k-bio-cyan: #1f8a7a; --k-bio-pink: #b8396a; --k-bio-gel: rgba(31, 138, 122, .1); --k-bio-tag-bg: #ffe6ef; --k-bio-tag-fg: #6a1a3a; }
-[data-k-surface][data-k-scheme="dark"] { --k-bio-cyan: #5fe8c8; --k-bio-pink: #ff7aa8; --k-bio-gel: rgba(95, 232, 200, .1); --k-bio-tag-bg: #2a1830; --k-bio-tag-fg: #ffb8d0; }
-:host, [data-k-surface] { --k-amb: bubble; --k-amb-dir: up; --k-amb-count: 9; --k-amb-speed: 16; --k-amb-size: 4; --k-amb-color: #1f8a7a; --k-amb-alpha: .3; }
-[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #5fe8c8; --k-amb-alpha: .35; }
+# ═════════════════════════════════ 骸巢 · 生物朋克 ═════════════════════════════════
+# 用户 2026-11-07：生物朋克要的是吉格尔式的生物机械（参照：游戏《蔑视》、电影《异形》），不是微生物 → 「孢子」整款重做为「骸巢」
+HIVE_CSS = r'''/* 骸巢 —— 生物朋克。吉格尔式的生物机械：骨骼、肋骨与脊椎长成的建筑，湿亮的黑色外壳，带肋的软管，括约肌一样开合的肉门。
+   浅色是风干的骨与筋膜（骨白 + 干血赭）；深色是湿黑的甲壳 + 骨色，肉色只在开关打开、对白里透出来。
+   招牌：iris 肉门旋开；环境：黏液从上沿挂下、坠落。（design/punk/gen-skins.py 生成，改这里无效） */
+:host, [data-k-surface] { --k-fx-glow: #7a2a1c; --k-fx-alt: #8a7a5c; --k-fx-ink: #5a2418; --k-fx-size: 10px; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #b4573c; --k-fx-alt: #c9b48a; --k-fx-ink: #3a1810; }
+[data-k-surface] { --k-hv-bone: #a8987a; --k-hv-bone-hi: #e8dcc0; --k-hv-flesh: #8a3324; --k-hv-shell: #2c2a28; --k-hv-rib: rgba(60, 40, 28, .12); --k-hv-wet: rgba(255, 255, 255, .35); --k-hv-tag-bg: #e6d9bc; --k-hv-tag-fg: #3a1a10; --k-hv-vig: rgba(90, 50, 28, .16); }
+[data-k-surface][data-k-scheme="dark"] { --k-hv-bone: #c9b48a; --k-hv-bone-hi: #efe2c4; --k-hv-flesh: #a8472f; --k-hv-shell: #33302d; --k-hv-rib: rgba(201, 180, 138, .08); --k-hv-wet: rgba(220, 230, 235, .12); --k-hv-tag-bg: #c9b48a; --k-hv-tag-fg: #1a0f0a; --k-hv-vig: rgba(0, 0, 0, .45); }
+:host, [data-k-surface] { --k-amb: ooze; --k-amb-count: 5; --k-amb-speed: 14; --k-amb-size: 5; --k-amb-color: #6a3a26; --k-amb-alpha: .35; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #9aa39a; --k-amb-alpha: .3; }
 
-/* ───────── 面板：细胞膜（不规则圆角 + 一圈半透明的膜） ───────── */
-@@BOTH@@ { border-radius: 32px 26px 30px 24px / 26px 32px 24px 30px; border: 1.5px solid color-mix(in srgb, var(--k-bio-cyan) 45%, transparent); box-shadow: 0 20px 40px rgba(0, 0, 0, .25); }
-[data-k-surface][data-k-effects~="membrane"] @@BOTHX@@ { box-shadow: 0 0 0 6px var(--k-bio-gel), 0 20px 40px rgba(0, 0, 0, .25); }
-@@HEAD@@ { border-bottom: 1px dashed color-mix(in srgb, var(--k-bio-cyan) 45%, transparent); background: radial-gradient(ellipse at 15% 0%, color-mix(in srgb, var(--k-bio-pink) 14%, transparent), transparent 60%); }
-[data-k="card"] { border-radius: 20px 16px 22px 14px / 16px 22px 14px 20px; border: 1px solid color-mix(in srgb, var(--k-bio-cyan) 40%, transparent); box-shadow: 0 0 0 3px var(--k-bio-gel); }
-[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-bio-pink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--k-bio-pink) 30%, transparent), 0 0 14px color-mix(in srgb, var(--k-bio-pink) 30%, transparent); }
+/* ───────── 面板：湿亮的甲壳外框（顶上一道高光），标题栏是一排肋骨 ───────── */
+@@BOTH@@ { border-radius: 26px 26px 10px 10px / 34px 34px 10px 10px; border: 2px solid var(--k-hv-shell); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-hv-bone) 30%, transparent), inset 0 10px 18px -12px var(--k-hv-wet), 0 22px 44px rgba(0, 0, 0, .45); }
+@@HEAD@@ { border-bottom: 1px solid color-mix(in srgb, var(--k-hv-bone) 45%, transparent); }
+[data-k-surface][data-k-effects~="ribs"] @@HEADX@@ { background-image: linear-gradient(180deg, var(--k-hv-wet), transparent 45%), repeating-linear-gradient(90deg, var(--k-hv-rib) 0, color-mix(in srgb, var(--k-hv-bone) 22%, transparent) 2.5px, var(--k-hv-rib) 5px, transparent 6px 8px); background-size: 100% 100%, 100% 62%; background-repeat: no-repeat; }
+@@TITLE@@ { letter-spacing: .1em; }
+/* 卡片：左边一节节脊椎 */
+[data-k="card"] { border-radius: 16px 6px 16px 6px; border: 1px solid color-mix(in srgb, var(--k-hv-bone) 40%, transparent); box-shadow: inset 0 6px 10px -8px var(--k-hv-wet); }
+[data-k-surface][data-k-effects~="ribs"] [data-k="card"] { background-image: repeating-linear-gradient(180deg, color-mix(in srgb, var(--k-hv-bone) 38%, transparent) 0 7px, transparent 7px 10px); background-size: 4px calc(100% - 24px); background-position: 6px 12px; background-repeat: no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-hv-flesh); box-shadow: inset 0 0 0 1px var(--k-hv-flesh), 0 0 16px color-mix(in srgb, var(--k-hv-flesh) 30%, transparent); }
 
-/* ───────── 开关：细胞核；滑块：一个细胞；进度：培养液 ───────── */
-[data-k="button"] { border-radius: 999px; box-shadow: 0 0 0 3px var(--k-bio-gel); }
-[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: scale(.95, 1.04); }
-[data-k="switch"] { border-radius: 999px; }
-[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle at 45% 45%, var(--k-bio-pink) 0 28%, #fff 32%); }
-[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle at 45% 45%, var(--k-bio-pink) 0 26%, color-mix(in srgb, var(--k-bio-cyan) 25%, #fff) 30%); border-color: var(--k-bio-cyan); }
-[data-k="progress"] { border-radius: 999px; }
-[data-k="progress"] [data-k-part="indicator"] { background: radial-gradient(circle, rgba(255, 255, 255, .55) 0 1.5px, transparent 2.5px) 0 50% / 12px 100%, linear-gradient(90deg, var(--k-bio-cyan), var(--k-bio-pink)); }
-[data-k="tabs"] [data-k-part="tab"] { border-radius: 999px; }
-[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: 0 0 0 1.5px var(--k-bio-pink); }
-/* 徽章 = 标本标签 */
-[data-k="badge"][data-tone="accent"] { border-radius: 3px; background: var(--k-bio-tag-bg); color: var(--k-bio-tag-fg); box-shadow: inset 0 0 0 1px var(--k-bio-pink); }
-[data-k="spinner"] { border-color: var(--k-bio-cyan); border-left-color: var(--k-bio-pink); }
+/* ───────── 按钮：骨质的甲片；开关：带肋的软管 + 一节椎骨；进度：软管里灌满的体液 ───────── */
+[data-k="button"] { border-radius: 14px 5px 14px 5px; border-color: color-mix(in srgb, var(--k-hv-bone) 55%, transparent); letter-spacing: .06em; box-shadow: inset 0 1px 0 var(--k-hv-wet), inset 0 -2px 0 rgba(0, 0, 0, .25); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: scale(.96, 1.03); }
+[data-k="switch"] { background: repeating-linear-gradient(90deg, #26221f 0 3px, #3a3530 3px 5px); border-color: var(--k-hv-shell); }
+[data-k="switch"][data-state="checked"] { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--k-hv-flesh) 75%, #000) 0 3px, var(--k-hv-flesh) 3px 5px); border-color: var(--k-hv-flesh); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle at 50% 55%, #2a1a12 0 20%, var(--k-hv-bone-hi) 25% 48%, var(--k-hv-bone) 62%, #6a5a40); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle at 50% 55%, #2a1a12 0 20%, var(--k-hv-bone-hi) 25% 48%, var(--k-hv-bone) 62%, #6a5a40); border-color: var(--k-hv-shell); }
+[data-k="progress"] { border-radius: 999px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--k-on) 14%, transparent) 0 2px, transparent 2px 6px), var(--k-sunken); }
+[data-k="progress"] [data-k-part="indicator"] { background: linear-gradient(180deg, var(--k-hv-wet), transparent 45%), repeating-linear-gradient(90deg, var(--k-hv-flesh) 0 4px, color-mix(in srgb, var(--k-hv-flesh) 70%, #000) 4px 6px); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: inset 0 -2px 0 var(--k-hv-bone); }
+/* 徽章 = 一片骨签 */
+[data-k="badge"][data-tone="accent"] { border-radius: 8px 2px 8px 2px; background: var(--k-hv-tag-bg); color: var(--k-hv-tag-fg); box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .25); }
+[data-k="spinner"] { border-color: var(--k-hv-bone); border-top-color: var(--k-hv-flesh); }
+/* 底层四周压暗，像洞穴深处 */
+[data-k-surface][data-k-effects~="ribs"] [data-k-level="bg"] { background-image: radial-gradient(ellipse 80% 70% at 50% 40%, transparent 55%, var(--k-hv-vig)); }
 
-/* ───────── 角饰：细胞（完整动效下呼吸）+ DNA ───────── */
-[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 18px; height: 18px; background: var(--k-bio-pink); @@CELL@@ }
-[data-k-surface][data-k-motion="full"][data-k-effects~="pulse"] [data-k-ornament="panel-head-start"] { animation: k-bio-pulse 3.2s ease-in-out infinite; }
-@keyframes k-bio-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12, .92); } }
-[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 14px; height: 14px; background: var(--k-bio-cyan); @@DNA@@ }
-@@CORNER@@ { right: 7px; bottom: 7px; width: 13px; height: 13px; background: var(--k-bio-cyan); opacity: .45; @@CELL@@ }
-[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; background: var(--k-bio-pink); }
-/* 面板背景：右上一只培养皿 + 左下一簇细胞 */
-@@BD_BEFORE@@ { content: ''; position: absolute; right: -40px; top: -30px; width: 230px; height: 230px; background: var(--k-bio-cyan); opacity: .1; @@PETRI@@ }
-@@BD_AFTER@@ { content: ''; position: absolute; left: -10px; bottom: -14px; width: 130px; height: 130px; background: var(--k-bio-pink); opacity: .08; @@CLUSTER@@ }
-@@MSG_BEFORE@@ { content: ''; position: absolute; right: 8px; top: 8px; width: 64px; height: 16px; background: var(--k-bio-cyan); opacity: .22; @@CELLS@@ }
+/* ───────── 角饰：一节椎骨（完整动效下慢慢「呼吸」）+ 一副肋骨 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 19px; height: 19px; background: var(--k-hv-bone); @@VERTEBRA@@ }
+[data-k-surface][data-k-motion="full"][data-k-effects~="breathe"] [data-k-ornament="panel-head-start"] { animation: k-hv-breathe 5s ease-in-out infinite; }
+@keyframes k-hv-breathe { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.1, .94); } }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 16px; height: 16px; background: var(--k-hv-bone); @@RIBCAGE@@ }
+@@CORNER@@ { right: 6px; bottom: 6px; width: 14px; height: 14px; background: var(--k-hv-bone); opacity: .5; @@VERTEBRA@@ }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; background: var(--k-hv-flesh); }
+/* 面板背景：右侧一根贯穿上下的脊柱 + 左下一副大肋骨 */
+@@BD_BEFORE@@ { content: ''; position: absolute; right: 14px; top: 0; bottom: 0; width: 46px; background: var(--k-hv-bone); opacity: .08; @@SPINE_TILE@@ }
+[data-k-surface][data-k-effects~="ribs"] @@BD_AFTER@@ { content: ''; position: absolute; left: -30px; bottom: -40px; width: 240px; height: 240px; background: var(--k-hv-bone); opacity: .08; @@RIBCAGE_THIN@@ }
+@@MSG_BEFORE@@ { content: ''; position: absolute; right: 8px; top: 6px; width: 90px; height: 16px; background: var(--k-hv-bone); opacity: .2; @@HOSE@@ }
+/* 消息左缘一根细脊椎，贯穿整条消息 */
+[data-k-surface][data-k-effects~="ribs"] @@MSG_AFTER@@ { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 22px; background: var(--k-hv-bone); opacity: .12; @@SPINE_TILE_S@@ }
 
 /* ───────── 消息正文 ───────── */
 [data-k-content="body"] > * { font-family: @@SANS@@; }
-[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #a8305e; --k-msg-thought: #6a3a9a; }
-[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #5fe8c8; --k-msg-thought: #d0a0ff; }
-[data-k-content] [data-k-part="name"] { font-family: "Comfortaa", @@SANS@@; }
-[data-k-content="body"] > [data-k-part="scene-break"] { width: 64px; height: 16px; border: 0; background: var(--k-msg-dialogue); opacity: .55; @@CELLS@@ }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #7a2418; --k-msg-thought: #4a4838; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #d99a76; --k-msg-thought: #9ea8ac; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content] [data-k-part="name"] { font-family: "Grenze Gotisch", @@SANS@@; letter-spacing: .04em; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 84px; height: 14px; border: 0; background: var(--k-msg-dialogue); opacity: .5; @@HOSE@@ }
 '''
 SKINS.append(dict(
-    id='spore', name='孢子', css=SPORE_CSS,
-    description='生物朋克：培养皿与细胞膜——实验室冷白与洋红 / 紫黑培养箱与生物荧光青；不规则的膜圆角、细胞、DNA；细胞一分为二。',
-    credits='字体 Comfortaa（OFL）；细胞、DNA、培养皿为 SVG 绘制。',
-    fonts=[{'pkg': 'comfortaa', 'family': 'Comfortaa', 'weights': [400, 700]}],
-    heading='"Comfortaa", ' + SANS, body=SANS,
-    light=dict(neutral='#f2f5f3', accent='#a8305e', radius=22, elevation='shadow', danger='#a82a2a', success='#1f7a6a', info='#2f6ab0', warning='#8a6200'),
-    dark=dict(neutral='#170f1a', accent='#5fe8c8', radius=22, elevation='glow', danger='#ff8a9a', success='#5fe8c8', info='#a8b8ff', warning='#ffd070'),
-    modules=['mitosis', 'ink', 'ambient'],
-    effects=[('mitosis', '细胞分裂', '按下与打开时一个细胞拉长、一分为二、各自漂开。', '动效'),
-             ('ink', '培养液', '打开时一团培养液晕开。', '动效'),
-             ('ambient', '孢子', '孢子气泡从下方缓缓上浮。（只在动效「完整」档）', '动效'),
-             ('pulse', '呼吸', '面板标题前的细胞慢慢呼吸。', '装饰'),
-             ('membrane', '细胞膜', '面板外一圈半透明的膜。', '质感')],
-    flavor={'think.done': '{name}的培养记录', 'think.live': '{name}培养中', 'search.done': '采集 {n} 份样本', 'options.title': '演化方向'},
-    opts=dict(action='#b8396a', persona='#8a4ab0', plot='#1f8a7a', info='#2f6ab0', fun='#c8a020', nsfw='#c02050', other='#6a7a78'),
+    id='hive', name='骸巢', css=HIVE_CSS,
+    description='生物朋克：吉格尔式的生物机械——骨骼与肋骨长成的建筑、湿亮的黑色甲壳、带肋的软管；肉门旋开、黏液垂落。',
+    credits='字体 Grenze Gotisch（OFL）；椎骨、肋骨、脊柱、软管为 SVG 绘制。',
+    fonts=[{'pkg': 'grenze-gotisch', 'family': 'Grenze Gotisch'}],
+    heading='"Grenze Gotisch", ' + SANS, body=SANS,
+    light=dict(neutral='#d8ccb4', accent='#7a2a1c', radius=10, elevation='shadow', danger='#8a1e14', success='#4a6a3a', info='#3a5a6a', warning='#7a5a10',
+               # 浅色不要纸白：表面压成风干的骨色（引擎默认把浅色表面推到接近白）
+               tokens={'bg': '#ddd0b5', 'surface-1': '#e8dcc3', 'surface-2': '#ddcfb2', 'surface-3': '#d3c3a3', 'sunken': '#d6c7a8', 'control': '#dccdae', 'control-hover': '#d2c2a1', 'control-active': '#c8b795'}),
+    dark=dict(neutral='#0f0e0d', accent='#c9b48a', radius=10, elevation='shadow', danger='#e0806a', success='#9ab88a', info='#9ab4c0', warning='#e0c070'),
+    modules=['iris', 'ink', 'ambient'],
+    effects=[('iris', '肉门', '按下与打开时一扇带肋的肉门拧着旋开。', '动效'),
+             ('ink', '体液', '打开时一团暗色的体液晕开。', '动效'),
+             ('ambient', '黏液', '黏液从上沿挂下、拉长、坠落。（只在动效「完整」档）', '动效'),
+             ('breathe', '呼吸', '面板标题前的椎骨慢慢起伏，像活的。', '装饰'),
+             ('ribs', '骨肋', '标题栏的肋骨纹、卡片左侧的脊椎、面板背景的大肋骨。', '质感')],
+    flavor={'think.done': '{name}的孕育记录', 'think.live': '{name}孕育中', 'search.done': '剥出 {n} 块残骸', 'options.title': '下一道肉门'},
+    opts=dict(action='#8a3324', persona='#6a3a5a', plot='#5a6a3a', info='#3a5a6a', fun='#a07a20', nsfw='#9a1a2a', other='#6a6052'),
     stroke='stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;',
-    shapes=dict(CELL=CELL, DNA=DNA, PETRI=PETRI, CLUSTER=CLUSTER, CELLS=CELLS),
+    shapes=dict(VERTEBRA=VERTEBRA, RIBCAGE=RIBCAGE, RIBCAGE_THIN=RIBCAGE_THIN, HOSE=HOSE),
+    extra={'SPINE_TILE': mask(SPINE_TILE, 'center top / 46px 25px repeat-y'), 'SPINE_TILE_S': mask(SPINE_TILE, 'center top / 22px 12px repeat-y'),
+           'MSG_AFTER': pseudo(MSG, 'after')},
 ))
 
 # ═════════════════════════════════ 发条 · 发条朋克 ═════════════════════════════════
@@ -722,7 +749,10 @@ def manifest(sk):
                  'font': {'heading': sk['heading'], 'body': sk['body']}}
         for t in ('danger', 'success', 'info', 'warning'):
             seeds[t] = p[t]
-        return {'seeds': seeds}
+        out = {'seeds': seeds}
+        if p.get('tokens'):
+            out['tokens'] = p['tokens']
+        return out
     return {
         'id': sk['id'], 'name': sk['name'], 'version': '0.1.0', 'contract': '1.0',
         'description': sk['description'], 'author': '卡密预设', 'credits': sk['credits'],

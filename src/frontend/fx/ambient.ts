@@ -2,7 +2,7 @@
  * 平台动效模块 `ambient`：常驻的环境层（前端契约 6.5）。落樱、雨丝、余烬、灵光、沙尘、气泡、扫过的光……
  * 2026-11-02 为世界观系列深化补充。皮肤只用 CSS 变量调参（写在 [data-k-surface] 上）：
  *
- *   --k-amb         种类：glyph 字符 | dot 光点 | streak 雨丝 / 数据流 | petal 花瓣 / 叶片 | sweep 扫过的光带 | blink 点阵闪烁 | bubble 气泡 | puff 烟团
+ *   --k-amb         种类：glyph 字符 | dot 光点 | streak 雨丝 / 数据流 | petal 花瓣 / 叶片 | sweep 扫过的光带 | blink 点阵闪烁 | bubble 气泡 | puff 烟团 | ooze 黏液垂滴（从上沿挂出、拉长、坠落）
  *   --k-amb-dir     走向：up | down | left | right | float（原地飘）        --k-amb-angle  倾斜角（度，雨丝 / 光带用）
  *   --k-amb-count   数量（默认 8，上限 24；手机减半）                       --k-amb-speed  一个来回的秒数（默认 12）
  *   --k-amb-size    大小（px，默认 6）    --k-amb-color 颜色（默认强调色）    --k-amb-alpha  不透明度（默认 .35）
@@ -15,7 +15,7 @@
  */
 
 const HOST_SEL = '[data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="msg-view"]:not([data-k-kind]), [data-k="msg-view"][data-k-kind="body"]';
-const KINDS = ['glyph', 'dot', 'streak', 'petal', 'sweep', 'blink', 'bubble', 'puff'] as const;
+const KINDS = ['glyph', 'dot', 'streak', 'petal', 'sweep', 'blink', 'bubble', 'puff', 'ooze'] as const;
 type Kind = typeof KINDS[number];
 
 export interface AmbientOptions {
@@ -158,6 +158,20 @@ export class Ambient {
         s.width = sz + 'px'; s.height = sz + 'px'; s.borderRadius = '50%'; s.background = color; s.boxShadow = '0 0 ' + sz * 1.5 + 'px ' + color;
         const at = 'translate(' + rnd(0, w - sz) + 'px,' + rnd(0, h - sz) + 'px)';
         frames = [{ transform: at + ' scale(.4)', opacity: 0 }, { transform: at + ' scale(1)', opacity: alpha, offset: 0.12 }, { transform: at + ' scale(.6)', opacity: 0, offset: 0.3 }, { transform: at, opacity: 0 }];
+      } else if (kind === 'ooze') {
+        /* 黏液：从上沿某处挂出一滴，慢慢拉长，然后坠落、淡掉 */
+        s.width = sz + 'px'; s.height = sz * 1.5 + 'px'; s.borderRadius = '50% 50% 50% 50% / 35% 35% 65% 65%';
+        s.background = 'radial-gradient(circle at 38% 62%, rgba(255,255,255,.55) 0 12%, transparent 22%), ' + color; s.transformOrigin = '50% 0';
+        const x = rnd(0, w - sz), fall = rnd(h * 0.35, h * 0.9);
+        const at = (y: number, sx: number, sy: number): string => 'translate(' + x + 'px,' + y + 'px) scale(' + sx + ',' + sy + ')';
+        frames = [
+          { transform: at(-sz * 0.6, 0.3, 0.2), opacity: 0 },
+          { transform: at(-sz * 0.6, 0.8, 0.8), opacity: alpha, offset: 0.15 },
+          { transform: at(-sz * 0.4, 0.75, 2.2), opacity: alpha, offset: 0.62, easing: 'cubic-bezier(.6,0,1,1)' },
+          { transform: at(fall, 0.7, 1.4), opacity: alpha * 0.8, offset: 0.8 },
+          { transform: at(fall + sz * 2, 0.6, 1), opacity: 0, offset: 0.86 },
+          { transform: at(fall + sz * 2, 0.6, 1), opacity: 0 }
+        ];
       } else {
         /* 会移动的种类：起点 / 终点按走向定，中途左右摆一下 */
         let x0 = rnd(0, w), y0 = rnd(0, h), x1 = x0, y1 = y0;

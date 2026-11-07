@@ -21,16 +21,16 @@
  *   starburst 原子星芒：四芒 + 斜芒弹开、转一下（星芒）
  *   sprout    藤蔓从角落长出、展开几片叶子（向阳）
  *   ribbon    绢带从按下处飘出、随风摆动（纸鸢）     --k-fx-alt 第二条绢带的颜色
- *   mitosis   细胞拉长、一分为二、各自漂开（孢子）
+ *   iris      生物机械的肉门：一圈带肋的瓣片旋开、向外收进门框（骸巢）
  *   clockhand 钟面一圈，指针一格一格走（擒纵，发条）
  * 只动 transform / opacity（tendril / mark 另动 SVG 描边偏移）；「平静」档只留最轻的一下，「关闭」与系统减少动态效果时不播（由 motifs.ts 拦）。
  */
 import type { Ctx, Event, Kit } from './motifs';
 
 export type SignatureId = 'stamp' | 'words' | 'slash' | 'sparks' | 'steam' | 'flash' | 'ripple' | 'lockon' | 'drip' | 'tendril' | 'shine' | 'orbit' | 'mark'
-  | 'beam' | 'scope' | 'starburst' | 'sprout' | 'ribbon' | 'mitosis' | 'clockhand';
+  | 'beam' | 'scope' | 'starburst' | 'sprout' | 'ribbon' | 'iris' | 'clockhand';
 export const SIGNATURE_IDS: readonly SignatureId[] = ['stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark',
-  'beam', 'scope', 'starburst', 'sprout', 'ribbon', 'mitosis', 'clockhand'];
+  'beam', 'scope', 'starburst', 'sprout', 'ribbon', 'iris', 'clockhand'];
 
 type Painter = (ev: Event, el: Element, c: Ctx, k: Kit) => void;
 const v = (c: Ctx, name: string): string => c.cs.getPropertyValue(name).trim().replace(/^["']|["']$/g, '');
@@ -535,33 +535,48 @@ const ribbon: Painter = (ev, _el, c, k) => {
   });
 };
 
-/* ───────── mitosis：细胞拉长、一分为二、各自漂开（孢子） ───────── */
-const mitosis: Painter = (ev, _el, c, k) => {
+/* ───────── iris：生物机械的肉门——一圈带肋的瓣片拧着旋开、往外收进骨质门框（骸巢） ───────── */
+const iris: Painter = (ev, _el, c, k) => {
   if (fades(ev)) { return; }
   const { r } = c;
   const press = ev === 'press' || ev === 'tab';
-  const spots: Array<[number, number, number]> = press
-    ? [[c.x, ev === 'tab' ? r.top + r.height / 2 : c.y, Math.min(34, Math.max(20, r.height * 0.8))]]
-    : [[r.right - 46, r.top + 34, 40], [r.left + 40, r.top + Math.min(r.height * 0.45, 160), 26]];
-  spots.forEach(([x, y, s], i) => {
-    const ang = k.rnd(-40, 40);
-    const dist = s * (press ? 0.9 : 1.1);
-    for (const side of [-1, 1]) {
-      const d = k.node(); if (!d) { return; }
-      d.style.borderRadius = '50%';
-      d.style.background = 'radial-gradient(circle at 45% 45%, ' + mix(c.alt, 85) + ' 0 18%, ' + mix(c.glow, 22) + ' 24% 62%, ' + mix(c.glow, 70) + ' 72%, transparent 76%)';
-      d.style.boxShadow = '0 0 8px ' + mix(c.glow, 45);
-      const at = k.box(d, x - s / 2, y - s / 2, s, s) + ' rotate(' + ang + 'deg)';
-      if (c.calm) { k.play(d, [{ transform: at, opacity: 0 }, { transform: at, opacity: 0.7, offset: 0.4 }, { transform: at, opacity: 0 }], { duration: 650 }); return; }
-      k.play(d, [
-        { transform: at + ' scale(.2)', opacity: 0 },
-        { transform: at + ' scale(1)', opacity: 0.95, offset: 0.22 },
-        { transform: at + ' translateX(' + side * s * 0.18 + 'px) scale(1.15, .9)', opacity: 0.95, offset: 0.45 },
-        { transform: at + ' translateX(' + side * dist * 0.6 + 'px) scale(.85)', opacity: 0.9, offset: 0.7 },
-        { transform: at + ' translateX(' + side * dist + 'px) translateY(' + -s * 0.4 + 'px) scale(.7)', opacity: 0 }
-      ], { duration: press ? 1000 : 1500, delay: i * 180, easing: 'cubic-bezier(.4,.1,.3,1)' });
-    }
-  });
+  const R = press ? Math.min(30, Math.max(18, r.height * 0.75)) : ev === 'fold-open' ? 34 : Math.min(64, Math.max(40, r.width * 0.08));
+  const cx = press ? c.x : r.right - R - 22;
+  /* 打开时画在标题栏下面的内容区右侧，不盖住标题栏上的按钮 */
+  const cy = press ? (ev === 'tab' ? r.top + r.height / 2 : c.y) : ev === 'fold-open' ? foldTop(r) + R : r.top + Math.min(r.height * 0.3, 70) + R;
+  const alt = v(c, '--k-fx-alt') || c.alt;
+  const N = press ? 6 : 8;
+  const step = 360 / N;
+  const dur = c.calm ? 650 : press ? 900 : 1400;
+  /* 门框：一圈骨质的环，带放射状的肋 */
+  const rim = k.node(); if (!rim) { return; }
+  rim.style.borderRadius = '50%';
+  rim.style.background = 'repeating-conic-gradient(' + alt + ' 0 4deg, ' + mix(alt, 35) + ' 4deg 12deg)';
+  rim.style.webkitMask = rim.style.mask = 'radial-gradient(circle, transparent 0 ' + (R * 0.8) + 'px, #000 ' + (R * 0.82) + 'px ' + R + 'px, transparent ' + (R + 0.5) + 'px)';
+  const rat = k.box(rim, cx - R, cy - R, R * 2, R * 2);
+  k.play(rim, [{ transform: rat + ' scale(.7) rotate(-20deg)', opacity: 0 }, { transform: rat + ' scale(1) rotate(0deg)', opacity: 0.9, offset: 0.2 }, { transform: rat + ' scale(1) rotate(0deg)', opacity: 0.9, offset: 0.75 }, { transform: rat + ' scale(1.05) rotate(4deg)', opacity: 0 }], { duration: dur, easing: 'cubic-bezier(.3,.7,.3,1)' });
+  /* 瓣片：从圆心到门框的扇形，带横肋；先合拢，再一边拧一边往外收，露出中间 */
+  for (let i = 0; i < N; i++) {
+    const d = k.node(); if (!d) { return; }
+    const a0 = i * step + 1.5, a1 = (i + 1) * step - 1.5; /* 瓣与瓣之间留一道缝 */
+    const pt = (a: number): string => (50 + 50 * Math.cos(a * Math.PI / 180)).toFixed(1) + '% ' + (50 + 50 * Math.sin(a * Math.PI / 180)).toFixed(1) + '%';
+    d.style.clipPath = 'polygon(50% 50%, ' + pt(a0) + ', ' + pt((a0 + a1) / 2) + ', ' + pt(a1) + ')';
+    d.style.borderRadius = '50%';
+    /* 越往圆心越暗（门里是深的），横肋一道亮一道暗 */
+    d.style.background = 'radial-gradient(circle, rgba(0,0,0,.7) 0 14%, rgba(0,0,0,.25) 45%, transparent 75%), repeating-radial-gradient(circle, ' + c.glow + ' 0 2.5px, ' + mix(c.glow, 40) + ' 2.5px 4.5px), #1a0f0a';
+    d.style.transformOrigin = '50% 50%';
+    const at = k.box(d, cx - R * 0.82, cy - R * 0.82, R * 1.64, R * 1.64);
+    const mid = ((i + 0.5) * step) * Math.PI / 180;
+    const ox = Math.cos(mid) * R * 0.75, oy = Math.sin(mid) * R * 0.75;
+    if (c.calm) { k.play(d, [{ transform: at, opacity: 0 }, { transform: at, opacity: 0.7, offset: 0.35 }, { transform: at, opacity: 0 }], { duration: dur }); continue; }
+    k.play(d, [
+      { transform: at + ' rotate(0deg)', opacity: 0 },
+      { transform: at + ' rotate(0deg)', opacity: 0.95, offset: 0.18 },
+      { transform: at + ' rotate(-10deg)', opacity: 0.95, offset: 0.32 },
+      { transform: at + ' translate(' + ox + 'px,' + oy + 'px) rotate(38deg) scale(.55)', opacity: 0.7, offset: 0.72 },
+      { transform: at + ' translate(' + ox * 1.15 + 'px,' + oy * 1.15 + 'px) rotate(44deg) scale(.4)', opacity: 0 }
+    ], { duration: dur, easing: 'cubic-bezier(.5,0,.3,1)' });
+  }
 };
 
 /* ───────── clockhand：钟面一圈，指针一格一格走（发条） ───────── */
@@ -594,4 +609,4 @@ const clockhand: Painter = (ev, _el, c, k) => {
 };
 
 export const SIGNATURES: Record<SignatureId, Painter> = { stamp, words: wordsFx, slash, sparks, steam, flash, ripple, lockon, drip, tendril, shine, orbit, mark,
-  beam, scope, starburst, sprout, ribbon, mitosis, clockhand };
+  beam, scope, starburst, sprout, ribbon, iris, clockhand };
