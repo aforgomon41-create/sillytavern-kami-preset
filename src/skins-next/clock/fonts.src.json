@@ -1,0 +1,10 @@
+[
+ {
+  "pkg": "almendra",
+  "family": "Almendra",
+  "weights": [
+   400,
+   700
+  ]
+ }
+]

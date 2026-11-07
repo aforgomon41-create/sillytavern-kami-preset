@@ -1,0 +1,174 @@
+{
+  "id": "atom",
+  "name": "星芒",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "原子朋克：1950 年代「明日世界」太空展馆——奶油白、薄荷绿、原子橙；回旋镖圆角、胶囊按钮、原子轨道；星芒弹开。",
+  "author": "卡密预设",
+  "credits": "字体 Righteous（OFL）；原子、星芒、回旋镖为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#fbf4e4",
+        "accent": "#b8441c",
+        "radius": 20,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Righteous\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#b02a2a",
+        "success": "#2f7a6a",
+        "info": "#2c6488",
+        "warning": "#9a6a00"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#13202e",
+        "accent": "#7fd6c4",
+        "radius": 20,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Righteous\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#ff8a7a",
+        "success": "#7fd6c4",
+        "info": "#a8c8ff",
+        "warning": "#ffd070"
+      }
+    }
+  },
+  "modules": [
+    "starburst",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "starburst",
+      "name": "星芒",
+      "description": "按下与打开时一颗原子星芒弹开、转一下。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "星屑",
+      "description": "打开、按下时迸出几颗小星。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "星光",
+      "description": "背景里星星忽明忽暗。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "orbit",
+      "name": "原子轨道",
+      "description": "面板标题前的原子轨道慢慢转。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "chrome",
+      "name": "回旋镖",
+      "description": "面板背景左下一道回旋镖弧线。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的明日计算",
+    "think.live": "{name}计算中",
+    "search.done": "调出 {n} 份未来档案",
+    "options.title": "明日选项"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

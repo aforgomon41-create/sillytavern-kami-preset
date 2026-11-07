@@ -1,0 +1,64 @@
+/* 星芒 —— 原子朋克。1950 年代「明日世界」太空展馆：奶油白、薄荷绿、原子橙；回旋镖与腰果形的不对称圆角、
+   胶囊按钮、原子轨道、四芒星。招牌：starburst 原子星芒；环境：星星闪烁。（design/punk/gen-skins.py 生成，改这里无效） */
+:host, [data-k-surface] { --k-fx-glow: #d9532a; --k-fx-alt: #3f9e90; --k-fx-glyphs: "✦ ✧ ⋆"; --k-fx-drift: out; --k-fx-size: 8px; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #ff8a5c; --k-fx-alt: #7fd6c4; }
+[data-k-surface] { --k-atom-mint: #3f9e90; --k-atom-orange: #d9532a; --k-atom-chrome: #b8c0c8; }
+[data-k-surface][data-k-scheme="dark"] { --k-atom-mint: #7fd6c4; --k-atom-orange: #ff8a5c; --k-atom-chrome: #8c9aa8; }
+:host, [data-k-surface] { --k-amb: glyph; --k-amb-glyphs: "✦ ✧ ⋆"; --k-amb-dir: float; --k-amb-count: 9; --k-amb-speed: 10; --k-amb-size: 6; --k-amb-color: #d9532a; --k-amb-alpha: .3; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #7fd6c4; --k-amb-alpha: .4; }
+
+/* ───────── 面板：回旋镖形的不对称圆角 + 错位的橙色投影 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-radius: 30px 8px 30px 8px; border: 2px solid var(--k-atom-mint); box-shadow: 8px 8px 0 color-mix(in srgb, var(--k-atom-orange) 35%, transparent), 0 20px 40px rgba(0, 0, 0, .22); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 2px solid color-mix(in srgb, var(--k-atom-mint) 50%, transparent); background: linear-gradient(100deg, color-mix(in srgb, var(--k-atom-mint) 16%, transparent), transparent 60%); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .04em; }
+[data-k="card"] { border-radius: 18px 6px 18px 6px; border: 1.5px solid color-mix(in srgb, var(--k-atom-mint) 55%, transparent); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-atom-orange); box-shadow: 0 0 0 2px color-mix(in srgb, var(--k-atom-orange) 40%, transparent), 4px 4px 0 color-mix(in srgb, var(--k-atom-orange) 25%, transparent); }
+
+/* ───────── 胶囊按钮；开关：火箭控制台；滑块：带光环的行星；进度：倒计时 ───────── */
+[data-k="button"] { border-radius: 999px; letter-spacing: .03em; box-shadow: 0 3px 0 color-mix(in srgb, var(--k-atom-mint) 50%, transparent); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 color-mix(in srgb, var(--k-atom-mint) 50%, transparent); }
+[data-k="switch"] { border-radius: 999px; }
+[data-k="switch"][data-state="checked"] { background: linear-gradient(90deg, var(--k-atom-mint), var(--k-atom-orange)); border-color: transparent; }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle at 35% 35%, #fff, #e8ecef 55%, var(--k-atom-chrome)); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { background: radial-gradient(circle at 35% 35%, #fff, var(--k-atom-chrome)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--k-atom-orange) 40%, transparent); }
+[data-k="progress"] { border-radius: 999px; }
+[data-k="progress"] [data-k-part="indicator"] { background: linear-gradient(90deg, var(--k-atom-mint), var(--k-atom-orange)); }
+[data-k="tabs"] [data-k-part="tab"] { border-radius: 999px; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: inset 0 0 0 1.5px var(--k-atom-orange); }
+[data-k="badge"][data-tone="accent"] { border-radius: 999px; background: #ffb08a; color: #3a1606; }
+[data-k="spinner"] { border-color: var(--k-atom-mint); border-top-color: var(--k-atom-orange); }
+
+/* ───────── 角饰：原子（完整动效下轨道慢转）+ 四芒星 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 20px; height: 20px; background: var(--k-atom-mint); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="orbit"] [data-k-ornament="panel-head-start"] { animation: k-atom-spin 14s linear infinite; }
+@keyframes k-atom-spin { to { transform: rotate(360deg); } }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 14px; height: 14px; background: var(--k-atom-orange); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"] > [data-k-ornament="card-corner"] { right: 7px; bottom: 7px; width: 12px; height: 12px; background: var(--k-atom-orange); opacity: .6; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; width: 16px; height: 16px; }
+/* 面板背景：右上一枚大原子轮廓 + 左下一道回旋镖 */
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: -60px; top: -40px; width: 250px; height: 250px; background: var(--k-atom-mint); opacity: .09; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='.6'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='.6'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-effects~="chrome"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k-surface][data-k-effects~="chrome"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; left: -20px; bottom: -10px; width: 170px; height: 170px; background: var(--k-atom-orange); opacity: .08; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 22C5 9 13 3 23 2 16 7 12 12 9 22 6.5 18 4 18 1 22z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 22C5 9 13 3 23 2 16 7 12 12 9 22 6.5 18 4 18 1 22z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: 10px; top: 8px; width: 22px; height: 22px; background: var(--k-atom-orange); opacity: .22; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0 13.8 10.2 24 12 13.8 13.8 12 24 10.2 13.8 0 12 10.2 10.2z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 消息正文 ───────── */
+[data-k-content="body"] > * { font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #a83a16; --k-msg-thought: #2c6488; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #7fd6c4; --k-msg-thought: #a8c8ff; }
+[data-k-content] [data-k-part="name"] { font-family: "Righteous", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif; letter-spacing: .03em; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 30px; height: 30px; border: 0; background: var(--k-msg-dialogue); opacity: .55; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5'%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(60 12 12)'/%3E%3Cellipse cx='12' cy='12' rx='10.5' ry='4' transform='rotate(-60 12 12)'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='2.2'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 行动选项：7 种类型各一色；图标线条 ───────── */
+[data-k-surface] { --k-opt-action: #d9532a; --k-opt-persona: #b0508a; --k-opt-plot: #3f9e90; --k-opt-info: #3a78b8; --k-opt-fun: #d8a020; --k-opt-nsfw: #c03050; --k-opt-other: #7a8590; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; }
+[data-k-icon] svg { stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

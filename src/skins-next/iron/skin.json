@@ -1,0 +1,174 @@
+{
+  "id": "iron",
+  "name": "铁翼",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "柴油朋克：装饰艺术风的战争机器——海报纸 / 枪灰、宣传红与装饰艺术金；阶梯切角、放射线、镀铬双线框；探照灯光柱扫过。",
+  "author": "卡密预设",
+  "credits": "字体 Limelight（OFL）；放射线、阶梯角饰为 SVG 绘制。",
+  "defaultScheme": "dark",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#ece6da",
+        "accent": "#a8231b",
+        "radius": 0,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Limelight\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#9a1f1a",
+        "success": "#3d6a3a",
+        "info": "#2f5a7a",
+        "warning": "#8a6200"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#1b1d1f",
+        "accent": "#d9b85c",
+        "radius": 0,
+        "elevation": "outline",
+        "font": {
+          "heading": "\"Limelight\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#ee8a7a",
+        "success": "#9cc48a",
+        "info": "#8fb8d8",
+        "warning": "#f0c860"
+      }
+    }
+  },
+  "modules": [
+    "beam",
+    "trace",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "beam",
+      "name": "探照灯",
+      "description": "按下与打开时一道探照灯光柱从下方扫过。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "trace",
+      "name": "描金线",
+      "description": "打开时一道线从中间向两端描出。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "光带",
+      "description": "探照灯光带缓缓扫过背景。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "rays",
+      "name": "放射线",
+      "description": "面板标题栏与背景的装饰艺术放射线。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "steel",
+      "name": "拉丝钢",
+      "description": "底层一层细密的拉丝钢纹。",
+      "group": "质感",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的航迹推算",
+    "think.live": "{name}推算中",
+    "search.done": "截获 {n} 份电报",
+    "options.title": "下一道指令"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

@@ -1,0 +1,67 @@
+/* 纸鸢 —— 丝绸朋克。竹骨绢面的机关风筝：生绢、朱红、靛蓝 / 靛夜与灯笼金；竹节细双框、框角绑结、风筝线。
+   招牌：ribbon 绢带飘出；环境：小风筝向右飘。（design/punk/gen-skins.py 生成，改这里无效） */
+:host, [data-k-surface] { --k-fx-glow: #b8322a; --k-fx-alt: #2c4a6e; --k-fx-dir: down; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #e8a33a; --k-fx-alt: #e0564a; }
+[data-k-surface] { --k-silk-bamboo: #8a7a4a; --k-silk-indigo: #2c4a6e; --k-silk-red: #b8322a; --k-silk-tag-bg: #f3e3c8; --k-silk-tag-fg: #6a1a14; }
+[data-k-surface][data-k-scheme="dark"] { --k-silk-bamboo: #b8a46a; --k-silk-indigo: #7f9fcf; --k-silk-red: #e0564a; --k-silk-tag-bg: #2a3448; --k-silk-tag-fg: #f0c890; }
+:host, [data-k-surface] { --k-amb: glyph; --k-amb-glyphs: "◇ ◆"; --k-amb-dir: right; --k-amb-count: 6; --k-amb-speed: 22; --k-amb-size: 6; --k-amb-color: #b8322a; --k-amb-alpha: .25; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #e8a33a; --k-amb-alpha: .3; }
+
+/* ───────── 面板：竹节细双框 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-radius: 4px; border: 1px solid var(--k-silk-bamboo); outline: 1px solid color-mix(in srgb, var(--k-silk-bamboo) 70%, transparent); outline-offset: -5px; box-shadow: 0 16px 36px rgba(0, 0, 0, .25); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 1px solid var(--k-silk-bamboo); background: linear-gradient(180deg, color-mix(in srgb, var(--k-silk-indigo) 10%, transparent), transparent); }
+/* 志莽行书字面偏小、笔画细：只给面板大标题和角色名用并放大；小节标题走宋体（字体种子），保证看得清 */
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { font-family: "Zhi Mang Xing", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; font-size: 1.9em; font-weight: 400; letter-spacing: .04em; line-height: 1; }
+/* 卡片：四角朱红绑结 */
+[data-k="card"] { border-radius: 3px; border: 1px solid color-mix(in srgb, var(--k-silk-bamboo) 70%, transparent); }
+[data-k-surface][data-k-effects~="knots"] [data-k="card"] { background-image: radial-gradient(circle, var(--k-silk-red) 2px, transparent 2.6px), radial-gradient(circle, var(--k-silk-red) 2px, transparent 2.6px), radial-gradient(circle, var(--k-silk-red) 2px, transparent 2.6px), radial-gradient(circle, var(--k-silk-red) 2px, transparent 2.6px);
+  background-size: 6px 6px; background-repeat: no-repeat; background-position: 1px 1px, calc(100% - 1px) 1px, 1px calc(100% - 1px), calc(100% - 1px) calc(100% - 1px); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); box-shadow: inset 0 0 0 1px var(--k-accent); }
+
+/* ───────── 开关：风筝线轴；滑块：菱形风筝；进度：放线 ───────── */
+[data-k="button"] { border-radius: 2px; border-color: var(--k-silk-bamboo); letter-spacing: .1em; }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: translateY(1px); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle, var(--k-silk-bamboo) 0 28%, #f5efe2 31% 54%, var(--k-silk-bamboo) 57%); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { border-radius: 0; border: 0; background: var(--k-accent); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+[data-k="progress"] { border-radius: 0; height: 6px; }
+[data-k="progress"] [data-k-part="indicator"] { background: linear-gradient(90deg, color-mix(in srgb, var(--k-accent) 30%, transparent), var(--k-accent)); }
+[data-k="tabs"] [data-k-part="list"] { border-bottom: 1px solid var(--k-silk-bamboo); }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: inset 0 -2px 0 var(--k-accent); }
+/* 徽章 = 绢签 */
+[data-k="badge"][data-tone="accent"] { border-radius: 0; background: var(--k-silk-tag-bg); color: var(--k-silk-tag-fg); box-shadow: inset 3px 0 0 var(--k-silk-red); }
+[data-k="spinner"] { border-color: var(--k-silk-bamboo); border-top-color: var(--k-accent); }
+
+/* ───────── 角饰：小风筝 + 绑结 ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 16px; height: 16px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1 18.5 8 12 15 5.5 8z'/%3E%3Cpath d='M12 15c-2.5 2.5 2.5 4.5 0 8' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1 18.5 8 12 15 5.5 8z'/%3E%3Cpath d='M12 15c-2.5 2.5 2.5 4.5 0 8' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="kite"] [data-k-ornament="panel-head-start"] { animation: k-silk-sway 4s ease-in-out infinite; transform-origin: 50% 20%; }
+@keyframes k-silk-sway { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 14px; height: 14px; background: var(--k-silk-red); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3Cpath d='M12 9.5C9 3 3 6 9.5 11M12 14.5c3 6.5 9 3.5 2.5-1' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3Cpath d='M12 9.5C9 3 3 6 9.5 11M12 14.5c3 6.5 9 3.5 2.5-1' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"] > [data-k-ornament="card-corner"] { right: 7px; bottom: 7px; width: 12px; height: 12px; background: var(--k-silk-indigo); opacity: .45; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1 18.5 8 12 15 5.5 8z'/%3E%3Cpath d='M12 15c-2.5 2.5 2.5 4.5 0 8' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1 18.5 8 12 15 5.5 8z'/%3E%3Cpath d='M12 15c-2.5 2.5 2.5 4.5 0 8' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; background: var(--k-accent); }
+/* 面板背景：右上一只大风筝骨架 + 底部两道绢纹 */
+[data-k-surface][data-k-effects~="kite"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k-surface][data-k-effects~="kite"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: -10px; top: 40px; width: 180px; height: 195px; background: var(--k-silk-indigo); opacity: .18; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 26'%3E%3Cg fill='none' stroke='%23000' stroke-width='.45'%3E%3Cpath d='M12 1 19 8.5 12 16 5 8.5z M12 1V16 M5 8.5H19'/%3E%3Cpath d='M12 16c-3 3 3 5 0 9.5'/%3E%3Cpath d='M10.6 19.5l-1.4.8M13.4 21.6l1.4.8'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 26'%3E%3Cg fill='none' stroke='%23000' stroke-width='.45'%3E%3Cpath d='M12 1 19 8.5 12 16 5 8.5z M12 1V16 M5 8.5H19'/%3E%3Cpath d='M12 16c-3 3 3 5 0 9.5'/%3E%3Cpath d='M10.6 19.5l-1.4.8M13.4 21.6l1.4.8'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 6px; height: 22px; background: var(--k-silk-indigo); opacity: .1; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20'%3E%3Cpath d='M0 10c15-8 25 8 40 0s25-8 40 0 25 8 40 0M0 16c15-8 25 8 40 0s25-8 40 0 25 8 40 0' fill='none' stroke='%23000' stroke-width='.8'/%3E%3C/svg%3E") 0 0 / 120px 22px repeat-x; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20'%3E%3Cpath d='M0 10c15-8 25 8 40 0s25-8 40 0 25 8 40 0M0 16c15-8 25 8 40 0s25-8 40 0 25 8 40 0' fill='none' stroke='%23000' stroke-width='.8'/%3E%3C/svg%3E") 0 0 / 120px 22px repeat-x; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: 8px; top: 6px; width: 90px; height: 16px; background: var(--k-silk-indigo); opacity: .22; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 14'%3E%3Cpath d='M2 3C22 14 46 14 70 6' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M70 2l7 4-7 4-3-4z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 14'%3E%3Cpath d='M2 3C22 14 46 14 70 6' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M70 2l7 4-7 4-3-4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 消息正文 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #a02a22; --k-msg-thought: #2c4a6e; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #f0b450; --k-msg-thought: #9fb8e0; }
+[data-k-content] [data-k-part="name"] { font-family: "Zhi Mang Xing", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; font-size: 1.45em; letter-spacing: .02em; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 80px; height: 14px; border: 0; background: var(--k-msg-thought); opacity: .6; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 14'%3E%3Cpath d='M2 3C22 14 46 14 70 6' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M70 2l7 4-7 4-3-4z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 14'%3E%3Cpath d='M2 3C22 14 46 14 70 6' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M70 2l7 4-7 4-3-4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 行动选项：7 种类型各一色；图标线条 ───────── */
+[data-k-surface] { --k-opt-action: #b8322a; --k-opt-persona: #8a3a6a; --k-opt-plot: #2c4a6e; --k-opt-info: #3a7a8a; --k-opt-fun: #c89020; --k-opt-nsfw: #a01e3c; --k-opt-other: #6a6050; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; }
+[data-k-icon] svg { stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }

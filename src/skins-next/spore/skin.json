@@ -1,0 +1,174 @@
+{
+  "id": "spore",
+  "name": "孢子",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "生物朋克：培养皿与细胞膜——实验室冷白与洋红 / 紫黑培养箱与生物荧光青；不规则的膜圆角、细胞、DNA；细胞一分为二。",
+  "author": "卡密预设",
+  "credits": "字体 Comfortaa（OFL）；细胞、DNA、培养皿为 SVG 绘制。",
+  "defaultScheme": "dark",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f2f5f3",
+        "accent": "#a8305e",
+        "radius": 22,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Comfortaa\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#a82a2a",
+        "success": "#1f7a6a",
+        "info": "#2f6ab0",
+        "warning": "#8a6200"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#170f1a",
+        "accent": "#5fe8c8",
+        "radius": 22,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Comfortaa\", \"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif",
+          "body": "\"PingFang SC\", \"HarmonyOS Sans SC\", \"Microsoft YaHei\", \"Noto Sans CJK SC\", \"Source Han Sans SC\", sans-serif"
+        },
+        "danger": "#ff8a9a",
+        "success": "#5fe8c8",
+        "info": "#a8b8ff",
+        "warning": "#ffd070"
+      }
+    }
+  },
+  "modules": [
+    "mitosis",
+    "ink",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "mitosis",
+      "name": "细胞分裂",
+      "description": "按下与打开时一个细胞拉长、一分为二、各自漂开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ink",
+      "name": "培养液",
+      "description": "打开时一团培养液晕开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "孢子",
+      "description": "孢子气泡从下方缓缓上浮。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "pulse",
+      "name": "呼吸",
+      "description": "面板标题前的细胞慢慢呼吸。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "membrane",
+      "name": "细胞膜",
+      "description": "面板外一圈半透明的膜。",
+      "group": "质感",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的培养记录",
+    "think.live": "{name}培养中",
+    "search.done": "采集 {n} 份样本",
+    "options.title": "演化方向"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

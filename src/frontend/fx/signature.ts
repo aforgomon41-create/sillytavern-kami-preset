@@ -15,12 +15,22 @@
  *   shine   斜向金箔光泽扫过
  *   orbit   一圈符文绕着转开          --k-fx-glyphs 符文
  *   mark    朱笔圈点（手绘椭圆 / 勾）
+ * 2026-11-06 朋克系列补 7 个（docs/朋克皮肤系列方案.md 第三节）：
+ *   beam      探照灯光柱从下方扫过（铁翼）
+ *   scope     示波器波形横扫，带荧光余晖（灯丝）     --k-fx-alt 余晖色
+ *   starburst 原子星芒：四芒 + 斜芒弹开、转一下（星芒）
+ *   sprout    藤蔓从角落长出、展开几片叶子（向阳）
+ *   ribbon    绢带从按下处飘出、随风摆动（纸鸢）     --k-fx-alt 第二条绢带的颜色
+ *   mitosis   细胞拉长、一分为二、各自漂开（孢子）
+ *   clockhand 钟面一圈，指针一格一格走（擒纵，发条）
  * 只动 transform / opacity（tendril / mark 另动 SVG 描边偏移）；「平静」档只留最轻的一下，「关闭」与系统减少动态效果时不播（由 motifs.ts 拦）。
  */
 import type { Ctx, Event, Kit } from './motifs';
 
-export type SignatureId = 'stamp' | 'words' | 'slash' | 'sparks' | 'steam' | 'flash' | 'ripple' | 'lockon' | 'drip' | 'tendril' | 'shine' | 'orbit' | 'mark';
-export const SIGNATURE_IDS: readonly SignatureId[] = ['stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark'];
+export type SignatureId = 'stamp' | 'words' | 'slash' | 'sparks' | 'steam' | 'flash' | 'ripple' | 'lockon' | 'drip' | 'tendril' | 'shine' | 'orbit' | 'mark'
+  | 'beam' | 'scope' | 'starburst' | 'sprout' | 'ribbon' | 'mitosis' | 'clockhand';
+export const SIGNATURE_IDS: readonly SignatureId[] = ['stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark',
+  'beam', 'scope', 'starburst', 'sprout', 'ribbon', 'mitosis', 'clockhand'];
 
 type Painter = (ev: Event, el: Element, c: Ctx, k: Kit) => void;
 const v = (c: Ctx, name: string): string => c.cs.getPropertyValue(name).trim().replace(/^["']|["']$/g, '');
@@ -362,4 +372,226 @@ const mark: Painter = (ev, _el, c, k) => {
   p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0, offset: 0.45 }, { strokeDashoffset: 0 }], { duration: c.calm ? 600 : 1000, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'both' });
 };
 
-export const SIGNATURES: Record<SignatureId, Painter> = { stamp, words: wordsFx, slash, sparks, steam, flash, ripple, lockon, drip, tendril, shine, orbit, mark };
+
+/* ═══════════ 朋克系列（2026-11-06） ═══════════ */
+
+/* ───────── beam：探照灯光柱从下方扫过（铁翼） ───────── */
+/* 展开折叠块时 r 是推算出的展开后整块（含标题栏，最多画到视口底）：返回图形**上缘**该放的位置——
+   标题栏以下、内容区靠上的一段，不挤在标题栏里（用户 2026-11-02 报过）；消息贴着视口底时 r 很矮，至少也让出标题栏 */
+const foldTop = (r: DOMRect, f = 0.3, cap = 140): number => r.top + Math.max(60, Math.min(r.height * f, cap));
+
+const beam: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const H = press ? Math.max(70, Math.min(160, r.height * 3)) : Math.min(Math.max(r.height, 200), 560);
+  const W = H * 0.42;
+  const spots: Array<[number, number, number]> = press
+    ? [[c.x, press && ev === 'tab' ? r.bottom : c.y + 8, 1]]
+    : [[r.left + r.width * 0.22, r.bottom, 1], [r.left + r.width * 0.78, r.bottom, -1]];
+  spots.forEach(([x, y, dir], i) => {
+    const d = k.node(); if (!d) { return; }
+    d.style.background = 'linear-gradient(0deg, ' + mix(c.glow, 75) + ', ' + mix(c.glow, 22) + ' 55%, transparent)';
+    d.style.clipPath = 'polygon(46% 100%, 54% 100%, 100% 0, 0 0)';
+    d.style.transformOrigin = '50% 100%'; d.style.filter = 'blur(1.5px)';
+    const at = k.box(d, x - W / 2, y - H, W, H);
+    const a0 = -32 * dir, a1 = 26 * dir;
+    if (c.calm) { k.play(d, [{ transform: at + ' rotate(0deg)', opacity: 0 }, { transform: at + ' rotate(0deg)', opacity: 0.4, offset: 0.4 }, { transform: at + ' rotate(0deg)', opacity: 0 }], { duration: 600 }); return; }
+    k.play(d, [
+      { transform: at + ' rotate(' + a0 + 'deg) scaleY(.3)', opacity: 0 },
+      { transform: at + ' rotate(' + a0 * 0.5 + 'deg) scaleY(1)', opacity: 0.9, offset: 0.2 },
+      { transform: at + ' rotate(' + a1 + 'deg) scaleY(1)', opacity: 0.75, offset: 0.75 },
+      { transform: at + ' rotate(' + a1 * 1.2 + 'deg) scaleY(.9)', opacity: 0 }
+    ], { duration: press ? 760 : 1400, delay: i * 120, easing: 'cubic-bezier(.4,0,.3,1)' });
+  });
+};
+
+/* ───────── scope：示波器波形横扫 + 荧光余晖（灯丝） ───────── */
+const scope: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press';
+  const w = press ? Math.min(180, Math.max(90, r.width * 0.6)) : Math.min(r.width - 24, 640);
+  const h = press ? 26 : ev === 'open' ? 44 : 22;
+  const x = press ? c.x - w / 2 : r.left + (r.width - w) / 2;
+  const y = press ? c.y - h / 2 : ev === 'open' ? r.top + Math.min(r.height * 0.18, 70) : ev === 'tab' ? r.bottom - h / 2 : foldTop(r);
+  const cycles = press ? 3 : Math.max(3, Math.round(w / 70));
+  let path = 'M0 ' + h / 2;
+  for (let i = 1; i <= 64; i++) {
+    const t = i / 64;
+    const env = Math.sin(Math.PI * t);
+    path += ' L' + (t * w).toFixed(1) + ' ' + (h / 2 - Math.sin(t * cycles * Math.PI * 2) * env * (h / 2 - 2)).toFixed(1);
+  }
+  const trail = v(c, '--k-fx-alt') || c.alt;
+  const len = Math.round(w * 1.6 + h * cycles * 2);
+  for (const [col, wd, op, delay] of [[trail, 4, 0.35, 90], [c.glow, 1.8, 1, 0]] as Array<[string, number, number, number]>) {
+    const d = k.node(); if (!d) { return; }
+    const p = svgPath(k, d, w, h, path, col, wd);
+    d.style.transform = 'translate(' + x + 'px,' + y + 'px)'; d.style.filter = 'drop-shadow(0 0 4px ' + col + ')';
+    p.style.strokeDasharray = String(len);
+    const dur = c.calm ? 600 : press ? 700 : 1100;
+    k.play(d, [{ opacity: 0 }, { opacity: op, offset: 0.1 }, { opacity: op, offset: 0.6 }, { opacity: 0 }], { duration: dur, delay });
+    p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0, offset: 0.55 }, { strokeDashoffset: -len * 0.4 }], { duration: dur, delay, easing: 'linear', fill: 'both' });
+  }
+};
+
+/* ───────── starburst：原子星芒弹开、转一下（星芒） ───────── */
+const starburst: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const spots: Array<[number, number, number, string]> = press
+    ? [[c.x, ev === 'tab' ? r.top + r.height / 2 : c.y, Math.min(44, Math.max(26, r.height * 1.1)), c.glow]]
+    : [[r.right - 34, r.top + 26, 50, c.glow], [r.right - 78, r.top + 14, 22, c.alt], [r.left + 30, r.top + Math.min(r.height * 0.4, 120), 18, c.alt]];
+  spots.forEach(([x, y, s, col], i) => {
+    for (const [rot, len] of [[0, 1], [90, 1], [45, 0.55], [135, 0.55]] as Array<[number, number]>) {
+      const d = k.node(); if (!d) { return; }
+      const L = s * len, th = Math.max(1.6, s / 16);
+      d.style.background = 'linear-gradient(90deg, transparent, ' + col + ' 30%, #fff 50%, ' + col + ' 70%, transparent)';
+      d.style.borderRadius = '50%'; d.style.filter = 'drop-shadow(0 0 3px ' + col + ')';
+      const at = k.box(d, x - L / 2, y - th / 2, L, th);
+      if (c.calm) { k.play(d, [{ transform: at + ' rotate(' + rot + 'deg)', opacity: 0 }, { transform: at + ' rotate(' + rot + 'deg)', opacity: 0.8, offset: 0.4 }, { transform: at + ' rotate(' + rot + 'deg)', opacity: 0 }], { duration: 600 }); continue; }
+      k.play(d, [
+        { transform: at + ' rotate(' + rot + 'deg) scaleX(0)', opacity: 0 },
+        { transform: at + ' rotate(' + (rot + 20) + 'deg) scaleX(1.15)', opacity: 1, offset: 0.3 },
+        { transform: at + ' rotate(' + (rot + 45) + 'deg) scaleX(1)', opacity: 0.9, offset: 0.6 },
+        { transform: at + ' rotate(' + (rot + 60) + 'deg) scaleX(0)', opacity: 0 }
+      ], { duration: press ? 700 : 1100, delay: i * 140, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+    }
+    if (c.calm) { return; }
+    /* 中心一颗亮点 */
+    const o = k.node(); if (!o) { return; }
+    const os = Math.max(5, s / 6);
+    o.style.background = 'radial-gradient(circle, #fff, ' + col + ' 60%, transparent)'; o.style.borderRadius = '50%';
+    const at2 = k.box(o, x - os / 2, y - os / 2, os, os);
+    k.play(o, [{ transform: at2 + ' scale(0)', opacity: 0 }, { transform: at2 + ' scale(1.6)', opacity: 1, offset: 0.3 }, { transform: at2 + ' scale(0)', opacity: 0 }], { duration: press ? 600 : 900, delay: i * 140 });
+  });
+};
+
+/* ───────── sprout：藤蔓从角落长出、展开几片叶子（向阳） ───────── */
+const sprout: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const w = press ? 60 : Math.min(150, Math.max(90, r.width * 0.22));
+  const h = press ? 54 : w * 0.95;
+  const x = press ? c.x - 6 : r.left + 2, y = press ? c.y - h + 6 : (ev === 'open' ? r.bottom - h - 2 : foldTop(r));
+  /* 藤：从左下角起，S 形往右上长 */
+  const path = 'M2 ' + (h - 2) + ' C ' + w * 0.3 + ' ' + h * 0.95 + ', ' + w * 0.15 + ' ' + h * 0.45 + ', ' + w * 0.5 + ' ' + h * 0.42 + ' S ' + w * 0.82 + ' ' + h * 0.1 + ', ' + (w - 4) + ' 4';
+  const d = k.node(); if (!d) { return; }
+  const p = svgPath(k, d, w, h, path, c.glow, press ? 2 : 2.6);
+  d.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+  const len = Math.round((w + h) * 1.3);
+  p.style.strokeDasharray = String(len);
+  const dur = c.calm ? 700 : press ? 1000 : 1500;
+  k.play(d, [{ opacity: 1 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: dur });
+  p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0, offset: 0.5 }, { strokeDashoffset: 0 }], { duration: dur, easing: 'cubic-bezier(.3,.6,.3,1)', fill: 'both' });
+  if (c.calm) { return; }
+  /* 叶子：沿藤的几个点依次展开 */
+  const leaves: Array<[number, number, number]> = [[0.2, 0.78, -40], [0.48, 0.44, 30], [0.72, 0.24, -35], [0.95, 0.06, 20]];
+  leaves.slice(0, press ? 3 : 4).forEach(([fx, fy, rot], i) => {
+    const l = k.node(); if (!l) { return; }
+    const ls = press ? 10 : 15;
+    l.style.background = i % 2 ? c.alt : c.glow; l.style.borderRadius = '0 100% 0 100%'; l.style.transformOrigin = '0 100%';
+    const at = k.box(l, x + fx * w, y + fy * h - ls, ls, ls);
+    k.play(l, [
+      { transform: at + ' rotate(' + rot + 'deg) scale(0)', opacity: 0 },
+      { transform: at + ' rotate(' + rot + 'deg) scale(1.1)', opacity: 1, offset: 0.3 },
+      { transform: at + ' rotate(' + (rot + 8) + 'deg) scale(1)', opacity: 1, offset: 0.75 },
+      { transform: at + ' rotate(' + (rot + 14) + 'deg) scale(.9)', opacity: 0 }
+    ], { duration: dur * 0.75, delay: dur * 0.18 + i * 120, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+  });
+};
+
+/* ───────── ribbon：绢带飘出、随风摆动（纸鸢） ───────── */
+const ribbon: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const w = press ? 110 : Math.min(260, Math.max(140, r.width * 0.4));
+  const h = press ? 34 : 54;
+  const starts: Array<[number, number]> = press ? [[c.x, c.y - h / 2]] : ev === 'fold-open' ? [[r.left + 16, foldTop(r)], [r.left + 36, foldTop(r) + 14]] : [[r.left + 16, r.top + 6], [r.left + 36, r.top + 20]];
+  const alt = v(c, '--k-fx-alt') || c.alt;
+  starts.forEach(([x, y], i) => {
+    const d = k.node(); if (!d) { return; }
+    const amp = h * 0.32;
+    const path = 'M0 ' + h / 2 + ' C ' + w * 0.25 + ' ' + (h / 2 - amp) + ', ' + w * 0.35 + ' ' + (h / 2 + amp) + ', ' + w * 0.55 + ' ' + h / 2 + ' S ' + w * 0.85 + ' ' + (h / 2 - amp) + ', ' + w + ' ' + (h / 2 + amp * 0.4);
+    const p = svgPath(k, d, w, h, path, i ? alt : c.glow, press ? 4 : 5);
+    p.setAttribute('stroke-linecap', 'butt');
+    d.style.transformOrigin = '0 50%';
+    const at = 'translate(' + x + 'px,' + y + 'px)';
+    const len = Math.round(w * 1.25);
+    p.style.strokeDasharray = String(len);
+    const dur = c.calm ? 700 : press ? 1000 : 1500;
+    k.play(d, c.calm
+      ? [{ transform: at, opacity: 0 }, { transform: at, opacity: 0.8, offset: 0.4 }, { transform: at, opacity: 0 }]
+      : [
+        { transform: at + ' rotate(-6deg)', opacity: 0 },
+        { transform: at + ' rotate(4deg) translateY(-4px)', opacity: 1, offset: 0.3 },
+        { transform: at + ' rotate(-3deg) translate(8px,-10px)', opacity: 0.9, offset: 0.65 },
+        { transform: at + ' rotate(5deg) translate(18px,-22px)', opacity: 0 }
+      ], { duration: dur, delay: i * 150, easing: 'ease-in-out' });
+    p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0, offset: 0.4 }, { strokeDashoffset: -len * 0.5 }], { duration: dur, delay: i * 150, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'both' });
+  });
+};
+
+/* ───────── mitosis：细胞拉长、一分为二、各自漂开（孢子） ───────── */
+const mitosis: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const spots: Array<[number, number, number]> = press
+    ? [[c.x, ev === 'tab' ? r.top + r.height / 2 : c.y, Math.min(34, Math.max(20, r.height * 0.8))]]
+    : [[r.right - 46, r.top + 34, 40], [r.left + 40, r.top + Math.min(r.height * 0.45, 160), 26]];
+  spots.forEach(([x, y, s], i) => {
+    const ang = k.rnd(-40, 40);
+    const dist = s * (press ? 0.9 : 1.1);
+    for (const side of [-1, 1]) {
+      const d = k.node(); if (!d) { return; }
+      d.style.borderRadius = '50%';
+      d.style.background = 'radial-gradient(circle at 45% 45%, ' + mix(c.alt, 85) + ' 0 18%, ' + mix(c.glow, 22) + ' 24% 62%, ' + mix(c.glow, 70) + ' 72%, transparent 76%)';
+      d.style.boxShadow = '0 0 8px ' + mix(c.glow, 45);
+      const at = k.box(d, x - s / 2, y - s / 2, s, s) + ' rotate(' + ang + 'deg)';
+      if (c.calm) { k.play(d, [{ transform: at, opacity: 0 }, { transform: at, opacity: 0.7, offset: 0.4 }, { transform: at, opacity: 0 }], { duration: 650 }); return; }
+      k.play(d, [
+        { transform: at + ' scale(.2)', opacity: 0 },
+        { transform: at + ' scale(1)', opacity: 0.95, offset: 0.22 },
+        { transform: at + ' translateX(' + side * s * 0.18 + 'px) scale(1.15, .9)', opacity: 0.95, offset: 0.45 },
+        { transform: at + ' translateX(' + side * dist * 0.6 + 'px) scale(.85)', opacity: 0.9, offset: 0.7 },
+        { transform: at + ' translateX(' + side * dist + 'px) translateY(' + -s * 0.4 + 'px) scale(.7)', opacity: 0 }
+      ], { duration: press ? 1000 : 1500, delay: i * 180, easing: 'cubic-bezier(.4,.1,.3,1)' });
+    }
+  });
+};
+
+/* ───────── clockhand：钟面一圈，指针一格一格走（发条） ───────── */
+const clockhand: Painter = (ev, _el, c, k) => {
+  if (fades(ev)) { return; }
+  const { r } = c;
+  const press = ev === 'press' || ev === 'tab';
+  const s = press ? Math.min(48, Math.max(30, r.height * 1.2)) : 70;
+  const x = press ? c.x : r.right - s / 2 - 18, y = press ? (ev === 'tab' ? r.top + r.height / 2 : c.y) : ev === 'fold-open' ? foldTop(r) + s / 2 : r.top + s / 2 + 12;
+  const ring = k.node(); if (!ring) { return; }
+  ring.style.borderRadius = '50%'; ring.style.border = '1.5px solid ' + c.glow;
+  ring.style.background = 'repeating-conic-gradient(' + c.glow + ' 0 1.6deg, transparent 1.6deg 30deg)';
+  ring.style.webkitMask = ring.style.mask = 'radial-gradient(circle, transparent 0 ' + (s / 2 - 6) + 'px, #000 ' + (s / 2 - 5.5) + 'px)';
+  const at = k.box(ring, x - s / 2, y - s / 2, s, s);
+  const dur = c.calm ? 700 : press ? 1100 : 1600;
+  k.play(ring, [{ transform: at + ' scale(.6)', opacity: 0 }, { transform: at + ' scale(1)', opacity: 0.85, offset: 0.2 }, { transform: at + ' scale(1)', opacity: 0.85, offset: 0.75 }, { transform: at + ' scale(1.08)', opacity: 0 }], { duration: dur });
+  /* 两根指针：长针一格一格走（擒纵的停顿），短针慢慢转 */
+  for (const [len, th, turn, steps] of [[s * 0.42, 2, 180, 6], [s * 0.28, 3, 45, 0]] as Array<[number, number, number, number]>) {
+    const h = k.node(); if (!h) { return; }
+    h.style.background = c.glow; h.style.borderRadius = '2px'; h.style.transformOrigin = '50% 100%';
+    const hat = k.box(h, x - th / 2, y - len, th, len);
+    if (c.calm) { k.play(h, [{ transform: hat, opacity: 0 }, { transform: hat, opacity: 0.85, offset: 0.4 }, { transform: hat, opacity: 0 }], { duration: dur }); continue; }
+    k.play(h, [{ transform: hat + ' rotate(0deg)', opacity: 0 }, { transform: hat + ' rotate(0deg)', opacity: 1, offset: 0.15 }, { transform: hat + ' rotate(' + turn + 'deg)', opacity: 1, offset: 0.85 }, { transform: hat + ' rotate(' + turn + 'deg)', opacity: 0 }],
+      { duration: dur, easing: steps ? 'steps(' + steps + ', end)' : 'linear' });
+  }
+  const pin = k.node(); if (!pin) { return; }
+  pin.style.background = c.glow; pin.style.borderRadius = '50%';
+  const pat = k.box(pin, x - 3, y - 3, 6, 6);
+  k.play(pin, [{ transform: pat, opacity: 0 }, { transform: pat, opacity: 1, offset: 0.2 }, { transform: pat, opacity: 1, offset: 0.8 }, { transform: pat, opacity: 0 }], { duration: dur });
+};
+
+export const SIGNATURES: Record<SignatureId, Painter> = { stamp, words: wordsFx, slash, sparks, steam, flash, ripple, lockon, drip, tendril, shine, orbit, mark,
+  beam, scope, starburst, sprout, ribbon, mitosis, clockhand };

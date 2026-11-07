@@ -1,0 +1,66 @@
+/* 向阳 —— 太阳朋克。彩绘玻璃温室：晨光白、叶绿、阳光金；拱窗顶、铅条分隔的彩色玻璃、藤蔓、太阳能板格子。
+   全系列唯一以浅色为主、自然系的一款。招牌：sprout 藤蔓发芽；环境：叶片飘落。（design/punk/gen-skins.py 生成，改这里无效） */
+:host, [data-k-surface] { --k-fx-glow: #3f7d3a; --k-fx-alt: #d09a1c; --k-fx-glyphs: "· ∙"; --k-fx-drift: up; --k-fx-size: 6px; }
+[data-k-surface][data-k-scheme="dark"] { --k-fx-glow: #9fd88a; --k-fx-alt: #f0c45a; }
+[data-k-surface] { --k-sol-gold: #c8901c; --k-sol-lead: #3a4a3a; --k-sol-g1: rgba(90, 160, 80, .16); --k-sol-g2: rgba(230, 180, 60, .16); --k-sol-g3: rgba(90, 160, 210, .16); }
+[data-k-surface][data-k-scheme="dark"] { --k-sol-gold: #f0c45a; --k-sol-lead: #4a6050; --k-sol-g1: rgba(159, 216, 138, .12); --k-sol-g2: rgba(240, 196, 90, .12); --k-sol-g3: rgba(120, 180, 230, .12); }
+:host, [data-k-surface] { --k-amb: petal; --k-amb-dir: down; --k-amb-angle: 12; --k-amb-count: 8; --k-amb-speed: 18; --k-amb-size: 6; --k-amb-color: #6aa84f; --k-amb-alpha: .35; }
+[data-k-surface][data-k-scheme="dark"] { --k-amb-color: #9fd88a; --k-amb-alpha: .25; }
+
+/* ───────── 面板：拱窗顶 + 铅条边 ───────── */
+[data-k="panel"], [data-k="dialog"][data-k-part="content"] { border-radius: 36px 36px 12px 12px; border: 2px solid var(--k-sol-lead); box-shadow: 0 18px 40px rgba(30, 50, 20, .2); }
+[data-k="panel"] > [data-k-part="head"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { border-bottom: 2px solid var(--k-sol-lead); }
+/* 彩绘玻璃：斜向错开的色块，铅条（细深线）分隔 */
+[data-k-surface][data-k-effects~="glass"] [data-k="panel"] > [data-k-part="head"], [data-k-surface][data-k-effects~="glass"] [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] { background: repeating-linear-gradient(90deg, transparent 0 38px, color-mix(in srgb, var(--k-sol-lead) 35%, transparent) 38px 39.5px), linear-gradient(180deg, transparent 0 55%, color-mix(in srgb, var(--k-sol-lead) 30%, transparent) 55% calc(55% + 1.5px), transparent calc(55% + 1.5px)), repeating-linear-gradient(90deg, var(--k-sol-g1) 0 39.5px, var(--k-sol-g2) 39.5px 79px, var(--k-sol-g3) 79px 118.5px, var(--k-sol-g2) 118.5px 158px); }
+[data-k="panel"] > [data-k-part="head"] > [data-k-part="title"], [data-k="dialog"][data-k-part="content"] > [data-k-part="head"] > [data-k-part="title"] { letter-spacing: .05em; }
+[data-k="card"] { border-radius: 14px; border: 1.5px solid color-mix(in srgb, var(--k-sol-lead) 40%, transparent); }
+[data-k="card"][data-role="choice"][data-state="selected"] { border-color: var(--k-accent); box-shadow: inset 0 0 0 1px var(--k-accent), 0 0 14px color-mix(in srgb, var(--k-sol-gold) 30%, transparent); }
+
+/* ───────── 开关：向日葵；滑块：一片叶子；进度：植物生长；页签：拱窗 ───────── */
+[data-k="button"] { border-radius: 999px; border-color: color-mix(in srgb, var(--k-accent) 50%, transparent); }
+[data-k="button"]:active:not(:disabled), [data-k="icon-button"]:active:not(:disabled) { transform: scale(.97); }
+[data-k="switch"] [data-k-part="thumb"] { background: radial-gradient(circle, #6a3e12 0 30%, var(--k-sol-gold) 33% 62%, #e8b84a 65%); }
+[data-k="slider"] > [data-k-part="track"] > [data-k-part="thumb"] { border-radius: 0 100% 0 100%; background: var(--k-accent); border-color: var(--k-sol-lead); }
+[data-k="progress"] { border-radius: 999px; }
+[data-k="progress"] [data-k-part="indicator"] { background: linear-gradient(90deg, #6aa84f, var(--k-accent)); }
+[data-k="tabs"] [data-k-part="tab"] { border-radius: 14px 14px 0 0; }
+[data-k="tabs"] [data-k-part="tab"][data-state="active"] { box-shadow: inset 0 2px 0 var(--k-sol-gold); }
+[data-k="badge"][data-tone="accent"] { border-radius: 10px 2px 10px 2px; background: #dcefd0; color: #1f4a1c; }
+[data-k="spinner"] { border-color: var(--k-accent); border-right-color: var(--k-sol-gold); }
+
+/* ───────── 角饰：一片叶子 + 太阳（完整动效下慢转） ───────── */
+[data-k-ornament="panel-head-start"] { display: inline-block; flex: none; width: 17px; height: 17px; background: var(--k-accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21C3 10 10 3 22 2c-1 12-8 19-19 19z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21C3 10 10 3 22 2c-1 12-8 19-19 19z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-ornament="panel-head-end"] { display: inline-block; flex: none; width: 16px; height: 16px; background: var(--k-sol-gold); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(0 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(45 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(90 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(135 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(180 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(225 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(270 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(315 12 12)'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(0 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(45 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(90 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(135 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(180 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(225 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(270 12 12)'/%3E%3Crect x='11' y='1' width='2' height='5' rx='1' transform='rotate(315 12 12)'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k-surface][data-k-motion="full"][data-k-effects~="sun"] [data-k-ornament="panel-head-end"] { animation: k-sol-spin 24s linear infinite; }
+@keyframes k-sol-spin { to { transform: rotate(360deg); } }
+[data-k="card"] > [data-k-ornament="card-corner"] { right: 6px; bottom: 6px; width: 13px; height: 13px; background: var(--k-accent); opacity: .5; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21C3 10 10 3 22 2c-1 12-8 19-19 19z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21C3 10 10 3 22 2c-1 12-8 19-19 19z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="card"][data-role="choice"][data-state="selected"] > [data-k-ornament="card-corner"] { opacity: 1; background: var(--k-sol-gold); }
+/* 面板背景：右下一扇彩绘玻璃拱窗 + 左上一小块太阳能板 */
+[data-k-surface][data-k-effects~="glass"] [data-k="panel"] > [data-k-ornament="surface-backdrop"]::before, [data-k-surface][data-k-effects~="glass"] [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: 18px; bottom: -6px; width: 150px; height: 188px; opacity: .2;
+  background: linear-gradient(90deg, transparent 49%, var(--k-sol-lead) 49% 51%, transparent 51%), linear-gradient(transparent 58%, var(--k-sol-lead) 58% 60%, transparent 60%), conic-gradient(from 20deg at 50% 60%, var(--k-sol-g1), var(--k-sol-g2), var(--k-sol-g3), var(--k-sol-g1)); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cpath d='M0 30V12a12 12 0 0 1 24 0v18z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cpath d='M0 30V12a12 12 0 0 1 24 0v18z'/%3E%3C/svg%3E") center / contain no-repeat; }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"]::after, [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"]::after { content: ''; position: absolute; left: 22px; top: 66px; width: 110px; height: 66px; opacity: .1; transform: skewX(-14deg);
+  background: linear-gradient(var(--k-sol-lead) 1px, transparent 1px) 0 0 / 14px 11px, linear-gradient(90deg, var(--k-sol-lead) 1px, transparent 1px) 0 0 / 14px 11px; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"]::before { content: ''; position: absolute; right: 8px; top: 6px; width: 100px; height: 20px; background: var(--k-accent); opacity: .2; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 16'%3E%3Cpath d='M2 12C14 2 22 14 34 8s20-6 30 0 12 2 14 -2' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M18 6c3-5 8-5 9-4-2 3-5 5-9 4zM44 9c2 5 7 6 8 5-1-3-4-6-8-5zM62 5c2-4 6-4 7-3-2 2-4 4-7 3z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 16'%3E%3Cpath d='M2 12C14 2 22 14 34 8s20-6 30 0 12 2 14 -2' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M18 6c3-5 8-5 9-4-2 3-5 5-9 4zM44 9c2 5 7 6 8 5-1-3-4-6-8-5zM62 5c2-4 6-4 7-3-2 2-4 4-7 3z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 消息正文 ───────── */
+[data-k-content="body"] > * { font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", STSong, SimSun, serif; }
+[data-k-surface][data-k-scheme="light"] { --k-msg-dialogue: #2f6a2b; --k-msg-thought: #7a5010; }
+[data-k-surface][data-k-scheme="dark"] { --k-msg-dialogue: #9fd88a; --k-msg-thought: #e8bf62; }
+[data-k-content] [data-k-part="thought"] { font-style: italic; }
+[data-k-content="body"] > [data-k-part="scene-break"] { width: 80px; height: 16px; border: 0; background: var(--k-msg-dialogue); opacity: .6; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 16'%3E%3Cpath d='M2 12C14 2 22 14 34 8s20-6 30 0 12 2 14 -2' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M18 6c3-5 8-5 9-4-2 3-5 5-9 4zM44 9c2 5 7 6 8 5-1-3-4-6-8-5zM62 5c2-4 6-4 7-3-2 2-4 4-7 3z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 16'%3E%3Cpath d='M2 12C14 2 22 14 34 8s20-6 30 0 12 2 14 -2' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M18 6c3-5 8-5 9-4-2 3-5 5-9 4zM44 9c2 5 7 6 8 5-1-3-4-6-8-5zM62 5c2-4 6-4 7-3-2 2-4 4-7 3z'/%3E%3C/svg%3E") center / contain no-repeat; }
+
+/* ───────── 行动选项：7 种类型各一色；图标线条 ───────── */
+[data-k-surface] { --k-opt-action: #3f7d3a; --k-opt-persona: #a0508a; --k-opt-plot: #c8901c; --k-opt-info: #2f78a0; --k-opt-fun: #d0a020; --k-opt-nsfw: #c04050; --k-opt-other: #7a8a70; }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="action"] { --k-opt: var(--k-opt-action); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="persona"] { --k-opt: var(--k-opt-persona); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="plot"] { --k-opt: var(--k-opt-plot); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="info"] { --k-opt: var(--k-opt-info); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="fun"] { --k-opt: var(--k-opt-fun); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="nsfw"] { --k-opt: var(--k-opt-nsfw); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"][data-k-type="other"] { --k-opt: var(--k-opt-other); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] { box-shadow: inset 3px 0 0 var(--k-opt, transparent); }
+[data-k="msg-options"] > [data-k-part="fold"] > [data-k-part="list"] > li > [data-k-part="item"] > [data-k-part="item-head"] > [data-k-part="type"] > [data-k="badge"] { background: color-mix(in srgb, var(--k-opt, var(--k-accent)) 16%, transparent); color: color-mix(in srgb, var(--k-opt, var(--k-accent)) 42%, var(--k-on)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k-opt, var(--k-accent)) 45%, transparent); }
+[data-k="panel"] > [data-k-ornament="surface-backdrop"], [data-k="dialog"][data-k-part="content"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="msg-view"] > [data-k-ornament="surface-backdrop"] { display: block; }
+[data-k="card"] > [data-k-ornament="card-corner"] { display: block; }
+[data-k-icon] svg { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

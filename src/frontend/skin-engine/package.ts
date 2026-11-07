@@ -72,7 +72,8 @@ export interface SkinManifest {
 export const CONTRACT_MAJOR = 1;
 /** 平台提供的动效模块 */
 export const MODULES = ['fracture', 'particles', 'glitch', 'ink', 'trace', 'scan', 'unroll',
-  'stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark', 'ambient'] as const;
+  'stamp', 'words', 'slash', 'sparks', 'steam', 'flash', 'ripple', 'lockon', 'drip', 'tendril', 'shine', 'orbit', 'mark',
+  'beam', 'scope', 'starburst', 'sprout', 'ribbon', 'mitosis', 'clockhand', 'ambient'] as const;
 /** 风格文案槽位（契约第 11 节）：功能方声明，皮肤在 flavor 里填；{name} = 思考者名字，{n} = 数量 */
 export const FLAVOR_SLOTS = ['think.done', 'think.live', 'search.done', 'options.title', 'sign.live', 'sign.done', 'sign.oops'] as const;
 const ID = /^[a-z][a-z0-9-]{1,31}$/;

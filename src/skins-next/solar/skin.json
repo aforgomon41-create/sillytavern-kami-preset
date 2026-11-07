@@ -1,0 +1,174 @@
+{
+  "id": "solar",
+  "name": "向阳",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "太阳朋克：彩绘玻璃温室——晨光白、叶绿、阳光金；拱窗顶、铅条分隔的彩色玻璃、藤蔓与太阳能板；藤蔓发芽、叶片飘落。",
+  "author": "卡密预设",
+  "credits": "字体 Federo（OFL）；叶片、太阳、拱窗、藤蔓为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f6f8ee",
+        "accent": "#3f7d3a",
+        "radius": 16,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Federo\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#a83228",
+        "success": "#3f7d3a",
+        "info": "#2f6a90",
+        "warning": "#8a6200"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#13201a",
+        "accent": "#9fd88a",
+        "radius": 16,
+        "elevation": "glow",
+        "font": {
+          "heading": "\"Federo\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#f08a7a",
+        "success": "#9fd88a",
+        "info": "#8fc8e8",
+        "warning": "#f0c45a"
+      }
+    }
+  },
+  "modules": [
+    "sprout",
+    "particles",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "sprout",
+      "name": "发芽",
+      "description": "按下与打开时一根藤蔓长出、展开几片叶子。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "particles",
+      "name": "花粉",
+      "description": "打开、按下时飘起几粒花粉。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "落叶",
+      "description": "叶片从上方缓缓飘落。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "sun",
+      "name": "太阳",
+      "description": "面板标题后的小太阳慢慢转。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "glass",
+      "name": "彩绘玻璃",
+      "description": "标题栏与面板背景的彩绘玻璃。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的光合",
+    "think.live": "{name}光合中",
+    "search.done": "采集 {n} 份种子",
+    "options.title": "生长方向"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

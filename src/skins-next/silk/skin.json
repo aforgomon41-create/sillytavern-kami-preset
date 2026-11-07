@@ -1,0 +1,174 @@
+{
+  "id": "silk",
+  "name": "纸鸢",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "丝绸朋克：竹骨绢面的机关风筝——生绢、朱红、靛蓝 / 靛夜与灯笼金；竹节细双框、框角绑结、风筝线；绢带飘出、风筝远去。",
+  "author": "卡密预设",
+  "credits": "字体志莽行书（Zhi Mang Xing，OFL）；风筝、绑结、绢纹为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#f5efe2",
+        "accent": "#b0302a",
+        "radius": 4,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#a01e1e",
+        "success": "#3a6a3a",
+        "info": "#2c4a6e",
+        "warning": "#8a6200"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#121a26",
+        "accent": "#e8a33a",
+        "radius": 4,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#f08070",
+        "success": "#9cc48a",
+        "info": "#9fb8e0",
+        "warning": "#f0c060"
+      }
+    }
+  },
+  "modules": [
+    "ribbon",
+    "unroll",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "ribbon",
+      "name": "绢带",
+      "description": "按下与打开时一条绢带飘出、随风摆动。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "unroll",
+      "name": "展卷",
+      "description": "打开时像绢画一样从上往下展开。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "风筝",
+      "description": "小风筝从左往右飘过背景。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "kite",
+      "name": "风筝",
+      "description": "标题前的小风筝随风摆；面板背景一只大风筝骨架。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "knots",
+      "name": "绑结",
+      "description": "卡片四角的朱红绑结。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的机关推演",
+    "think.live": "{name}推演中",
+    "search.done": "收到 {n} 封飞鸢书",
+    "options.title": "放线方向"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}

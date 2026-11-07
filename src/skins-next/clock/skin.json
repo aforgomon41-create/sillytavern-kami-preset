@@ -1,0 +1,174 @@
+{
+  "id": "clock",
+  "name": "发条",
+  "version": "0.1.0",
+  "contract": "1.0",
+  "description": "发条朋克：达·芬奇手稿里的机械——手稿纸与赭红粉笔线 / 胡桃木与铁银；擒纵轮、圆规作图、镜像手稿注记；指针一格一格走。",
+  "author": "卡密预设",
+  "credits": "字体 Almendra（OFL）；擒纵轮、圆规、作图线为 SVG 绘制。",
+  "defaultScheme": "light",
+  "schemes": {
+    "light": {
+      "seeds": {
+        "neutral": "#ebe4d6",
+        "accent": "#963e26",
+        "radius": 6,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Almendra\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#9a2a1a",
+        "success": "#3d6a3a",
+        "info": "#2f5a7a",
+        "warning": "#8a5a00"
+      }
+    },
+    "dark": {
+      "seeds": {
+        "neutral": "#1a140f",
+        "accent": "#c9ccd2",
+        "radius": 6,
+        "elevation": "shadow",
+        "font": {
+          "heading": "\"Almendra\", \"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif",
+          "body": "\"Songti SC\", \"Noto Serif CJK SC\", \"Source Han Serif SC\", STSong, SimSun, serif"
+        },
+        "danger": "#ee8a7a",
+        "success": "#9cc48a",
+        "info": "#9fbcd8",
+        "warning": "#f0c060"
+      }
+    }
+  },
+  "modules": [
+    "clockhand",
+    "trace",
+    "ambient"
+  ],
+  "effects": [
+    {
+      "id": "clockhand",
+      "name": "擒纵",
+      "description": "按下与打开时一面小钟，指针一格一格走。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "trace",
+      "name": "圆规",
+      "description": "打开时一道线沿面板边缘描一圈。",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "ambient",
+      "name": "浮尘",
+      "description": "光柱里的浮尘缓缓落下。（只在动效「完整」档）",
+      "group": "动效",
+      "default": true
+    },
+    {
+      "id": "tick",
+      "name": "擒纵轮",
+      "description": "标题前与选中卡角上的擒纵轮一格一格转。",
+      "group": "装饰",
+      "default": true
+    },
+    {
+      "id": "sketch",
+      "name": "手稿线",
+      "description": "标题栏的圆规作图、卡角记号、背景的作图与镜像注记。",
+      "group": "装饰",
+      "default": true
+    }
+  ],
+  "flavor": {
+    "think.done": "{name}的手稿",
+    "think.live": "{name}演算中",
+    "search.done": "翻出 {n} 页手稿",
+    "options.title": "下一步机关"
+  },
+  "icons": {
+    "🔻": "section-end",
+    "🔺": "section-start",
+    "⚔️": "swords",
+    "🚫": "ban",
+    "🧩": "puzzle",
+    "🐱": "cat",
+    "📌": "pin",
+    "🔞": "flame",
+    "🍺": "beer",
+    "🗣️": "languages",
+    "👁️": "eye",
+    "🎯": "target",
+    "💬": "message",
+    "💤": "moon",
+    "🏃‍♂️": "footprints",
+    "🎮": "gamepad",
+    "🔊": "volume",
+    "💭": "brain",
+    "❌": "x",
+    "🪓": "zap",
+    "🐋": "fish",
+    "💕": "heart",
+    "⚙️": "settings",
+    "🎛": "sliders",
+    "‼️": "alert",
+    "📖": "book",
+    "😀": "smile",
+    "📝": "pen-line",
+    "🌐": "globe",
+    "🎭": "drama",
+    "🧪": "sparkles",
+    "🧠": "brain",
+    "🔧": "wrench",
+    "📋": "list",
+    "🤖": "bot",
+    "🌒": "moon-star",
+    "✒️": "feather",
+    "💀": "skull",
+    "🔄": "refresh",
+    "🖊️": "pen",
+    "🌊": "waves",
+    "😄": "laugh",
+    "🎆": "sparkle",
+    "🎬": "clapperboard",
+    "🗿": "mountain",
+    "😘": "heart-hands",
+    "😔": "rain",
+    "🪔": "lamp",
+    "🌌": "orbit",
+    "🔪": "knife",
+    "👊": "fist",
+    "💗": "heart",
+    "😭": "frown",
+    "🔫": "crosshair",
+    "🦇": "bird",
+    "🐙": "telescope",
+    "📕": "book-marked",
+    "👻": "ghost",
+    "😏": "glasses",
+    "🌺": "flower",
+    "🔝": "section-start",
+    "🔛": "layers",
+    "🎥": "video",
+    "🎨": "palette",
+    "🔚": "section-end",
+    "🧱": "bricks",
+    "🔠": "letters",
+    "👥": "users",
+    "🗂️": "folder",
+    "💫": "sparkles",
+    "☑️": "check",
+    "🥊": "fist",
+    "📚": "library",
+    "📜": "scroll",
+    "🔀": "shuffle",
+    "🔮": "gem",
+    "☯️": "yin-yang",
+    "🤔": "help",
+    "♿": "accessibility",
+    "🎲": "dice"
+  }
+}
