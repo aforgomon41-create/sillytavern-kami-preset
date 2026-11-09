@@ -14,6 +14,7 @@
   body.gallery { padding: 24px 16px 48px; }
   #gallery { max-width: 1480px; margin: 0 auto; }
   #gallery h1 { font-size: 22px; margin: 0 0 6px; }
+  #gallery h1 .build { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; }
   #gallery .lead { color: var(--muted); margin: 0 0 16px; max-width: 72ch; }
   #gallery nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
   #gallery nav button { font: inherit; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
@@ -4538,7 +4539,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 }
 [data-solve="hero"] [data-solve-part="portrait"] { border-radius: 50%; }
 [data-solve="group"] > [data-solve-part="title"] { text-transform: none; letter-spacing: .06em; }
-`;var Ro=z(ge(),1),pj=["suiguang","quest","neon"],Aj=[...lT.filter(e=>pj.includes(e.manifest.id)),{manifest:lj,css:dj}],coe={suiguang:"卡密预设默认皮肤：宣纸与青瓷，安静的阅读感。",quest:"卡密「世界观」系列 · 西幻冒险：羊皮纸与金属。和示例的黑暗奇幻题材最贴。",neon:"卡密「朋克」系列 · 赛博朋克：切角、霓虹、扫描线，风格跨度最大，用来压力测试。",solve:"SOLVE 独立皮肤：没有卡密预设时使用。松绿与暖石灰，像一块精密仪表盘。"},aS=new URLSearchParams(location.search),cj=aS.get("skin");cj?foe(cj,aS.get("scheme")||"light",aS.get("view")||"横条"):uoe();function uoe(){document.body.classList.add("gallery");let e=[...pj,"solve"],t=d=>Aj.find(c=>c.manifest.id===d)?.manifest.name??d,a=document.createElement("div");a.id="gallery",a.innerHTML=`<header><h1>SOLVE 状态栏 · 设计预览</h1>
+`;var Ro=z(ge(),1),pj=["suiguang","quest","neon"],Aj=[...lT.filter(e=>pj.includes(e.manifest.id)),{manifest:lj,css:dj}],coe={suiguang:"卡密预设默认皮肤：宣纸与青瓷，安静的阅读感。",quest:"卡密「世界观」系列 · 西幻冒险：羊皮纸与金属。和示例的黑暗奇幻题材最贴。",neon:"卡密「朋克」系列 · 赛博朋克：切角、霓虹、扫描线，风格跨度最大，用来压力测试。",solve:"SOLVE 独立皮肤：没有卡密预设时使用。松绿与暖石灰，像一块精密仪表盘。"},aS=new URLSearchParams(location.search),cj=aS.get("skin");cj?foe(cj,aS.get("scheme")||"light",aS.get("view")||"横条"):uoe();function uoe(){document.body.classList.add("gallery");let e=[...pj,"solve"],t=d=>Aj.find(c=>c.manifest.id===d)?.manifest.name??d,a=document.createElement("div");a.id="gallery",a.innerHTML=`<header><h1>SOLVE 状态栏 · 设计预览 <small class="build">构建于 2026/11/9 10:40:31</small></h1>
     <p class="lead">审阅用预览，不是验证（能不能用以酒馆实机为准）。数据是官方数据结构的示例：王都酒馆、第 42 轮、WOD 属性体系。有数据时浮着一条概览横条（电脑在上方、手机在输入框上方，可拖动，‹ 收成圆按钮），点一下展开面板，横条变成面板标题栏；× 收回横条。四个窗口都是可操作的真页面。</p>
     <nav class="skins" aria-label="皮肤">${e.map(d=>`<button type="button" data-id="${d}">${t(d)}${d==="solve"?"<small>独立</small>":"<small>卡密</small>"}</button>`).join("")}</nav>
     <p class="note"></p>
