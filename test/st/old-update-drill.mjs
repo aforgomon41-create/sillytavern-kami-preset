@@ -66,6 +66,14 @@ async function acceptPopups(ms, stop) {
   const until = Date.now() + ms; const seen = [];
   while (Date.now() < until) {
     if (stop && await stop()) { break; }
+    /* 0.93 起更新询问与合并裁决是新前端的对话框（kami-layer 影子树里），不是酒馆的原生弹窗 */
+    const kb = await page.evaluate(() => {
+      const l = document.querySelector('kami-layer'); if (!l) { return null; }
+      const btn = [...l.shadowRoot.querySelectorAll('button')].find((x) => /^(立即更新|应用并完成)$/.test(x.textContent.trim()) && x.getClientRects().length && !x.disabled);
+      if (!btn) { return null; }
+      const t = btn.textContent.trim(); btn.click(); return t;
+    }).catch(() => null);
+    if (kb) { seen.push('[新前端] ' + kb); await page.waitForTimeout(500); continue; }
     const th = page.locator('button:visible', { hasText: /^\s*确认\s*$/ }).first();
     if (await th.count()) { seen.push('[酒馆助手确认]'); await th.click().catch(() => {}); await page.waitForTimeout(500); continue; }
     const okb = page.locator('dialog[open] .popup-button-ok:visible, .popup:visible .popup-button-ok:visible').first();
