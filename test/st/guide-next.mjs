@@ -66,8 +66,38 @@ ok((await stepId()) === 'disclaimer', '确认前点导航里后面的步骤不�
 const primary = () => inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); const btn = [...p.querySelectorAll('button')].filter((x) => x.getAttribute('data-variant') === 'primary' && x.getClientRects().length).pop(); return btn ? { text: btn.textContent, disabled: btn.disabled } : null; });
 const pb = await primary();
 ok(pb && pb.disabled, '没勾「我已阅读并同意」时「同意并继续」点不了', pb);
-await inLayer((r) => { const cb = r.querySelector('[data-guide-step="disclaimer"] [data-k="checkbox"]'); cb && cb.click(); });
-await page.waitForTimeout(300);
+/* 2026-11-12 用户反映「同意框有时勾不上」：整行可点、框在文字前面、不贴滚动条。用真指针（电脑鼠标 / 手机触摸）点，不用 JS click */
+const agreeAt = (where) => inLayer((r, w) => {
+  const row = r.querySelector('[data-guide-step="disclaimer"] [data-guide-agree]');
+  if (!row) { return null; }
+  row.scrollIntoView({ block: 'center' });
+  const cb = row.querySelector('[data-k="checkbox"]'), q = (w === 'box' ? cb : row.querySelector('span')).getBoundingClientRect();
+  return { x: w === 'box' ? q.left + q.width / 2 : q.left + Math.min(60, q.width / 2), y: q.top + q.height / 2, state: cb.getAttribute('data-state') };
+}, where);
+const tap = async (p) => { if (MOBILE) { await page.touchscreen.tap(p.x, p.y); } else { await page.mouse.click(p.x, p.y); } await page.waitForTimeout(300); };
+const ag0 = await agreeAt('text');
+ok(ag0 && ag0.state === 'unchecked', '同意这一行存在（框在文字前面）', ag0);
+const geo = await inLayer((r) => {
+  const row = r.querySelector('[data-guide-agree]'), cb = row.querySelector('[data-k="checkbox"]'), sc = row.closest('[data-k-part="body"]');
+  const rr = row.getBoundingClientRect(), cr = cb.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+  const hits = [[.2, .5], [.5, .5], [.8, .5]].map(([fx, fy]) => { const el = r.elementFromPoint(rr.left + rr.width * fx, rr.top + rr.height * fy); return !!el && row.contains(el); });
+  return { boxLeft: Math.round(cr.left - rr.left), boxToScroller: Math.round(sr.right - cr.right), hits };
+});
+ok(geo.boxLeft < 40 && geo.boxToScroller > 100 && geo.hits.every(Boolean), '勾选框靠左、离滚动条远，整行上点哪里都落在这一行上', geo);
+await tap(ag0);
+ok((await agreeAt('text')).state === 'checked', (MOBILE ? '触摸' : '鼠标') + '点「我已阅读并同意」的文字就能勾上');
+await tap(await agreeAt('box'));
+ok((await agreeAt('box')).state === 'unchecked', (MOBILE ? '触摸' : '鼠标') + '点框本身能取消');
+await tap(await agreeAt('box'));
+ok((await agreeAt('box')).state === 'checked', '再点框又勾上');
+if (!MOBILE) {
+  /* 左侧步骤列表不超过可见高度：内容区滚到底时第一步仍完整可见（不缩到标题栏下面） */
+  const navOk = await inLayer((r) => {
+    const sc = r.querySelector('[data-guide-step]').closest('[data-k-part="body"]'); sc.scrollTop = sc.scrollHeight;
+    return new Promise((res) => requestAnimationFrame(() => { const it = r.querySelector('[data-guide-nav] [data-k-part="item"]'); const a = it.getBoundingClientRect(), b = sc.getBoundingClientRect(); res({ itemTop: Math.round(a.top), bodyTop: Math.round(b.top) }); }));
+  });
+  ok(navOk.itemTop >= navOk.bodyTop, '内容滚到底时，左侧第一步仍完整可见', navOk);
+}
 const next = () => inLayer((r) => { const p = r.querySelector('[data-k="panel"]'); const btn = [...p.querySelectorAll('button')].filter((x) => x.getAttribute('data-variant') === 'primary' && x.getClientRects().length).pop(); if (btn && !btn.disabled) { btn.click(); } return btn ? btn.textContent : null; });
 await next(); await page.waitForTimeout(500);
 ok((await stepId()) === 'tour', '勾选并确认后进入「先认识一下」', await stepId());

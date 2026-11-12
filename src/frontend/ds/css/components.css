@@ -430,3 +430,7 @@
 [data-k-ornament="toast-face"] { display: none; flex: none; width: 28px; height: 28px; background: center / contain no-repeat; pointer-events: none; }
 [data-k="panel"], [data-k="dialog"][data-k-part="content"], [data-k="msg-view"] { isolation: isolate; }
 [data-k="msg-view"], [data-k="empty"] { position: relative; }
+
+/* 勾选框的点击范围比画出来的框大一圈（用户 2026-11-12：引导里的同意框有时勾不上，手指容易点偏）。透明、不占位 */
+[data-k="checkbox"] { position: relative; }
+[data-k="checkbox"]::after { content: ''; position: absolute; inset: -10px; }

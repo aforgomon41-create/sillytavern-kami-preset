@@ -58,6 +58,13 @@
         get: function () { try { return !!fe.enabled(); } catch (e) { return true; } },
         set: function (v) { try { return fe.setEnabled(!!v) === true; } catch (e) { return false; } }
       };
+      /* 分块开关（消息前端 0.5 起才有；老版本的消息前端没有就不出这一组） */
+      if (typeof fe.parts === 'function' && typeof fe.setPart === 'function') {
+        p.chatParts = {
+          get: function () { try { return fe.parts(); } catch (e) { return { body: true, think: true, search: true, options: true }; } },
+          set: function (id, v) { try { return fe.setPart(id, !!v) === true; } catch (e) { return false; } }
+        };
+      }
     }
     var s = ls();
     if (s) {

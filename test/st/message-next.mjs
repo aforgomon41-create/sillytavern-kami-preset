@@ -336,6 +336,33 @@ const on = await page.evaluate(() => ({
   oldBody: document.querySelectorAll('#chat [data-kami-body-host]').length, oldThink: document.querySelectorAll('#chat [data-kami-native-think]').length
 }));
 ok(on.active && on.body > 0 && on.oldBody === 0 && on.oldThink === 0, '重新打开：新前端接管，旧装饰收起', on);
+/* 2026-11-12 分块开关（显示面板「消息前端」下面一组）：逐块点掉，那一块交回酒馆，别的几块照旧；再点回来 */
+const partSw = (label) => page.evaluate((lb) => { const l = document.querySelector('kami-layer'); const s = [...l.shadowRoot.querySelectorAll('[data-k="switch"]')].find((x) => x.getAttribute('aria-label') === '消息前端 · ' + lb); if (!s) { return null; } s.scrollIntoView({ block: 'center' }); const st = s.getAttribute('data-state'); s.click(); return st; }, label);
+const partState = () => page.evaluate(() => ({
+  body: document.querySelectorAll('#chat .mes_text[data-kami-msg-body]').length,
+  think: document.querySelectorAll('#chat [data-kami-msg-host="think"]').length, oldThink: document.querySelectorAll('#chat [data-kami-native-think]').length,
+  nativeShown: [...document.querySelectorAll('#chat .mes_reasoning_details')].filter((d) => getComputedStyle(d).display !== 'none').length,
+  search: document.querySelectorAll('#chat [data-kami-msg-host="search"]').length, hidSearch: document.querySelectorAll('#chat [data-kami-msg-hidden="search"]').length,
+  options: document.querySelectorAll('#chat [data-kami-msg-host="options"]').length, hidOptions: document.querySelectorAll('#chat [data-kami-msg-hidden="options"]').length,
+  bodyMarks: document.querySelectorAll('#chat .mes_text[data-k-content]').length, ls: localStorage.getItem('kami.msgfe.parts')
+}));
+const p0 = await partState();
+ok(p0.body > 0 && p0.think > 0 && p0.search > 0 && p0.options > 0, '分块开关：四块原来都由新前端显示', p0);
+for (const [label, id] of [['正文', 'body'], ['思维链', 'think'], ['搜索资料', 'search'], ['行动选项', 'options']]) {
+  const was = await partSw(label);
+  await page.waitForTimeout(900);
+  const q = await partState();
+  const others = ['body', 'think', 'search', 'options'].filter((k) => k !== id).every((k) => q[k] > 0);
+  const gone = id === 'body' ? q.body === 0 && q.bodyMarks === 0
+    : id === 'think' ? q.think === 0 && q.nativeShown > 0 && q.oldThink > 0
+      : id === 'search' ? q.search === 0 && q.hidSearch === 0
+        : q.options === 0 && q.hidOptions === 0;
+  ok(was === 'checked' && gone && others && JSON.parse(q.ls || '{}')[id] === false, '分块开关：关掉「' + label + '」只有这一块交回酒馆' + (id === 'think' ? '（原生思维链块显示、「💭 思维链」的装饰接回）' : id === 'body' ? '' : '（酒馆助手的 iframe 不再藏）') + '，其余三块照旧', { was, ...q });
+  await partSw(label);
+  await page.waitForTimeout(900);
+  const r = await partState();
+  ok(r.body > 0 && r.think > 0 && r.search > 0 && r.options > 0 && r.oldThink === 0 && (r.ls === '{}' || r.ls === null), '分块开关：再打开「' + label + '」，新前端重新接管', r);
+}
 await page.keyboard.press('Escape'); await page.waitForTimeout(400);
 
 /* ⑩ 重载聊天、删除消息 */

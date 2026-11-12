@@ -32,7 +32,18 @@ export interface DisplayPrefs {
   skinColors?: { get: () => boolean; set: (v: boolean) => boolean };
   /** 消息前端总开关（「🧪 消息前端」脚本：localStorage kami.msgfe；关掉后回到酒馆原样与旧前端） */
   chatFrontend?: { get: () => boolean; set: (v: boolean) => boolean };
+  /** 消息前端分块开关（用户 2026-11-12）：正文 / 思维链 / 搜索资料 / 行动选项各自交回酒馆。localStorage kami.msgfe.parts */
+  chatParts?: { get: () => Partial<Record<ChatPartId, boolean>>; set: (id: ChatPartId, v: boolean) => boolean };
 }
+
+export type ChatPartId = 'body' | 'think' | 'search' | 'options';
+/* 分块开关的文案：关掉后各自回到什么样 */
+const CHAT_PARTS: Array<{ id: ChatPartId; label: string; off: string }> = [
+  { id: 'body', label: '正文', off: '关：正文回到酒馆原样（看板娘行也一起收起）。' },
+  { id: 'think', label: '思维链', off: '关：显示酒馆自带的思维链块。' },
+  { id: 'search', label: '搜索资料', off: '关：显示酒馆助手渲染的旧版搜索资料。' },
+  { id: 'options', label: '行动选项', off: '关：显示酒馆助手渲染的旧版行动选项。' }
+];
 
 export interface DisplayPanelProps {
   manager: SkinManager;
@@ -303,12 +314,23 @@ function MessagePrefs({ prefs, notify }: { prefs: DisplayPrefs; notify: Ctx['not
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   const off = <span style={{ color: 'var(--k-on-muted)', fontSize: 'var(--k-fs-sm)' }}>脚本未运行</span>;
   const write = (ok: boolean): void => { if (!ok) { notify('写不进去，设置没变。'); } force(); };
-  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode, fe = prefs.chatFrontend, sc = prefs.skinColors;
+  const nw = prefs.nameWrap, of = prefs.optionsFolded, om = prefs.optionMode, fe = prefs.chatFrontend, sc = prefs.skinColors, cp = prefs.chatParts;
+  const feOn = fe ? fe.get() : false;
+  const parts = cp ? cp.get() : {};
   const cur = nw ? nw.modes.find((m) => m.id === nw.get()) : undefined;
   return (
     <SettingSection title="消息" badge={<Badge>所有皮肤</Badge>}>
       <SettingRow label="消息前端" description="用新前端排版回复：正文、思维链、搜索资料、行动选项。Markdown、公式、HTML 美化、其他插件插进正文的按钮都照常。关掉后交回酒馆原样渲染。"
-        control={fe ? <Switch checked={fe.get()} aria-label="消息前端" onCheckedChange={(v) => write(fe.set(v))} /> : off} />
+        control={fe ? <Switch checked={feOn} aria-label="消息前端" onCheckedChange={(v) => write(fe.set(v))} /> : off} />
+      {cp ? (
+        /* 分块开关：总开关下面一组，缩进；总开关关着时整组不可用 */
+        <div data-msg-parts="" role="group" aria-label="消息前端分块开关" style={{ paddingInlineStart: 'var(--k-space-4)', borderInlineStart: '2px solid var(--k-divider)', opacity: feOn ? 1 : 0.6 }}>
+          {CHAT_PARTS.map((x) => (
+            <SettingRow key={x.id} label={x.label} description={x.off}
+              control={<Switch checked={feOn && parts[x.id] !== false} disabled={!feOn} aria-label={'消息前端 · ' + x.label} onCheckedChange={(v) => write(cp.set(x.id, v))} />} />
+          ))}
+        </div>
+      ) : null}
       <SettingRow label="皮肤字体颜色" description="开：消息用皮肤自己的字体颜色与底色（覆盖酒馆的字体颜色设置）。关：跟酒馆的字体颜色设置，皮肤的底色也让出来。"
         control={sc ? <Switch checked={sc.get()} aria-label="皮肤字体颜色" onCheckedChange={(v) => write(sc.set(v))} /> : off} />
       <SettingRow label="角色名样式" description={NAME_WRAP_NOTE + (cur ? '（现在：' + cur.demo + '）' : '')}

@@ -61,7 +61,14 @@ export interface ChatFrontendOptions {
   /** 「填入 / 发送」偏好的存取（默认 localStorage） */
   loadMode?: () => OptionMode;
   saveMode?: (m: OptionMode) => void;
+  /** 分块开关（显示面板「消息前端」下面那一组，用户 2026-11-12）：哪一块交回酒馆原样显示。缺省 = 全开。
+   *  正文关：.mes_text 不当宿主、不加标记（看板娘行跟着正文）；思维链关：显示酒馆原生思维链块；
+   *  搜索资料 / 行动选项关：不藏酒馆助手渲染的那一块 iframe（正则前端照旧显示） */
+  parts?: () => Partial<Record<MsgPartId, boolean>>;
 }
+
+export type MsgPartId = 'body' | 'think' | 'search' | 'options';
+export const MSG_PARTS: readonly MsgPartId[] = ['body', 'think', 'search', 'options'];
 
 interface Surface { host: HTMLElement; surface: Element | null; render: (node: React.ReactNode) => void; dispose: () => void; last: string; body: boolean }
 type Kind = 'think' | 'search' | 'options' | 'sign';
@@ -132,6 +139,12 @@ export class ChatFrontend {
   private optionsOpen(): boolean {
     if (this.o.optionsOpen) { return this.o.optionsOpen(); }
     try { return this.o.doc.defaultView!.localStorage.getItem(OPT_FOLD_KEY) !== '1'; } catch (e) { return true; }
+  }
+
+  private on(): Record<MsgPartId, boolean> {
+    let p: Partial<Record<MsgPartId, boolean>> = {};
+    try { p = this.o.parts ? this.o.parts() || {} : {}; } catch (e) { p = {}; }
+    return { body: p.body !== false, think: p.think !== false, search: p.search !== false, options: p.options !== false };
   }
 
   private colors(): 'skin' | 'tavern' { return !this.o.skinColors || this.o.skinColors() ? 'skin' : 'tavern'; }
@@ -225,6 +238,7 @@ export class ChatFrontend {
     const latest = this.latestAi();
     const generating = this.o.generating();
     const lastId = this.o.count() - 1;
+    const on = this.on();
     /* 最新一条换了（新回复、删除）：上一条的行动选项要收掉，全部重查 */
     if (latest !== this.prevLatest) { this.all = true; this.prevLatest = latest; }
     const list = this.all ? Array.from(chat.querySelectorAll('.mes[mesid]')) : Array.from(this.dirty).filter((m) => m.isConnected && chat.contains(m));
@@ -239,13 +253,14 @@ export class ChatFrontend {
       mes.setAttribute(MES_ATTR, '');
       const streaming = generating && id === lastId;
       const editing = !!text.querySelector('textarea');
-      for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd) { th.setAttribute(HIDE_ATTR, kd); } }
+      /* 酒馆助手的 iframe 只藏我们接手的那几种；关掉的那块让它照常显示 */
+      for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd && kd !== 'sign' && on[kd]) { th.setAttribute(HIDE_ATTR, kd); } else { th.removeAttribute(HIDE_ATTR); } }
       const reply = splitReply(msg.mes);
-      this.think(mes, text, id, msg, streaming);
-      this.search(text, id, reply.search, streaming && reply.searchPending);
-      this.body(text, id, msg, reply.body ? reply.body.text : '', streaming, editing);
-      this.options(text, id, id === latest ? reply.options : null, streaming);
-      this.sign(text, id === latest, streaming ? 'think' : searchMissed(reply.search) ? 'oops' : 'done');
+      if (on.think) { this.think(mes, text, id, msg, streaming); } else { mes.removeAttribute(NATIVE_THINK); this.dropKind(text, 'think'); }
+      if (on.search) { this.search(text, id, reply.search, streaming && reply.searchPending); } else { this.dropKind(text, 'search'); }
+      if (on.body) { this.body(text, id, msg, reply.body ? reply.body.text : '', streaming, editing); } else { this.unbody(text); }
+      if (on.options) { this.options(text, id, id === latest ? reply.options : null, streaming); } else { this.dropKind(text, 'options'); }
+      this.sign(text, on.body && id === latest, streaming ? 'think' : searchMissed(reply.search) ? 'oops' : 'done');
     }
   }
 
@@ -369,6 +384,15 @@ export class ChatFrontend {
     const src = raw || msg.mes;
     this.paint(text, 'body|' + src.length + ':' + src.slice(-48) + '|' + streaming + '|' + editing,
       <MsgPart kind="body" editing={editing}><MsgBodyShell raw={src} streaming={streaming} copy={() => cleanCopyText(text)} /></MsgPart>, true);
+  }
+
+  /** 正文这一块关掉：外壳收掉（影子树只留空 slot）、标记去掉，酒馆原样显示 */
+  private unbody(text: HTMLElement): void {
+    const s = this.surfaces.get(text);
+    if (s) { s.dispose(); this.surfaces.delete(text); }
+    if (text.hasAttribute(TEXT_ATTR)) { unmarkBody(text); }
+    text.removeAttribute(TEXT_ATTR); text.removeAttribute(BODY_ATTR);
+    this.marked.delete(text);
   }
 
   /* ───── 行动选项（只有最新一条）：标题与内容逐个走统一管线 ───── */

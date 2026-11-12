@@ -10,8 +10,10 @@
  */
 (function () {
   /* @@KAMI_SKINS_NEXT_DEFAULT@@ */
-  var VERSION = '0.4';
+  var VERSION = '0.5';
   var ENABLE_KEY = 'kami.msgfe';   /* localStorage：'0' = 关（显示面板「消息前端」开关） */
+  var PARTS_KEY = 'kami.msgfe.parts';   /* localStorage：分块开关 {"body":false,…}，只记关掉的；显示面板「消息前端」下面那一组 */
+  var PART_IDS = ['body', 'think', 'search', 'options'];
   var HOST = (function () {
     try { if (window.parent && window.parent !== window && window.parent.document) { return window.parent; } } catch (e) { }
     return window;
@@ -22,6 +24,28 @@
 
   function ctx() { try { return SillyTavern.getContext(); } catch (e) { return null; } }
   function enabledPref() { try { return HOST.localStorage.getItem(ENABLE_KEY) !== '0'; } catch (e) { return true; } }
+  /* 分块开关：缺省全开；只有明确写了 false 的那块交回酒馆 */
+  function partsPref() {
+    var out = { body: true, think: true, search: true, options: true };
+    try {
+      var j = JSON.parse(HOST.localStorage.getItem(PARTS_KEY) || '{}') || {};
+      PART_IDS.forEach(function (k) { if (j[k] === false) { out[k] = false; } });
+    } catch (e) { }
+    return out;
+  }
+  function setPart(id, v) {
+    if (PART_IDS.indexOf(id) < 0) { return false; }
+    var cur = partsPref(), save = {};
+    cur[id] = !!v;
+    PART_IDS.forEach(function (k) { if (!cur[k]) { save[k] = false; } });
+    try { HOST.localStorage.setItem(PARTS_KEY, JSON.stringify(save)); } catch (e) { return false; }
+    /* 思维链：交回时让「💭 思维链」重新美化；收回时先让它收起装饰 */
+    if (id === 'think' && v) { oldScripts('release'); }
+    if (cf) { cf.refresh(); }
+    if (id === 'think' && !v) { setTimeout(function () { oldScripts('scan'); }, 0); }
+    log('分块开关：' + id + (v ? ' 开' : ' 关（交回酒馆原样）'));
+    return true;
+  }
   /* 「📄 正文外壳」「💭 思维链」：我们接管时让它们收起装饰；我们退出后让它们重新扫一遍 */
   function oldScripts(fn) {
     ['KamiBodyShell', 'KamiCot'].forEach(function (n) { try { var a = HOST[n]; if (a && typeof a[fn] === 'function') { a[fn](); } } catch (e) { } });
@@ -74,7 +98,7 @@
       catch (e) { log('套皮肤失败，用运行库内置兜底：' + e.message); }
     }
     rtRef = rt;
-    try { HOST.KamiChatFrontend = { version: VERSION, active: function () { return !disposed && !!cf; }, enabled: enabledPref, setEnabled: setEnabled, get instance() { return cf; }, shutdown: shutdown }; } catch (e) { }
+    try { HOST.KamiChatFrontend = { version: VERSION, active: function () { return !disposed && !!cf; }, enabled: enabledPref, setEnabled: setEnabled, parts: partsPref, setPart: setPart, get instance() { return cf; }, shutdown: shutdown }; } catch (e) { }
     if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
       var on = function (name, fn) { var ev = tavern_events[name]; if (!ev) { return; } try { var s = eventOn(ev, fn); if (s) { unsubs.push(s); } } catch (e) { } };
       var again = function () { if (cf) { cf.refresh(); } };
@@ -106,6 +130,7 @@
         if (!c || typeof c.messageFormatting !== 'function') { return null; }
         try { var m = c.chat[o.id]; return String(c.messageFormatting(md, m ? m.name : '', false, false, o.id, {}, !!o.reasoning)); } catch (e) { return null; }
       },
+      parts: partsPref,
       skinColors: function () { try { return HOST.localStorage.getItem('kami.msg.skincolors') !== '0'; } catch (e) { return true; } },
       liveThink: function () { try { return HOST.KamiCot && typeof HOST.KamiCot.live === 'function' ? HOST.KamiCot.live() : null; } catch (e) { return null; } },
       count: function () { var c = ctx(); return c ? c.chat.length : 0; },

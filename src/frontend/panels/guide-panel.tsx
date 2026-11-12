@@ -139,6 +139,19 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
   React.useEffect(() => () => window.clearTimeout(timer.current), []);
   const notify = React.useCallback((msg: string) => { setToast((t) => ({ msg, n: (t?.n || 0) + 1 })); window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setToast(null), 4000); }, []);
   const body = React.useRef<HTMLDivElement>(null);
+  /* 左侧步骤列表：高度不超过内容区的可见高度，自己滚（原来比可见区高时，往下翻后第一项缩到标题栏下面，用户 2026-11-12 截图） */
+  const nav = React.useRef<HTMLDivElement>(null);
+  const [navMax, setNavMax] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const sc = body.current?.closest('[data-k-part="body"]') as HTMLElement | null;
+    if (!sc) { return undefined; }
+    const win = sc.ownerDocument.defaultView as Window & typeof globalThis;
+    const measure = (): void => { const cs = win.getComputedStyle(sc); setNavMax(Math.max(160, sc.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0))); };
+    measure();
+    const ro = win.ResizeObserver ? new win.ResizeObserver(measure) : null;
+    if (ro) { ro.observe(sc); }
+    return () => { if (ro) { ro.disconnect(); } };
+  }, []);
 
   const v = preset ? preset.view() : null;
   const tabs = v && v.ok ? v.tabs : [];
@@ -178,7 +191,14 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
           </div>
           {confirmed ? <div><Badge tone="success">{G.disclaimerAccepted}</Badge></div> : (
             <>
-              <SettingRow label={G.disclaimerAgree} control={<Checkbox checked={agree} onCheckedChange={(x) => setAgree(x === true)} aria-label={G.disclaimerAgree} />} />
+              {/* 同意这一行整行可点（用户 2026-11-12 反映「有时勾不上」：原来只有最右边、贴着滚动条的 20px 小框能点，点文字没反应；
+                  手机上手指容易点偏，卡顿时连点两下又取消了）。框放到文字前面，整行是一个 label */}
+              <label data-guide-agree="" data-state={agree ? 'checked' : 'unchecked'}
+                style={{ display: 'flex', alignItems: 'center', gap: 'var(--k-space-3)', padding: 'var(--k-space-3) var(--k-space-4)', minHeight: 48, cursor: 'pointer',
+                  borderRadius: 'var(--k-r-md)', border: 'var(--k-border-w) solid ' + (agree ? 'var(--k-accent)' : 'var(--k-border)'), background: agree ? 'var(--k-soft)' : 'transparent', userSelect: 'none' }}>
+                <Checkbox checked={agree} onCheckedChange={(x) => setAgree(x === true)} aria-label={G.disclaimerAgree} />
+                <span style={{ flex: '1 1 auto', minWidth: 0 }}>{G.disclaimerAgree}</span>
+              </label>
               <Intro>{G.disclaimerConfirmHint}</Intro>
             </>
           )}
@@ -317,7 +337,15 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
   const go = (n: number): void => {
     setI(n); setSeen((s) => Math.max(s, n));
     const w = body.current?.ownerDocument.defaultView || window;   /* 宿主窗口的 rAF：脚本 iframe 是隐藏的，它的 rAF 可能不触发 */
-    w.requestAnimationFrame(() => { const el = body.current?.closest('[data-k-part="body"]'); if (el) { el.scrollTop = 0; } });
+    w.requestAnimationFrame(() => {
+      const el = body.current?.closest('[data-k-part="body"]'); if (el) { el.scrollTop = 0; }
+      /* 步骤列表自己滚时，让当前这一步留在列表的可见范围里 */
+      const nv = nav.current, cur = nv ? nv.querySelector('[aria-current]:not([aria-current="false"])') as HTMLElement | null : null;
+      if (nv && cur && nv.scrollHeight > nv.clientHeight) {
+        const t = cur.offsetTop - nv.offsetTop;
+        if (t < nv.scrollTop || t + cur.offsetHeight > nv.scrollTop + nv.clientHeight) { nv.scrollTop = Math.max(0, t - nv.clientHeight / 2 + cur.offsetHeight / 2); }
+      }
+    });
   };
   const step = STEPS[Math.min(i, STEPS.length - 1)]!;
   const last = i >= STEPS.length - 1;
@@ -343,7 +371,7 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
             {STEPS.map((s, n) => <span key={s.id} style={{ flex: 1, height: 4, borderRadius: 2, background: n <= i ? 'var(--k-accent)' : 'var(--k-divider)' }} />)}
           </div>
         ) : (
-          <div style={{ position: 'sticky', top: 0 }}>
+          <div ref={nav} data-guide-nav="" style={{ position: 'sticky', top: 0, ...(navMax ? { maxHeight: navMax, overflowY: 'auto', overscrollBehavior: 'contain' } : {}) }}>
             <NavList layout="sidebar" label="引导步骤" current={step.id}
               items={STEPS.map((s, n) => ({ id: s.id, label: (n + 1) + '. ' + s.title, ...(n < i ? { meta: '✓' } : {}) }))}
               onSelect={(id) => { const n = STEPS.findIndex((s) => s.id === id); if (confirmed && n >= 0 && n <= Math.max(seen, i)) { go(n); } else if (!confirmed && n > 0) { notify(G.disclaimerLockedToast); } }} />

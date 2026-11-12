@@ -15,10 +15,14 @@ const MOBILE = process.argv.includes('--mobile');
 const NEW_FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
 if (!NEW_FILE) { console.error('用法：node old-update-drill.mjs <新构建 JSON> [--mobile]'); process.exit(2); }
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
-const OLD_FILE = 'kami-v0.92-100-20261021.json';
+/* --from=<mirror 里的已发布产物>：从哪一版升级（默认 v0.92-100；2026-11-12 起也演练 v0.93-8 → 新版） */
+const OLD_FILE = (process.argv.find((a) => a.startsWith('--from=')) || '--from=kami-v0.92-100-20261021.json').slice(7);
+const OLD_VER = /^kami-v(\d+\.\d+-\d+)-/.exec(OLD_FILE)[1];
 const OLD_TEXT = fs.readFileSync(path.join(ROOT, 'mirror', OLD_FILE), 'utf8');
 const NEW_TEXT = fs.readFileSync(NEW_FILE, 'utf8');
-const NEW_NAME = 'kami-v0.93-1-20261104';
+/* 新版名：从 v0.92 演练时当作「0.93 的第一个正式版」；从 0.93 起演练时就用新构建自己的名字（构建号一定比旧版大） */
+const NEW_NAME = OLD_VER.startsWith('0.92') ? 'kami-v0.93-1-20261104' : path.basename(NEW_FILE, '.json');
+const NEW_VER = /^kami-v(\d+\.\d+-\d+)-/.exec(NEW_NAME)[1];
 const b = await chromium.launch();
 const page = await b.newPage(MOBILE ? { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport: { width: 1440, height: 900 } });
 let pass = 0, fail = 0;
@@ -52,8 +56,8 @@ const hits = [];
 await page.route(/api\.github\.com|cdn\.jsdelivr\.net|githubusercontent\.com|github\.com\/.*\/releases\/download|purge\.jsdelivr/, (route) => {
   const u = decodeURIComponent(route.request().url()); hits.push(u.replace(/^https:\/\//, '').slice(0, 110));
   if (/api\.github\.com\/repos\/[^/]+\/[^/]+\/releases\?/.test(u)) { return route.fulfill({ status: 500, body: 'drill' }); }
-  if (/@main\/mirror\/manifest\.json/.test(u)) { return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: '0.93-1', file: NEW_NAME + '.json', date: '2026-11-04', notes: '演练：支线合并进 main 后的第一个 0.93 正式版' }) }); }
-  if (/@v?0\.92-100\/mirror\/manifest\.json/.test(u)) { return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: '0.92-100', file: OLD_FILE }) }); }
+  if (/@main\/mirror\/manifest\.json/.test(u)) { return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: NEW_VER, file: NEW_NAME + '.json', date: '2026-11-12', notes: '演练：v' + OLD_VER + ' 用户更新到 v' + NEW_VER }) }); }
+  if (u.includes('@v' + OLD_VER + '/mirror/manifest.json') || u.includes('@' + OLD_VER + '/mirror/manifest.json')) { return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: OLD_VER, file: OLD_FILE }) }); }
   if (u.endsWith('/' + OLD_FILE)) { return route.fulfill({ status: 200, contentType: 'application/json', body: OLD_TEXT }); }
   if (u.endsWith('/' + NEW_NAME + '.json')) { return route.fulfill({ status: 200, contentType: 'application/json', body: NEW_TEXT }); }
   return route.fulfill({ status: 404, body: 'no' });
@@ -82,7 +86,7 @@ await page.goto(process.env.ST_URL || 'http://127.0.0.1:8000/');
 await page.waitForFunction(() => window.SillyTavern && window.TavernHelper && window.KamiUpdate && typeof window.KamiUpdate.check === 'function', null, { timeout: 90000 });
 await page.waitForTimeout(3000);
 await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-ok((await presetName()) === OLD_FILE.replace('.json', ''), '起点：当前预设是 v0.92-100', await presetName());
+ok((await presetName()) === OLD_FILE.replace('.json', ''), '起点：当前预设是 v' + OLD_VER, await presetName());
 /* 真实用户一般是在聊天里更新的：打开 Seraphina 那个长聊天 */
 await page.evaluate(async () => { const ctx = window.SillyTavern.getContext(); if (ctx.characterId === undefined || ctx.characterId === null) { await ctx.selectCharacterById(String(ctx.characters.findIndex((c) => /Seraphina/i.test(c.name)))); } });
 await page.waitForTimeout(4000);

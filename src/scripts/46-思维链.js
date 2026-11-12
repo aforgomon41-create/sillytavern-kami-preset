@@ -518,7 +518,13 @@
 
   /* 支线：「🧪 消息前端」接管思维链的显示时，本脚本只搬（流式扣走 + 写进 extra.reasoning），不美化、不出流式提示 */
   function yielded() {
-    try { var f = HOST.KamiChatFrontend; return !!(f && typeof f.active === 'function' && f.active()); } catch (e) { return false; }
+    try {
+      var f = HOST.KamiChatFrontend;
+      if (!(f && typeof f.active === 'function' && f.active())) { return false; }
+      /* 显示面板里单独关了「思维链」这一块：消息前端不管思维链，本脚本照常美化 */
+      if (typeof f.parts === 'function') { var p = f.parts(); if (p && p.think === false) { return false; } }
+      return true;
+    } catch (e) { return false; }
   }
 
   function dress(mes) {
