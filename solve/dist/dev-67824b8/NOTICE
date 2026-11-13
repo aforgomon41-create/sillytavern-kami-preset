@@ -1,0 +1,29 @@
+SOLVE — SillyTavern-Oriented-LLM-Variable-Engine
+Copyright 2026 aforgomon41-create and SOLVE contributors
+
+Starting with version 0.7.1, this project is licensed under the GNU Affero
+General Public License, version 3 only (SPDX: AGPL-3.0-only).
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 of the License only.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See LICENSE for the full terms.
+
+The previously published version 0.7.0 was released under Apache-2.0.
+Licenses already granted for that version remain valid. See its original
+tag for the corresponding source and license:
+https://github.com/aforgomon41-create/SillyTavern-Oriented-LLM-Variable-Engine/tree/v0.7.0
+
+Current source code, build instructions, and licensing information:
+https://github.com/aforgomon41-create/SillyTavern-Oriented-LLM-Variable-Engine
+
+Third-party dependencies retain their own copyright notices and licenses.
+Browser distributions include THIRD_PARTY_NOTICES.txt, generated from the
+licenses of the bundled dependencies. The project license does not replace
+those third-party licenses.
+
+SillyTavern is a separate project. This project is not an official
+SillyTavern distribution and does not include the SillyTavern application.
