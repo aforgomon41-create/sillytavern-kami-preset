@@ -447,15 +447,29 @@
     } catch (e) { }
     return node;
   }
-  function findNode(name) {
+  /* 一轮刷新里各个按钮都要找节点：全页查询与认主只做一次，同一轮（同一个任务）里复用。
+     以前每个按钮各查一遍全页，页面大（长聊天、长回复流式中）时每轮几十毫秒（用户 2026-11-15 报卡顿时查出） */
+  var nodeCache = null;
+  function ownedNodes() {
+    if (nodeCache) { return nodeCache; }
+    var list = [];
     try {
       var nodes = HDOC.querySelectorAll('.qr--button-label, .qr--button, #qr--bar button, [data-qr-button]');
       for (var i = 0; i < nodes.length; i++) {
         /* 这一段文字的「主人」必须是这个按钮：避免把别人的按钮画成自己 */
         var owner = matchButton(nodes[i].textContent);
-        if (owner && owner.name === name) {
-          return { label: labelTarget(nodes[i]), host: hostOf(nodes[i]) };
-        }
+        if (owner) { list.push({ name: owner.name, node: nodes[i] }); }
+      }
+    } catch (e) { }
+    nodeCache = list;
+    Promise.resolve().then(function () { nodeCache = null; });
+    return list;
+  }
+  function findNode(name) {
+    try {
+      var list = ownedNodes();
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].name === name && list[i].node.isConnected) { return { label: labelTarget(list[i].node), host: hostOf(list[i].node) }; }
       }
     } catch (e) { }
     return null;
@@ -774,8 +788,14 @@
       var MO = (HOST && HOST.MutationObserver) || window.MutationObserver;
       if (MO) {
         var queued = false;
-        moBtn = new MO(function () {
+        moBtn = new MO(function (records) {
           if (queued || api.disposed) { return; }
+          /* 聊天区里的变动（流式时每个片段都有）与按钮无关：全在 #chat 里就不重画。
+             以前每次都重画、逐个按钮全页 querySelectorAll，长回复流式时拖慢整页（用户 2026-11-15 报） */
+          try {
+            var chat = HDOC.getElementById('chat');
+            if (chat && records && records.length && records.every(function (r) { return chat.contains(r.target); })) { return; }
+          } catch (e) { }
           queued = true;
           hsetTimeout(function () { queued = false; paint(); }, 400);
         });

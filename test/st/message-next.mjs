@@ -103,7 +103,8 @@ for (let i = 0; i < 60; i++) {
       stop: !!stop && getComputedStyle(stop).display !== 'none', raw: (ctx.chat[id].mes || '').length,
       think: h ? ((h.shadowRoot.querySelector('[data-k="msg-think"] [data-k-part="toggle"]') || {}).textContent || '') : '',
       rawThink: /<nyaruko_think>/.test(ctx.chat[id].mes || ''), textLen: t ? t.textContent.length : 0,
-      styled: t ? t.getAttribute('data-k-content') === 'body' && !!t.shadowRoot && t.querySelectorAll(':scope > p[data-k-part="para"]').length : 0
+      /* 生成中不逐片段标记（太卡，用户 2026-11-15 报），正文样式靠内容规则的标签兜底：段落在、套上了正文、首行缩进生效 */
+      styled: t && t.getAttribute('data-k-content') === 'body' && !!t.shadowRoot ? [...t.querySelectorAll(':scope > p')].filter((p) => parseFloat(getComputedStyle(p).textIndent) > 0 || /^[\s　]/.test(p.textContent)).length : 0
     };
   });
   samples.push(x);
@@ -115,7 +116,7 @@ ok(live.length >= 5, '取到了生成中的样本', samples.length + ' 个样本
 ok(live.some((x) => /奈亚子思考中/.test(x.think)), '生成中思维链显示「奈亚子思考中」（读「💭 思维链」正在搬的内容）', [...new Set(live.map((x) => x.think))].join(' / '));
 ok(live.every((x) => !x.rawThink), '思维链没有进正文（「💭 思维链」流式时就扣走了）');
 ok(live.some((x) => x.textLen > 20), '生成中正文逐步显示', live.map((x) => x.textLen).join(','));
-ok(live.some((x) => x.styled > 0), '生成中正文就按我们的排版（段落已标记、套上正文样式）', live.map((x) => x.styled).join(','));
+ok(live.some((x) => x.styled > 0), '生成中正文就按我们的排版（套上正文样式，段落靠标签兜底）', live.map((x) => x.styled).join(','));
 await notGenerating();
 await page.waitForTimeout(2000);
 

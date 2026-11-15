@@ -50,9 +50,14 @@
   function oldScripts(fn) {
     ['KamiBodyShell', 'KamiCot'].forEach(function (n) { try { var a = HOST[n]; if (a && typeof a[fn] === 'function') { a[fn](); } } catch (e) { } });
   }
+  /* 酒馆用行内样式开关停止键（$('#mes_stop').css({ display: 'flex' / 'none' })）：先读行内样式。
+     不要每次都 getComputedStyle——流式时每个片段都会问一次，强制整页重算样式，长回复越到后面越卡（用户 2026-11-15 报：八千字以后整个酒馆卡死） */
   function stopVisible() {
     var b = HDOC.getElementById('mes_stop');
-    return !!b && HOST.getComputedStyle(b).display !== 'none';
+    if (!b) { return false; }
+    var d = b.style.display;
+    if (d) { return d !== 'none'; }
+    return HOST.getComputedStyle(b).display !== 'none';
   }
 
   /* 行动选项：填入接在输入框已有内容后面 */
@@ -101,7 +106,8 @@
     try { HOST.KamiChatFrontend = { version: VERSION, active: function () { return !disposed && !!cf; }, enabled: enabledPref, setEnabled: setEnabled, parts: partsPref, setPart: setPart, get instance() { return cf; }, shutdown: shutdown }; } catch (e) { }
     if (typeof eventOn === 'function' && typeof tavern_events !== 'undefined') {
       var on = function (name, fn) { var ev = tavern_events[name]; if (!ev) { return; } try { var s = eventOn(ev, fn); if (s) { unsubs.push(s); } } catch (e) { } };
-      var again = function () { if (cf) { cf.refresh(); } };
+      /* 事件只叫一次全部重查（rescan：内容没变的不重画）；旧版运行库没有 rescan 时退回 refresh */
+      var again = function () { if (cf) { if (typeof cf.rescan === 'function') { cf.rescan(); } else { cf.refresh(); } } };
       on('GENERATION_STARTED', again);
       ['GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED', 'MESSAGE_RECEIVED'].forEach(function (n) { on(n, function () { again(); setTimeout(again, 300); setTimeout(again, 1200); }); });
       /* 只涉及一楼的事件：只重查那一楼（长聊天里流式每个片段都全部重画太重）；参数不是楼层号时按最后一楼 */

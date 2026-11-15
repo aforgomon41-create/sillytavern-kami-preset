@@ -30,12 +30,32 @@ function splitSelectors(sel: string): string[] {
 
 type RuleList = { cssRules: CSSRuleList };
 
+/* 结构标记 → 没标记时按标签认（用户 2026-11-15 报：长回复流式到八千字后整个酒馆卡死）。
+   酒馆流式时每个片段都把 .mes_text 整个重写，原来每次都要重新 markBody 一遍，整楼的样式与排版每个片段多算一遍。
+   现在流式中不再逐片段标记（结束后标一次），内容规则另出一条「按标签认、只认没标记的」的兜底，生成中的样式与标记后一致。 */
+const PART_TAGS: Record<string, string[]> = { para: ['p'], dialogue: ['q'], thought: ['em', 'i'], keyword: ['strong', 'b'], 'scene-break': ['hr'] };
+const PART_RE = /\[data-k-part="(para|dialogue|thought|keyword|scene-break)"\]/g;
+/** 段落的兜底不带首行缩进：没标记的段落段首还留着酒馆渲染的「　　」，看起来与标记后（去掉全角空格 + 2em 缩进）一样 */
+const NO_INDENT = /(^|;\s*)text-indent\s*:[^;]*;?/g;
+function fallbackSel(sel: string): string | null {
+  if (!PART_RE.test(sel)) { return null; }
+  PART_RE.lastIndex = 0;
+  return sel.replace(PART_RE, (_m, part: string) => ':is(' + PART_TAGS[part]!.map((t) => t + ':not([data-k-part])').join(', ') + ')');
+}
+
 function collect(list: RuleList, out: string[]): void {
   for (const r of Array.from(list.cssRules)) {
     const anyR = r as CSSRule & { selectorText?: string; style?: CSSStyleDeclaration; cssRules?: CSSRuleList; media?: MediaList };
     if (anyR.selectorText !== undefined && anyR.style) {
       const picked = splitSelectors(anyR.selectorText).filter((x) => x.startsWith('[data-k-content'));
-      if (picked.length) { out.push(picked.map((x) => '#chat ' + x).join(', ') + ' { ' + anyR.style.cssText + ' }'); }
+      if (picked.length) {
+        const fb = picked.map(fallbackSel).filter((x): x is string => !!x);
+        if (fb.length) {
+          const css = /\[data-k-part="para"\]/.test(picked.join(',')) ? anyR.style.cssText.replace(NO_INDENT, '$1') : anyR.style.cssText;
+          if (css.trim()) { out.push(fb.map((x) => '#chat ' + x).join(', ') + ' { ' + css + ' }'); }
+        }
+        out.push(picked.map((x) => '#chat ' + x).join(', ') + ' { ' + anyR.style.cssText + ' }');
+      }
     } else if (anyR.cssRules) {
       const inner: string[] = [];
       collect(anyR as unknown as RuleList, inner);

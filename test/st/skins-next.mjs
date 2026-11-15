@@ -87,7 +87,11 @@ const pressCount = () => layer(async (r) => {
 const foldCover = () => page.evaluate(async () => {
   const h = [...document.querySelectorAll('#chat [data-kami-msg-host="options"]')].pop();
   if (!h) { return { n: 0, hit: 0, why: '没有行动选项' }; }
-  h.scrollIntoView({ block: 'start' });
+  /* 只滚 #chat，不用 scrollIntoView：聊天短时 #chat 滚不到位，scrollIntoView 会把整页（html）也往上推，
+     面板与消息一起出屏，特效落在屏外、下一项也按不到面板按钮 */
+  const chat = document.getElementById('chat');
+  chat.scrollTop += h.getBoundingClientRect().top - chat.getBoundingClientRect().top;
+  document.scrollingElement.scrollTop = 0;
   const r = h.shadowRoot, sec = r.querySelector('[data-k="msg-options"]');
   const tog = sec.querySelector(':scope > [data-k-part="head"] [data-k-part="toggle"]');
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));

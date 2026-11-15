@@ -78,6 +78,7 @@ const HOST_ATTR = 'data-kami-msg-host';          /* 我们的宿主元素（.mes
 const BODY_ATTR = 'data-kami-msg-body';          /* .mes_text 当了正文宿主 */
 const HIDE_ATTR = 'data-kami-msg-hidden';        /* 被我们代替的酒馆助手 iframe（.TH-render） */
 const NATIVE_THINK = 'data-kami-msg-native-think'; /* .mes 上：原生思维链块由我们代为显示 */
+const THINK_EDIT = 'data-kami-msg-think-editing';  /* .mes 上：酒馆正在编辑原生思维链（扫描时由脚本标，不用 :has——见 HOST_CSS） */
 const STYLE_ID = 'kami-msg-host-style';
 const BODY_STYLE_ID = 'kami-msg-body-style';
 const OPT_FOLD_KEY = 'kami.options.folded';
@@ -86,8 +87,9 @@ const EDITING_THINK = '.reasoning_edit_textarea';
 /* 宿主文档里的一条样式：只藏 / 显我们接手的东西，外加几块的间距。不改酒馆任何外观 */
 const HOST_CSS = [
   '#chat [' + HIDE_ATTR + '] { display: none !important; }',
-  '#chat .mes[' + NATIVE_THINK + ']:not(:has(' + EDITING_THINK + ')) .mes_reasoning_details { display: none !important; }',
-  '#chat .mes:has(' + EDITING_THINK + ') [' + HOST_ATTR + '="think"] { display: none !important; }',
+  /* 不用 :has(…)：聊天区每次改动浏览器都要在整楼里重查一遍，长回复流式时很重（用户 2026-11-15 报卡顿）；编辑状态由扫描时标在 .mes 上 */
+  '#chat .mes[' + NATIVE_THINK + ']:not([' + THINK_EDIT + ']) .mes_reasoning_details { display: none !important; }',
+  '#chat .mes[' + THINK_EDIT + '] [' + HOST_ATTR + '="think"] { display: none !important; }',
   '#chat [' + HOST_ATTR + '] { display: block; margin: 4px var(--mes-right-spacing, 0) 4px 0; text-indent: 0; }',
   '#chat [' + HOST_ATTR + '="options"] { margin-top: 6px; }',
   /* 看板娘行：皮肤没启用时里面是空的，不占间距 */
@@ -184,6 +186,13 @@ export class ChatFrontend {
     this.schedule();
   }
 
+  /** 聊天有变动（生成开始 / 结束、切换聊天、新消息）：全部重查，但只重画内容真变了的（不像 refresh() 那样强制每块都重画——
+   *  长聊天里每次生成结束都把一百多块全重画三遍，用户 2026-11-15 报卡顿时一起查出） */
+  rescan(): void {
+    this.all = true;
+    this.schedule();
+  }
+
   /** 某一楼的内容变了（流式片段、单条消息的编辑 / 切换回复事件）：只重查这一楼，不重画别的楼。id 省略 = 最后一楼 */
   touch(id?: number): void {
     const chat = this.o.chat();
@@ -256,7 +265,7 @@ export class ChatFrontend {
       /* 酒馆助手的 iframe 只藏我们接手的那几种；关掉的那块让它照常显示 */
       for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd && kd !== 'sign' && on[kd]) { th.setAttribute(HIDE_ATTR, kd); } else { th.removeAttribute(HIDE_ATTR); } }
       const reply = splitReply(msg.mes);
-      if (on.think) { this.think(mes, text, id, msg, streaming); } else { mes.removeAttribute(NATIVE_THINK); this.dropKind(text, 'think'); }
+      if (on.think) { this.think(mes, text, id, msg, streaming); } else { mes.removeAttribute(NATIVE_THINK); mes.removeAttribute(THINK_EDIT); this.dropKind(text, 'think'); }
       if (on.search) { this.search(text, id, reply.search, streaming && reply.searchPending); } else { this.dropKind(text, 'search'); }
       if (on.body) { this.body(text, id, msg, reply.body ? reply.body.text : '', streaming, editing); } else { this.unbody(text); }
       if (on.options) { this.options(text, id, id === latest ? reply.options : null, streaming); } else { this.dropKind(text, 'options'); }
@@ -287,7 +296,7 @@ export class ChatFrontend {
   }
 
   /** 统一管线：把一段 Markdown 交给酒馆渲染、写进内容容器、加标记、排公式。返回 false = 拿不到酒馆的渲染 */
-  private fill(box: Element, md: string, id: number, kind: string, reasoning = false): boolean {
+  private fill(box: Element, md: string, id: number, kind: string, reasoning = false, mark = true): boolean {
     if (!this.o.format) { return false; }
     if (this.written.get(box) !== md) {
       const html = this.o.format(protectMath(md), { id, reasoning });
@@ -296,7 +305,8 @@ export class ChatFrontend {
       this.written.set(box, md);
     }
     box.setAttribute(TEXT_ATTR, kind);
-    markBody(box);
+    /* 生成中的思维链不逐片段标记（同正文，见 body()）：标签兜底样式照样生效，结束后标一次 */
+    if (mark) { markBody(box); }
     typesetTex(box);
     return true;
   }
@@ -319,6 +329,7 @@ export class ChatFrontend {
     }
     const details = mes.querySelector('.mes_reasoning_details');
     if (native && details) { mes.setAttribute(NATIVE_THINK, ''); } else { mes.removeAttribute(NATIVE_THINK); }
+    if (details && details.querySelector(EDITING_THINK)) { mes.setAttribute(THINK_EDIT, ''); } else { mes.removeAttribute(THINK_EDIT); }
     if (!src && !live) { this.dropKind(text, 'think'); return; }
     const host = this.hostFor(text, 'think');
     const actions: ThinkActions = {};
@@ -332,8 +343,9 @@ export class ChatFrontend {
       if (details.querySelector('.mes_reasoning_edit')) { actions.edit = click('.mes_reasoning_edit'); }
       if (details.querySelector('.mes_reasoning_delete')) { actions.remove = click('.mes_reasoning_delete'); }
     }
-    const slotted = this.fill(this.box(host, 'content'), src, id, 'think', true);
-    this.paint(host, 'think|' + src.length + ':' + src.slice(-48) + '|' + live + '|' + !!actions.edit + '|' + slotted,
+    const slotted = this.fill(this.box(host, 'content'), src, id, 'think', true, !live);
+    /* 流式时外壳不必每个片段重画（内容经 slot 显示，自己会长）：按 400 字一档；结束后按精确内容重画一次 */
+    this.paint(host, 'think|' + (live ? 'live:' + Math.floor(src.length / 400) : src.length + ':' + src.slice(-48)) + '|' + live + '|' + !!actions.edit + '|' + slotted,
       <MsgPart kind="think"><MsgThink text={src} streaming={live} actions={actions} slotted={slotted} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} /></MsgPart>);
   }
 
@@ -375,14 +387,15 @@ export class ChatFrontend {
     if (!editing) {
       if (text.getAttribute(TEXT_ATTR) !== 'body') { text.setAttribute(TEXT_ATTR, 'body'); this.marked.delete(text); }
       const sig = text.childElementCount + ':' + (text.textContent || '').length;
-      if (this.marked.get(text) !== sig) {
+      /* 流式中不逐片段标记（酒馆每个片段都整段重写，标一次就要整楼重排一次，长回复越来越卡）：样式靠内容规则的标签兜底（body-style.ts），生成结束再标 */
+      if (this.marked.get(text) !== sig && !streaming) {
         markBody(text);
         typesetTex(text);
         this.marked.set(text, text.childElementCount + ':' + (text.textContent || '').length);
       }
     } else { text.removeAttribute(TEXT_ATTR); this.marked.delete(text); }
     const src = raw || msg.mes;
-    this.paint(text, 'body|' + src.length + ':' + src.slice(-48) + '|' + streaming + '|' + editing,
+    this.paint(text, 'body|' + (streaming ? 'live:' + Math.floor(src.length / 400) : src.length + ':' + src.slice(-48)) + '|' + streaming + '|' + editing,
       <MsgPart kind="body" editing={editing}><MsgBodyShell raw={src} streaming={streaming} copy={() => cleanCopyText(text)} /></MsgPart>, true);
   }
 
@@ -493,8 +506,8 @@ export class ChatFrontend {
       for (const el of Array.from(chat.querySelectorAll('.mes_text[' + TEXT_ATTR + ']'))) { unmarkBody(el); }
       for (const host of Array.from(chat.querySelectorAll('[' + HOST_ATTR + ']'))) { host.remove(); }
       for (const el of Array.from(chat.querySelectorAll('[' + HIDE_ATTR + ']'))) { el.removeAttribute(HIDE_ATTR); }
-      for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + '], [' + BODY_ATTR + ']'))) {
-        el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); el.removeAttribute(BODY_ATTR);
+      for (const el of Array.from(chat.querySelectorAll('[' + NATIVE_THINK + '], [' + MES_ATTR + '], [' + BODY_ATTR + '], [' + THINK_EDIT + ']'))) {
+        el.removeAttribute(NATIVE_THINK); el.removeAttribute(MES_ATTR); el.removeAttribute(BODY_ATTR); el.removeAttribute(THINK_EDIT);
       }
     }
     for (const sid of [STYLE_ID, BODY_STYLE_ID]) { const st = this.o.doc.getElementById(sid); if (st) { st.remove(); } }
