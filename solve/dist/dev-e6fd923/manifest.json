@@ -1,0 +1,12 @@
+{
+  "display_name": "SOLVE 变量引擎与调试面板",
+  "author": "SOLVE",
+  "version": "0.9.0-preview.1",
+  "loading_order": 50,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "generate_interceptor": "solve_generation_interceptor",
+  "auto_update": false,
+  "minimum_client_version": "1.19.0"
+}
