@@ -114,11 +114,13 @@ export class ChatFrontend {
   private busy = false;
   /* 增量扫描：只重查有变动的楼层（长聊天里流式每个片段都全量扫一遍，100 楼要 15ms）；all = 下次全部重查 */
   private dirty = new Set<Element>();
+  private touchLast = false;
   private all = true;
   private prevLatest = -2;
   private mode: OptionMode;
   /** 内容容器上次写进去的源（没变就不重写——插件插进去的节点留着） */
   private readonly written = new WeakMap<Element, string>();
+  private readonly boxMarked = new WeakMap<Element, string>();
   /** 已经标过的正文：内容没变就不再走一遍 */
   private readonly marked = new WeakMap<Element, string>();
   private readonly onStorage = (e: StorageEvent): void => { if (e.key === OPT_FOLD_KEY || e.key === 'kami-option-mode') { this.refresh(); } };
@@ -197,8 +199,9 @@ export class ChatFrontend {
   touch(id?: number): void {
     const chat = this.o.chat();
     if (!chat) { return; }
-    const n = typeof id === 'number' && id >= 0 ? id : this.o.count() - 1;
-    const mes = chat.querySelector('.mes[mesid="' + n + '"]');
+    /* 没给楼层号（流式每个片段的事件）：扫描时再找最后一楼——每个片段都数一遍楼层要取一次酒馆上下文，手机上很显眼 */
+    if (!(typeof id === 'number' && id >= 0)) { this.touchLast = true; this.schedule(); return; }
+    const mes = chat.querySelector('.mes[mesid="' + id + '"]');
     if (mes) { this.dirty.add(mes); } else { this.all = true; }
     this.schedule();
   }
@@ -250,6 +253,11 @@ export class ChatFrontend {
     const on = this.on();
     /* 最新一条换了（新回复、删除）：上一条的行动选项要收掉，全部重查 */
     if (latest !== this.prevLatest) { this.all = true; this.prevLatest = latest; }
+    if (this.touchLast) {
+      this.touchLast = false;
+      const last = chat.querySelector('.mes[mesid="' + lastId + '"]');
+      if (last) { this.dirty.add(last); } else { this.all = true; }
+    }
     const list = this.all ? Array.from(chat.querySelectorAll('.mes[mesid]')) : Array.from(this.dirty).filter((m) => m.isConnected && chat.contains(m));
     this.all = false;
     this.dirty.clear();
@@ -305,9 +313,13 @@ export class ChatFrontend {
       this.written.set(box, md);
     }
     box.setAttribute(TEXT_ATTR, kind);
-    /* 生成中的思维链不逐片段标记（同正文，见 body()）：标签兜底样式照样生效，结束后标一次 */
-    if (mark) { markBody(box); }
-    typesetTex(box);
+    /* 生成中的思维链不逐片段标记（同正文，见 body()）：标签兜底样式照样生效，结束后标一次。
+       内容没变、已经标过的不再标（思维链结束后正文还在流，每个片段都会扫到这一楼） */
+    if (mark && this.boxMarked.get(box) !== md) {
+      markBody(box);
+      typesetTex(box);
+      this.boxMarked.set(box, md);
+    }
     return true;
   }
   /** 宿主下某个 slot 的内容容器（宿主的子节点，页面 DOM） */
@@ -327,6 +339,10 @@ export class ChatFrontend {
       const l = this.o.liveThink();
       if (l && (l.diverting || l.text)) { src = l.text; live = l.diverting; }
     }
+    /* 原生思维链（模型的 reasoning_content）在流：酒馆在 .mes 上标 data-reasoning-state="thinking"。
+       以前只认正文里的思维链标签，原生的每个片段都整段重渲染、重标记、外壳按精确内容重画，
+       带原生思考的模型一开始思考就卡（用户 2026-11-15，安卓 TauriTavern） */
+    if (native && streaming && mes.getAttribute('data-reasoning-state') === 'thinking') { live = true; }
     const details = mes.querySelector('.mes_reasoning_details');
     if (native && details) { mes.setAttribute(NATIVE_THINK, ''); } else { mes.removeAttribute(NATIVE_THINK); }
     if (details && details.querySelector(EDITING_THINK)) { mes.setAttribute(THINK_EDIT, ''); } else { mes.removeAttribute(THINK_EDIT); }
@@ -343,7 +359,11 @@ export class ChatFrontend {
       if (details.querySelector('.mes_reasoning_edit')) { actions.edit = click('.mes_reasoning_edit'); }
       if (details.querySelector('.mes_reasoning_delete')) { actions.remove = click('.mes_reasoning_delete'); }
     }
-    const slotted = this.fill(this.box(host, 'content'), src, id, 'think', true, !live);
+    /* 生成中思维链默认收着、内容看不见：收着时不渲染内容（每个片段都把整段交给酒馆渲染一遍，越长越慢），
+       展开了才填；展开后下一个片段到来时就会填上，生成结束按完整内容填一次 */
+    const sec = host.shadowRoot ? host.shadowRoot.querySelector('[data-k="msg-think"]') : null;
+    const shut = live && !!sec && sec.getAttribute('data-state') !== 'open';
+    const slotted = shut ? !!this.o.format : this.fill(this.box(host, 'content'), src, id, 'think', true, !live);
     /* 流式时外壳不必每个片段重画（内容经 slot 显示，自己会长）：按 400 字一档；结束后按精确内容重画一次 */
     this.paint(host, 'think|' + (live ? 'live:' + Math.floor(src.length / 400) : src.length + ':' + src.slice(-48)) + '|' + live + '|' + !!actions.edit + '|' + slotted,
       <MsgPart kind="think"><MsgThink text={src} streaming={live} actions={actions} slotted={slotted} {...(this.o.thinker ? { thinker: this.o.thinker } : {})} /></MsgPart>);

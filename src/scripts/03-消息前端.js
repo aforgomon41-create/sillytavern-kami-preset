@@ -22,7 +22,15 @@
   var disposed = false, cf = null, unsubs = [], timer = null, rtRef = null;
   function log(msg) { try { console.log('[消息前端] ' + msg); } catch (e) { } }
 
-  function ctx() { try { return SillyTavern.getContext(); } catch (e) { return null; } }
+  /* 酒馆的 getContext() 每次都新拼一个大对象：流式时每个片段都要扫描，一轮里取消息、数楼层、渲染各叫一次，手机上很显眼。
+     同一轮（同一个任务）里复用一次（chat 是活数组，取到的始终是最新内容；下一个微任务就作废） */
+  var ctxCache = null;
+  function ctx() {
+    if (ctxCache) { return ctxCache; }
+    try { ctxCache = SillyTavern.getContext(); } catch (e) { return null; }
+    Promise.resolve().then(function () { ctxCache = null; });
+    return ctxCache;
+  }
   function enabledPref() { try { return HOST.localStorage.getItem(ENABLE_KEY) !== '0'; } catch (e) { return true; } }
   /* 分块开关：缺省全开；只有明确写了 false 的那块交回酒馆 */
   function partsPref() {

@@ -16,9 +16,11 @@ const NEW_FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
 if (!NEW_FILE) { console.error('用法：node old-update-drill.mjs <新构建 JSON> [--mobile]'); process.exit(2); }
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 /* --from=<mirror 里的已发布产物>：从哪一版升级（默认 v0.92-100；2026-11-12 起也演练 v0.93-8 → 新版） */
-const OLD_FILE = (process.argv.find((a) => a.startsWith('--from=')) || '--from=kami-v0.92-100-20261021.json').slice(7);
+/* 也可以给路径（撤回后不在 mirror/ 里的版本，例如 --from=dist/kami-v0.93-29-20261115.json） */
+const OLD_ARG = (process.argv.find((a) => a.startsWith('--from=')) || '--from=kami-v0.92-100-20261021.json').slice(7);
+const OLD_FILE = path.basename(OLD_ARG);
 const OLD_VER = /^kami-v(\d+\.\d+-\d+)-/.exec(OLD_FILE)[1];
-const OLD_TEXT = fs.readFileSync(path.join(ROOT, 'mirror', OLD_FILE), 'utf8');
+const OLD_TEXT = fs.readFileSync(OLD_ARG.includes('/') ? path.resolve(OLD_ARG) : path.join(ROOT, 'mirror', OLD_FILE), 'utf8');
 const NEW_TEXT = fs.readFileSync(NEW_FILE, 'utf8');
 /* 新版名：从 v0.92 演练时当作「0.93 的第一个正式版」；从 0.93 起演练时就用新构建自己的名字（构建号一定比旧版大） */
 const NEW_NAME = OLD_VER.startsWith('0.92') ? 'kami-v0.93-1-20261104' : path.basename(NEW_FILE, '.json');

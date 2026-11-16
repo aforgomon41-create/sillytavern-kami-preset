@@ -5,7 +5,10 @@
 //   ① 生成中正文不逐片段标记（酒馆每个片段都整段重写 .mes_text，原来每次重标一遍，整楼多排一次版）；
 //   ② 生成中的样式与标记后一致：对白 / 心理描写 / 关键词颜色、段落首字位置（靠内容规则的标签兜底，body-style.ts）；
 //   ③ 生成结束后标记补上；
-//   ④ 流畅度：同一段 1.2 万字的回复，消息前端开着时生成后半段的帧率不低于关掉时的 75%（关掉 = 酒馆自己的开销）。
+//   ④ 流畅度：同一段 1.2 万字的回复，消息前端开着时生成后半段的帧率不低于关掉时的 75%（关掉 = 酒馆自己的开销）；
+//   ⑤ 原生思维链（模型的 reasoning_content）在流时也按「生成中」处理：CPU 降速 4 倍（模拟手机）时思考阶段的帧率不低于关掉消息前端的 75%
+//     （用户 2026-11-15 报：安卓 TauriTavern + 带原生思考的模型，思考才几百字就卡）；
+//   ⑥ 生成中展开思维链能看到内容；⑦ 结束后思维链内容完整、已标记。
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
 const { chromium } = require('playwright');
@@ -97,6 +100,55 @@ async function fps(on) {
 const off = await fps(false);
 const on = await fps(true);
 ok(on.fps >= off.fps * 0.75, '④ 1.2 万字回复的后半段：消息前端开着 ' + on.fps + ' 帧/秒，关掉 ' + off.fps + ' 帧/秒（开着不低于关掉的 75%）', { on, off });
+/* ⑤⑥⑦ 原生思维链：思考走 reasoning_content，正文很短 */
+const thinkText = (n) => { let s = ''; for (let i = 1; s.length < n; i++) { s += '## 第' + i + '步\n- 夜风穿过窗棂，*要不要*进去看看？**老马什**在门口。\n\n'; } return s; };
+async function sendNative(think, cpu) {
+  await fetch(MOCK + '/__mock/reset', { method: 'POST' });
+  await fetch(MOCK + '/__mock/next', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reasoning: thinkText(think), content: '<content>\n　　思考结束后的正文。\n</content>', chunk: 8, delayMs: 20 }) });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
+  const n0 = await page.evaluate(() => window.SillyTavern.getContext().chat.length);
+  await page.fill('#send_textarea', '（原生思考）');
+  await page.click('#send_but');
+  await page.waitForFunction((n) => window.SillyTavern.getContext().chat.length >= n + 2, n0, { timeout: 60000 });
+  return cdp;
+}
+const reasoningLen = () => page.evaluate(() => { const c = window.SillyTavern.getContext(); const m = c.chat[c.chat.length - 1]; return m && m.extra && typeof m.extra.reasoning === 'string' ? m.extra.reasoning.length : 0; });
+async function thinkFps(on) {
+  await page.evaluate((v) => window.KamiChatFrontend.setEnabled(v), on);
+  await page.waitForTimeout(1200);
+  const cdp = await sendNative(3000, 4);
+  await page.waitForFunction(() => { const c = window.SillyTavern.getContext(); const m = c.chat[c.chat.length - 1]; return m && m.extra && (m.extra.reasoning || '').length > 600; }, null, { timeout: 120000, polling: 200 });
+  await page.evaluate(() => { const w = window; w.__frames = []; const tick = () => { w.__frames.push(performance.now()); w.__raf = requestAnimationFrame(tick); }; w.__raf = requestAnimationFrame(tick); });
+  await page.waitForTimeout(4000);
+  const r = await page.evaluate(() => { cancelAnimationFrame(window.__raf); const f = window.__frames; return Math.round((f.length - 1) / ((f[f.length - 1] - f[0]) || 1) * 1000); });
+  const at = await reasoningLen();
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  await waitEnd(); await page.waitForTimeout(1500);
+  await dropLast(); await page.waitForTimeout(1000);
+  return { fps: r, at };
+}
+const toff = await thinkFps(false);
+const ton = await thinkFps(true);
+ok(ton.fps >= toff.fps * 0.75, '⑤ 原生思维链在流（CPU 降速 4 倍）：消息前端开着 ' + ton.fps + ' 帧/秒，关掉 ' + toff.fps + ' 帧/秒（开着不低于关掉的 75%）', { ton, toff });
+
+/* ⑥ 生成中展开：内容跟上；⑦ 结束后内容完整、已标记 */
+const cdp6 = await sendNative(3000, 1);
+await cdp6.detach();
+await page.waitForFunction(() => { const c = window.SillyTavern.getContext(); const m = c.chat[c.chat.length - 1]; return m && m.extra && (m.extra.reasoning || '').length > 800; }, null, { timeout: 60000, polling: 100 });
+const thinkHost = () => page.evaluate(() => { const h = [...document.querySelectorAll('#chat [data-kami-msg-host="think"]')].pop(); if (!h) { return null; } const sec = h.shadowRoot.querySelector('[data-k="msg-think"]'); const c = h.querySelector('[slot="content"]'); return { state: sec && sec.getAttribute('data-state'), streaming: sec && sec.hasAttribute('data-streaming'), len: c ? c.textContent.length : 0, marks: c ? c.querySelectorAll('[data-k-part]').length : 0 }; });
+const before6 = await thinkHost();
+await page.evaluate(() => { const h = [...document.querySelectorAll('#chat [data-kami-msg-host="think"]')].pop(); h.shadowRoot.querySelector('[data-k="msg-think"] [data-k-part="toggle"]').click(); });
+await page.waitForTimeout(800);
+const open6 = await thinkHost();
+const raw6 = await reasoningLen();
+ok(before6 && before6.streaming && open6 && open6.state === 'open' && open6.len > 400, '⑥ 生成中展开思维链能看到内容（展开后 ' + (open6 && open6.len) + ' 字，原文 ' + raw6 + ' 字）', { before6, open6, raw6 });
+await waitEnd(); await page.waitForTimeout(2000);
+const end7 = await thinkHost();
+const raw7 = await reasoningLen();
+ok(end7 && !end7.streaming && end7.len > raw7 * 0.6 && end7.marks > 0, '⑦ 结束后思维链内容完整、已标记（显示 ' + (end7 && end7.len) + ' 字 / 原文 ' + raw7 + ' 字，标记 ' + (end7 && end7.marks) + ' 处）', { end7, raw7 });
+await dropLast(); await page.waitForTimeout(1000);
+
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));
 await b.close();
