@@ -238,7 +238,8 @@ const auditRes = await page.evaluate(([src]) => {
   hs.forEach((h) => h.removeAttribute('data-kami-mount'));
   return r;
 }, [auditInPage.toString()]);
-ok(auditRes.failures.length === 0 && auditRes.checked > 30, '四块（正文 / 思维链 / 搜索资料 / 行动选项）的实际渲染对比度：' + auditRes.checked + ' 处', auditRes.failures.slice(0, 3));
+/* 处数随聊天里的楼层数变：清空聊天后只剩这一条回复时约 18 处（2026-11-15），门槛按一条回复定 */
+ok(auditRes.failures.length === 0 && auditRes.checked > 15, '四块（正文 / 思维链 / 搜索资料 / 行动选项）的实际渲染对比度：' + auditRes.checked + ' 处', auditRes.failures.slice(0, 3));
 if (SHOTS) { await page.locator('#chat .mes:last-of-type').screenshot({ path: path.join(SHOT_DIR, 'st-msg-' + (MOBILE ? 'mobile' : 'desktop') + '.png') }); }
 
 /* ⑤b 「皮肤字体颜色」关：跟酒馆的字体颜色设置，底色让出来；再打开 */

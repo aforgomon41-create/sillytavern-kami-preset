@@ -97,7 +97,10 @@
 
 /* 消息前端：四个前端同一条对齐轴（受正文行长约束，电脑上选项不会比正文宽）；内部一律允许收缩 */
 [data-k="msg-view"] { display: grid; grid-template-columns: minmax(0, 1fr); max-width: var(--k-read-measure); min-width: 0; }
-[data-k="msg-view"][data-k-kind] { max-width: none; }   /* 酒馆里单独的一块：与酒馆正文同宽 */
+/* 酒馆里单独的一块：与酒馆正文同宽。里面只有一块内容（外加绝对定位的背景装饰），用普通块排版，不用网格——
+   正文经 slot 放在网格里时，酒馆流式每个片段整段重写，浏览器每次都要把整段正文按网格多量一遍尺寸，
+   排版比不套外壳时重三倍，手机上生成中滑动不跟手（用户 2026-11-15 报） */
+[data-k="msg-view"][data-k-kind] { display: flow-root; max-width: none; }
 [data-k="msg-view"] > * { min-width: 0; }
 /* 显示面板关掉「皮肤字体颜色」：消息前端跟酒馆的字体颜色设置，底色让出来（放在 lock 层，皮肤改不掉——不然皮肤的底色配酒馆的字色，深色主题上会看不清） */
 [data-k-surface][data-k-colors="tavern"] [data-k="msg-view"] {

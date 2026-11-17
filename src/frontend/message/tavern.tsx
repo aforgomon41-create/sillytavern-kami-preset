@@ -80,6 +80,7 @@ const HIDE_ATTR = 'data-kami-msg-hidden';        /* 被我们代替的酒馆助�
 const NATIVE_THINK = 'data-kami-msg-native-think'; /* .mes 上：原生思维链块由我们代为显示 */
 const THINK_EDIT = 'data-kami-msg-think-editing';  /* .mes 上：酒馆正在编辑原生思维链（扫描时由脚本标，不用 :has——见 HOST_CSS） */
 const STYLE_ID = 'kami-msg-host-style';
+const LIVE_SCAN_MS = 120;
 const BODY_STYLE_ID = 'kami-msg-body-style';
 const OPT_FOLD_KEY = 'kami.options.folded';
 const EDITING_THINK = '.reasoning_edit_textarea';
@@ -111,6 +112,7 @@ export class ChatFrontend {
   private readonly surfaces = new Map<HTMLElement, Surface>();
   private observer: MutationObserver | null = null;
   private scheduled = false;
+  private timer = 0;
   private busy = false;
   /* 增量扫描：只重查有变动的楼层（长聊天里流式每个片段都全量扫一遍，100 楼要 15ms）；all = 下次全部重查 */
   private dirty = new Set<Element>();
@@ -201,7 +203,7 @@ export class ChatFrontend {
     if (!chat) { return; }
     /* 没给楼层号（流式每个片段的事件）：扫描时再找最后一楼——每个片段都数一遍楼层要取一次酒馆上下文，手机上很显眼 */
     if (!(typeof id === 'number' && id >= 0)) { this.touchLast = true; this.schedule(); return; }
-    const mes = chat.querySelector('.mes[mesid="' + id + '"]');
+    const mes = this.mesById(chat, id);
     if (mes) { this.dirty.add(mes); } else { this.all = true; }
     this.schedule();
   }
@@ -222,13 +224,39 @@ export class ChatFrontend {
     }
   }
 
+  /** 生成中的片段改动：最多每 LIVE_SCAN_MS 扫一次。正文由酒馆直接写进 .mes_text，外壳只在字数换档时才要重画，
+   *  每个片段（每秒几十个）都扫一遍纯属白占主线程，手机上滑动不跟手（用户 2026-11-15 报）。
+   *  要全部重查的（生成开始 / 结束、切换聊天、开关）照旧立刻扫 */
   private schedule(): void {
-    if (this.scheduled) { return; }
+    const win = this.o.doc.defaultView;
+    const live = !this.all && !!win && this.o.generating();
+    if (this.scheduled) {
+      if (!live && this.timer && win) { win.clearTimeout(this.timer); this.timer = 0; Promise.resolve().then(() => this.flush()); }
+      return;
+    }
     this.scheduled = true;
-    Promise.resolve().then(() => { this.scheduled = false; this.scan(); });
+    if (live) { this.timer = win!.setTimeout(() => { this.timer = 0; this.flush(); }, LIVE_SCAN_MS); }
+    else { Promise.resolve().then(() => this.flush()); }
+  }
+  private flush(): void {
+    if (!this.scheduled) { return; }
+    this.scheduled = false;
+    this.scan();
   }
 
   /** 最新一条 AI 回复的 id（只有它渲染行动选项，拍板 D） */
+  /** 按楼层号找 .mes：楼层都是 #chat 的直接子元素、按顺序排，从末尾往前找（要找的几乎总是最后一楼）；
+   *  不用 querySelector('.mes[mesid=…]')——长聊天里它要把整个聊天的节点过一遍，流式时每个片段一次（用户 2026-11-15 报滑动不跟手时查出） */
+  private mesById(chat: Element, id: number): Element | null {
+    for (let el = chat.lastElementChild; el; el = el.previousElementSibling) {
+      if (!el.classList.contains('mes')) { continue; }
+      const v = Number(el.getAttribute('mesid'));
+      if (v === id) { return el; }
+      if (v < id) { break; }
+    }
+    return chat.querySelector('.mes[mesid="' + id + '"]');
+  }
+
   private latestAi(): number {
     for (let i = this.o.count() - 1; i >= 0; i--) { const m = this.o.getMessage(i); if (m && !m.isUser && !m.isSystem) { return i; } }
     return -1;
@@ -255,7 +283,7 @@ export class ChatFrontend {
     if (latest !== this.prevLatest) { this.all = true; this.prevLatest = latest; }
     if (this.touchLast) {
       this.touchLast = false;
-      const last = chat.querySelector('.mes[mesid="' + lastId + '"]');
+      const last = this.mesById(chat, lastId);
       if (last) { this.dirty.add(last); } else { this.all = true; }
     }
     const list = this.all ? Array.from(chat.querySelectorAll('.mes[mesid]')) : Array.from(this.dirty).filter((m) => m.isConnected && chat.contains(m));
@@ -269,7 +297,8 @@ export class ChatFrontend {
       if (!text || !text.parentElement) { continue; }
       mes.setAttribute(MES_ATTR, '');
       const streaming = generating && id === lastId;
-      const editing = !!text.querySelector('textarea');
+      /* 生成中的那一楼不会在编辑（酒馆生成时不让编辑）：只按 id 看一眼酒馆的编辑框，不在越来越长的正文里逐个找 textarea */
+      const editing = streaming ? this.o.doc.getElementById('curEditTextarea')?.closest('.mes_text') === text : !!text.querySelector('textarea');
       /* 酒馆助手的 iframe 只藏我们接手的那几种；关掉的那块让它照常显示 */
       for (const th of Array.from(text.querySelectorAll('.TH-render'))) { const kd = thKind(th); if (kd && kd !== 'sign' && on[kd]) { th.setAttribute(HIDE_ATTR, kd); } else { th.removeAttribute(HIDE_ATTR); } }
       const reply = splitReply(msg.mes);
@@ -518,6 +547,7 @@ export class ChatFrontend {
 
   stop(): void {
     if (this.observer) { this.observer.disconnect(); this.observer = null; }
+    if (this.timer) { try { this.o.doc.defaultView!.clearTimeout(this.timer); } catch (e) { /* 已卸载 */ } this.timer = 0; this.scheduled = false; }
     try { this.o.doc.defaultView!.removeEventListener('storage', this.onStorage); } catch (e) { /* 已卸载 */ }
     for (const s of this.surfaces.values()) { s.dispose(); }
     this.surfaces.clear();

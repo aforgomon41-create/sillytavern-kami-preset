@@ -71,9 +71,11 @@ export class Fracture {
     this.layer = doc.createElement('div');
     this.layer.setAttribute('data-k-fx-layer', '');
     this.layer.setAttribute('aria-hidden', 'true');
-    /* 动效层：固定铺满、不拦点击、独立合成，不影响排版 */
+    /* 动效层：固定铺满、不拦点击、独立合成。平时 display: none，有特效在播才显示——
+       position: fixed 的元素只要在排版树里，页面上任何地方改动都得从整页重新排版（以视窗为准），
+       每楼消息都有一层，酒馆流式时每个片段都整页重排，手机上滑动不跟手（用户 2026-11-15 报） */
     const ls = this.layer.style;
-    ls.position = 'fixed'; ls.inset = '0'; ls.pointerEvents = 'none'; ls.overflow = 'hidden'; ls.contain = 'strict'; ls.zIndex = '2147483000';
+    ls.position = 'fixed'; ls.inset = '0'; ls.pointerEvents = 'none'; ls.overflow = 'hidden'; ls.contain = 'strict'; ls.zIndex = '2147483000'; ls.display = 'none';
     for (let i = 0; i < POOL; i++) {
       const d = doc.createElement('i');
       const s = d.style;
@@ -178,7 +180,7 @@ export class Fracture {
     const g = this.freeGlows.pop();
     if (!g) { return; }
     const b: Burst = { done: 0 };
-    this.active.push(b);
+    this.active.push(b); this.layer.style.display = '';
     const gs = g.style;
     gs.display = 'block'; gs.width = r.width + 'px'; gs.height = '2px'; gs.borderRadius = '2px';
     gs.background = glow; gs.boxShadow = '0 0 12px 2px ' + glow; gs.transformOrigin = '0 50%';
@@ -188,7 +190,7 @@ export class Fracture {
       { transform: tr + ' scaleX(1)', opacity: 1, offset: 0.55 },
       { transform: tr + ' scaleX(1)', opacity: 0 }
     ], { duration: motion === 'calm' ? 260 : 420, easing: 'cubic-bezier(.2,.7,.3,1)' });
-    a.onfinish = a.oncancel = (): void => { gs.display = 'none'; gs.background = ''; gs.height = ''; this.freeGlows.push(g); this.active = this.active.filter((x) => x !== b); };
+    a.onfinish = a.oncancel = (): void => { gs.display = 'none'; gs.background = ''; gs.height = ''; this.freeGlows.push(g); this.active = this.active.filter((x) => x !== b); this.rest(); };
   }
 
   /**
@@ -217,8 +219,8 @@ export class Fracture {
     const dur = motion === 'calm' ? 300 : 480;
     const b: Burst = { done: 0 };
     let total = 1;
-    this.active.push(b);
-    const finish = (): void => { b.done++; if (b.done >= total) { this.active = this.active.filter((q) => q !== b); } };
+    this.active.push(b); this.layer.style.display = '';
+    const finish = (): void => { b.done++; if (b.done >= total) { this.active = this.active.filter((q) => q !== b); this.rest(); } };
 
     /* 光：2px 宽的竖线，从头部往下长（展开）/ 往上缩（收起），最后淡去 */
     const g = this.freeGlows.pop() as HTMLElement;
@@ -277,12 +279,12 @@ export class Fracture {
     const radius = cs.borderTopLeftRadius;
     let total = 1;
     const b: Burst = { done: 0 };
-    this.active.push(b);
+    this.active.push(b); this.layer.style.display = '';
     el.setAttribute('data-k-fx', 'active');
     const finish = (): void => {
       b.done++;
       if (b.done >= total) {
-        this.active = this.active.filter((x) => x !== b);
+        this.active = this.active.filter((x) => x !== b); this.rest();
         if (el.getAttribute('data-k-fx') === 'active') { el.removeAttribute('data-k-fx'); }
       }
     };
@@ -344,6 +346,8 @@ export class Fracture {
 
   /** 当前正在进行的爆裂数（测试与排障用） */
   get busy(): number { return this.active.length; }
+  /** 特效都播完了：动效层退出排版（见构造函数里的说明） */
+  private rest(): void { if (!this.active.length) { this.layer.style.display = 'none'; } }
 
   dispose(): void {
     if (this.disposed) { return; }

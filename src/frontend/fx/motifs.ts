@@ -81,7 +81,7 @@ export class Motifs {
     this.layer.setAttribute('data-k-fx-layer', 'motifs');
     this.layer.setAttribute('aria-hidden', 'true');
     const ls = this.layer.style;
-    ls.position = 'fixed'; ls.inset = '0'; ls.pointerEvents = 'none'; ls.overflow = 'hidden'; ls.contain = 'strict'; ls.zIndex = '2147483001';
+    ls.position = 'fixed'; ls.inset = '0'; ls.pointerEvents = 'none'; ls.overflow = 'hidden'; ls.contain = 'strict'; ls.zIndex = '2147483001'; ls.display = 'none';   /* 平时不在排版树里，有节点时才显示（见 fracture.ts 构造函数的说明） */
     root.appendChild(this.layer);
     root.addEventListener('pointerdown', this.onDown, { capture: true, passive: true } as AddEventListenerOptions);
     root.addEventListener('pointerup', this.onUp, { capture: true, passive: true } as AddEventListenerOptions);
@@ -196,6 +196,7 @@ export class Motifs {
     const d = this.doc.createElement(tag);
     const s = d.style;
     s.position = 'absolute'; s.left = '0'; s.top = '0'; s.willChange = 'transform, opacity'; s.pointerEvents = 'none';
+    if (this.nodes <= 0) { this.layer.style.display = ''; }
     this.layer.appendChild(d);
     this.nodes++;
     return d;
@@ -205,7 +206,7 @@ export class Motifs {
     if (!d) { return null; }
     this.active++;
     const a = d.animate(frames, { easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both', ...opt });
-    const done = (): void => { d.remove(); this.nodes--; this.active--; };
+    const done = (): void => { d.remove(); this.nodes--; this.active--; if (this.nodes <= 0) { this.layer.style.display = 'none'; } };
     a.onfinish = done; a.oncancel = done;
     return a;
   }

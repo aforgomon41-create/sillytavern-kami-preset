@@ -8,7 +8,9 @@
 //   ④ 流畅度：同一段 1.2 万字的回复，消息前端开着时生成后半段的帧率不低于关掉时的 75%（关掉 = 酒馆自己的开销）；
 //   ⑤ 原生思维链（模型的 reasoning_content）在流时也按「生成中」处理：CPU 降速 4 倍（模拟手机）时思考阶段的帧率不低于关掉消息前端的 75%
 //     （用户 2026-11-15 报：安卓 TauriTavern + 带原生思考的模型，思考才几百字就卡）；
-//   ⑥ 生成中展开思维链能看到内容；⑦ 结束后思维链内容完整、已标记。
+//   ⑥ 生成中展开思维链能看到内容；⑦ 结束后思维链内容完整、已标记；
+//   ⑧ 闲置时聊天区（含影子树）里没有在排版树里的 position: fixed 元素——有的话每次改动都整页重排，
+//     流式时手机上滑动不跟手（用户 2026-11-15 报；当时是每楼外壳里常驻的特效层）。
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
 const { chromium } = require('playwright');
@@ -148,6 +150,13 @@ const end7 = await thinkHost();
 const raw7 = await reasoningLen();
 ok(end7 && !end7.streaming && end7.len > raw7 * 0.6 && end7.marks > 0, '⑦ 结束后思维链内容完整、已标记（显示 ' + (end7 && end7.len) + ' 字 / 原文 ' + raw7 + ' 字，标记 ' + (end7 && end7.marks) + ' 处）', { end7, raw7 });
 await dropLast(); await page.waitForTimeout(1000);
+
+/* ⑧ 闲置时没有常驻的 fixed 元素 */
+const fixedIdle = await page.evaluate(() => {
+  const out = []; const walk = (root) => { for (const el of root.querySelectorAll('*')) { const cs = getComputedStyle(el); if (cs.position === 'fixed' && cs.display !== 'none' && el.getClientRects().length) { out.push(el.tagName.toLowerCase() + [...el.attributes].filter((a) => /^data-k/.test(a.name)).map((a) => '[' + a.name + '=' + a.value + ']').join('')); } if (el.shadowRoot) { walk(el.shadowRoot); } } };
+  walk(document.getElementById('chat')); return out;
+});
+ok(fixedIdle.length === 0, '⑧ 闲置时聊天区里没有常驻的 position: fixed 元素（' + fixedIdle.length + ' 个）', fixedIdle.slice(0, 5));
 
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 console.log('\n结果：' + pass + ' / ' + (pass + fail) + (MOBILE ? '（手机 390）' : '（电脑 1440）'));
