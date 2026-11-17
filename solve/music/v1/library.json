@@ -1,0 +1,681 @@
+{
+ "name": "SOLVE 默认曲库",
+ "version": 1,
+ "credit": "Musopen 公有领域录音（CC0）· 47 首",
+ "license": "CC0 1.0 / Public Domain — Musopen Kickstarter Recordings (archive.org/details/MusopenKickstarterRecordings) 与 Musopen – The Complete Chopin Collection (archive.org/details/musopen-chopin)，转码为 128 kbps MP3",
+ "tracks": [
+  {
+   "id": "grieg-morning",
+   "file": "grieg-morning.mp3",
+   "title": "格里格：晨景（《培尔·金特》第一组曲）",
+   "composer": "格里格",
+   "tags": [
+    "日常",
+    "清晨",
+    "田园",
+    "宁静",
+    "管弦"
+   ],
+   "seconds": 229,
+   "bytes": 3667591
+  },
+  {
+   "id": "grieg-aase",
+   "file": "grieg-aase.mp3",
+   "title": "格里格：奥塞之死（《培尔·金特》第一组曲）",
+   "composer": "格里格",
+   "tags": [
+    "悲伤",
+    "葬礼",
+    "告别",
+    "管弦"
+   ],
+   "seconds": 274,
+   "bytes": 4381466
+  },
+  {
+   "id": "grieg-anitra",
+   "file": "grieg-anitra.mp3",
+   "title": "格里格：阿尼特拉之舞（《培尔·金特》第一组曲）",
+   "composer": "格里格",
+   "tags": [
+    "神秘",
+    "异域",
+    "舞蹈",
+    "管弦"
+   ],
+   "seconds": 240,
+   "bytes": 3835193
+  },
+  {
+   "id": "grieg-mountain-king",
+   "file": "grieg-mountain-king.mp3",
+   "title": "格里格：在山魔王的宫殿里（《培尔·金特》第一组曲）",
+   "composer": "格里格",
+   "tags": [
+    "紧张",
+    "战斗",
+    "恐怖",
+    "追逐",
+    "管弦"
+   ],
+   "seconds": 154,
+   "bytes": 2465959
+  },
+  {
+   "id": "beethoven-coriolan",
+   "file": "beethoven-coriolan.mp3",
+   "title": "贝多芬：《科里奥兰》序曲",
+   "composer": "贝多芬",
+   "tags": [
+    "紧张",
+    "悲剧",
+    "史诗",
+    "管弦"
+   ],
+   "seconds": 499,
+   "bytes": 7980094
+  },
+  {
+   "id": "beethoven-egmont",
+   "file": "beethoven-egmont.mp3",
+   "title": "贝多芬：《埃格蒙特》序曲",
+   "composer": "贝多芬",
+   "tags": [
+    "战斗",
+    "英雄",
+    "史诗",
+    "管弦"
+   ],
+   "seconds": 541,
+   "bytes": 8655098
+  },
+  {
+   "id": "beethoven-eroica-funeral",
+   "file": "beethoven-eroica-funeral.mp3",
+   "title": "贝多芬：第三交响曲「英雄」第二乐章：葬礼进行曲",
+   "composer": "贝多芬",
+   "tags": [
+    "悲伤",
+    "葬礼",
+    "庄严",
+    "管弦"
+   ],
+   "seconds": 929,
+   "bytes": 14856777
+  },
+  {
+   "id": "beethoven-malinconia",
+   "file": "beethoven-malinconia.mp3",
+   "title": "贝多芬：弦乐四重奏 Op.18 No.6 第四乐章「忧郁」",
+   "composer": "贝多芬",
+   "tags": [
+    "悲伤",
+    "神秘",
+    "恐怖",
+    "沉思",
+    "弦乐四重奏"
+   ],
+   "seconds": 493,
+   "bytes": 7881038
+  },
+  {
+   "id": "brahms-tragic",
+   "file": "brahms-tragic.mp3",
+   "title": "勃拉姆斯：《悲剧序曲》",
+   "composer": "勃拉姆斯",
+   "tags": [
+    "紧张",
+    "战斗",
+    "悲剧",
+    "管弦"
+   ],
+   "seconds": 830,
+   "bytes": 13276055
+  },
+  {
+   "id": "brahms-4-finale",
+   "file": "brahms-4-finale.mp3",
+   "title": "勃拉姆斯：第四交响曲第四乐章",
+   "composer": "勃拉姆斯",
+   "tags": [
+    "战斗",
+    "史诗",
+    "悲剧",
+    "管弦"
+   ],
+   "seconds": 668,
+   "bytes": 10683872
+  },
+  {
+   "id": "brahms-1-intro",
+   "file": "brahms-1-intro.mp3",
+   "title": "勃拉姆斯：第一交响曲第一乐章",
+   "composer": "勃拉姆斯",
+   "tags": [
+    "恐怖",
+    "紧张",
+    "史诗",
+    "命运",
+    "管弦"
+   ],
+   "seconds": 909,
+   "bytes": 14547487
+  },
+  {
+   "id": "brahms-3-allegretto",
+   "file": "brahms-3-allegretto.mp3",
+   "title": "勃拉姆斯：第三交响曲第三乐章",
+   "composer": "勃拉姆斯",
+   "tags": [
+    "浪漫",
+    "悲伤",
+    "怀旧",
+    "秋",
+    "管弦"
+   ],
+   "seconds": 370,
+   "bytes": 5922063
+  },
+  {
+   "id": "mendelssohn-hebrides",
+   "file": "mendelssohn-hebrides.mp3",
+   "title": "门德尔松：《赫布里底群岛》序曲（芬格尔山洞）",
+   "composer": "门德尔松",
+   "tags": [
+    "神秘",
+    "海洋",
+    "旅途",
+    "风景",
+    "管弦"
+   ],
+   "seconds": 683,
+   "bytes": 10922109
+  },
+  {
+   "id": "mendelssohn-italian-1",
+   "file": "mendelssohn-italian-1.mp3",
+   "title": "门德尔松：第四交响曲「意大利」第一乐章",
+   "composer": "门德尔松",
+   "tags": [
+    "欢快",
+    "旅途",
+    "阳光",
+    "节日",
+    "管弦"
+   ],
+   "seconds": 463,
+   "bytes": 7408744
+  },
+  {
+   "id": "mendelssohn-italian-2",
+   "file": "mendelssohn-italian-2.mp3",
+   "title": "门德尔松：第四交响曲「意大利」第二乐章",
+   "composer": "门德尔松",
+   "tags": [
+    "日常",
+    "旅途",
+    "行进",
+    "管弦"
+   ],
+   "seconds": 348,
+   "bytes": 5567216
+  },
+  {
+   "id": "mendelssohn-op80-1",
+   "file": "mendelssohn-op80-1.mp3",
+   "title": "门德尔松：弦乐四重奏 Op.80 第一乐章",
+   "composer": "门德尔松",
+   "tags": [
+    "紧张",
+    "激动",
+    "追逐",
+    "弦乐四重奏"
+   ],
+   "seconds": 462,
+   "bytes": 7387846
+  },
+  {
+   "id": "mozart-figaro",
+   "file": "mozart-figaro.mp3",
+   "title": "莫扎特：《费加罗的婚礼》序曲",
+   "composer": "莫扎特",
+   "tags": [
+    "欢快",
+    "喜剧",
+    "宫廷",
+    "管弦"
+   ],
+   "seconds": 241,
+   "bytes": 3856509
+  },
+  {
+   "id": "mozart-magic-flute",
+   "file": "mozart-magic-flute.mp3",
+   "title": "莫扎特：《魔笛》序曲",
+   "composer": "莫扎特",
+   "tags": [
+    "欢快",
+    "神秘",
+    "奇幻",
+    "管弦"
+   ],
+   "seconds": 401,
+   "bytes": 6413165
+  },
+  {
+   "id": "mozart-40-1",
+   "file": "mozart-40-1.mp3",
+   "title": "莫扎特：第四十交响曲第一乐章",
+   "composer": "莫扎特",
+   "tags": [
+    "紧张",
+    "不安",
+    "宫廷",
+    "管弦"
+   ],
+   "seconds": 359,
+   "bytes": 5741505
+  },
+  {
+   "id": "mozart-k421-1",
+   "file": "mozart-k421-1.mp3",
+   "title": "莫扎特：弦乐四重奏 K.421 第一乐章",
+   "composer": "莫扎特",
+   "tags": [
+    "神秘",
+    "恐怖",
+    "阴郁",
+    "弦乐四重奏"
+   ],
+   "seconds": 461,
+   "bytes": 7369038
+  },
+  {
+   "id": "borodin-steppes",
+   "file": "borodin-steppes.mp3",
+   "title": "鲍罗丁：《在中亚细亚草原上》",
+   "composer": "鲍罗丁",
+   "tags": [
+    "神秘",
+    "旅途",
+    "异域",
+    "宁静",
+    "草原",
+    "管弦"
+   ],
+   "seconds": 458,
+   "bytes": 7332257
+  },
+  {
+   "id": "borodin-nocturne",
+   "file": "borodin-nocturne.mp3",
+   "title": "鲍罗丁：第二弦乐四重奏第三乐章：夜曲",
+   "composer": "鲍罗丁",
+   "tags": [
+    "浪漫",
+    "夜晚",
+    "宁静",
+    "弦乐四重奏"
+   ],
+   "seconds": 547,
+   "bytes": 8758334
+  },
+  {
+   "id": "dvorak-american-lento",
+   "file": "dvorak-american-lento.mp3",
+   "title": "德沃夏克：弦乐四重奏「美国」第二乐章",
+   "composer": "德沃夏克",
+   "tags": [
+    "浪漫",
+    "悲伤",
+    "思乡",
+    "弦乐四重奏"
+   ],
+   "seconds": 471,
+   "bytes": 7544163
+  },
+  {
+   "id": "dvorak-american-finale",
+   "file": "dvorak-american-finale.mp3",
+   "title": "德沃夏克：弦乐四重奏「美国」第四乐章",
+   "composer": "德沃夏克",
+   "tags": [
+    "欢快",
+    "旅途",
+    "田园",
+    "弦乐四重奏"
+   ],
+   "seconds": 352,
+   "bytes": 5626148
+  },
+  {
+   "id": "haydn-lark-adagio",
+   "file": "haydn-lark-adagio.mp3",
+   "title": "海顿：弦乐四重奏「云雀」第二乐章",
+   "composer": "海顿",
+   "tags": [
+    "日常",
+    "宁静",
+    "宫廷",
+    "弦乐四重奏"
+   ],
+   "seconds": 292,
+   "bytes": 4668604
+  },
+  {
+   "id": "haydn-lark-allegro",
+   "file": "haydn-lark-allegro.mp3",
+   "title": "海顿：弦乐四重奏「云雀」第一乐章",
+   "composer": "海顿",
+   "tags": [
+    "日常",
+    "欢快",
+    "清晨",
+    "宫廷",
+    "弦乐四重奏"
+   ],
+   "seconds": 372,
+   "bytes": 5947559
+  },
+  {
+   "id": "smetana-vltava",
+   "file": "smetana-vltava.mp3",
+   "title": "斯美塔那：《伏尔塔瓦河》（《我的祖国》）",
+   "composer": "斯美塔那",
+   "tags": [
+    "日常",
+    "史诗",
+    "旅途",
+    "河流",
+    "风景",
+    "管弦"
+   ],
+   "seconds": 771,
+   "bytes": 12334393
+  },
+  {
+   "id": "tchaikovsky-6-march",
+   "file": "tchaikovsky-6-march.mp3",
+   "title": "柴可夫斯基：第六交响曲「悲怆」第三乐章",
+   "composer": "柴可夫斯基",
+   "tags": [
+    "战斗",
+    "行进",
+    "史诗",
+    "管弦"
+   ],
+   "seconds": 593,
+   "bytes": 9489345
+  },
+  {
+   "id": "tchaikovsky-6-finale",
+   "file": "tchaikovsky-6-finale.mp3",
+   "title": "柴可夫斯基：第六交响曲「悲怆」第四乐章",
+   "composer": "柴可夫斯基",
+   "tags": [
+    "悲伤",
+    "告别",
+    "悲剧",
+    "管弦"
+   ],
+   "seconds": 619,
+   "bytes": 9904378
+  },
+  {
+   "id": "rimsky-easter",
+   "file": "rimsky-easter.mp3",
+   "title": "里姆斯基-科萨科夫：《俄罗斯复活节》序曲",
+   "composer": "里姆斯基-科萨科夫",
+   "tags": [
+    "神秘",
+    "庄严",
+    "宗教",
+    "节日",
+    "管弦"
+   ],
+   "seconds": 936,
+   "bytes": 14976731
+  },
+  {
+   "id": "bach-goldberg-aria",
+   "file": "bach-goldberg-aria.mp3",
+   "title": "巴赫：《哥德堡变奏曲》：咏叹调",
+   "composer": "巴赫",
+   "tags": [
+    "日常",
+    "宁静",
+    "夜晚",
+    "钢琴"
+   ],
+   "seconds": 292,
+   "bytes": 4679471
+  },
+  {
+   "id": "bach-goldberg-25",
+   "file": "bach-goldberg-25.mp3",
+   "title": "巴赫：《哥德堡变奏曲》：第 25 变奏",
+   "composer": "巴赫",
+   "tags": [
+    "恐怖",
+    "悲伤",
+    "神秘",
+    "夜晚",
+    "钢琴"
+   ],
+   "seconds": 411,
+   "bytes": 6568646
+  },
+  {
+   "id": "suk-meditation",
+   "file": "suk-meditation.mp3",
+   "title": "苏克：《圣瓦茨拉夫圣咏冥想曲》",
+   "composer": "苏克",
+   "tags": [
+    "悲伤",
+    "庄严",
+    "宗教",
+    "弦乐四重奏"
+   ],
+   "seconds": 405,
+   "bytes": 6487980
+  },
+  {
+   "id": "schubert-d664-andante",
+   "file": "schubert-d664-andante.mp3",
+   "title": "舒伯特：A 大调奏鸣曲 D.664 第二乐章",
+   "composer": "舒伯特",
+   "tags": [
+    "日常",
+    "宁静",
+    "温柔",
+    "钢琴"
+   ],
+   "seconds": 291,
+   "bytes": 4653975
+  },
+  {
+   "id": "schubert-d959-andantino",
+   "file": "schubert-d959-andantino.mp3",
+   "title": "舒伯特：A 大调奏鸣曲 D.959 第二乐章",
+   "composer": "舒伯特",
+   "tags": [
+    "悲伤",
+    "孤独",
+    "沉思",
+    "钢琴"
+   ],
+   "seconds": 546,
+   "bytes": 8736182
+  },
+  {
+   "id": "chopin-nocturne-9-2",
+   "file": "chopin-nocturne-9-2.mp3",
+   "title": "肖邦：降 E 大调夜曲 Op.9 No.2",
+   "composer": "肖邦",
+   "tags": [
+    "浪漫",
+    "夜晚",
+    "温柔",
+    "钢琴"
+   ],
+   "seconds": 277,
+   "bytes": 4426187
+  },
+  {
+   "id": "chopin-nocturne-27-2",
+   "file": "chopin-nocturne-27-2.mp3",
+   "title": "肖邦：降 D 大调夜曲 Op.27 No.2",
+   "composer": "肖邦",
+   "tags": [
+    "浪漫",
+    "夜晚",
+    "宁静",
+    "钢琴"
+   ],
+   "seconds": 378,
+   "bytes": 6044943
+  },
+  {
+   "id": "chopin-nocturne-72-1",
+   "file": "chopin-nocturne-72-1.mp3",
+   "title": "肖邦：e 小调夜曲 Op.72 No.1",
+   "composer": "肖邦",
+   "tags": [
+    "悲伤",
+    "夜晚",
+    "孤独",
+    "钢琴"
+   ],
+   "seconds": 273,
+   "bytes": 4363075
+  },
+  {
+   "id": "chopin-nocturne-48-1",
+   "file": "chopin-nocturne-48-1.mp3",
+   "title": "肖邦：c 小调夜曲 Op.48 No.1",
+   "composer": "肖邦",
+   "tags": [
+    "恐怖",
+    "悲伤",
+    "庄严",
+    "夜晚",
+    "钢琴"
+   ],
+   "seconds": 379,
+   "bytes": 6068767
+  },
+  {
+   "id": "chopin-grande-valse",
+   "file": "chopin-grande-valse.mp3",
+   "title": "肖邦：《华丽大圆舞曲》Op.18",
+   "composer": "肖邦",
+   "tags": [
+    "欢快",
+    "舞会",
+    "宫廷",
+    "钢琴"
+   ],
+   "seconds": 319,
+   "bytes": 5111222
+  },
+  {
+   "id": "chopin-waltz-64-1",
+   "file": "chopin-waltz-64-1.mp3",
+   "title": "肖邦：「小狗」圆舞曲 Op.64 No.1",
+   "composer": "肖邦",
+   "tags": [
+    "欢快",
+    "喜剧",
+    "舞会",
+    "钢琴"
+   ],
+   "seconds": 107,
+   "bytes": 1719902
+  },
+  {
+   "id": "chopin-waltz-69-1",
+   "file": "chopin-waltz-69-1.mp3",
+   "title": "肖邦：「告别」圆舞曲 Op.69 No.1",
+   "composer": "肖邦",
+   "tags": [
+    "浪漫",
+    "告别",
+    "舞会",
+    "钢琴"
+   ],
+   "seconds": 248,
+   "bytes": 3974791
+  },
+  {
+   "id": "chopin-ballade-1",
+   "file": "chopin-ballade-1.mp3",
+   "title": "肖邦：g 小调第一叙事曲 Op.23",
+   "composer": "肖邦",
+   "tags": [
+    "紧张",
+    "悲剧",
+    "史诗",
+    "钢琴"
+   ],
+   "seconds": 614,
+   "bytes": 9817861
+  },
+  {
+   "id": "chopin-prelude-24",
+   "file": "chopin-prelude-24.mp3",
+   "title": "肖邦：d 小调前奏曲 Op.28 No.24",
+   "composer": "肖邦",
+   "tags": [
+    "紧张",
+    "战斗",
+    "风暴",
+    "钢琴"
+   ],
+   "seconds": 157,
+   "bytes": 2513188
+  },
+  {
+   "id": "chopin-prelude-15",
+   "file": "chopin-prelude-15.mp3",
+   "title": "肖邦：「雨滴」前奏曲 Op.28 No.15",
+   "composer": "肖邦",
+   "tags": [
+    "日常",
+    "雨",
+    "沉思",
+    "钢琴"
+   ],
+   "seconds": 295,
+   "bytes": 4724610
+  },
+  {
+   "id": "chopin-fantaisie-impromptu",
+   "file": "chopin-fantaisie-impromptu.mp3",
+   "title": "肖邦：《幻想即兴曲》Op.66",
+   "composer": "肖邦",
+   "tags": [
+    "紧张",
+    "浪漫",
+    "激动",
+    "钢琴"
+   ],
+   "seconds": 327,
+   "bytes": 5230759
+  },
+  {
+   "id": "chopin-polonaise-heroic",
+   "file": "chopin-polonaise-heroic.mp3",
+   "title": "肖邦：「英雄」波兰舞曲 Op.53",
+   "composer": "肖邦",
+   "tags": [
+    "战斗",
+    "英雄",
+    "凯旋",
+    "钢琴"
+   ],
+   "seconds": 439,
+   "bytes": 7019206
+  }
+ ]
+}
