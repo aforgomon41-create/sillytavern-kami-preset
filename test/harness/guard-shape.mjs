@@ -102,6 +102,25 @@ ok(ctxTool.function.description.includes('角色设定内容'), '工具描述里
 ok(ctxTool.function.description.includes('历史对话内容'), '工具描述里带着历史');
 eq(Object.keys(ctxTool.function.parameters.properties).length, 0, '这个工具没有参数（永远不会被真调用）');
 
+/* ④-2 跨消息的标记（实测预设就是这样：<CHAT_HISTORY> 在第 0 条末尾，</CHAT_HISTORY> 在第 39 条开头）。
+   原来只按单条消息切，一条都搬不动 —— 这是实机测出来的坑，必须留在回归里。 */
+const spanMsgs = [
+  { role: 'system', content: '开头设定\n<INFORMATION>背景内容</INFORMATION>\n<CHAT_HISTORY>' },
+  { role: 'user', content: '第一轮对话' },
+  { role: 'assistant', content: '第一轮回复' },
+  { role: 'user', content: '第二轮对话' },
+  { role: 'system', content: '</CHAT_HISTORY>\n结尾要求' },
+];
+const span = shape({ ctx: true, ctxInfo: true }, { messages: spanMsgs });
+ok(span.report.ctx.startsWith('moved:'), '跨消息标记也能搬（实测预设就是这种结构）', span.report.ctx);
+const sm = JSON.parse(span.body).messages;
+eq(sm.length, 2, '跨消息搬运：只剩两条写作要求（开头设定 + 结尾要求）');
+ok(sm[0].content.includes('开头设定'), '起始那条保留了标记之前的部分');
+ok(sm[1].content.includes('结尾要求'), '结束那条保留了标记之后的部分');
+const spanTool = JSON.parse(span.body).tools.at(-1);
+ok(spanTool.function.description.includes('第一轮对话'), '工具描述里带着区间内的对话');
+ok(spanTool.function.description.includes('第二轮对话'), '工具描述里带着第二轮的对话');
+
 /* ⑤ 搬运的降级：没有标记 / 有非文本内容时必须原样放行 */
 const noMark = shape({ ctx: true }, { messages: [{ role: 'user', content: '没有标记' }] });
 eq(noMark.report.ctx, 'skip:no-markers', '没有标记时跳过');

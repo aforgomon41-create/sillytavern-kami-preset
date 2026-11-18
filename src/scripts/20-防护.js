@@ -343,44 +343,70 @@
 
      失败必须静默退回普通发送：搬错会直接导致空回复，所以每一步都先检查再动手。 */
 
-  function findBlock(text, open, close) {
-    const at = text.indexOf(open);
-    if (at < 0) return null;
-    const end = text.indexOf(close, at + open.length);
-    if (end < 0) return null;
-    return { start: at, stop: end + close.length, inner: text.slice(at + open.length, end) };
+  /* 找一对标记的「跨消息区间」。
+     实测预设把资料拆在好几条消息里：<CHAT_HISTORY> 在第 0 条末尾，</CHAT_HISTORY> 在第 39 条开头，
+     所以不能只按单条消息切 —— 那样一条都搬不动（这个坑就是实机测出来的）。 */
+  function findSpan(messages, open, close) {
+    let start = null, end = null;
+    for (let i = 0; i < messages.length; i += 1) {
+      const text = messages[i] && typeof messages[i].content === 'string' ? messages[i].content : '';
+      if (!start) {
+        const at = text.indexOf(open);
+        if (at >= 0) start = { msg: i, at: at };
+      }
+      if (start) {
+        const from = start.msg === i ? start.at + open.length : 0;
+        const at = text.indexOf(close, from);
+        if (at >= 0) { end = { msg: i, at: at }; break; }
+      }
+    }
+    if (!start || !end) return null;
+    return { start: start, end: end };
   }
 
-  /* 从一条消息里切出被标记包裹的内容，返回 {kept, moved}：
-     kept 是标记之外的部分（写作要求），moved 是要搬进工具描述的部分。 */
-  function splitMarked(text, pairs) {
-    let kept = text;
+  /* 从消息数组里挖掉一个跨消息区间，把挖掉的内容作为 moved 返回。
+     边界那两条只保留标记之外的部分；区间内整条消息都搬走。 */
+  function cutSpan(messages, span, close) {
+    const cl = close.length;
+    const kept = [];
     const moved = [];
-    for (const pair of pairs) {
-      /* 同一段文字里可能有多对标记（预设把资料拆成好几条消息时就是这样），
-         要一直剥到没有为止；只剥一处会漏。上限 50 次是防呆：标记写坏了不至于死循环。 */
-      for (let guard = 0; guard < 50; guard += 1) {
-        const block = findBlock(kept, pair.open, pair.close);
-        if (!block) break;
-        const inner = block.inner.trim();
-        if (inner) moved.push({ part: pair.name, text: inner });
-        kept = kept.slice(0, block.start) + kept.slice(block.stop);
+    for (let i = 0; i < messages.length; i += 1) {
+      const row = messages[i];
+      const text = row && typeof row.content === 'string' ? row.content : '';
+      if (i < span.start.msg || i > span.end.msg) { kept.push(row); continue; }
+      if (i === span.start.msg && i === span.end.msg) {
+        /* 同一条消息里就闭合：搬走开标记到闭标记之间的正文（含两个标记），两头的字留下。
+           收尾要跳过 close 本身，否则会剩一个「</CHAT_HISTORY>」残骸（实机测出来的） */
+        const head = text.slice(0, span.start.at);
+        const body = text.slice(span.start.at, span.end.at + cl);
+        const tail = text.slice(span.end.at + cl);
+        if (body.trim()) moved.push({ part: 'inline', text: body });
+        const rest = (head + tail).trim();
+        if (rest) kept.push(Object.assign({}, row, { content: head + tail }));
+        continue;
       }
+      if (i === span.start.msg) {
+        const head = text.slice(0, span.start.at);
+        const body = text.slice(span.start.at);
+        if (body.trim()) moved.push({ part: 'open', text: body });
+        if (head.trim()) kept.push(Object.assign({}, row, { content: head }));
+        continue;
+      }
+      if (i === span.end.msg) {
+        const tail = text.slice(span.end.at + cl);
+        const body = text.slice(0, span.end.at);
+        if (body.trim()) moved.push({ part: 'close', text: body });
+        if (tail.trim()) kept.push(Object.assign({}, row, { content: tail }));
+        continue;
+      }
+      /* 区间内部：整条搬走（有内容才算） */
+      if (text.trim()) moved.push({ part: 'inner', text: text });
     }
     return { kept: kept, moved: moved };
   }
 
   function planContext(messages, withInfo) {
     if (!Array.isArray(messages) || !messages.length) return { skip: 'no-messages' };
-    const pairs = [];
-    if (withInfo) pairs.push({ name: 'background', open: MARK_INFO_OPEN, close: MARK_INFO_CLOSE });
-    pairs.push({ name: 'history', open: MARK_CHAT_OPEN, close: MARK_CHAT_CLOSE });
-
-    /* 先看整段里到底有没有这两个标记：一个都没有就直接退，别白跑一遍 */
-    const all = messages.map(function (row) { return typeof row && typeof row.content === 'string' ? row.content : ''; }).join('\n');
-    if (all.indexOf(MARK_CHAT_OPEN) < 0 && (!withInfo || all.indexOf(MARK_INFO_OPEN) < 0)) {
-      return { skip: 'no-markers' };
-    }
     /* 有图片或非文本内容就绝对不动：搬走会丢附件 */
     for (const row of messages) {
       if (!row) continue;
@@ -390,19 +416,31 @@
       } else return { skip: 'not-text' };
     }
 
+    const pairs = [];
+    if (withInfo) pairs.push({ name: 'background', open: MARK_INFO_OPEN, close: MARK_INFO_CLOSE });
+    pairs.push({ name: 'history', open: MARK_CHAT_OPEN, close: MARK_CHAT_CLOSE });
+
+    let list = messages.slice();
     const moved = [];
-    const kept = [];
-    for (const row of messages) {
-      if (typeof row.content !== 'string') { kept.push(row); continue; }
-      const cut = splitMarked(row.content, pairs);
-      moved.push.apply(moved, cut.moved);
-      const rest = cut.kept.trim();
-      if (rest) kept.push(Object.assign({}, row, { content: rest }));
+    for (const pair of pairs) {
+      /* 同一对标记可能出现多次；上限 20 是防呆 */
+      for (let guard = 0; guard < 20; guard += 1) {
+        const span = findSpan(list, pair.open, pair.close);
+        if (!span) break;
+        const cut = cutSpan(list, span, pair.close);
+        list = cut.kept;
+        for (const piece of cut.moved) moved.push({ part: pair.name, text: piece.text });
+      }
     }
-    if (!moved.length) return { skip: 'empty-context' };
+
+    if (!moved.length) {
+      const all = messages.map(function (row) { return row && typeof row.content === 'string' ? row.content : ''; }).join('\n');
+      const hasAny = all.indexOf(MARK_CHAT_OPEN) >= 0 || (withInfo && all.indexOf(MARK_INFO_OPEN) >= 0);
+      return { skip: hasAny ? 'empty-context' : 'no-markers' };
+    }
     /* 全搬走了、一条写作要求都不剩，也退：那说明标记被放错了地方 */
-    if (!kept.length) return { skip: 'no-kept' };
-    return { kept: kept, moved: moved };
+    if (!list.length) return { skip: 'no-kept' };
+    return { kept: list, moved: moved };
   }
 
   function contextTool(moved) {
