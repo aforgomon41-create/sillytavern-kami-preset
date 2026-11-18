@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 搭一个本机测试酒馆：SillyTavern 1.18.0 + 酒馆助手 4.11.3（与作者的测试环境一致）
+# 搭一个本机测试酒馆：SillyTavern 1.19.0 + 酒馆助手 4.11.3（与作者的测试环境一致）
 # 用法：bash test/st/setup.sh [安装目录，默认 /workspace/st-test]
 set -euo pipefail
 ROOT="${1:-/workspace/st-test}"
-ST_TAG="${ST_TAG:-1.18.0}"
+ST_TAG="${ST_TAG:-1.19.0}"
 TH_TAG="${TH_TAG:-4.11.3}"
 mkdir -p "$ROOT"
 cd "$ROOT"

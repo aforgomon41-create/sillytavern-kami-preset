@@ -16,6 +16,7 @@
 import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const p = process.argv[2];
 if (!p) { console.error('用法：node build/verify-panel-click.mjs <产物路径>'); process.exit(2); }
@@ -40,7 +41,9 @@ ok(code.length > 10000, '① 面板脚本内容非空', code.length + ' 字');
 /* ② 交互接线：2026-10-30 起面板由运行库的 PresetPanel 画（src/frontend/panels/preset-panel.tsx），
      每类控件经 40 号的预设桥（_preset-bridge.js）落到命令式的写入函数。两头都要在：
      桥上有出口、面板里真有调用，少一个就有一类控件点不动。 */
-const ui = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src', 'frontend', 'panels', 'preset-panel.tsx'), 'utf8');
+/* 跨平台取自身目录：Windows / WSL / Linux 都用 fileURLToPath（URL.pathname 在 Windows 上会带盘符与 %XX 转义） */
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ui = fs.readFileSync(path.join(HERE, '..', 'src', 'frontend', 'panels', 'preset-panel.tsx'), 'utf8');
 const BRANCHES = [
   ['条目卡（所有开关）', /toggle:\s*function \(id, groupName\)[\s\S]{0,3000}commit\(pairs\)/, 'api.toggle('],
   ['模型卡片头（切模型）', /selectModel:\s*function \(name\)[\s\S]{0,400}selectModel\(m\.emoji\)/, 'api.selectModel('],

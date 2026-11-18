@@ -8,14 +8,14 @@
  */
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { auditInPage, serve } from './audit-lib.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
 const { chromium } = require('playwright');
 const { server, base } = serve(ROOT);
-const { webSearchProviders } = await import(path.join(ROOT, 'src/scripts/_search-providers.js'));
-const { webSearchLimitFields } = await import(path.join(ROOT, 'src/scripts/_search-pure.js'));
+const { webSearchProviders } = await import(pathToFileURL(path.join(ROOT, 'src/scripts/_search-providers.js')).href);
+const { webSearchLimitFields } = await import(pathToFileURL(path.join(ROOT, 'src/scripts/_search-pure.js')).href);
 let pass = 0, fail = 0;
 const ok = (c, l, x) => { c ? pass++ : fail++; console.log((c ? 'PASS  ' : 'FAIL  ') + l + (!c && x !== undefined ? '  ← ' + JSON.stringify(x) : '')); };
 const b = await chromium.launch();

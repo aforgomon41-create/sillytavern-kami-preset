@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packSkinAssets } from '../../build/skin-assets.mjs';
+import { findVendorFile } from '../../build/st-lib-roots.mjs';
 import { uiCss, expandRegexList, expandForPreview, expandDecor, expandBaseCssJs, expandPresetParse, expandPanelGestures, expandGuideCopy, expandTagsPure, expandGodCmdPure } from '../../build/kami-doc.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,23 +20,8 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
    就得让父窗口（预览台页面自己）也有同样的两个库。
    路径是本机约定，找不到就 404（前端会安静退回极简渲染，预览台不因此坏掉）；
    要换机器：设环境变量 KAMI_ST_ROOT=<酒馆根目录>，多个目录用 ; 分隔。 */
-const LIB_ROOTS = (process.env.KAMI_ST_ROOT || [
-  'D:/sillytavern-software/SillyTavern Launcher GUI/data/sillytavern/1.18.0',
-  'D:/SillyTavern/SillyTavern',
-].join(';')).split(';').map(s => s.trim()).filter(Boolean);
-const VENDOR = {
-  'showdown.js': 'node_modules/showdown/dist/showdown.min.js',
-  'dompurify.js': 'node_modules/dompurify/dist/purify.min.js',
-};
-function vendorFile(name) {
-  const rel = VENDOR[name];
-  if (!rel) { return null; }
-  for (const root of LIB_ROOTS) {
-    const p = path.join(root, rel);
-    if (fs.existsSync(p)) { return p; }
-  }
-  return null;
-}
+/* 跨平台：KAMI_ST_ROOT 优先，否则在仓库的兄弟目录里自动找酒馆（见 build/st-lib-roots.mjs） */
+function vendorFile(name) { return findVendorFile(name, ROOT); }
 
 const DEMO = {
   search: '<introduction><search_results>' + JSON.stringify({ schema_version: 1, origin: 'service', world: '示例世界', scope: '当前剧情时间', facts: [{ key: '建筑', text: '城镇以浅色石材建筑为主，城门朝向东侧。', source_ids: ['s1'], note: '网络资料只补充空缺，以本聊天已确认设定为准。' }], sources: [{ id: 's1', title: '示例资料来源', url: 'https://example.org/world' }] }) + '</search_results></introduction>',

@@ -2,8 +2,8 @@
 /**
  * 前端正则的真实语义验证（node build/verify-frontends.mjs）
  * ------------------------------------------------------------
- * 为什么需要它：酒馆 1.18 的正则引擎**不是** native String.replace。
- *   public/scripts/extensions/regex/engine.js:419-445
+ * 为什么需要它：酒馆 1.18 / 1.19 的正则引擎**不是** native String.replace（两版这段代码一致，行号略有平移）。
+ *   public/scripts/extensions/regex/engine.js:419-445（1.18）/ 418-448（1.19）
  *     rawString.replace(findRegex, function (match) {
  *       const args = [...arguments];
  *       const replaceString = regexScript.replaceString.replace(/{{match}}/gi, '$0');

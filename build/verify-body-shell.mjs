@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { findVendorFile, MISSING_HINT } from './st-lib-roots.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -65,17 +66,10 @@ ok(rg.filter(r => /前端\|正文/.test(String(r.scriptName || '')) && String(r.
 
 /* ④ 端到端发射检查（正则 → showdown） */
 {
-  const ROOTS = (process.env.KAMI_ST_ROOT || [
-    'D:/sillytavern-software/SillyTavern Launcher GUI/data/sillytavern/1.18.0',
-    'D:/SillyTavern/SillyTavern',
-  ].join(';')).split(';').map(s => s.trim()).filter(Boolean);
-  let sp = null;
-  for (const r of ROOTS) {
-    const f = path.join(r, 'node_modules/showdown/dist/showdown.min.js');
-    if (fs.existsSync(f)) { sp = f; break; }
-  }
+  /* 跨平台找酒馆自带的 showdown：KAMI_ST_ROOT 优先，否则在仓库的兄弟目录里自动找（见 build/st-lib-roots.mjs） */
+  const sp = findVendorFile('showdown.js', ROOT);
   if (!sp) {
-    ok(false, '④ 找不到 showdown，端到端发射检查没跑成（设 KAMI_ST_ROOT 指向酒馆根目录）');
+    ok(false, '④ 找不到 showdown，端到端发射检查没跑成（' + MISSING_HINT + '）');
   } else if (body) {
     const require = createRequire(import.meta.url);
     const showdown = require(sp);

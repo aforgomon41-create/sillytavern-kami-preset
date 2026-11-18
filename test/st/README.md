@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| 版本 | SillyTavern 1.18.0 + 酒馆助手 4.11.3（与作者的测试环境一致；可用环境变量 `ST_TAG` / `TH_TAG` 换版本） |
+| 版本 | SillyTavern 1.19.0 + 酒馆助手 4.11.3（与作者的测试环境一致；可用环境变量 `ST_TAG` / `TH_TAG` 换版本，1.18.0 也仍可跑） |
 | 搭建 | `bash test/st/setup.sh [目录]`，默认装到 `/workspace/st-test`（不在仓库里） |
 | 启动 | `cd /workspace/st-test/SillyTavern && node server.js --port 8000 --listen false --browserLaunchEnabled false` |
 | 浏览器 | Playwright 的 Chromium：在仓库外的目录 `npm install playwright` 并 `npx playwright install --with-deps chromium`；脚本默认从 `/workspace/tools` 取，换位置用 `KAMI_TOOLS=<那里的 package.json>` |

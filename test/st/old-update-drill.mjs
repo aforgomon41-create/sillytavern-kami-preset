@@ -9,12 +9,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 const require = createRequire(process.env.KAMI_TOOLS || '/workspace/tools/package.json');
 const { chromium } = require('playwright');
 const MOBILE = process.argv.includes('--mobile');
 const NEW_FILE = process.argv.slice(2).find((a) => !a.startsWith('--'));
 if (!NEW_FILE) { console.error('用法：node old-update-drill.mjs <新构建 JSON> [--mobile]'); process.exit(2); }
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 /* --from=<mirror 里的已发布产物>：从哪一版升级（默认 v0.92-100；2026-11-12 起也演练 v0.93-8 → 新版） */
 /* 也可以给路径（撤回后不在 mirror/ 里的版本，例如 --from=dist/kami-v0.93-29-20261115.json） */
 const OLD_ARG = (process.argv.find((a) => a.startsWith('--from=')) || '--from=kami-v0.92-100-20261021.json').slice(7);

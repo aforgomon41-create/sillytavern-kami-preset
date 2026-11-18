@@ -14,9 +14,11 @@ import { flattenScriptTrees } from './kami-doc.mjs';
 import { currentBranchTag, parseArtifactName } from './branch-tag.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const arg = process.argv[2];
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+/* 跨平台取仓库根：Windows / WSL / Linux 统一走 fileURLToPath */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let p = arg;
 if (!p) {
   const dir = path.join(ROOT, 'dist');

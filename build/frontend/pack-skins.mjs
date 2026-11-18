@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -19,7 +19,8 @@ const tmp = path.join(ROOT, '.cache', 'frontend', 'engine-node.mjs');
 fs.mkdirSync(path.dirname(tmp), { recursive: true });
 await esbuild.build({ stdin: { contents: "export { validateManifest } from './src/frontend/skin-engine/package';\nexport { composeSkin } from './src/frontend/skin-engine/compose';\nexport { lintSkinCss } from './src/frontend/skin-engine/lint-css';\nexport { contrast } from './src/frontend/skin-engine/color';", resolveDir: ROOT, loader: 'ts' },
   bundle: true, platform: 'node', format: 'esm', outfile: tmp, packages: 'external', loader: { '.css': 'text' }, logLevel: 'silent' });
-const { validateManifest, composeSkin, lintSkinCss, contrast } = await import(tmp + '?t=' + Date.now());
+/* 跨平台：绝对路径在 Windows 上是 D:\…，ESM 只认 file:// URL；pathToFileURL 在 Windows / WSL / Linux 上都给出正确形式 */
+const { validateManifest, composeSkin, lintSkinCss, contrast } = await import(pathToFileURL(tmp).href + '?t=' + Date.now());
 
 const problems = [];
 const skins = [];

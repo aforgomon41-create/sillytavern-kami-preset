@@ -3,7 +3,7 @@ import { migrateComponentSelectors } from './css-scope.mjs';
  * 卡密预设 · 正则前端文档展开器
  * ------------------------------------------------------------
  * ⚠️ 最重要的一条（踩过大坑）：
- *   酒馆 1.18 的正则引擎**不是** native String.replace，而是 public/scripts/extensions/regex/engine.js:419-445：
+ *   酒馆 1.18 / 1.19 的正则引擎**不是** native String.replace，而是 public/scripts/extensions/regex/engine.js（1.18 是 419-445，1.19 是 418-448 附近的同一段）：
  *     rawString.replace(findRegex, function (match) { ...
  *       replaceString.replaceAll(/\$(\d+)|\$<([^>]+)>/g, ...)   // 只认 $n 与 $<name>
  *       ... return substituteParams(replaceWithGroups);          // 末尾还会跑宏替换
