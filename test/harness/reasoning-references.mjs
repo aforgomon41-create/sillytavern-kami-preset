@@ -135,20 +135,20 @@ for(const streaming of [false,true]){
   chunks.push({choices:[{index:0,delta:{},finish_reason:'tool_calls'}]});
   return response(chunks.map(x=>'data: '+JSON.stringify(x)+'\n\n').join('')+'data: [DONE]\n\n','text/event-stream',3);
  }};
- let anti=expandPanelGestures(process.cwd(),fs.readFileSync('src/scripts/20-反截断.js','utf8'));
- const stop=anti.indexOf('  const relay = new Relay();');assert(stop>0);
- anti=anti.slice(0,stop)+'globalThis.__antiRelay=Relay;})();';
- const sandbox=vm.createContext({window:{parent:wireHost},console:{log(){},warn(){},error(){}},URL,Map,Set,Request,Response,Headers,ReadableStream,TransformStream,TextEncoder,TextDecoder,crypto:globalThis.crypto});
+ let anti=expandPanelGestures(process.cwd(),fs.readFileSync('src/scripts/20-防护.js','utf8'));
+ const sandbox=vm.createContext({window:{parent:wireHost,addEventListener(){},removeEventListener(){}},console:{log(){},warn(){},error(){}},URL,Map,Set,Request,Response,Headers,ReadableStream,TransformStream,TextEncoder,TextDecoder,crypto:globalThis.crypto,setTimeout,clearTimeout,setInterval,clearInterval});
  vm.runInContext(anti,sandbox);
- const relay=new sandbox.__antiRelay();
+ const hook=wireHost.__kamiGuardTestHook;
+ assert(hook,'20号脚本应暴露测试钩子');
+ hook.setState({tool:true});
+ const guard=hook.install();
  const release=kamiResponsePipeline(wireHost).register('tag',20,async(next,ctx,args)=>rewrite(await next(args)));
- relay.install();
  const result=await wireHost.fetch('/api/backends/chat-completions/generate',{body:JSON.stringify({messages:[{role:'user',content:'test'}],stream:streaming})});
  let text;
  if(streaming){const raw=await result.text();text=raw.split('\n').filter(x=>x.startsWith('data: {')).map(x=>JSON.parse(x.slice(6)).choices?.[0]?.delta?.content||'').join('');}
  else text=(await result.json()).choices[0].message.content;
  eq(text,fixtures[0][1],'实际反截断还原后才保护引用：'+streaming);eq(toolUsed,true,'20保持工具请求改造');
- relay.dispose();
+ hook.setState({tool:false});
  const normal=await wireHost.fetch('/api/backends/chat-completions/generate',{body:JSON.stringify({messages:[{role:'user',content:'test'}]})});
  eq((await normal.json()).choices[0].message.content,fixtures[0][1],'卸载20后保护独立继续工作');eq(toolUsed,false,'卸载20后不再改造请求');release();
 }

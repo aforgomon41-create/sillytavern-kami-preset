@@ -13,7 +13,7 @@
 import { flattenScriptTrees } from './kami-doc.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -35,13 +35,19 @@ console.log('=== 「非必要不开」条目验证（' + path.basename(p) + '）
 const order = ((preset.prompt_order || []).find(o => o.character_id === 100001) || (preset.prompt_order || [])[0] || {}).order || [];
 const onMap = new Map(order.map(o => [o.identifier, o.enabled !== false]));
 const tagged = (preset.prompts || []).filter(e => String(e.name || '').indexOf(TAG) >= 0);
-ok(tagged.length > 0, '① 产物里确实有带「' + TAG + '」的条目', tagged.map(e => e.name).join('、') || '一条都没有');
-const wronglyOn = tagged.filter(e => onMap.get(e.identifier) === true);
-ok(wronglyOn.length === 0, '① 它们默认都是关的', wronglyOn.map(e => e.name).join('、') || '全部关闭');
+/* 2026-11-18：用户删光了四条破限/抗审条目（Gemini随机数、抗输入审、听话！Gemini、倒打一耙），
+   这时「默认关、选模型不跟着开」的规则没有适用对象，是空集而不是失败。
+   代码侧（③）仍然要查：以后再加同类条目时，跳过逻辑必须还在。 */
+if (tagged.length === 0) {
+  console.log('PASS  ① 当前预设没有带「' + TAG + '」的条目，本规则无适用对象（代码侧仍照常校验）');
+} else {
+  const wronglyOn = tagged.filter(e => onMap.get(e.identifier) === true);
+  ok(wronglyOn.length === 0, '① ' + tagged.length + ' 条带「' + TAG + '」的条目默认都是关的', wronglyOn.map(e => e.name).join('、') || '全部关闭');
+}
 
 /* ② 这些条目确实属于某个模型（否则「选模型时跳过」这条规则就是空谈，守卫也就白设了） */
 const parserPath = path.join(ROOT, 'test', 'harness', 'preset-parse.mjs');
-const { parsePreset } = await import('file://' + parserPath.replace(/\\/g, '/'));
+const { parsePreset } = await import(pathToFileURL(parserPath).href);
 const r = parsePreset(preset);
 const items = [], seen = new Set();
 (function walk(n) {
@@ -52,9 +58,13 @@ const items = [], seen = new Set();
   if (Array.isArray(n.own)) { n.own.forEach(it => { if (it && it.identifier && !seen.has(it.identifier)) { seen.add(it.identifier); items.push(it); } }); }
 })(r);
 const byId = new Map(items.map(it => [it.identifier, it]));
-const taggedWithModel = tagged.filter(e => ((byId.get(e.identifier) || {}).models || []).length > 0);
-ok(taggedWithModel.length > 0, '② 其中至少有一条挂在模型名下（不然这条规则不会生效）',
-  taggedWithModel.map(e => e.name + '→' + (byId.get(e.identifier).models || []).join('')).join('、') || '一条都没有');
+if (tagged.length === 0) {
+  console.log('PASS  ② 无此类条目，跳过「挂在模型名下」检查');
+} else {
+  const taggedWithModel = tagged.filter(e => ((byId.get(e.identifier) || {}).models || []).length > 0);
+  ok(taggedWithModel.length > 0, '② 其中至少有一条挂在模型名下（不然这条规则不会生效）',
+    taggedWithModel.map(e => e.name + '→' + (byId.get(e.identifier).models || []).join('')).join('、') || '一条都没有');
+}
 
 /* ③ 代码：40 号的 selectModel 里那处跳过还在（这是真正决定行为的地方） */
 const panel = String(flattenScriptTrees((preset.extensions?.tavern_helper?.scripts) || []).find(s => String(s.name).indexOf('预设设置') >= 0 && String(s.name).indexOf('🧪') < 0)?.content || '');

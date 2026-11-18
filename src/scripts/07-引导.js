@@ -6,7 +6,7 @@
  * 先确认免责声明与开源许可（确认前关不掉，按钮条上其他按钮也先跳到这里），再按功能逐页介绍预设的每一项，每一页都直接改真实设置：
  *   · 免责声明正文：现读预设里的免责条目（注释部分）
  *   · 模型 / 语言 / 数值 → 🌟 预设设置 的 KamiPreset.presetBridge()；皮肤 → 🎨 显示 的 SkinManager
- *   · 压缩 → 🧰 工具箱 的 KamiToolbox.bridge()；防截断 → 反截断 的 AntiTruncation
+ *   · 压缩 → 🧰 工具箱 的 KamiToolbox.bridge()；防截断 → 🛡 防护 的 KamiGuard（兼容旧的 AntiTruncation）
  * 界面由「🧩 运行库」（React + 设计系统 + 皮肤引擎）的 GuidePanel 画。
  *
  * 「首次」判定（与旧版 v0.6 同一套记录，升级后不会重复弹）：构建时把产物名写进本脚本，
@@ -279,7 +279,8 @@
     var preset = call(function () { return HOST.KamiPreset && HOST.KamiPreset.presetBridge ? HOST.KamiPreset.presetBridge() : null; });
     var skins = call(function () { return HOST.KamiDisplay && HOST.KamiDisplay.alive() ? HOST.KamiDisplay.manager : null; });
     var tb = call(function () { return HOST.KamiToolbox && HOST.KamiToolbox.bridge ? HOST.KamiToolbox.bridge() : null; });
-    var at = call(function () { return HOST.AntiTruncation || null; });
+    /* 2026-11-18：反截断并入「🛡 防护」后，这里优先读新接口；旧 AntiTruncation 仍有兼容映射 */
+    var at = call(function () { return HOST.KamiGuard || HOST.AntiTruncation || null; });
     var long = {};
     if (tb) {
       long.compress = {
@@ -289,7 +290,19 @@
         open: function () { if (HOST.KamiToolbox && HOST.KamiToolbox.open) { HOST.KamiToolbox.open('compress'); } }
       };
     }
-    if (at) { long.antitrunc = { get: function () { return !!at.enabled; }, set: function (v) { if (v) { at.on(); } else { at.off(); } } }; }
+    if (at) {
+      long.antitrunc = {
+        get: function () {
+          try { if (typeof at.get === 'function') { return !!at.get().tool; } return !!at.enabled; } catch (e) { return false; }
+        },
+        set: function (v) {
+          try {
+            if (typeof at.set === 'function') { at.set({ tool: !!v }); return; }
+            if (v) { at.on(); } else { at.off(); }
+          } catch (e) { /* 忽略 */ }
+        }
+      };
+    }
     try { if (preset) { preset.reload(); } } catch (e) { }
     markVisit({ shown: true });
     log('引导打开（版本 ' + GUIDE_VERSION + '）');

@@ -135,6 +135,7 @@ try {
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/skin-assets.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/audit-regressions.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/reasoning-references.mjs')], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(ROOT, 'test/harness/guard-shape.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/cot-stream.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/cot-response.mjs')], { stdio: 'inherit' });
   execFileSync(process.execPath, [path.join(ROOT, 'test/harness/name-wrap.mjs')], { stdio: 'inherit' });

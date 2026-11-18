@@ -164,11 +164,14 @@ await inLayer((r) => { const c = [...r.querySelectorAll('[data-k="card"][data-ro
 await page.waitForTimeout(600);
 ok((await page.evaluate(() => window.KamiSummarize.status().grandOn)) === !g0, '超限压缩写进 60 号');
 await page.evaluate((g) => window.KamiSummarize.setGrand(g), g0);
-const a0 = await page.evaluate(() => !!window.AntiTruncation.enabled);
+const a0 = await page.evaluate(() => !!(window.KamiGuard ? window.KamiGuard.get().tool : window.AntiTruncation.enabled));
 await inLayer((r) => { const sw = r.querySelector('[data-guide-step="long"] [role="switch"]'); sw && sw.click(); });
 await page.waitForTimeout(600);
-ok((await page.evaluate(() => !!window.AntiTruncation.enabled)) === !a0, '防截断开关写进 20 号');
-await page.evaluate((a) => (a ? window.AntiTruncation.on() : window.AntiTruncation.off()), a0);
+ok((await page.evaluate(() => !!(window.KamiGuard ? window.KamiGuard.get().tool : window.AntiTruncation.enabled))) === !a0, '防截断开关写进 20 号');
+await page.evaluate((a) => {
+  if (window.KamiGuard) { window.KamiGuard.set({ tool: !!a }); return; }
+  if (a) { window.AntiTruncation.on(); } else { window.AntiTruncation.off(); }
+}, a0);
 await page.waitForTimeout(300);
 const au = await page.evaluate(auditInPage, null);
 ok(au.failures.length === 0 && au.checked > 10, '引导对比度：' + au.checked + ' 处', au.failures.slice(0, 3));
