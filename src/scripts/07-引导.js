@@ -275,6 +275,11 @@
 
   function openWizard() {
     if (disposed) { return false; }
+    /* ⚠️ 2026-11-18 实机：预设重新导入时运行库会被换掉，本实例手里的 rt 可能已经销毁。
+       用已销毁的 rt 开面板会画在一棵失效的 React 树上——用户看到面板、点「我已阅读」却没反应，只能刷新页面。
+       每次开面板前重新取一次当前运行库，取到新的就换掉。 */
+    var fresh = call(function () { return HOST.KamiRuntimeNext; });
+    if (fresh && fresh !== rt && fresh.panels && fresh.panels.GuidePanel) { rt = fresh; }
     if (!rt) { toast('warning', '引导还没就绪（🧩 运行库 是否开着？）'); return false; }
     var preset = call(function () { return HOST.KamiPreset && HOST.KamiPreset.presetBridge ? HOST.KamiPreset.presetBridge() : null; });
     var skins = call(function () { return HOST.KamiDisplay && HOST.KamiDisplay.alive() ? HOST.KamiDisplay.manager : null; });

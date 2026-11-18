@@ -132,6 +132,17 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
   const [confirmed, setConfirmed] = React.useState(accepted);
   const [agree, setAgree] = React.useState(accepted);
   const [i, setI] = React.useState(confirmed ? Math.max(0, initialStep) : 0);
+  /* ⚠️ 2026-11-18 实机：预设重新导入后引导面板会被复用到同一个组件实例上（图层 id 相同），
+     而 confirmed/agree 只在首次挂载时取 accepted —— 于是「已同意」的旧状态留在面板里，
+     新声明要求重新确认时勾选行为对不上。accepted 一变就同步一次。 */
+  const acceptedRef = React.useRef(accepted);
+  React.useEffect(() => {
+    if (acceptedRef.current === accepted) { return; }
+    acceptedRef.current = accepted;
+    setConfirmed(accepted);
+    setAgree(accepted);
+    if (!accepted) { setI(0); }
+  }, [accepted]);
   const [seen, setSeen] = React.useState(i);
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   const [toast, setToast] = React.useState<{ msg: string; n: number } | null>(null);

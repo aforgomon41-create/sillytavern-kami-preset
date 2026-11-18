@@ -91,11 +91,30 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     return h;
   };
 
+  /* 销毁后置 true：阻断"僵尸实例"重新建图层 */
+  let dead = false;
+  /* 空壳图层：旧实例在运行库销毁后再要图层时拿到它，open/close 全部无效，不会碰到 DOM */
+  const deadLayer = (doc: Document): Layer => {
+    let l = layers.get(doc);
+    if (l) { return l; }
+    const host = doc.createElement('div');
+    const stub: Layer = {
+      host, shadow: host.attachShadow({ mode: 'open' }), root: host, portal: host,
+      open: () => (): void => undefined, close: (): void => undefined, ids: (): string[] => [],
+      setAttrs: (): void => undefined, refresh: (): void => undefined, dispose: (): void => undefined,
+    };
+    layers.set(doc, stub);
+    return stub;
+  };
   const rt: Runtime = {
     version: VERSION, React, ReactDOM, ReactDOMClient, ds: DS,
     hub,
     layer(doc = doc0) {
       let l = layers.get(doc);
+      /* ⚠️ 2026-11-18 实机：预设重新导入时旧运行库被 dispose，但旧脚本实例还活着并继续调 layer()，
+         于是 createLayer 又把新运行库刚建好的图层删掉重建 —— 用户看到的面板挂在已销毁的 React 树上，
+         点不动（「我已阅读勾不上」）。销毁之后一律不再新建图层。 */
+      if (dead) { return l || deadLayer(doc); }
       if (!l || !l.host.isConnected) { l = createLayer(doc, hub(doc), composed.attrs, onRoot, skinStrings); layers.set(doc, l); }
       return l;
     },
@@ -146,6 +165,8 @@ export function createRuntime(host: Window & typeof globalThis): Runtime {
     panels: { DisplayPanel, SkinChoices, PresetPanel, GuidePanel, GuardPanel, ToolboxPanel, ManualSearchDialog, UpdateAskDialog, UpdateProgressDialog, MergeReviewDialog },
     engine: { resolveScheme, auditScheme, validateManifest, composeSkin, nthTag },
     dispose() {
+      if (dead) { return; }
+      dead = true;
       for (const mm of mounts) { mm.stop(); }
       for (const l of layers.values()) { l.dispose(); }
       mounts.clear(); layers.clear(); hubs.clear();
