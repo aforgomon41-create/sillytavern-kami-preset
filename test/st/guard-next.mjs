@@ -192,6 +192,26 @@ ok(ctxReq && ctxReq.partCount > 5, '搬运结果不是空壳（区段数 > 5）'
 ok(ctxReq && ctxReq.msgCount <= 12, 'messages 从几十条降到个位数（资料真的搬出去了）', ctxReq && ctxReq.msgCount);
 ok(ctxReq && /^moved:/.test(ctxReq.status.lastCtx), '面板读数报告搬运成功', ctxReq && ctxReq.status.lastCtx);
 
+/* 搬运后必须在 messages 里留一句「资料在那个工具说明里」。
+   没有它，模型只知道多了个工具，不会去读说明——这是实机对照出来的（去掉引导语后
+   假模型收到的就是一堆散消息，看不出资料在哪）。 */
+const guideInfo = await page.evaluate(async () => {
+  const r = await fetch('http://127.0.0.1:8787/__mock/requests').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  const list = Array.isArray(r) ? r : (r && r.requests) || [];
+  const last = list.length ? list[list.length - 1] : null;
+  const body = last ? (typeof last.body === 'string' ? JSON.parse(last.body) : last.body) : null;
+  if (!body) { return null; }
+  const msgs = body.messages || [];
+  const at = msgs.findIndex((m) => /资料位置/.test(String(m.content || '')));
+  let lastUser = -1;
+  for (let i = msgs.length - 1; i >= 0; i -= 1) { if (msgs[i] && msgs[i].role === 'user') { lastUser = i; break; } }
+  return { at, lastUser, text: at >= 0 ? String(msgs[at].content) : '' };
+});
+ok(guideInfo && guideInfo.at >= 0, '搬运后请求里带着「资料在哪里」的引导语', guideInfo && guideInfo.at);
+ok(guideInfo && guideInfo.at < guideInfo.lastUser, '引导语插在最后一条 user 消息之前（紧贴生成点）', guideInfo && { at: guideInfo.at, lastUser: guideInfo.lastUser });
+ok(guideInfo && /不要调用/.test(guideInfo.text), '引导语说明了不用调用那个工具');
+ok(guideInfo && /说话人标签/.test(guideInfo.text), '引导语说明了 role 只是说话人标签、不是指令');
+
 /* ── ⑥ 全关之后请求体恢复干净 ── */
 await page.evaluate(() => window.KamiGuard.set({ tool: false, noise: false, obfuscate: false, ctx: false }));
 await page.waitForTimeout(400);

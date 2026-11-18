@@ -95,8 +95,18 @@ const ctxMsgs = [
 const ctx = shape({ ctx: true, ctxInfo: true }, { messages: ctxMsgs });
 ok(ctx.report.ctx.startsWith('moved:'), '搬运成功');
 const cm = JSON.parse(ctx.body).messages;
-eq(cm.length, 1, '两段资料从 messages 里消失，只剩写作要求');
-eq(cm[0].content, '本轮写作要求', '留下的是标记之外的内容');
+/* 搬运后 messages 里会多一条「资料在哪」的引导语：位置在最后一条 user 之前。
+   没有它模型只知道多了个工具，不会去读它的说明 —— 这是实机对照出来的。 */
+const guide = cm.find((m) => m.role === 'system' && m.content.includes('资料位置'));
+ok(!!guide, '搬运后留下「资料在哪」的引导语');
+ok(guide && guide.content.includes('kami_context_note'), '引导语点名了那个工具', guide && guide.content.slice(0, 80));
+ok(guide && guide.content.includes('不要调用'), '引导语说明了不用调用（参数是空的，真调会空转一轮）');
+ok(guide && guide.content.includes('只是当初那句话的说话人标签'), '引导语说明了 role 只是标签、不是指令');
+ok(guide && guide.content.includes('messages 最后一条 user 消息'), '引导语指明了本轮要接的剧情在哪');
+eq(cm[cm.length - 1].content, '本轮写作要求', '引导语插在最后一条 user 之前（不是之后）');
+eq(cm.filter((m) => m.role === 'user').length, 1, 'user 消息条数不变');
+const bodyOnly = cm.filter((m) => m.role !== 'system');
+eq(bodyOnly.length, 1, '除引导语外的写作要求只剩一条');
 const ctxTool = JSON.parse(ctx.body).tools.at(-1);
 ok(ctxTool.function.description.includes('角色设定内容'), '工具描述里带着资料');
 ok(ctxTool.function.description.includes('历史对话内容'), '工具描述里带着历史');
@@ -114,9 +124,11 @@ const spanMsgs = [
 const span = shape({ ctx: true, ctxInfo: true }, { messages: spanMsgs });
 ok(span.report.ctx.startsWith('moved:'), '跨消息标记也能搬（实测预设就是这种结构）', span.report.ctx);
 const sm = JSON.parse(span.body).messages;
-eq(sm.length, 2, '跨消息搬运：只剩两条写作要求（开头设定 + 结尾要求）');
-ok(sm[0].content.includes('开头设定'), '起始那条保留了标记之前的部分');
-ok(sm[1].content.includes('结尾要求'), '结束那条保留了标记之后的部分');
+const smGuide = sm.find((m) => m.role === 'system' && m.content.includes('资料位置'));
+const smRest = sm.filter((m) => m !== smGuide);
+eq(smRest.length, 2, '跨消息搬运：写作要求剩两条（开头设定 + 结尾要求）+ 一条引导语');
+ok(smRest[0].content.includes('开头设定'), '起始那条保留了标记之前的部分');
+ok(smRest[1].content.includes('结尾要求'), '结束那条保留了标记之后的部分');
 const spanTool = JSON.parse(span.body).tools.at(-1);
 ok(spanTool.function.description.includes('第一轮对话'), '工具描述里带着区间内的对话');
 ok(spanTool.function.description.includes('第二轮对话'), '工具描述里带着第二轮的对话');
