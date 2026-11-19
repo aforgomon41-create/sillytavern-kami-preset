@@ -107,6 +107,14 @@ console.log('  旧版界面：' + JSON.stringify(oldUi));
 await page.screenshot({ path: SHOT + '/0-old.png' });
 const t0 = await tree();
 console.log('  旧版脚本树：' + JSON.stringify(t0));
+/* 旧版的「反截断」打开：升级后应由「🛡 防护」接手、仍然开着（2026-11-19 审计：以前升级后会被悄悄关掉） */
+const antiOn = await page.evaluate(async () => {
+  if (window.KamiGuard || !window.AntiTruncation || typeof window.AntiTruncation.on !== 'function') { return null; }
+  window.AntiTruncation.on();
+  await new Promise((r) => setTimeout(r, 1500));
+  return !!window.AntiTruncation.enabled;
+});
+console.log('  旧版反截断：' + (antiOn === null ? '这一版没有旧反截断，跳过' : antiOn ? '已打开' : '没打开'));
 await page.evaluate(() => { const ctx = window.SillyTavern.getContext(); ctx.chatCompletionSettings.temp_openai = 0.73; const el = document.getElementById('temp_openai'); if (el) { el.value = '0.73'; el.dispatchEvent(new Event('input', { bubbles: true })); } });
 await page.waitForTimeout(500);
 await page.evaluate(() => { const btn = document.getElementById('update_oai_preset'); btn && btn.click(); });
@@ -163,7 +171,7 @@ const conflict = timeline.filter((x) => x.snap.oldBody > 0 || x.snap.oldGuide ||
 ok(conflict.length === 0, '第一次载入：旧脚本没有跑出界面（旧正文外壳 / 旧引导 / 旧皮肤管理）', conflict.slice(0, 3).map((x) => '+' + x.ms + ' ' + x.key));
 const t2 = await tree();
 console.log('  60 秒后的脚本树：' + JSON.stringify(t2));
-const want = ['🧩 运行库 v2.0', '💬 消息前端 v1.0', '🎨 显示 v1.0', '🧭 引导 v1.0', '🎛 脚本按钮 v1.4', '反截断 v1.3', '✍️ 提示词发送修改 v1.0', '💭 思维链 v0.1', '🌟 预设设置 v1.0', '🧰 工具箱 v2.0', '🔄 远程更新 v1.6'];
+const want = ['🧩 运行库 v2.0', '💬 消息前端 v1.0', '🎨 显示 v1.0', '🧭 引导 v1.0', '🎛 脚本按钮 v1.4', '防护 v2.0',  /* 2026-11-18 起「反截断」升级成「🛡 防护」（同一个脚本 ID） */ '✍️ 提示词发送修改 v1.0', '💭 思维链 v0.1', '🌟 预设设置 v1.0', '🧰 工具箱 v2.0', '🔄 远程更新 v1.6'];
 ok(JSON.stringify(flat(t2).slice().sort()) === JSON.stringify(want.slice().sort()), '整理后脚本树只剩新版 11 个（旧的、制作中的都清掉）', flat(t2));
 
 const drillSeen = await page.evaluate(() => window.__drillSeen || []);
@@ -184,11 +192,13 @@ ok(JSON.stringify(flat(t3).slice().sort()) === JSON.stringify(want.slice().sort(
 const fin = await page.evaluate(() => ({
   preset: window.SillyTavern.getContext().getPresetManager('openai').getSelectedPresetName(),
   temp: window.SillyTavern.getContext().chatCompletionSettings.temp_openai,
+  guardTool: window.KamiGuard ? window.KamiGuard.get().tool : null,
   tb: !!window.KamiToolboxNext, fe: !!(window.KamiChatFrontend && window.KamiChatFrontend.active()), oldBody: document.querySelectorAll('#chat [data-kami-body-host]').length,
   btns: [...document.querySelectorAll('.qr--button, .menu_button, [data-hub-btn]')].map((x) => x.textContent.trim()).filter((t) => /^[🧰🌟🎨🧭]/.test(t))
 }));
 ok(fin.preset === NEW_NAME, '当前预设是新版', fin.preset);
 ok(Number(fin.temp) === 0.73, '用户改过的温度保住了（0.73）', fin.temp);
+if (antiOn) { ok(fin.guardTool === true, '旧版开着的反截断，升级后在「🛡 防护」里仍然开着', fin.guardTool); }
 ok(fin.tb && fin.fe && fin.oldBody === 0, '新工具箱、新消息前端在跑，没有旧正文外壳', fin);
 ok(fin.btns.length >= 3, '按钮条上有新版按钮', fin.btns);
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 5));
