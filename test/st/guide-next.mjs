@@ -173,6 +173,17 @@ await page.evaluate((a) => {
   if (a) { window.AntiTruncation.on(); } else { window.AntiTruncation.off(); }
 }, a0);
 await page.waitForTimeout(300);
+/* 2026-11-19：反截断并入「🛡 防护」，这一页介绍另外三个开关，并能直接打开防护面板 */
+const guardRows = await inLayer((r) => [...r.querySelectorAll('[data-guide-step="long"] [data-guide-terms] dt')].map((x) => x.textContent));
+ok(['噪声稀释', '防路由混淆', '工具声明式上下文'].every((n) => guardRows.includes(n)), '长文页介绍了防护的另外三个开关', guardRows);
+const guardBtn = await inLayer((r) => { const btn = [...r.querySelectorAll('[data-guide-step="long"] button')].find((x) => x.textContent.trim() === '打开 🛡 防护'); if (btn) { btn.click(); } return !!btn; });
+await page.waitForTimeout(900);
+const guardOpen = await inLayer((r) => [...r.querySelectorAll('[data-k="panel"]')].map((p) => ((p.querySelector('[data-k-part="title"]') || {}).textContent || '').trim()));
+ok(guardBtn && guardOpen.includes('防护'), '「打开 🛡 防护」打开了防护面板', guardOpen);
+if (SHOTS) { await page.screenshot({ path: SHOT_DIR + '/guide-guard' + (MOBILE ? '-m' : '') + '.png' }); }
+await page.evaluate(() => window.KamiGuard && window.KamiGuard.close());
+await page.waitForTimeout(500);
+ok((await stepId()) === 'long', '关掉防护面板后引导还在原来那一页', await stepId());
 const au = await page.evaluate(auditInPage, null);
 ok(au.failures.length === 0 && au.checked > 10, '引导对比度：' + au.checked + ' 处', au.failures.slice(0, 3));
 if (SHOTS) { await page.screenshot({ path: SHOT_DIR + '/guide-next' + (MOBILE ? '-m' : '') + '.png' }); }

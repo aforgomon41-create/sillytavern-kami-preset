@@ -96,9 +96,10 @@ const before = await page.evaluate(() => JSON.parse(JSON.stringify(window.KamiGu
 const clicked = await inLayer((r) => {
   const switches = [...r.querySelectorAll('[role="switch"]')];
   for (const sw of switches) {
-    const row = sw.closest('[data-k="setting-row"]') || sw.parentElement?.parentElement;
-    const txt = (row && row.textContent) || '';
-    if (txt.trim().startsWith('噪声稀释')) { sw.click(); return true; }
+    /* 分组标题是功能名、组里第一行叫「开启」（2026-11-19 起）：按所在分组的标题找 */
+    const sec = sw.closest('[data-k="setting-section"]');
+    const title = sec && sec.querySelector('[data-k-part="title"]');
+    if (title && title.textContent.trim() === '噪声稀释' && sw.getAttribute('aria-label') === '噪声稀释') { sw.click(); return true; }
   }
   /* 兜底：页签切过去之后，本页只有这一个开关是「噪声」的，直接取页内第一个 */
   const any = r.querySelector('[data-k="panel"] [role="switch"]');
@@ -242,6 +243,8 @@ ok(typeof st.lastNoise === 'number' && typeof st.lastCtx === 'string', 'status()
 ok(errors.length === 0, '没有页面错误', errors.slice(0, 3));
 
 /* ── ⑨ 注销收回 ── */
+/* 先把状态复原成默认再注销：注销后 KamiGuard 就没了，放在后面 reset 等于没做（以前就是这样把开关留在了测试酒馆里） */
+await page.evaluate(() => { try { window.KamiGuard && window.KamiGuard.reset(); } catch (e) {} });
 const gone = await page.evaluate(() => {
   if (window.KamiGuard && window.KamiGuard.shutdown) window.KamiGuard.shutdown();
   return {
@@ -259,8 +262,6 @@ ok(!gone.api && !gone.anti, '注销后全局 API（KamiGuard / AntiTruncation）
 ok(!gone.defs.includes('🛡 防护'), '注销后中转站登记表里已没有「🛡 防护」', gone.defs);
 ok(!goneAfter.btn, '注销后按钮条上不再有「🛡 防护」', goneAfter);
 
-/* 收尾：把状态复原成默认，免得影响后面的测试 */
-await page.evaluate(() => { try { window.KamiGuard && window.KamiGuard.reset(); } catch (e) {} });
 
 console.log('');
 console.log(fail ? '★ 失败 ' + fail + ' 项' : '「🛡 防护」验证全部通过（' + pass + ' 项）');

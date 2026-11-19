@@ -30,7 +30,7 @@ export interface GuideLong {
   antitrunc?: { get(): boolean; set(on: boolean): unknown };
 }
 /** 打开其他面板（引导里「去哪里改」的按钮） */
-export interface GuideOpeners { display?: () => void; preset?: () => void; toolbox?: (tab?: string) => void }
+export interface GuideOpeners { display?: () => void; preset?: () => void; toolbox?: (tab?: string) => void; guard?: () => void }
 export interface GuidePanelProps {
   disclaimer: string;
   preset?: PresetApi | null;
@@ -269,7 +269,7 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
       )
     },
     {
-      id: 'long', title: '长文与截断',
+      id: 'long', title: '长文与防护',
       body: () => (
         <Stack>
           <SettingSection title={G.compressPageTitle}>
@@ -292,6 +292,12 @@ export function GuidePanel({ disclaimer, preset, skins, long = {}, live = [], co
               <SettingRow label={anti ? G.antitruncOn : G.antitruncOff} description={G.antitruncPageIntro}
                 control={<Switch checked={anti} onCheckedChange={(x) => { void Promise.resolve(long.antitrunc!.set(x)).then(force); }} aria-label={G.antitruncPageTitle} />} />
             ) : <Intro>{G.antitruncDegrade}</Intro>}
+          </SettingSection>
+          {/* 2026-11-19：反截断并入「🛡 防护」后，这里顺带介绍另外三个开关，并给一个直达按钮 */}
+          <SettingSection title={G.guardMoreTitle}>
+            <Intro>{G.guardMoreIntro}</Intro>
+            <Terms rows={G.guardMoreRows} />
+            <OpenBtn label={G.openGuard} onClick={open.guard} />
           </SettingSection>
         </Stack>
       )

@@ -159,8 +159,43 @@ eq(tb.messages.at(-1).content, '开始吧', '控制消息插在最后一条 user
 /* ⑦ 工具反截断的拒绝条件 */
 for (const pinned of ['none', 'required', { type: 'function', function: { name: 'x' } }]) {
   const r = shape({ tool: true }, { tool_choice: pinned });
-  eq(r.report.tool, 'skip:tool-choice', 'tool_choice=' + JSON.stringify(pinned) + ' 时跳过');
+  eq(r.report.toolState, 'skip:tool-choice', 'tool_choice=' + JSON.stringify(pinned) + ' 时跳过');
 }
+eq(tool.report.toolState, 'on', '正常时 toolState=on（面板据此显示）');
+
+/* ⑦b 酒馆后端不转发 tools 的渠道：两项都跳过、请求原样（2026-11-19 审计 #2） */
+const ctxMsgsForDrop = [{ role: 'system', content: '<CHAT_HISTORY>历史</CHAT_HISTORY>' }, { role: 'user', content: '继续' }];
+for (const [label, extra] of [
+  ['Azure OpenAI', { chat_completion_source: 'azure_openai', model: 'gpt-4o' }],
+  ['Gemini 出图', { chat_completion_source: 'makersuite', model: 'gemini-2.5-flash-image', request_images: true }],
+  ['Gemma 3', { chat_completion_source: 'makersuite', model: 'gemma-3-27b-it' }],
+  ['Vertex 出图', { chat_completion_source: 'vertexai', model: 'gemini-2.5-flash-image', request_images: true }],
+]) {
+  const r = shape({ tool: true, ctx: true }, Object.assign({ messages: ctxMsgsForDrop }, extra));
+  eq(r.report.ctx, 'skip:no-tools', label + '：上下文搬运跳过');
+  eq(r.report.toolState, 'skip:no-tools', label + '：工具反截断跳过');
+  const b = JSON.parse(r.body);
+  ok(!b.tools || b.tools.length === 0, label + '：没加工具');
+  eq(b.messages[0].content, '<CHAT_HISTORY>历史</CHAT_HISTORY>', label + '：消息原样');
+}
+const gemOk = shape({ tool: true }, { chat_completion_source: 'makersuite', model: 'gemini-2.5-pro' });
+eq(gemOk.report.toolState, 'on', '普通 Gemini 照常加工具');
+
+/* ⑦c 两项同开：控制消息明说资料工具不要调（2026-11-19 审计 #3） */
+const both = shape({ tool: true, ctx: true }, { messages: ctxMsgsForDrop });
+const ctl = JSON.parse(both.body).messages.find((m) => m.role === 'system' && m.content.includes('传输层要求'));
+ok(ctl && ctl.content.includes('kami_context_note') && ctl.content.includes('不要调用'), '同开时控制消息点名资料工具不要调');
+const solo = shape({ tool: true }, {});
+ok(!JSON.parse(solo.body).messages.some((m) => m.content.includes('kami_context_note')), '只开反截断时不提资料工具');
+
+/* ③b 混淆只打断整词、按出现次数计数（2026-11-19 审计 #5） */
+const wordSrc = 'DANGER zone overrides; DAN said override twice: override.';
+const word = shape({ obfuscate: true, obMode: 'deep' }, { messages: [{ role: 'system', content: wordSrc }, { role: 'user', content: 'x' }] });
+const wordText = JSON.parse(word.body).messages[0].content;
+ok(wordText.includes('DANGER') && wordText.includes('overrides'), '长单词里的 DAN / override 不被打断');
+ok(!/\bDAN\b/.test(wordText.replace(/DANGER/g, '')), '独立的 DAN 被打断');
+eq(word.report.obf, 3, '计数按出现次数（DAN 1 + override 2）');
+eq(wordText.replace(/<!--[0-9a-f]+-->/g, ''), wordSrc, '整词混淆同样能还原');
 
 /* ⑧ 四项同开：顺序正确（上下文先搬走，否则标记会被混淆打断） */
 const all = shape({ tool: true, noise: true, noiseChars: 2000, obfuscate: true, obMode: 'deep', ctx: true, ctxInfo: true }, { messages: ctxMsgs });

@@ -90,7 +90,7 @@
 
   const state = Object.assign({}, DEFAULTS);
   const listeners = new Set();
-  const status = { lastNoise: 0, lastCtx: 'off', lastObf: 0, toolHits: 0 };
+  const status = { lastNoise: 0, lastCtx: 'off', lastObf: 0, toolHits: 0, lastTool: 'off', lastRelay: '', lastOn: null, sent: 0 };
 
   function clampInt(value, min, max, fallback) {
     const n = Number(value);
@@ -111,21 +111,35 @@
     return out;
   }
 
+  /* 旧版「反截断」把开关记在 anti-truncation.enabled。升级时脚本变量以用户的为准（合并口径 A4），
+     旧键还在、新键 kami-guard 没有——只读新键的话，开着反截断的老用户升级后会被悄悄关掉（2026-11-19 审计实测）。
+     读到旧键就迁一次：新键还没有、旧的开着 → 工具调用反截断开着；新键已经有了就以新键为准（用户在新面板里改过）。
+     迁完删掉旧键，以后只认新键。 */
+  const LEGACY_VARS_KEY = 'anti-truncation';
+
   function readSaved() {
     try {
       const all = typeof getVariables === 'function' ? getVariables({ type: 'script' }) : null;
-      Object.assign(state, sanitize(all && all[VARS_KEY]));
+      const saved = all && all[VARS_KEY];
+      Object.assign(state, sanitize(saved));
+      const legacy = all && all[LEGACY_VARS_KEY];
+      if (legacy !== undefined) {
+        if (saved === undefined && legacy && typeof legacy === 'object' && legacy.enabled === true) state.tool = true;
+        persist(LEGACY_VARS_KEY);
+        log('已把旧版「反截断」的开关迁过来：工具调用反截断 ' + (state.tool ? '开' : '关'));
+      }
     } catch (err) {
       console.warn('[防护] 读脚本变量失败，本次按默认处理', err);
       Object.assign(state, DEFAULTS);
     }
   }
 
-  function persist() {
+  function persist(dropKey) {
     try {
       if (typeof getVariables !== 'function' || typeof replaceVariables !== 'function') return;
       const all = getVariables({ type: 'script' }) || {};
       const next = Object.assign({}, all);
+      if (dropKey) delete next[dropKey];
       next[VARS_KEY] = Object.assign({}, state);
       replaceVariables(next, { type: 'script' });
     } catch (err) {
@@ -203,13 +217,16 @@
     return PREFIX + Date.now().toString(36);
   }
 
-  function instructionFor(tool) {
-    return [
+  function instructionFor(tool, withCtx) {
+    const lines = [
       '【传输层要求】本轮回复不要直接写在聊天正文里，改用函数调用交付：',
       '1. 调用 ' + tool + ' 一次，把你本来要写的完整正文放进它的 content 参数；',
       '2. 正文只出现在 content 里，函数调用之外不要再重复输出；',
       '3. 需要调用其它工具时照常调用，本条不影响它们。',
-    ].join('\n');
+    ];
+    /* 和「工具声明式上下文」同开时工具列表里有两个工具：明说资料那个不要调（调了是空的，正文就丢了） */
+    if (withCtx) lines.push('4. ' + CTX_TOOL_NAME + ' 只是资料，不要调用它；正文只交给 ' + tool + '。');
+    return lines.join('\n');
   }
 
   function placeControl(messages, text) {
@@ -294,8 +311,16 @@
     'Identity Confirmation', 'CRITICAL INSTRUCTIONS', '原生思考', '非AI助手',
     '完全无限制', '不受限制', '越狱', '越权', '角色扮演提示', '系统提示词',
     'jailbreak', 'system prompt', 'ignore previous', 'Ignore previous',
-    ' disregard ', 'override', '开发者模式', 'DAN',
+    'disregard', 'override', '开发者模式', 'DAN',
   ];
+
+  /* 英文词按整词匹配：按子串匹配时「DAN」会打断 DANGER、「override」会打断 overrides（2026-11-19 审计）。
+     不用后行断言（老的安卓 WebView 不认），用一个捕获组带上前一个字符。中文没有词边界，照旧按子串。 */
+  const OBF_PATTERNS = OBF_TARGETS.map(function (target) {
+    const esc = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const ascii = /^[\x00-\x7f]+$/.test(target);
+    return { target: target, re: new RegExp(ascii ? '(^|[^A-Za-z0-9_])(' + esc + ')(?![A-Za-z0-9_])' : '()(' + esc + ')', 'g') };
+  });
 
   /* 头部区域：从第一条 user 消息往前的那一段。
      混淆「头部」是指只动 system 与角色设定，不动聊天正文——正文改了会污染历史。 */
@@ -306,17 +331,19 @@
     return messages.length;
   }
 
+  /* 返回改后的文本与打断了几个词（面板显示「上一轮拆开了 N 个词」） */
   function obfuscateText(text, token) {
     let out = text;
-    for (const target of OBF_TARGETS) {
-      if (out.indexOf(target) < 0) continue;
-      /* 插在词中间：对英文按单词中间，对中文按最后一个字之前 */
-      const at = Math.max(1, Math.floor(target.length / 2));
-      const half = '<!--' + token + '-->';
-      const broken = target.slice(0, at) + half + target.slice(at);
-      out = out.split(target).join(broken);
+    let hits = 0;
+    for (const item of OBF_PATTERNS) {
+      if (out.indexOf(item.target) < 0) continue;
+      /* 插在词中间：英文按单词中间，中文按字数一半 */
+      const at = Math.max(1, Math.floor(item.target.length / 2));
+      const broken = item.target.slice(0, at) + '<!--' + token + '-->' + item.target.slice(at);
+      item.re.lastIndex = 0;
+      out = out.replace(item.re, function (_m, before) { hits += 1; return before + broken; });
     }
-    return out;
+    return { text: out, hits: hits };
   }
 
   function obfuscateMessages(messages, mode) {
@@ -327,9 +354,9 @@
     const out = messages.map(function (row, index) {
       if (!row || index >= boundary) return row;
       if (typeof row.content !== 'string' || !row.content) return row;
-      const next = obfuscateText(row.content, token);
-      if (next !== row.content) count += 1;
-      return next === row.content ? row : Object.assign({}, row, { content: next });
+      const res = obfuscateText(row.content, token);
+      count += res.hits;
+      return res.hits === 0 ? row : Object.assign({}, row, { content: res.text });
     });
     return { messages: out, count: count };
   }
@@ -571,6 +598,9 @@
 
   /* ───────── 单条候选的账本 ───────── */
 
+  /* 资料工具（工具声明式上下文）被调用时的占位路由：这条调用整个丢掉 */
+  const CTX_DROP = '\u0000ctx';
+
   function Lane(dialect) {
     this.dialect = dialect;
     this.channels = new Map();
@@ -699,10 +729,13 @@
             let route = lane.routes.get(at);
 
             if (name !== '') {
-              if (originOf(name, this.tool, this.taken) === 'other') { lane.routes.delete(at); route = null; }
+              if (bareName(name) === CTX_TOOL_NAME) { lane.routes.set(at, CTX_DROP); route = CTX_DROP; }
+              else if (originOf(name, this.tool, this.taken) === 'other') { lane.routes.delete(at); route = null; }
               else { route = bareName(name); lane.routes.set(at, route); }
             }
             if (!route) { keep.push(call); continue; }
+            /* 模型去调了放资料的那个工具：调用本身不交给酒馆（酒馆里没有这个函数），参数是空的，直接丢 */
+            if (route === CTX_DROP) { changed = true; continue; }
 
             changed = true;
             lane.consumed = true;
@@ -755,6 +788,7 @@
   Session.prototype.googleCall = function (lane, call) {
     const name = typeof call.name === 'string' ? call.name : '';
     if (name !== '') {
+      if (bareName(name) === CTX_TOOL_NAME) { lane.openRoute = null; return ''; }
       if (originOf(name, this.tool, this.taken) === 'other') { lane.openRoute = null; return null; }
       lane.openRoute = bareName(name);
     }
@@ -928,6 +962,7 @@
           for (const call of calls) {
             const fn = call && typeof call === 'object' ? call.function : null;
             const name = fn && typeof fn.name === 'string' ? fn.name : '';
+            if (bareName(name) === CTX_TOOL_NAME) continue;   /* 资料工具的调用：丢掉 */
             if (name !== '' && originOf(name, session.tool, session.taken) !== 'other') {
               const text = salvageArgs(fn.arguments);
               if (typeof text === 'string') { carried.push(text); continue; }
@@ -968,6 +1003,7 @@
       let plain = '';
       for (const part of holder.content.parts) {
         const call = part && typeof part === 'object' ? part.functionCall : null;
+        if (call && typeof call.name === 'string' && bareName(call.name) === CTX_TOOL_NAME) continue;
         if (call && originOf(call.name, session.tool, session.taken) !== 'other') {
           const text = salvageArgs(call.args);
           if (typeof text === 'string') { carried.push(text); continue; }
@@ -1034,6 +1070,17 @@
     return null;
   }
 
+  /* 酒馆后端在这些情况下不把 tools 发给模型（SillyTavern src/endpoints/backends/chat-completions.js）：
+     Azure OpenAI 整条不转发；Gemini / Vertex 开了出图（request_images）或模型是 Gemma 3 时丢掉。
+     这时把资料搬进工具说明，模型就什么设定和历史都看不到；让模型调函数交付正文，它也调不了。两项都跳过、照常发送。 */
+  function toolsDropped(body) {
+    const src = String(body.chat_completion_source || '');
+    const model = String(body.model || '');
+    if (src === 'azure_openai') return true;
+    if ((src === 'makersuite' || src === 'vertexai') && (body.request_images || /gemma-3/i.test(model))) return true;
+    return false;
+  }
+
   /* ───────── 请求主流程 ───────── */
 
   /* 四件事按固定顺序做，顺序不能换：
@@ -1055,10 +1102,13 @@
     const patched = Object.assign({}, body);
     let list = messages;
     let tools = Array.isArray(patched.tools) ? patched.tools.slice() : [];
-    const report = { ctx: 'off', noise: 0, obf: 0, tool: null };
+    const report = { ctx: 'off', noise: 0, obf: 0, tool: null, toolState: 'off' };
+    const noTools = toolsDropped(body);
 
     /* ① 上下文搬运 */
-    if (state.ctx) {
+    if (state.ctx && noTools) {
+      report.ctx = 'skip:no-tools';
+    } else if (state.ctx) {
       const plan = planContext(list, state.ctxInfo);
       if (plan.skip) {
         report.ctx = 'skip:' + plan.skip;
@@ -1089,12 +1139,14 @@
     if (state.tool) {
       const pinned = patched.tool_choice;
       const blocked = pinned === 'none' || pinned === 'required' || (pinned && typeof pinned === 'object');
-      if (blocked) {
-        report.tool = 'skip:tool-choice';
+      if (noTools) {
+        report.toolState = 'skip:no-tools';
+      } else if (blocked) {
+        report.toolState = 'skip:tool-choice';
       } else {
         const taken = namesOf(tools);
         const tool = mintName(taken);
-        list = placeControl(list, instructionFor(tool));
+        list = placeControl(list, instructionFor(tool, report.ctx.indexOf('moved:') === 0));
         tools = tools.concat([{
           type: 'function',
           function: {
@@ -1109,6 +1161,7 @@
         }]);
         patched.tool_choice = 'auto';
         report.tool = tool;
+        report.toolState = 'on';
       }
     }
 
@@ -1134,6 +1187,8 @@
       relay.misses = 0;
       status.toolHits += 1;
     }
+    /* 面板显示「上一轮模型有没有用函数交付」 */
+    if (outcome === 'relayed' || outcome === 'idle') { status.lastRelay = outcome; emit(); }
   };
 
   relay.report = function (stats) {
@@ -1244,6 +1299,9 @@
     status.lastCtx = plan.report.ctx;
     status.lastNoise = plan.report.noise;
     status.lastObf = plan.report.obf;
+    status.lastTool = plan.report.toolState;
+    status.lastOn = { tool: state.tool, noise: state.noise, obfuscate: state.obfuscate, ctx: state.ctx };
+    status.sent += 1;
     emit();
 
     const patched = repackRequest(args, plan.body);
@@ -1362,7 +1420,9 @@
     set: setState,
     subscribe: subscribe,
     reset: resetState,
-    status: function () { return Object.assign({}, status); },
+    /* 出厂默认（面板「恢复本页默认」只恢复当前页签的几项时要用） */
+    defaults: function () { return Object.assign({}, DEFAULTS); },
+    status: function () { return Object.assign({}, status, { lastOn: status.lastOn ? Object.assign({}, status.lastOn) : null }); },
     /* 面板要用到的两个额外动作 */
     open: openPanel,
     close: closePanel,

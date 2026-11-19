@@ -15,9 +15,10 @@ import { LevelProvider, usePortal } from './context';
 
 export interface SegOption { value: string; label: React.ReactNode }
 
-export function Segmented({ options, value, onValueChange, label, size }: { options: SegOption[]; value: string; onValueChange: (v: string) => void; label: string; size?: 'sm' | 'md' }): React.JSX.Element {
+export function Segmented({ options, value, onValueChange, label, size, disabled }: { options: SegOption[]; value: string; onValueChange: (v: string) => void; label: string; size?: 'sm' | 'md'; disabled?: boolean }): React.JSX.Element {
   return (
-    <RToggle.Root type="single" {...k('segmented', { size })} value={value} aria-label={label}
+    <RToggle.Root type="single" {...k('segmented', { size })} value={value} aria-label={label} disabled={disabled}
+      data-disabled={disabled ? '' : undefined}
       onValueChange={(v: string) => { if (v) { onValueChange(v); } }}>
       {options.map((o) => <RToggle.Item key={o.value} value={o.value} {...part('item')}>{o.label}</RToggle.Item>)}
     </RToggle.Root>

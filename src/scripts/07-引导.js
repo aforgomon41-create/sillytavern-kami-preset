@@ -315,7 +315,8 @@
     var open = {
       display: function () { if (HOST.KamiDisplay && HOST.KamiDisplay.open) { HOST.KamiDisplay.open(); } },
       preset: function () { if (HOST.KamiPresetNext && HOST.KamiPresetNext.open) { HOST.KamiPresetNext.open(); } },
-      toolbox: function (tab) { if (HOST.KamiToolbox && HOST.KamiToolbox.open) { HOST.KamiToolbox.open(tab); } }
+      toolbox: function (tab) { if (HOST.KamiToolbox && HOST.KamiToolbox.open) { HOST.KamiToolbox.open(tab); } },
+      guard: function () { if (HOST.KamiGuard && HOST.KamiGuard.open) { HOST.KamiGuard.open(); } }
     };
     rt.layer().open(LAYER_ID, rt.React.createElement(rt.panels.GuidePanel, {
       disclaimer: text, copy: GUIDE_COPY || null, preset: preset, skins: skins, long: long, live: tb ? [tb] : [],
