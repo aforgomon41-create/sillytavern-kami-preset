@@ -195,11 +195,18 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
 }): React.JSX.Element {
   const portal = usePortal();
   const ctl = { ...(open !== undefined ? { open } : {}), ...(onOpenChange ? { onOpenChange } : {}) };
+  /* 在酒馆里，运行库跑在酒馆助手的 iframe 里，窗口却画在酒馆页面（另一个 document）上。
+     Radix 的模态焦点陷阱只认 iframe 自己的 document：那边 activeElement 永远是 body，
+     于是窗口里任何节点被替换（受控 textarea 每打一个字就换一次文本节点）都会把焦点抢回窗口外框——
+     手动搜索、编辑条目的输入框只能打进一个字（2026-11-25 用户反馈，酒馆与 TauriTavern 都有）。
+     跨 document 时改用非模态，遮罩自己画；同一个 document（设计预览）仍是模态。
+     焦点陷阱跨 document 本来就不生效（它的 focusin 监听挂在 iframe 上），所以这里没有丢掉什么。 */
+  const cross = !!portal && portal.ownerDocument !== (typeof document !== 'undefined' ? document : null);
   return (
-    <RDialog.Root {...ctl}>
+    <RDialog.Root {...ctl} modal={!cross}>
       {trigger ? <RDialog.Trigger asChild>{trigger}</RDialog.Trigger> : null}
       <RDialog.Portal container={portal}>
-        <RDialog.Overlay {...k('dialog')} {...part('overlay')} />
+        {cross ? <div {...k('dialog')} {...part('overlay')} data-state="open" aria-hidden="true" /> : <RDialog.Overlay {...k('dialog')} {...part('overlay')} />}
         <RDialog.Content {...k('dialog', { size })} {...part('content')} data-k-level="surface-1" {...(description ? {} : { 'aria-describedby': undefined })}>
           <LevelProvider level="surface-1">
             <span {...ornament('surface-backdrop')} />

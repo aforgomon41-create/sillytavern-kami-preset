@@ -101,7 +101,20 @@ await inLayer((r) => { [...r.querySelectorAll('button')].find((x) => x.textConte
 await page.waitForTimeout(600);
 const ms = await inLayer((r) => { const d = [...r.querySelectorAll('[role="dialog"]')].find((x) => x.textContent.includes('这次想查什么')); return !!d; });
 ok(ms, '手动搜索窗口打开（新界面）');
-await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+/* 用真实键盘一个字一个字打（2026-11-25 用户反馈：只能打进一个字，焦点被窗口的模态焦点陷阱抢走） */
+await page.locator('kami-layer textarea[aria-label="本次搜索要求"]').click();
+await page.keyboard.type('Rome 罗马', { delay: 40 });
+await page.keyboard.insertText('的地理');   /* 输入法上屏走这条 */
+await page.keyboard.type(' city', { delay: 40 });
+await page.keyboard.press('Backspace');
+await page.waitForTimeout(300);
+const typed = await inLayer((r) => { const t = r.querySelector('textarea[aria-label="本次搜索要求"]'); return { v: t && t.value, focus: r.activeElement === t }; });
+ok(typed.v === 'Rome 罗马的地理 cit' && typed.focus, '手动搜索输入框能连续打字（键盘 + 输入法），焦点一直在输入框', typed);
+const goBtn = await inLayer((r) => { const b = [...r.querySelectorAll('[role="dialog"] button')].find((x) => x.textContent.trim() === '确认并搜索'); return b ? !b.disabled : null; });
+ok(goBtn === true, '打了字之后「确认并搜索」可以点', goBtn);
+await inLayer((r) => { const b = [...r.querySelectorAll('[role="dialog"] button')].find((x) => x.textContent.trim() === '取消'); b && b.click(); });
+await page.waitForTimeout(400);
+ok(!(await inLayer((r) => [...r.querySelectorAll('[role="dialog"]')].some((x) => x.textContent.includes('这次想查什么')))), '点「取消」关掉手动搜索窗口');
 await page.evaluate((v) => window.KamiToolbox.bridge().search.configure({ enabled: v }), s0);
 
 /* ⑤ 其他功能 */

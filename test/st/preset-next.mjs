@@ -137,6 +137,21 @@ if (cs && cs.ok) {
   await goTab(plain(cs.layerName));
   const has = await inLayer((r) => [...r.querySelectorAll('[data-k="setting-section"]')].some((x) => x.textContent.includes('自定义')));
   ok(has, '「' + plain(cs.layerName) + '」页有自定义文风');
+  /* 「新增」窗口里能连续打字（2026-11-25：跨 document 的模态焦点陷阱每打一个字就把焦点抢走） */
+  await inLayer((r) => { const sec = [...r.querySelectorAll('[data-k="setting-section"]')].find((x) => x.textContent.includes('自定义')); const b = sec && [...sec.querySelectorAll('button')].find((x) => x.textContent.trim() === '新增'); b && b.click(); });
+  await page.waitForTimeout(600);
+  await page.locator('kami-layer [data-k="dialog"][data-k-part="content"] input').first().click();
+  await page.keyboard.type('Test 文风', { delay: 40 });
+  await page.locator('kami-layer [data-k="dialog"][data-k-part="content"] textarea').first().click();
+  await page.keyboard.type('line one', { delay: 40 });
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText('第二行');
+  await page.waitForTimeout(300);
+  const ed = await inLayer((r) => { const d = r.querySelector('[data-k="dialog"][data-k-part="content"]'); const t = d && d.querySelector('textarea'); return { name: d && d.querySelector('input').value, body: t && t.value, focus: r.activeElement === t }; });
+  ok(ed.name === 'Test 文风' && ed.body === 'line one\n第二行' && ed.focus, '自定义文风「新增」窗口：名称与内容都能连续打字', ed);
+  await inLayer((r) => { const b = [...r.querySelectorAll('[data-k="dialog"][data-k-part="content"] button')].find((x) => x.textContent.trim() === '取消'); b && b.click(); });
+  await page.waitForTimeout(400);
+  ok(!(await inLayer((r) => !!r.querySelector('[data-k="dialog"][data-k-part="content"]'))), '点「取消」关掉窗口、什么都没加');
 }
 const a1 = await page.evaluate(auditInPage, null);
 ok(a1.failures.length === 0 && a1.checked > 10, '面板对比度：' + a1.checked + ' 处', a1.failures.slice(0, 3));
